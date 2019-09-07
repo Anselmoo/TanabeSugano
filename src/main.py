@@ -2,11 +2,9 @@
 import argparse
 
 import matplotlib.pylab as plt
+import matrices as ts
 import numpy as np
 from prettytable import PrettyTable
-import matrices as ts
-
-
 
 
 class main(object):
@@ -21,9 +19,9 @@ class main(object):
 		self.delta_B = self.e_range / self.B
 
 		self.spin_state = int(mode)
-		if self.spin_state == 4 or self.spin_state == 5 or self.spin_state == 6: self.size = 42
-		if self.spin_state == 3 or self.spin_state == 7: self.size = 19
-		self.result = np.zeros((self.size + 1, nroots))
+		if self.spin_state == 4 or self.spin_state == 5 or self.spin_state == 6: self._size = 42
+		if self.spin_state == 3 or self.spin_state == 7: self._size = 19
+		self.result = np.zeros((self._size + 1, nroots))
 
 	# self.result[0,:] = self.delta_B
 
@@ -32,7 +30,7 @@ class main(object):
 		fig_1 = plt.figure(1)
 
 		fig_1.canvas.set_window_title('Tanabe-Sugano-Diagram')
-		for i in range(self.size + 1):
+		for i in range(self._size + 1):
 			plt.plot(self.delta_B, self.result[i, :] / self.B, ls='--')
 		# plt.title( 'Tanabe-Sugano-Diagram' )
 		plt.ylabel('$E/B$')
@@ -40,7 +38,7 @@ class main(object):
 
 		fig_2 = plt.figure(2)
 		fig_2.canvas.set_window_title('DD excitations -Diagram')
-		for i in range(self.size + 1):
+		for i in range(self._size + 1):
 			plt.plot(self.e_range * 10., self.result[i, :], ls='--')
 		# plt.title( 'DD excitations -Diagram' )
 		plt.ylabel('$dd energy transfer (1/cm)$')
@@ -124,7 +122,7 @@ class main(object):
 
 	def ts_print(self, states, dq_ci=None):
 		count = 0
-		cut = np.zeros(self.size + 1, dtype=[('state', np.unicode_, 7), ('cm', int), ('eV', float)])
+		cut = np.zeros(self._size + 1, dtype=[('state', np.unicode_, 7), ('cm', int), ('eV', float)])
 		for irreducible in states.keys():
 			for energy in states[irreducible]:
 				cut['state'][count] = irreducible
