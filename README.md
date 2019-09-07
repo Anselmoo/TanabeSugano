@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/Anselmoo/TanabeSugano.svg?token=77iF1sqpzPpkXGuLWRs9&branch=master)](https://travis-ci.com/Anselmoo/TanabeSugano)
+
 # TanabeSugano
 A python-solver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d3-d8 transition metal ions.
 
