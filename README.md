@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.com/Anselmoo/TanabeSugano.svg?token=77iF1sqpzPpkXGuLWRs9&branch=master)](https://travis-ci.com/Anselmoo/TanabeSugano)
 
 # TanabeSugano
-A python-solver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d3-d8 transition metal ions.
+A python-based eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d<sup>3</sup>-d<sup>8</sup> transition metal ions:
 
 1.  On the Absorption Spectra of Complex Ions. I
     
@@ -23,4 +23,16 @@ A python-solver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the or
     *Journal of the Physical Society of Japan*, 11, 864-877 (1956)  
     **DOI:** 10.1143/JPSJ.11.864  
     https://journals.jps.jp/doi/10.1143/JPSJ.11.864
+    
+It provides:
 
+- Tanabe-Sugano- & Energy-Correlation-Diagrams plotted via `matplotlib`
+- Tanabe-Sugano- & Energy-Correlation-Diagrams exported as `txt`-file
+- Atomic-Termsymbols and their eigen-energies for a given 10Dq and oxidation state as exported table via `prettytable`
+- Set-up individuall **C/B**-ratios
+- Working with Slater-Condon-Parameters **F<sup>2</sup>, F<sup>4</sup>** instead of Racah-Parameters **B, C**
+
+The **TanabeSugano**-application can be installed and run:
+
+    python setup.py install
+    python -m tanabe
