@@ -1,7 +1,5 @@
 from setuptools import setup
 
-import os
-
 
 with open('requirements.txt') as f:
     required = f.read().splitlines()
@@ -9,11 +7,12 @@ with open('requirements.txt') as f:
 setup(
 	name='TanabeSugano',
 	version='0.5',
-	packages=['src'],
+	packages=['tanabe'],
 	install_requires=required,
 	url='',
 	license='MIT',
 	author='hahn',
 	author_email='Anselm.Hahn@gmail.com',
-	description='A python-solver for Tanabe-Sugano and energy-correlation diagrams'
+	description='A python-solver for Tanabe-Sugano and energy-correlation diagrams',
+	platforms=['MacOS :: MacOS X', 'Microsoft :: Windows','POSIX :: Linux']
 )
