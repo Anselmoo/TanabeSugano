@@ -2,7 +2,10 @@
 import argparse
 
 import matplotlib.pylab as plt
-import matrices as ts
+try:
+	from . import matrices as ts
+except:
+	import matrices as ts
 import numpy as np
 from prettytable import PrettyTable
 
