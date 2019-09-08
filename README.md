@@ -61,5 +61,5 @@ The options of the **TanabeSugano**-application are:
     -slater     Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)
 
 
-Reference-Example for d<sup>6</sup> for *B = 860 cm<sup>-</sup>* and *C = 3850 cm<sup>-</sup>*:  
+**Reference-Example** for d<sup>6</sup> for *B = 860 cm<sup>-</sup>* and *C = 3850 cm<sup>-</sup>*:  
 ![alt text-1](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/TanabeSugano-diagram4d6.png "title-1")
