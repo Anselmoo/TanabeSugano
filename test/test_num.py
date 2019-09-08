@@ -1,4 +1,4 @@
-from test_matrices import *
+from test import *
 
 def state_check(x):
     if x == 3:
