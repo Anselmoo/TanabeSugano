@@ -2,6 +2,7 @@
 import argparse
 
 import matplotlib.pylab as plt
+
 try:
 	from . import matrices as ts
 except:
@@ -10,13 +11,13 @@ import numpy as np
 from prettytable import PrettyTable
 
 
-class main(object):
+class CMDmain(object):
 	def __init__(self, Dq=4000., B=400., C=3600., nroots=100, mode=5, slater=False):
-		self.Dq = Dq
-		self.B = B
-		self.C = C
+		self.Dq = Dq  #Oh-crystalfield-splitting
+		self.B = B  # Racah-Parameter B in wavenumbers
+		self.C = C  # Racah-Parameter C in wavenumbers
 
-		if slater == True: self.B, self.C = self.racah(B, C)
+		if slater == True: self.B, self.C = self.racah(B, C)  # Transformin Racah to Slater-Condon
 		self.nroot = nroots
 		self.e_range = np.linspace(0., self.Dq, nroots)
 		self.delta_B = self.e_range / self.B
@@ -26,10 +27,10 @@ class main(object):
 		if self.spin_state == 3 or self.spin_state == 7: self._size = 19
 		self.result = np.zeros((self._size + 1, nroots))
 
-	# self.result[0,:] = self.delta_B
 
 	def plot(self):
 
+		# Figure one for classical Tanabe-Sugano-Diagram with B-dependency
 		fig_1 = plt.figure(1)
 
 		fig_1.canvas.set_window_title('Tanabe-Sugano-Diagram')
@@ -39,6 +40,7 @@ class main(object):
 		plt.ylabel('$E/B$')
 		plt.xlabel('$\Delta/B$')
 
+		# Figure one for Energy-Correlation-Diagram Dq-Energy versus State-Energy
 		fig_2 = plt.figure(2)
 		fig_2.canvas.set_window_title('DD excitations -Diagram')
 		for i in range(self._size + 1):
@@ -61,33 +63,32 @@ class main(object):
 
 	def calculation(self):
 		"""
-
-		Is filling the self.result with the TS states iterated of energy range
+		Is filling the self.result with the iTS states of over-iterated energy range
 		"""
 		for i, dq in enumerate(self.e_range):
 
-			if self.spin_state == 3:
+			if self.spin_state == 3:  # d3
 
 				states = ts.d3(Dq=dq, B=self.B, C=self.C).solver()
 				self.result[:, i] = np.concatenate(list(states.values()))
 
 
-			elif self.spin_state == 4:
+			elif self.spin_state == 4:  # d4
 
 				states = ts.d4(Dq=dq, B=self.B, C=self.C).solver()
 				self.result[:, i] = np.concatenate(list(states.values()))
 
-			elif self.spin_state == 5:
+			elif self.spin_state == 5:  # d5
 				states = ts.d5(Dq=dq, B=self.B, C=self.C).solver()
 				self.result[:, i] = np.concatenate(list(states.values()))
 
 
-			elif self.spin_state == 6:
+			elif self.spin_state == 6:  # d6
 
 				states = ts.d6(Dq=dq, B=self.B, C=self.C).solver()
 				self.result[:, i] = np.concatenate(list(states.values()))
 
-			elif self.spin_state == 7:
+			elif self.spin_state == 7:  # d7
 
 				states = ts.d7(Dq=dq, B=self.B, C=self.C).solver()
 				self.result[:, i] = np.concatenate(list(states.values()))
@@ -97,33 +98,55 @@ class main(object):
 				print('not a correct value!')
 
 	def ci_cut(self, dq_ci=None):
-
-		if self.spin_state == 3:
+		"""
+		Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
+		"""
+		if self.spin_state == 3:  # d3
 
 			states = ts.d3(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
 			self.ts_print(states, dq_ci=dq_ci)
 
-		elif self.spin_state == 4:
+		elif self.spin_state == 4:  # d4
 
 			states = ts.d4(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
 			self.ts_print(states, dq_ci=dq_ci)
 
-		elif self.spin_state == 5:
+		elif self.spin_state == 5:  # d5
 
 			states = ts.d5(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
 			self.ts_print(states, dq_ci=dq_ci)
 
-		elif self.spin_state == 6:
+		elif self.spin_state == 6:  # d6
 
 			states = ts.d6(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
 			self.ts_print(states, dq_ci=dq_ci)
 
-		elif self.spin_state == 7:
+		elif self.spin_state == 7:  # d7
 
 			states = ts.d7(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
 			self.ts_print(states, dq_ci=dq_ci)
 
 	def ts_print(self, states, dq_ci=None):
+		"""
+
+		:parameter
+		---------
+
+		states: str-list
+			List of atomic-termsymbols for a specific oxidation state
+		dq_ci: float (optional)
+			Specific crystalfield-splitting in Dq
+
+		:action:
+		-------
+
+		Table: str
+			Print the state-energies and their atomic-termsymbols on the screen
+
+		txt-file: ascii
+			Save the state-energies and their atomic-termsymbols as txt-file
+
+		"""
 		count = 0
 		cut = np.zeros(self._size + 1, dtype=[('state', np.unicode_, 7), ('cm', int), ('eV', float)])
 		for irreducible in states.keys():
@@ -150,40 +173,56 @@ class main(object):
 		np.savetxt(title, results.T, delimiter='\t', header='state\tcm\teV', fmt='%s\t%i\t%.4f')
 
 	def racah(self, F2, F4):
+		"""
+		Re-calculating and normalization of the Slater-Condon-Parameter to Racah-Parameter
+		eV will be converted to wavenumbers
+		:parameter
+		---------
+
+		F2: float
+			Slater-Condon-Parameter
+		F4: float
+			Slater-Condon-Parameter
+
+		:returns
+		-------
+
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+		"""
 		eVcm = 8065.54
 		B = eVcm * (F2 / 49. - 5 / 441. * F4)
 		C = eVcm * (35 / 441. * F4)
 		return B, C
 
 
-# 'T_3_1': T_3_1, 'T_1_2': T_1_2, 'A_1_1': A_1_1, 'E_1_1': E_1_1, 'T_3_2': T_3_2, 'T_1_1': T_1_1
-# 'E_3_1': E_3_1, 'A_3_2': A_3_2, 'A_1_2': A_1_2, 'E_5_1': E_5_1, 'T_5_2': T_5_2, 'A_3_1': A_3_1
-
 if __name__ == '__main__':
+	description = "A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams " \
+	               "based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* " \
+	               "for d<sup>3</sup>-d<sup>8</sup> transition metal ions:\n" \
+	               "For futher help, please use tanabe '--help'"
 
-	parser = argparse.ArgumentParser(description='Tanabe-Sugano matrices solver')
-	parser.add_argument("-d", type=int, default=6,
-	                    help="Number of unpaired electrons (default d5)")
-	parser.add_argument("-Dq", type=float, default=25065.,
-	                    help="10Dq crystal field splitting (default 10Dq = 8065 cm-)")
-	parser.add_argument("-cut", type=float, default=24000,
-	                    help="10Dq crystal field splitting (default 10Dq = 8065 cm-)")
-	parser.add_argument("-B", type=float, nargs=2, default=[1080., 1.],
-	                    help="Racah Parameter B and the corresponding reduction (default B = 860 cm- * 1.)")
-	parser.add_argument('-C', type=float, nargs=2, default=[4773., 1.],
-	                    help="Racah Parameter C and the corresponding reduction (default C= 4.477*860 cm- * 1.)")
-	parser.add_argument("-n", type=int, default=500,
-	                    help="Number of roots (default nroots=500)")
-	parser.add_argument("-ndisp", action="store_true", default=False,
-	                    help="Plot TS-diagram (default = on)")
-	parser.add_argument("-ntxt", action="store_true", default=False,
-	                    help="Save TS-diagram and dd energies (default = on)")
-	parser.add_argument("-slater", action="store_true", default=False,
-	                    help="Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)")
+	parser = argparse.ArgumentParser(description=description)
+	parser.add_argument("-d", type=int, default=6, help="Number of unpaired electrons (default d5)")
+	parser.add_argument("-Dq", type=float, default=25065., help="10Dq crystal field splitting (default 10Dq = 8065 cm-)")
+	parser.add_argument("-cut", type=float, default=24000, help="10Dq crystal field splitting (default 10Dq = 8065 cm-)")
+	parser.add_argument("-B", type=float, nargs=2, default=[1080., 1.], help="Racah Parameter B and the corresponding "
+	                                                                         "reduction (default B = 860 cm- * 1.)")
+	parser.add_argument('-C', type=float, nargs=2, default=[4773., 1.], help="Racah Parameter C and the corresponding "
+	                                                                         "reduction (default C= 4.477*860 cm- * "
+	                                                                         "1.)")
+	parser.add_argument("-n", type=int, default=500, help="Number of roots (default nroots=500)")
+	parser.add_argument("-ndisp", action="store_true", default=False, help="Plot TS-diagram (default = on)")
+	parser.add_argument("-ntxt", action="store_true", default=False, help="Save TS-diagram and dd energies (default = on)")
+	parser.add_argument("-slater", action="store_true", default=False, help="Using Slater-Condon F2,F4 parameter "
+	                                                                        "instead Racah-Parameter B,C (default = "
+	                                                                        "off)")
 	args = parser.parse_args()
 
-	tmm = main(Dq=args.Dq / 10., B=args.B[0] * args.B[1], C=args.C[0] * args.C[1], nroots=args.n, mode=args.d,
-	           slater=args.slater)
+	tmm = CMDmain(Dq=args.Dq / 10., B=args.B[0] * args.B[1], C=args.C[0] * args.C[1], nroots=args.n, mode=args.d,
+	              slater=args.slater)
 	tmm.calculation()
 
 	if args.ndisp != True: tmm.plot()
