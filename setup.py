@@ -7,7 +7,7 @@ with open('requirements.txt') as f:
 setup(
 	name='TanabeSugano',
 	version='0.5',
-	packages=['tanabe'],
+	packages=['tanabe','test'],
 	install_requires=required,
 	url='',
 	license='MIT',

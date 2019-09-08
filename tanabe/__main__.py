@@ -46,8 +46,8 @@ class CMDmain(object):
 		for i in range(self._size + 1):
 			plt.plot(self.e_range * 10., self.result[i, :], ls='--')
 		# plt.title( 'DD excitations -Diagram' )
-		plt.ylabel('$dd energy transfer (1/cm)$')
-		plt.xlabel('$10Dq (1/cm)$')
+		plt.ylabel('$dd-state-energy\,(1/cm)$')
+		plt.xlabel('$10Dq\,(1/cm)$')
 
 		plt.show()
 
@@ -201,7 +201,7 @@ class CMDmain(object):
 if __name__ == '__main__':
 	description = "A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams " \
 	              "based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* " \
-	              "for d<sup>3</sup>-d<sup>8</sup> transition metal ions:\n" \
+	              "for d3-d8 transition metal ions:\n" \
 	              "For futher help, please use tanabe '--help'"
 
 	parser = argparse.ArgumentParser(description=description)
@@ -213,9 +213,9 @@ if __name__ == '__main__':
 	parser.add_argument("-B", type=float, nargs=2, default=[1080., 1.], help="Racah Parameter B and the corresponding "
 	                                                                         "reduction (default B = 860 cm- * 1.)")
 	parser.add_argument('-C', type=float, nargs=2, default=[4773., 1.], help="Racah Parameter C and the corresponding "
-	                                                                         "reduction (default C= 4.477*860 cm- * "
+	                                                                         "reduction (default C = 4.477*860 cm- * "
 	                                                                         "1.)")
-	parser.add_argument("-n", type=int, default=500, help="Number of roots (default nroots=500)")
+	parser.add_argument("-n", type=int, default=500, help="Number of roots (default nroots = 500)")
 	parser.add_argument("-ndisp", action="store_true", default=False, help="Plot TS-diagram (default = on)")
 	parser.add_argument("-ntxt", action="store_true", default=False,
 	                    help="Save TS-diagram and dd energies (default = on)")
