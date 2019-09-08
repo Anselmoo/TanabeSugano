@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.com/Anselmoo/TanabeSugano.svg?token=77iF1sqpzPpkXGuLWRs9&branch=master)](https://travis-ci.com/Anselmoo/TanabeSugano)
 [![CodeFactor](https://www.codefactor.io/repository/github/anselmoo/tanabesugano/badge)](https://www.codefactor.io/repository/github/anselmoo/tanabesugano)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3402464.svg)](https://doi.org/10.5281/zenodo.3402464)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)
 
 
 # TanabeSugano
