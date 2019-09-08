@@ -2,7 +2,7 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/anselmoo/tanabesugano/badge)](https://www.codefactor.io/repository/github/anselmoo/tanabesugano)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3402486.svg)](https://doi.org/10.5281/zenodo.3402486)
 ![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)
-![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/Anselmoo/TanabeSugano?include_prereleases)
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/Anselmoo/TanabeSugano?include_prereleases)](https://github.com/Anselmoo/TanabeSugano/releases)
 
 
 
