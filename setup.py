@@ -1,6 +1,6 @@
 from setuptools import setup
 
-__authors__ = ['hahn']
+__authors__ = ['Anselm W. Hahn']
 __license__ = 'MIT'
 __date__ = '08/09/2019'
 
