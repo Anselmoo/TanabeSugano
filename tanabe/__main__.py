@@ -1,15 +1,10 @@
 #!/usr/bin/env python
 import argparse
-
 import matplotlib.pylab as plt
-
-try:
-	from . import matrices as ts
-except:
-	import matrices as ts
 import numpy as np
-from prettytable import PrettyTable
 
+from prettytable import PrettyTable
+from tanabe import *
 
 class CMDmain(object):
 	def __init__(self, Dq=4000., B=400., C=3600., nroots=100, mode=5, slater=False):
@@ -17,14 +12,18 @@ class CMDmain(object):
 		self.B = B  # Racah-Parameter B in wavenumbers
 		self.C = C  # Racah-Parameter C in wavenumbers
 
-		if slater == True: self.B, self.C = self.racah(B, C)  # Transformin Racah to Slater-Condon
+		if slater == True:
+			# Transformin Racah to Slater-Condon
+			self.B, self.C = self.racah(B, C)
 		self.nroot = nroots
 		self.e_range = np.linspace(0., self.Dq, nroots)
 		self.delta_B = self.e_range / self.B
 
 		self.spin_state = int(mode)
-		if self.spin_state == 4 or self.spin_state == 5 or self.spin_state == 6: self._size = 42
-		if self.spin_state == 3 or self.spin_state == 7: self._size = 19
+		if self.spin_state == 4 or self.spin_state == 5 or self.spin_state == 6:
+			self._size = 42
+		if self.spin_state == 3 or self.spin_state == 7:
+			self._size = 19
 		self.result = np.zeros((self._size + 1, nroots))
 
 
@@ -225,6 +224,9 @@ if __name__ == '__main__':
 	              slater=args.slater)
 	tmm.calculation()
 
-	if args.ndisp != True: tmm.plot()
-	if args.ntxt != True: tmm.savetxt()
-	if args.cut != None: tmm.ci_cut(dq_ci=args.cut)
+	if args.ndisp != True:
+		tmm.plot()
+	if args.ntxt != True:
+		tmm.savetxt()
+	if args.cut != None:
+		tmm.ci_cut(dq_ci=args.cut)
