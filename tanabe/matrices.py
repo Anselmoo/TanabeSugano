@@ -19,13 +19,26 @@ hallo = 'hallo'
 class d3(object):
 	def __init__(self, Dq=0., B=918., C=4133.):
 		"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
 
-				:param self:
-				:param Dq:
-				:param B:
-				:param C:
-				:return:
-				"""
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+
+		:returns
+		-------
+
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+
+		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
 		self.C = np.float64(C)
@@ -1476,7 +1489,3 @@ if __name__ == '__main__':
 		plt.plot(i, states[0], 'v', color='b')
 	plt.show()
 
-# states = d6(Dq=17940/10.,B=840,C=840*4.47)
-# print(states.solver()['5_T_2'])
-# print( states.solver( )[ '3_T_2' ] )
-# print( states.solver( )[ '3_T_1' ] )

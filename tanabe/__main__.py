@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import argparse
+
 import matplotlib.pylab as plt
 import numpy as np
-
 from prettytable import PrettyTable
+
 from tanabe import *
 
 
@@ -227,9 +228,9 @@ if __name__ == '__main__':
 	              slater=args.slater)
 	tmm.calculation()
 
-	if args.ndisp != True:
+	if args.ndisp is not True:
 		tmm.plot()
-	if args.ntxt != True:
+	if args.ntxt is not True:
 		tmm.savetxt()
-	if args.cut != None:
+	if args.cut is not None:
 		tmm.ci_cut(dq_ci=args.cut)
