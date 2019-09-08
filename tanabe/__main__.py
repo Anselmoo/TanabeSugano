@@ -6,13 +6,14 @@ import numpy as np
 from prettytable import PrettyTable
 from tanabe import *
 
+
 class CMDmain(object):
 	def __init__(self, Dq=4000., B=400., C=3600., nroots=100, mode=5, slater=False):
-		self.Dq = Dq  #Oh-crystalfield-splitting
+		self.Dq = Dq  # Oh-crystalfield-splitting
 		self.B = B  # Racah-Parameter B in wavenumbers
 		self.C = C  # Racah-Parameter C in wavenumbers
 
-		if slater == True:
+		if slater:
 			# Transformin Racah to Slater-Condon
 			self.B, self.C = self.racah(B, C)
 		self.nroot = nroots
@@ -25,7 +26,6 @@ class CMDmain(object):
 		if self.spin_state == 3 or self.spin_state == 7:
 			self._size = 19
 		self.result = np.zeros((self._size + 1, nroots))
-
 
 	def plot(self):
 
@@ -199,14 +199,16 @@ class CMDmain(object):
 
 if __name__ == '__main__':
 	description = "A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams " \
-	               "based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* " \
-	               "for d<sup>3</sup>-d<sup>8</sup> transition metal ions:\n" \
-	               "For futher help, please use tanabe '--help'"
+	              "based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* " \
+	              "for d<sup>3</sup>-d<sup>8</sup> transition metal ions:\n" \
+	              "For futher help, please use tanabe '--help'"
 
 	parser = argparse.ArgumentParser(description=description)
 	parser.add_argument("-d", type=int, default=6, help="Number of unpaired electrons (default d5)")
-	parser.add_argument("-Dq", type=float, default=25065., help="10Dq crystal field splitting (default 10Dq = 8065 cm-)")
-	parser.add_argument("-cut", type=float, default=24000, help="10Dq crystal field splitting (default 10Dq = 8065 cm-)")
+	parser.add_argument("-Dq", type=float, default=25065.,
+	                    help="10Dq crystal field splitting (default 10Dq = 8065 cm-)")
+	parser.add_argument("-cut", type=float, default=24000,
+	                    help="10Dq crystal field splitting (default 10Dq = 8065 cm-)")
 	parser.add_argument("-B", type=float, nargs=2, default=[1080., 1.], help="Racah Parameter B and the corresponding "
 	                                                                         "reduction (default B = 860 cm- * 1.)")
 	parser.add_argument('-C', type=float, nargs=2, default=[4773., 1.], help="Racah Parameter C and the corresponding "
@@ -214,7 +216,8 @@ if __name__ == '__main__':
 	                                                                         "1.)")
 	parser.add_argument("-n", type=int, default=500, help="Number of roots (default nroots=500)")
 	parser.add_argument("-ndisp", action="store_true", default=False, help="Plot TS-diagram (default = on)")
-	parser.add_argument("-ntxt", action="store_true", default=False, help="Save TS-diagram and dd energies (default = on)")
+	parser.add_argument("-ntxt", action="store_true", default=False,
+	                    help="Save TS-diagram and dd energies (default = on)")
 	parser.add_argument("-slater", action="store_true", default=False, help="Using Slater-Condon F2,F4 parameter "
 	                                                                        "instead Racah-Parameter B,C (default = "
 	                                                                        "off)")
