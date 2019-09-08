@@ -37,3 +37,22 @@ The **TanabeSugano**-application can be installed and run:
 
     python setup.py install
     python -m tanabe
+    
+The options of the **TanabeSugano**-application are:
+
+    python -m tanabe --help
+    
+    usage: __main__.py [-h] [-d D] [-Dq DQ] [-cut CUT] [-B B B] [-C C C] [-n N]
+                   [-ndisp] [-ntxt] [-slater]
+
+    optional arguments:
+    -h, --help  show this help message and exit
+    -d D        Number of unpaired electrons (default d5)
+    -Dq DQ      10Dq crystal field splitting (default 10Dq = 8065 cm-)
+    -cut CUT    10Dq crystal field splitting (default 10Dq = 8065 cm-)
+    -B B B      Racah Parameter B and the corresponding reduction (default B = 860 cm- * 1.)
+    -C C C      Racah Parameter C and the corresponding reduction (default C = 4.477*860 cm- * 1.)
+    -n N        Number of roots (default nroots = 500)
+    -ndisp      Plot TS-diagram (default = on)
+    -ntxt       Save TS-diagram and dd energies (default = on)
+    -slater     Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)
