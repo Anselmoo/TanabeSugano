@@ -1488,4 +1488,3 @@ if __name__ == '__main__':
 		# plt.plot( en_step, states, 'v', color='b' )
 		plt.plot(i, states[0], 'v', color='b')
 	plt.show()
-
