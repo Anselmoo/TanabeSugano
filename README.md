@@ -58,3 +58,9 @@ The options of the **TanabeSugano**-application are:
     -ndisp      Plot TS-diagram (default = on)
     -ntxt       Save TS-diagram and dd energies (default = on)
     -slater     Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)
+
+
+Reference-example for d<sup>6<\sup>: 
+![alt text][logo]
+
+[logo]: 
