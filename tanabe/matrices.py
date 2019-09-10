@@ -46,34 +46,34 @@ class d3(object):
 	def T_2_2_states(self):
 		# -  diagonal elements
 
-		AA = -12 * self.Dq + 5 * self.C
-		BB = - 2 * self.Dq - 6 * self.B + 3 * self.C
-		CC = - 2 * self.Dq + 4 * self.B + 3 * self.C
-		DD = + 8 * self.Dq + 6 * self.B + 5 * self.C
-		EE = + 8 * self.Dq - 2 * self.B + 3 * self.C
+		aa = -12 * self.Dq + 5 * self.C
+		bb = - 2 * self.Dq - 6 * self.B + 3 * self.C
+		cc = - 2 * self.Dq + 4 * self.B + 3 * self.C
+		dd = + 8 * self.Dq + 6 * self.B + 5 * self.C
+		ee = + 8 * self.Dq - 2 * self.B + 3 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - _3sqrt3 * self.B
-		AC = CA = - 5 * _sqrt3 * self.B
-		AD = DA = 4 * self.B + 2 * self.C
-		AE = EA = 2 * self.B
+		ab = ba = - _3sqrt3 * self.B
+		ac = ca = - 5 * _sqrt3 * self.B
+		ad = da = 4 * self.B + 2 * self.C
+		ae = ea = 2 * self.B
 
-		BC = CB = 3 * self.B
-		BD = DB = - _3sqrt3 * self.B
-		BE = EB = - _3sqrt3 * self.B
+		bc = cb = 3 * self.B
+		bd = db = - _3sqrt3 * self.B
+		be = eb = - _3sqrt3 * self.B
 
-		CD = DC = -_sqrt3 * self.B
-		CE = EC = +_sqrt3 * self.B
+		cd = dc = -_sqrt3 * self.B
+		ce = ec = +_sqrt3 * self.B
 
-		DE = ED = 10 * self.B
+		de = ed = 10 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -81,34 +81,34 @@ class d3(object):
 	def T_2_1_states(self):
 		# -  diagonal elements
 
-		AA = -12 * self.Dq - 6 * self.B + 3 * self.C
-		BB = - 2 * self.Dq + 3 * self.C
-		CC = - 2 * self.Dq - 6 * self.B + 3 * self.C
-		DD = + 8 * self.Dq - 6 * self.B + 3 * self.C
-		EE = + 8 * self.Dq - 2 * self.B + 3 * self.C
+		aa = -12 * self.Dq - 6 * self.B + 3 * self.C
+		bb = - 2 * self.Dq + 3 * self.C
+		cc = - 2 * self.Dq - 6 * self.B + 3 * self.C
+		dd = + 8 * self.Dq - 6 * self.B + 3 * self.C
+		ee = + 8 * self.Dq - 2 * self.B + 3 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 3 * self.B
-		AC = CA = + 3 * self.B
-		AD = DA = 0.
-		AE = EA = - _2sqrt3 * self.B
+		ab = ba = - 3 * self.B
+		ac = ca = + 3 * self.B
+		ad = da = 0.
+		ae = ea = - _2sqrt3 * self.B
 
-		BC = CB = - 3 * self.B
-		BD = DB = + 3 * self.B
-		BE = EB = _3sqrt3 * self.B
+		bc = cb = - 3 * self.B
+		bd = db = + 3 * self.B
+		be = eb = _3sqrt3 * self.B
 
-		CD = DC = - 3 * self.B
-		CE = EC = - _sqrt3 * self.B
+		cd = dc = - 3 * self.B
+		ce = ec = - _sqrt3 * self.B
 
-		DE = ED = _2sqrt3 * self.B
+		de = ed = _2sqrt3 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -116,27 +116,27 @@ class d3(object):
 	def E_2_states(self):
 		# -  diagonal elements
 
-		AA = -12 * self.Dq - 6 * self.B + 3 * self.C
-		BB = - 2 * self.Dq + 8 * self.B + 6 * self.C
-		CC = - 2 * self.Dq - 1 * self.B + 3 * self.C
-		DD = +18 * self.Dq - 8 * self.B + 4 * self.C
+		aa = -12 * self.Dq - 6 * self.B + 3 * self.C
+		bb = - 2 * self.Dq + 8 * self.B + 6 * self.C
+		cc = - 2 * self.Dq - 1 * self.B + 3 * self.C
+		dd = +18 * self.Dq - 8 * self.B + 4 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 6 * _sqrt2 * self.B
-		AC = CA = - _3sqrt2 * self.B
-		AD = DA = 0.
+		ab = ba = - 6 * _sqrt2 * self.B
+		ac = ca = - _3sqrt2 * self.B
+		ad = da = 0.
 
-		BC = CB = 10 * self.B
-		BD = DB = + _sqrt3 * (2 * self.B + self.C)
+		bc = cb = 10 * self.B
+		bd = db = + _sqrt3 * (2 * self.B + self.C)
 
-		CD = DC = _2sqrt3 * self.B
+		cd = dc = _2sqrt3 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD],
-			[BA, BB, BC, BD],
-			[CA, CB, CC, CD],
-			[DA, DB, DC, DD]
+			[aa, ab, ac, ad],
+			[ba, bb, bc, bd],
+			[ca, cb, cc, cd],
+			[da, db, dc, dd]
 		])
 
 		return self.eigensolver(states)
@@ -144,16 +144,16 @@ class d3(object):
 	def T_4_1_states(self):
 		# -  diagonal elements
 
-		AA = - 2 * self.Dq - 3 * self.B
-		BB = + 8 * self.Dq - 12 * self.B
+		aa = - 2 * self.Dq - 3 * self.B
+		bb = + 8 * self.Dq - 12 * self.B
 
 		# non diagonal elements
 
-		AB = BA = 6 * self.B
+		ab = ba = 6 * self.B
 
 		states = np.array([
-			[AA, AB],
-			[BA, BB]
+			[aa, ab],
+			[ba, bb]
 		])
 
 		return self.eigensolver(states)
@@ -193,13 +193,26 @@ class d3(object):
 class d4(object):
 	def __init__(self, Dq=0., B=1182., C=4362.):
 		"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
 
-				:param self:
-				:param Dq:
-				:param B:
-				:param C:
-				:return:
-				"""
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+
+		:returns
+		-------
+
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+
+		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
 		self.C = np.float64(C)
@@ -207,51 +220,51 @@ class d4(object):
 	def T_3_1_states(self):
 		# -  diagonal elements
 
-		AA = -16 * self.Dq - 15 * self.B + 5 * self.C
-		BB = - 6 * self.Dq - 11 * self.B + 4 * self.C
-		CC = - 6 * self.Dq - 3 * self.B + 6 * self.C
-		DD = 4 * self.Dq - self.B + 6 * self.C
-		EE = 4 * self.Dq - 9 * self.B + 4 * self.C
-		FF = 4 * self.Dq - 11 * self.B + 4 * self.C
-		GG = 14 * self.Dq - 16 * self.B + 5 * self.C
+		aa = -16 * self.Dq - 15 * self.B + 5 * self.C
+		bb = - 6 * self.Dq - 11 * self.B + 4 * self.C
+		cc = - 6 * self.Dq - 3 * self.B + 6 * self.C
+		dd = 4 * self.Dq - self.B + 6 * self.C
+		ee = 4 * self.Dq - 9 * self.B + 4 * self.C
+		ff = 4 * self.Dq - 11 * self.B + 4 * self.C
+		gg = 14 * self.Dq - 16 * self.B + 5 * self.C
 
 		# non diagonal elements
 
-		AB = BA = _sqrt6 * self.B
-		AC = CA = _3sqrt2 * self.B
-		AD = DA = - _sqrt2 * (2 * self.B + self.C)
-		AE = EA = _2sqrt2 * self.B
-		AF = FA = 0.
-		AG = GA = 0.
+		ab = ba = _sqrt6 * self.B
+		ac = ca = _3sqrt2 * self.B
+		ad = da = - _sqrt2 * (2 * self.B + self.C)
+		ae = ea = _2sqrt2 * self.B
+		af = fa = 0.
+		ag = ga = 0.
 
-		BC = CB = 5 * _sqrt3 * self.B
-		BD = DB = _sqrt3 * self.B
-		BE = EB = -_sqrt3 * self.B
-		BF = FB = 3 * self.B
-		BG = GB = _sqrt6 * self.B
+		bc = cb = 5 * _sqrt3 * self.B
+		bd = db = _sqrt3 * self.B
+		be = eb = -_sqrt3 * self.B
+		bf = fb = 3 * self.B
+		bg = gb = _sqrt6 * self.B
 
-		CD = DC = -3 * self.B
-		CE = EC = -3 * self.B
-		CF = FC = 5 * _sqrt3 * self.B
-		CG = GC = _sqrt2 * (self.B + self.C)
+		cd = dc = -3 * self.B
+		ce = ec = -3 * self.B
+		cf = fc = 5 * _sqrt3 * self.B
+		cg = gc = _sqrt2 * (self.B + self.C)
 
-		DE = ED = -10 * self.B
-		DF = FD = 0.
-		DG = GD = _3sqrt2 * self.B
+		de = ed = -10 * self.B
+		df = fd = 0.
+		dg = gd = _3sqrt2 * self.B
 
-		EF = FE = - 2 * _sqrt3 * self.B
-		EG = GE = - _3sqrt2 * self.B
+		ef = fe = - 2 * _sqrt3 * self.B
+		eg = ge = - _3sqrt2 * self.B
 
-		FG = GF = _sqrt6 * self.B
+		fg = gf = _sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE, AF, AG],
-			[BA, BB, BC, BD, BE, BF, BG],
-			[CA, CB, CC, CD, CE, CF, CG],
-			[DA, DB, DC, DD, DE, DF, DG],
-			[EA, EB, EC, ED, EE, EF, EG],
-			[FA, FB, FC, FD, FE, FF, FG],
-			[GA, GB, GC, GD, GE, GF, GG]
+			[aa, ab, ac, ad, ae, af, ag],
+			[ba, bb, bc, bd, be, bf, bg],
+			[ca, cb, cc, cd, ce, cf, cg],
+			[da, db, dc, dd, de, df, dg],
+			[ea, eb, ec, ed, ee, ef, eg],
+			[fa, fb, fc, fd, fe, ff, fg],
+			[ga, gb, gc, gd, ge, gf, gg]
 		])
 
 		return self.eigensolver(states)
@@ -259,51 +272,51 @@ class d4(object):
 	def T_1_2_states(self):
 		# diagonal elements
 
-		AA = -16 * self.Dq - 9 * self.B + 7 * self.C
-		BB = - 6 * self.Dq - 9 * self.B + 6 * self.C
-		CC = - 6 * self.Dq + 3 * self.B + 8 * self.C
-		DD = 4 * self.Dq - 9 * self.B + 6 * self.C
-		EE = 4 * self.Dq - 3 * self.B + 6 * self.C
-		FF = 4 * self.Dq + 5 * self.B + 8 * self.C
-		GG = 14 * self.Dq + 7 * self.C
+		aa = -16 * self.Dq - 9 * self.B + 7 * self.C
+		bb = - 6 * self.Dq - 9 * self.B + 6 * self.C
+		cc = - 6 * self.Dq + 3 * self.B + 8 * self.C
+		dd = 4 * self.Dq - 9 * self.B + 6 * self.C
+		ee = 4 * self.Dq - 3 * self.B + 6 * self.C
+		ff = 4 * self.Dq + 5 * self.B + 8 * self.C
+		gg = 14 * self.Dq + 7 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - _3sqrt2 * self.B
-		AC = CA = 5 * _sqrt6 * self.B
-		AD = DA = 0.
-		AE = EA = _2sqrt2 * self.B
-		AF = FA = - _sqrt2 * (2 * self.B + self.C)
-		AG = GA = 0.
+		ab = ba = - _3sqrt2 * self.B
+		ac = ca = 5 * _sqrt6 * self.B
+		ad = da = 0.
+		ae = ea = _2sqrt2 * self.B
+		af = fa = - _sqrt2 * (2 * self.B + self.C)
+		ag = ga = 0.
 
-		BC = CB = -5 * _sqrt3 * self.B
-		BD = DB = 3 * self.B
-		BE = EB = -3 * self.B
-		BF = FB = -3 * self.B
-		BG = GB = -_sqrt6 * self.B
+		bc = cb = -5 * _sqrt3 * self.B
+		bd = db = 3 * self.B
+		be = eb = -3 * self.B
+		bf = fb = -3 * self.B
+		bg = gb = -_sqrt6 * self.B
 
-		CD = DC = -3 * _sqrt3 * self.B
-		CE = EC = 5 * _sqrt3 * self.B
-		CF = FC = -5 * _sqrt3 * self.B
-		CG = GC = _sqrt2 * (3 * self.B + self.C)
+		cd = dc = -3 * _sqrt3 * self.B
+		ce = ec = 5 * _sqrt3 * self.B
+		cf = fc = -5 * _sqrt3 * self.B
+		cg = gc = _sqrt2 * (3 * self.B + self.C)
 
-		DE = ED = -6 * self.B
-		DF = FD = 0.
-		DG = GD = - _3sqrt6 * self.B
+		de = ed = -6 * self.B
+		df = fd = 0.
+		dg = gd = - _3sqrt6 * self.B
 
-		EF = FE = - 10 * self.B
-		EG = GE = _sqrt6 * self.B
+		ef = fe = - 10 * self.B
+		eg = ge = _sqrt6 * self.B
 
-		FG = GF = _sqrt6 * self.B
+		fg = gf = _sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE, AF, AG],
-			[BA, BB, BC, BD, BE, BF, BG],
-			[CA, CB, CC, CD, CE, CF, CG],
-			[DA, DB, DC, DD, DE, DF, DG],
-			[EA, EB, EC, ED, EE, EF, EG],
-			[FA, FB, FC, FD, FE, FF, FG],
-			[GA, GB, GC, GD, GE, GF, GG]
+			[aa, ab, ac, ad, ae, af, ag],
+			[ba, bb, bc, bd, be, bf, bg],
+			[ca, cb, cc, cd, ce, cf, cg],
+			[da, db, dc, dd, de, df, dg],
+			[ea, eb, ec, ed, ee, ef, eg],
+			[fa, fb, fc, fd, fe, ff, fg],
+			[ga, gb, gc, gd, ge, gf, gg]
 		])
 
 		return self.eigensolver(states)
@@ -311,34 +324,34 @@ class d4(object):
 	def A_1_1_states(self):
 		# diagonal elements
 
-		AA = -16 * self.Dq + 10 * self.C
-		BB = - 6 * self.Dq + 6 * self.C
-		CC = 4 * self.Dq + 14 * self.B + 11 * self.C
-		DD = 4 * self.Dq - 3 * self.B + 6 * self.C
-		EE = 24 * self.Dq - 16 * self.B + 8 * self.C
+		aa = -16 * self.Dq + 10 * self.C
+		bb = - 6 * self.Dq + 6 * self.C
+		cc = 4 * self.Dq + 14 * self.B + 11 * self.C
+		dd = 4 * self.Dq - 3 * self.B + 6 * self.C
+		ee = 24 * self.Dq - 16 * self.B + 8 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 12 * _sqrt2 * self.B
-		AC = CA = _sqrt2 * (4 * self.B + 2 * self.C)
-		AD = DA = _2sqrt2 * self.B
-		AE = EA = 0.
+		ab = ba = - 12 * _sqrt2 * self.B
+		ac = ca = _sqrt2 * (4 * self.B + 2 * self.C)
+		ad = da = _2sqrt2 * self.B
+		ae = ea = 0.
 
-		BC = CB = -12 * self.B
-		BD = DB = -6 * self.B
-		BE = EB = 0.
+		bc = cb = -12 * self.B
+		bd = db = -6 * self.B
+		be = eb = 0.
 
-		CD = DC = 20 * self.B
-		CE = EC = _sqrt6 * (2 * self.B + self.C)
+		cd = dc = 20 * self.B
+		ce = ec = _sqrt6 * (2 * self.B + self.C)
 
-		DE = ED = 2 * _sqrt6 * self.B
+		de = ed = 2 * _sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -346,34 +359,34 @@ class d4(object):
 	def E_1_1_states(self):
 		# diagonal elements
 
-		AA = -16 * self.Dq - 9 * self.B + 7 * self.C
-		BB = - 6 * self.Dq - 6 * self.B + 6 * self.C
-		CC = 4 * self.Dq + 5 * self.B + 8 * self.C
-		DD = 4 * self.Dq + 6 * self.B + 9 * self.C
-		EE = 4 * self.Dq - 3 * self.B + 6 * self.C
+		aa = -16 * self.Dq - 9 * self.B + 7 * self.C
+		bb = - 6 * self.Dq - 6 * self.B + 6 * self.C
+		cc = 4 * self.Dq + 5 * self.B + 8 * self.C
+		dd = 4 * self.Dq + 6 * self.B + 9 * self.C
+		ee = 4 * self.Dq - 3 * self.B + 6 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 6 * self.B
-		AC = CA = _sqrt2 * (2 * self.B + self.C)
-		AD = DA = 2 * self.B
-		AE = EA = 4 * self.B
+		ab = ba = - 6 * self.B
+		ac = ca = _sqrt2 * (2 * self.B + self.C)
+		ad = da = 2 * self.B
+		ae = ea = 4 * self.B
 
-		BC = CB = -_3sqrt2 * self.B
-		BD = DB = -12 * self.B
-		BE = EB = 0.
+		bc = cb = -_3sqrt2 * self.B
+		bd = db = -12 * self.B
+		be = eb = 0.
 
-		CD = DC = 10 * _sqrt2 * self.B
-		CE = EC = -10 * _sqrt2 * self.B
+		cd = dc = 10 * _sqrt2 * self.B
+		ce = ec = -10 * _sqrt2 * self.B
 
-		DE = ED = 0.
+		de = ed = 0.
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -381,34 +394,34 @@ class d4(object):
 	def T_3_2_states(self):
 		# diagonal elements
 
-		AA = - 6 * self.Dq - 9 * self.B + 4 * self.C
-		BB = - 6 * self.Dq - 5 * self.B + 6 * self.C
-		CC = 4 * self.Dq - 13 * self.B + 4 * self.C
-		DD = 4 * self.Dq - 9 * self.B + 4 * self.C
-		EE = 14 * self.Dq - 8 * self.B + 5 * self.C
+		aa = - 6 * self.Dq - 9 * self.B + 4 * self.C
+		bb = - 6 * self.Dq - 5 * self.B + 6 * self.C
+		cc = 4 * self.Dq - 13 * self.B + 4 * self.C
+		dd = 4 * self.Dq - 9 * self.B + 4 * self.C
+		ee = 14 * self.Dq - 8 * self.B + 5 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 5 * _sqrt3 * self.B
-		AC = CA = _sqrt6 * self.B
-		AD = DA = _sqrt3 * self.B
-		AE = EA = _sqrt6 * self.B
+		ab = ba = - 5 * _sqrt3 * self.B
+		ac = ca = _sqrt6 * self.B
+		ad = da = _sqrt3 * self.B
+		ae = ea = _sqrt6 * self.B
 
-		BC = CB = -_3sqrt2 * self.B
-		BD = DB = 3 * self.B
-		BE = EB = _sqrt2 * (3 * self.B + self.C)
+		bc = cb = -_3sqrt2 * self.B
+		bd = db = 3 * self.B
+		be = eb = _sqrt2 * (3 * self.B + self.C)
 
-		CD = DC = -2 * _sqrt2 * self.B
-		CE = EC = -6 * self.B
+		cd = dc = -2 * _sqrt2 * self.B
+		ce = ec = -6 * self.B
 
-		DE = ED = - 8 * self.B + 5 * self.C
+		de = ed = - 8 * self.B + 5 * self.C
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -416,27 +429,27 @@ class d4(object):
 	def T_1_1_states(self):
 		# diagonal elements
 
-		AA = - 6 * self.Dq - 3 * self.B + 6 * self.C
-		BB = - 6 * self.Dq - 3 * self.B + 8 * self.C
-		CC = 4 * self.Dq - 3 * self.B + 6 * self.C
-		DD = 14 * self.Dq - 16 * self.B + 7 * self.C
+		aa = - 6 * self.Dq - 3 * self.B + 6 * self.C
+		bb = - 6 * self.Dq - 3 * self.B + 8 * self.C
+		cc = 4 * self.Dq - 3 * self.B + 6 * self.C
+		dd = 14 * self.Dq - 16 * self.B + 7 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 5 * _sqrt3 * self.B
-		AC = CA = 3 * self.B
-		AD = DA = _sqrt6 * self.B
+		ab = ba = - 5 * _sqrt3 * self.B
+		ac = ca = 3 * self.B
+		ad = da = _sqrt6 * self.B
 
-		BC = CB = - 5 * _sqrt3 * self.B
-		BD = DB = _sqrt2 * (self.B + self.C)
+		bc = cb = - 5 * _sqrt3 * self.B
+		bd = db = _sqrt2 * (self.B + self.C)
 
-		CD = DC = -_sqrt6 * self.B
+		cd = dc = -_sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD],
-			[BA, BB, BC, BD],
-			[CA, CB, CC, CD],
-			[DA, DB, DC, DD]
+			[aa, ab, ac, ad],
+			[ba, bb, bc, bd],
+			[ca, cb, cc, cd],
+			[da, db, dc, dd]
 		])
 
 		return self.eigensolver(states)
@@ -444,21 +457,21 @@ class d4(object):
 	def E_3_1_states(self):
 		# diagonal elements
 
-		AA = - 6 * self.Dq - 13 * self.B + 4 * self.C
-		BB = - 6 * self.Dq - 10 * self.B + 4 * self.C
-		CC = 4 * self.Dq - 11 * self.B + 4 * self.C
+		aa = - 6 * self.Dq - 13 * self.B + 4 * self.C
+		bb = - 6 * self.Dq - 10 * self.B + 4 * self.C
+		cc = 4 * self.Dq - 11 * self.B + 4 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 4 * self.B
-		AC = CA = 0.
+		ab = ba = - 4 * self.B
+		ac = ca = 0.
 
-		BC = CB = - _3sqrt2 * self.B
+		bc = cb = - _3sqrt2 * self.B
 
 		states = np.array([
-			[AA, AB, AC],
-			[BA, BB, BC],
-			[CA, CB, CC]
+			[aa, ab, ac],
+			[ba, bb, bc],
+			[ca, cb, cc]
 		])
 
 		return self.eigensolver(states)
@@ -466,16 +479,16 @@ class d4(object):
 	def A_3_2_states(self):
 		# diagonal elements
 
-		AA = - 6 * self.Dq - 8 * self.B + 4 * self.C
-		BB = 4 * self.Dq - 2 * self.B + 7 * self.C
+		aa = - 6 * self.Dq - 8 * self.B + 4 * self.C
+		bb = 4 * self.Dq - 2 * self.B + 7 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 12 * self.B
+		ab = ba = - 12 * self.B
 
 		states = np.array([
-			[AA, AB],
-			[BA, BB]
+			[aa, ab],
+			[ba, bb]
 		])
 
 		return self.eigensolver(states)
@@ -483,16 +496,16 @@ class d4(object):
 	def A_1_2_states(self):
 		# diagonal elements
 
-		AA = - 6 * self.Dq - 12 * self.B + 6 * self.C
-		BB = 4 * self.Dq - 3 * self.B + 6 * self.C
+		aa = - 6 * self.Dq - 12 * self.B + 6 * self.C
+		bb = 4 * self.Dq - 3 * self.B + 6 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 6 * self.B
+		ab = ba = - 6 * self.B
 
 		states = np.array([
-			[AA, AB],
-			[BA, BB]
+			[aa, ab],
+			[ba, bb]
 		])
 
 		return self.eigensolver(states)
@@ -552,12 +565,25 @@ class d4(object):
 class d5(object):
 	def __init__(self, Dq=0., B=1293., C=4823.):
 		"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
 
-		:param self:
-		:param Dq:
-		:param B:
-		:param C:
-		:return:
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+
+		:returns
+		-------
+
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+
 		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
@@ -566,60 +592,60 @@ class d5(object):
 	def T_2_2_states(self):
 		# diagonal elements
 
-		AA = -20 * self.Dq - 20 * self.B + 10 * self.C
-		BB = -10 * self.Dq - 8 * self.B + 9 * self.C
-		CC = -10 * self.Dq - 18 * self.B + 9 * self.C
-		DD = - 16 * self.B + 8 * self.C
-		EE = - 12 * self.B + 8 * self.C
-		FF = 2 * self.B + 12 * self.C
-		GG = -  6 * self.B + 10 * self.C
+		aa = -20 * self.Dq - 20 * self.B + 10 * self.C
+		bb = -10 * self.Dq - 8 * self.B + 9 * self.C
+		cc = -10 * self.Dq - 18 * self.B + 9 * self.C
+		dd = - 16 * self.B + 8 * self.C
+		ee = - 12 * self.B + 8 * self.C
+		ff = 2 * self.B + 12 * self.C
+		gg = -  6 * self.B + 10 * self.C
 		HH = 10 * self.Dq - 18 * self.B + 9 * self.C
 		II = 10 * self.Dq - 8 * self.B + 9 * self.C
 		JJ = 20 * self.Dq - 20 * self.B + 10 * self.C
 
 		# non diagonal elements
 
-		AB = BA = -_3sqrt6 * self.B
-		AC = CA = -_sqrt6 * self.B
-		AD = DA = 0.
-		AE = EA = -2 * _sqrt3 * self.B
-		AF = FA = 4 * self.B + 2 * self.C
-		AG = GA = 2 * self.B
+		ab = ba = -_3sqrt6 * self.B
+		ac = ca = -_sqrt6 * self.B
+		ad = da = 0.
+		ae = ea = -2 * _sqrt3 * self.B
+		af = fa = 4 * self.B + 2 * self.C
+		ag = ga = 2 * self.B
 		AH = HA = 0.
 		AI = IA = 0.
 		AJ = JA = 0.
 
-		BC = CB = 3 * self.B
-		BD = DB = -_sqrt6 / 2. * self.B
-		BE = EB = _3sqrt2 / 2. * self.B
-		BF = FB = -_3sqrt6 / 2. * self.B
-		BG = GB = -_3sqrt6 / 2. * self.B
+		bc = cb = 3 * self.B
+		bd = db = -_sqrt6 / 2. * self.B
+		be = eb = _3sqrt2 / 2. * self.B
+		bf = fb = -_3sqrt6 / 2. * self.B
+		bg = gb = -_3sqrt6 / 2. * self.B
 		BH = HB = 0.
 		BI = IB = -4 * self.B + self.C
 		BJ = JB = 0.
 
-		CD = DC = -_3sqrt6 / 2. * self.B
-		CE = EC = _3sqrt2 / 2. * self.B
-		CF = FC = -5 * _sqrt6 / 2. * self.B
-		CG = GC = +5 * _sqrt6 / 2. * self.B
+		cd = dc = -_3sqrt6 / 2. * self.B
+		ce = ec = _3sqrt2 / 2. * self.B
+		cf = fc = -5 * _sqrt6 / 2. * self.B
+		cg = gc = +5 * _sqrt6 / 2. * self.B
 		CH = HC = -self.C
 		CI = IC = 0.
 		CJ = JC = 0.
 
-		DE = ED = 2 * _sqrt3 * self.B
-		DF = FD = 0.
-		DG = GD = 0.
+		de = ed = 2 * _sqrt3 * self.B
+		df = fd = 0.
+		dg = gd = 0.
 		DH = HD = -_3sqrt6 / 2. * self.B
 		DI = ID = -_sqrt6 / 2. * self.B
 		DJ = JD = 0.
 
-		EF = FE = -10 * _sqrt3 * self.B
-		EG = GE = 0.
+		ef = fe = -10 * _sqrt3 * self.B
+		eg = ge = 0.
 		EH = HE = _3sqrt2 / 2. * self.B
 		EI = IE = _3sqrt2 / 2. * self.B
 		EJ = JE = -2 * _sqrt3 * self.B
 
-		FG = GF = 0.
+		fg = gf = 0.
 		FH = HF = -5 * _sqrt6 / 2. * self.B
 		FI = IF = -_3sqrt6 / 2. * self.B
 		FJ = JF = 4 * self.B + 2 * self.C
@@ -634,13 +660,13 @@ class d5(object):
 		IJ = JI = -_3sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE, AF, AG, AH, AI, AJ],
-			[BA, BB, BC, BD, BE, BF, BG, BH, BI, BJ],
-			[CA, CB, CC, CD, CE, CF, CG, CH, CI, CJ],
-			[DA, DB, DC, DD, DE, DF, DG, DH, DI, DJ],
-			[EA, EB, EC, ED, EE, EF, EG, EH, EI, EJ],
-			[FA, FB, FC, FD, FE, FF, FG, FH, FI, FJ],
-			[GA, GB, GC, GD, GE, GF, GG, GH, GI, GJ],
+			[aa, ab, ac, ad, ae, af, ag, AH, AI, AJ],
+			[ba, bb, bc, bd, be, bf, bg, BH, BI, BJ],
+			[ca, cb, cc, cd, ce, cf, cg, CH, CI, CJ],
+			[da, db, dc, dd, de, df, dg, DH, DI, DJ],
+			[ea, eb, ec, ed, ee, ef, eg, EH, EI, EJ],
+			[fa, fb, fc, fd, fe, ff, fg, FH, FI, FJ],
+			[ga, gb, gc, gd, ge, gf, gg, GH, GI, GJ],
 			[HA, HB, HC, HD, HE, HF, HG, HH, HI, HJ],
 			[IA, IB, IC, ID, IE, IF, IG, IH, II, IJ],
 			[JA, JB, JC, JD, JE, JF, JG, JH, JI, JJ]
@@ -651,60 +677,60 @@ class d5(object):
 	def T_2_1_states(self):
 		# diagonal elements
 
-		AA = -10 * self.Dq - 22 * self.B + 9 * self.C
-		BB = -10 * self.Dq - 8 * self.B + 9 * self.C
-		CC = -  4 * self.B + 10 * self.C
-		DD = - 12 * self.B + 8 * self.C
-		EE = - 10 * self.B + 10 * self.C
-		FF = -  6 * self.B + 10 * self.C
-		GG = 10 * self.Dq - 8 * self.B + 9 * self.C
+		aa = -10 * self.Dq - 22 * self.B + 9 * self.C
+		bb = -10 * self.Dq - 8 * self.B + 9 * self.C
+		cc = -  4 * self.B + 10 * self.C
+		dd = - 12 * self.B + 8 * self.C
+		ee = - 10 * self.B + 10 * self.C
+		ff = -  6 * self.B + 10 * self.C
+		gg = 10 * self.Dq - 8 * self.B + 9 * self.C
 		HH = 10 * self.Dq - 22 * self.B + 9 * self.C
 
 		# non diagonal elements
 
-		AB = BA = -3 * self.B
-		AC = CA = _3sqrt2 / 2. * self.B
-		AD = DA = -_3sqrt2 / 2. * self.B
-		AE = EA = _3sqrt2 / 2. * self.B
-		AF = FA = _3sqrt6 / 2. * self.B
-		AG = GA = 0.
+		ab = ba = -3 * self.B
+		ac = ca = _3sqrt2 / 2. * self.B
+		ad = da = -_3sqrt2 / 2. * self.B
+		ae = ea = _3sqrt2 / 2. * self.B
+		af = fa = _3sqrt6 / 2. * self.B
+		ag = ga = 0.
 		AH = HA = -self.C
 
-		BC = CB = -_3sqrt2 / 2. * self.B
-		BD = DB = -_3sqrt2 / 2. * self.B
-		BE = EB = -15 * _sqrt2 / 2. * self.B
-		BF = FB = -5 * _sqrt6 / 2. * self.B
-		BG = GB = -4 * self.B - self.C
+		bc = cb = -_3sqrt2 / 2. * self.B
+		bd = db = -_3sqrt2 / 2. * self.B
+		be = eb = -15 * _sqrt2 / 2. * self.B
+		bf = fb = -5 * _sqrt6 / 2. * self.B
+		bg = gb = -4 * self.B - self.C
 		BH = HB = 0.
 
-		CD = DC = 0.
-		CE = EC = 0.
-		CF = FC = 10 * _sqrt3 * self.B
-		CG = GC = _3sqrt2 / 2. * self.B
+		cd = dc = 0.
+		ce = ec = 0.
+		cf = fc = 10 * _sqrt3 * self.B
+		cg = gc = _3sqrt2 / 2. * self.B
 		CH = HC = -_3sqrt2 / 2. * self.B
 
-		DE = ED = 0.
-		DF = FD = 0.
-		DG = GD = -_3sqrt2 / 2. * self.B
+		de = ed = 0.
+		df = fd = 0.
+		dg = gd = -_3sqrt2 / 2. * self.B
 		DH = HD = -_3sqrt2 / 2. * self.B
 
-		EF = FE = 2 * _sqrt3 * self.B
-		EG = GE = 15 * _sqrt2 / 2. * self.B
+		ef = fe = 2 * _sqrt3 * self.B
+		eg = ge = 15 * _sqrt2 / 2. * self.B
 		EH = HE = -_3sqrt2 / 2. * self.B
 
-		FG = GF = 5 * _sqrt6 / 2. * self.B
+		fg = gf = 5 * _sqrt6 / 2. * self.B
 		FH = HF = -_3sqrt6 / 2. * self.B
 
 		GH = HG = -3 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE, AF, AG, AH],
-			[BA, BB, BC, BD, BE, BF, BG, BH],
-			[CA, CB, CC, CD, CE, CF, CG, CH],
-			[DA, DB, DC, DD, DE, DF, DG, DH],
-			[EA, EB, EC, ED, EE, EF, EG, EH],
-			[FA, FB, FC, FD, FE, FF, FG, FH],
-			[GA, GB, GC, GD, GE, GF, GG, GH],
+			[aa, ab, ac, ad, ae, af, ag, AH],
+			[ba, bb, bc, bd, be, bf, bg, BH],
+			[ca, cb, cc, cd, ce, cf, cg, CH],
+			[da, db, dc, dd, de, df, dg, DH],
+			[ea, eb, ec, ed, ee, ef, eg, EH],
+			[fa, fb, fc, fd, fe, ff, fg, FH],
+			[ga, gb, gc, gd, ge, gf, gg, GH],
 			[HA, HB, HC, HD, HE, HF, HG, HH]
 		])
 
@@ -713,51 +739,51 @@ class d5(object):
 	def E_2_states(self):
 		# diagonal elements
 
-		AA = -10 * self.Dq - 4 * self.B + 12 * self.C
-		BB = -10 * self.Dq - 13 * self.B + 9 * self.C
-		CC = -  4 * self.B + 10 * self.C
-		DD = - 16 * self.B + 8 * self.C
-		EE = - 12 * self.B + 8 * self.C
-		FF = 10 * self.Dq - 13 * self.B + 9 * self.C
-		GG = 10 * self.Dq - 4 * self.B + 12 * self.C
+		aa = -10 * self.Dq - 4 * self.B + 12 * self.C
+		bb = -10 * self.Dq - 13 * self.B + 9 * self.C
+		cc = -  4 * self.B + 10 * self.C
+		dd = - 16 * self.B + 8 * self.C
+		ee = - 12 * self.B + 8 * self.C
+		ff = 10 * self.Dq - 13 * self.B + 9 * self.C
+		gg = 10 * self.Dq - 4 * self.B + 12 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 10 * self.B
-		AC = CA = 6 * self.B
-		AD = DA = 6 * _sqrt3 * self.B
-		AE = EA = 6 * _sqrt2 * self.B
-		AF = FA = -2 * self.B
-		AG = GA = 4 * self.B + 2 * self.C
+		ab = ba = - 10 * self.B
+		ac = ca = 6 * self.B
+		ad = da = 6 * _sqrt3 * self.B
+		ae = ea = 6 * _sqrt2 * self.B
+		af = fa = -2 * self.B
+		ag = ga = 4 * self.B + 2 * self.C
 
-		BC = CB = 3 * self.B
-		BD = DB = -3 * _sqrt3 * self.B
-		BE = EB = 0.
-		BF = FB = -2 * self.B - self.C
-		BG = GB = -2 * self.B
+		bc = cb = 3 * self.B
+		bd = db = -3 * _sqrt3 * self.B
+		be = eb = 0.
+		bf = fb = -2 * self.B - self.C
+		bg = gb = -2 * self.B
 
-		CD = DC = 0.
-		CE = EC = 0.
-		CF = FC = -3 * self.B
-		CG = GC = -6 * self.B
+		cd = dc = 0.
+		ce = ec = 0.
+		cf = fc = -3 * self.B
+		cg = gc = -6 * self.B
 
-		DE = ED = 2 * _sqrt6 * self.B
-		DF = FD = -3 * _sqrt3 * self.B
-		DG = GD = 6 * _sqrt3 * self.B
+		de = ed = 2 * _sqrt6 * self.B
+		df = fd = -3 * _sqrt3 * self.B
+		dg = gd = 6 * _sqrt3 * self.B
 
-		EF = FE = 0.
-		EG = GE = 6 * _sqrt2 * self.B
+		ef = fe = 0.
+		eg = ge = 6 * _sqrt2 * self.B
 
-		FG = GF = -10 * self.B
+		fg = gf = -10 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE, AF, AG],
-			[BA, BB, BC, BD, BE, BF, BG],
-			[CA, CB, CC, CD, CE, CF, CG],
-			[DA, DB, DC, DD, DE, DF, DG],
-			[EA, EB, EC, ED, EE, EF, EG],
-			[FA, FB, FC, FD, FE, FF, FG],
-			[GA, GB, GC, GD, GE, GF, GG]
+			[aa, ab, ac, ad, ae, af, ag],
+			[ba, bb, bc, bd, be, bf, bg],
+			[ca, cb, cc, cd, ce, cf, cg],
+			[da, db, dc, dd, de, df, dg],
+			[ea, eb, ec, ed, ee, ef, eg],
+			[fa, fb, fc, fd, fe, ff, fg],
+			[ga, gb, gc, gd, ge, gf, gg]
 		])
 
 		return self.eigensolver(states)
@@ -765,27 +791,27 @@ class d5(object):
 	def A_2_1_states(self):
 		# diagonal elements
 
-		AA = -10 * self.Dq - 3 * self.B + 9 * self.C
-		BB = - 12 * self.B + 8 * self.C
-		CC = - 19 * self.B + 8 * self.C
-		DD = 10 * self.Dq - 3 * self.B + 9 * self.C
+		aa = -10 * self.Dq - 3 * self.B + 9 * self.C
+		bb = - 12 * self.B + 8 * self.C
+		cc = - 19 * self.B + 8 * self.C
+		dd = 10 * self.Dq - 3 * self.B + 9 * self.C
 
 		# non diagonal elements
 
-		AB = BA = _3sqrt2 * self.B
-		AC = CA = 0.
-		AD = DA = -6 * self.B - self.C
+		ab = ba = _3sqrt2 * self.B
+		ac = ca = 0.
+		ad = da = -6 * self.B - self.C
 
-		BC = CB = -4 * _sqrt3 * self.B
-		BD = DB = _3sqrt2 * self.B
+		bc = cb = -4 * _sqrt3 * self.B
+		bd = db = _3sqrt2 * self.B
 
-		CD = DC = 0.
+		cd = dc = 0.
 
 		states = np.array([
-			[AA, AB, AC, AD],
-			[BA, BB, BC, BD],
-			[CA, CB, CC, CD],
-			[DA, DB, DC, DD]
+			[aa, ab, ac, ad],
+			[ba, bb, bc, bd],
+			[ca, cb, cc, cd],
+			[da, db, dc, dd]
 		])
 
 		return self.eigensolver(states)
@@ -793,21 +819,21 @@ class d5(object):
 	def A_2_2_states(self):
 		# diagonal elements
 
-		AA = -10 * self.Dq - 23 * self.B + 9 * self.C
-		BB = - 12 * self.B + 8 * self.C
-		CC = 10 * self.Dq - 23 * self.B + 9 * self.C
+		aa = -10 * self.Dq - 23 * self.B + 9 * self.C
+		bb = - 12 * self.B + 8 * self.C
+		cc = 10 * self.Dq - 23 * self.B + 9 * self.C
 
 		# non diagonal elements
 
-		AB = BA = -_3sqrt2 * self.B
-		AC = CA = _2sqrt2 * self.B - self.C
+		ab = ba = -_3sqrt2 * self.B
+		ac = ca = _2sqrt2 * self.B - self.C
 
-		BC = CB = -_3sqrt2 * self.B
+		bc = cb = -_3sqrt2 * self.B
 
 		states = np.array([
-			[AA, AB, AC],
-			[BA, BB, BC],
-			[CA, CB, CC]
+			[aa, ab, ac],
+			[ba, bb, bc],
+			[ca, cb, cc]
 		])
 
 		return self.eigensolver(states)
@@ -815,21 +841,21 @@ class d5(object):
 	def T_4_1_states(self):
 		# diagonal elements
 
-		AA = -10 * self.Dq - 25 * self.B + 6 * self.C
-		BB = - 16 * self.B + 7 * self.C
-		CC = 10 * self.Dq - 25 * self.B + 6 * self.C
+		aa = -10 * self.Dq - 25 * self.B + 6 * self.C
+		bb = - 16 * self.B + 7 * self.C
+		cc = 10 * self.Dq - 25 * self.B + 6 * self.C
 
 		# non diagonal elements
 
-		AB = BA = _3sqrt2 * self.B
-		AC = CA = - self.C
+		ab = ba = _3sqrt2 * self.B
+		ac = ca = - self.C
 
-		BC = CB = -_3sqrt2 * self.B
+		bc = cb = -_3sqrt2 * self.B
 
 		states = np.array([
-			[AA, AB, AC],
-			[BA, BB, BC],
-			[CA, CB, CC]
+			[aa, ab, ac],
+			[ba, bb, bc],
+			[ca, cb, cc]
 		])
 
 		return self.eigensolver(states)
@@ -837,22 +863,22 @@ class d5(object):
 	def T_4_2_states(self):
 		# diagonal elements
 
-		AA = -10 * self.Dq - 17 * self.B + 6 * self.C
-		BB = - 22 * self.B + 5 * self.C
-		CC = 10 * self.Dq - 17 * self.B + 6 * self.C
+		aa = -10 * self.Dq - 17 * self.B + 6 * self.C
+		bb = - 22 * self.B + 5 * self.C
+		cc = 10 * self.Dq - 17 * self.B + 6 * self.C
 
 		# non diagonal elements
 
-		AB = BA = -_sqrt6 * self.B
-		AC = CA = -4 * self.B - self.C
+		ab = ba = -_sqrt6 * self.B
+		ac = ca = -4 * self.B - self.C
 
-		BC = CB = - _sqrt6 * self.B
+		bc = cb = - _sqrt6 * self.B
 
-		# AB = BC = AC = 0
+		# ab = bc = ac = 0
 		states = np.array([
-			[AA, AB, AC],
-			[BA, BB, BC],
-			[CA, CB, CC]
+			[aa, ab, ac],
+			[ba, bb, bc],
+			[ca, cb, cc]
 		])
 
 		return self.eigensolver(states)
@@ -860,16 +886,16 @@ class d5(object):
 	def E_4_states(self):
 		# diagonal elements
 
-		AA = - 22 * self.B + 5 * self.C
-		BB = - 21 * self.B + 5 * self.C
+		aa = - 22 * self.B + 5 * self.C
+		bb = - 21 * self.B + 5 * self.C
 
 		# non diagonal elements
 
-		AB = BA = -2 * _sqrt3 * self.B
+		ab = ba = -2 * _sqrt3 * self.B
 
 		states = np.array([
-			[AA, AB],
-			[BA, BB]
+			[aa, ab],
+			[ba, bb]
 		])
 
 		return self.eigensolver(states)
@@ -925,13 +951,26 @@ class d5(object):
 class d6(object):
 	def __init__(self, Dq=0., B=1182., C=4362.):
 		"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
 
-				:param self:
-				:param Dq:
-				:param B:
-				:param C:
-				:return:
-				"""
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+
+		:returns
+		-------
+
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+
+		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
 		self.C = np.float64(C)
@@ -939,51 +978,51 @@ class d6(object):
 	def T_3_1_states(self):
 		# -  diagonal elements
 
-		AA = +16 * self.Dq - 15 * self.B + 5 * self.C
-		BB = + 6 * self.Dq - 11 * self.B + 4 * self.C
-		CC = + 6 * self.Dq - 3 * self.B + 6 * self.C
-		DD = -4 * self.Dq - self.B + 6 * self.C
-		EE = -4 * self.Dq - 9 * self.B + 4 * self.C
-		FF = -4 * self.Dq - 11 * self.B + 4 * self.C
-		GG = -14 * self.Dq - 16 * self.B + 5 * self.C
+		aa = +16 * self.Dq - 15 * self.B + 5 * self.C
+		bb = + 6 * self.Dq - 11 * self.B + 4 * self.C
+		cc = + 6 * self.Dq - 3 * self.B + 6 * self.C
+		dd = -4 * self.Dq - self.B + 6 * self.C
+		ee = -4 * self.Dq - 9 * self.B + 4 * self.C
+		ff = -4 * self.Dq - 11 * self.B + 4 * self.C
+		gg = -14 * self.Dq - 16 * self.B + 5 * self.C
 
 		# non diagonal elements
 
-		AB = BA = -_sqrt6 * self.B
-		AC = CA = -_3sqrt2 * self.B
-		AD = DA = _sqrt2 * (2 * self.B + self.C)
-		AE = EA = -_2sqrt2 * self.B
-		AF = FA = 0.
-		AG = GA = 0.
+		ab = ba = -_sqrt6 * self.B
+		ac = ca = -_3sqrt2 * self.B
+		ad = da = _sqrt2 * (2 * self.B + self.C)
+		ae = ea = -_2sqrt2 * self.B
+		af = fa = 0.
+		ag = ga = 0.
 
-		BC = CB = 5 * _sqrt3 * self.B
-		BD = DB = _sqrt3 * self.B
-		BE = EB = -_sqrt3 * self.B
-		BF = FB = 3 * self.B
-		BG = GB = _sqrt6 * self.B
+		bc = cb = 5 * _sqrt3 * self.B
+		bd = db = _sqrt3 * self.B
+		be = eb = -_sqrt3 * self.B
+		bf = fb = 3 * self.B
+		bg = gb = _sqrt6 * self.B
 
-		CD = DC = -3 * self.B
-		CE = EC = -3 * self.B
-		CF = FC = 5 * _sqrt3 * self.B
-		CG = GC = _sqrt2 * (self.B + self.C)
+		cd = dc = -3 * self.B
+		ce = ec = -3 * self.B
+		cf = fc = 5 * _sqrt3 * self.B
+		cg = gc = _sqrt2 * (self.B + self.C)
 
-		DE = ED = -10 * self.B
-		DF = FD = 0.
-		DG = GD = _3sqrt2 * self.B
+		de = ed = -10 * self.B
+		df = fd = 0.
+		dg = gd = _3sqrt2 * self.B
 
-		EF = FE = - 2 * _sqrt3 * self.B
-		EG = GE = - _3sqrt2 * self.B
+		ef = fe = - 2 * _sqrt3 * self.B
+		eg = ge = - _3sqrt2 * self.B
 
-		FG = GF = _sqrt6 * self.B
+		fg = gf = _sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE, AF, AG],
-			[BA, BB, BC, BD, BE, BF, BG],
-			[CA, CB, CC, CD, CE, CF, CG],
-			[DA, DB, DC, DD, DE, DF, DG],
-			[EA, EB, EC, ED, EE, EF, EG],
-			[FA, FB, FC, FD, FE, FF, FG],
-			[GA, GB, GC, GD, GE, GF, GG]
+			[aa, ab, ac, ad, ae, af, ag],
+			[ba, bb, bc, bd, be, bf, bg],
+			[ca, cb, cc, cd, ce, cf, cg],
+			[da, db, dc, dd, de, df, dg],
+			[ea, eb, ec, ed, ee, ef, eg],
+			[fa, fb, fc, fd, fe, ff, fg],
+			[ga, gb, gc, gd, ge, gf, gg]
 		])
 
 		return self.eigensolver(states)
@@ -991,51 +1030,51 @@ class d6(object):
 	def T_1_2_states(self):
 		# diagonal elements
 
-		AA = +16 * self.Dq - 9 * self.B + 7 * self.C
-		BB = + 6 * self.Dq - 9 * self.B + 6 * self.C
-		CC = + 6 * self.Dq + 3 * self.B + 8 * self.C
-		DD = -4 * self.Dq - 9 * self.B + 6 * self.C
-		EE = -4 * self.Dq - 3 * self.B + 6 * self.C
-		FF = -4 * self.Dq + 5 * self.B + 8 * self.C
-		GG = -14 * self.Dq + 7 * self.C
+		aa = +16 * self.Dq - 9 * self.B + 7 * self.C
+		bb = + 6 * self.Dq - 9 * self.B + 6 * self.C
+		cc = + 6 * self.Dq + 3 * self.B + 8 * self.C
+		dd = -4 * self.Dq - 9 * self.B + 6 * self.C
+		ee = -4 * self.Dq - 3 * self.B + 6 * self.C
+		ff = -4 * self.Dq + 5 * self.B + 8 * self.C
+		gg = -14 * self.Dq + 7 * self.C
 
 		# non diagonal elements
 
-		AB = BA = _3sqrt2 * self.B
-		AC = CA = - 5 * _sqrt6 * self.B
-		AD = DA = 0.
-		AE = EA = -_2sqrt2 * self.B
-		AF = FA = _sqrt2 * (2 * self.B + self.C)
-		AG = GA = 0.
+		ab = ba = _3sqrt2 * self.B
+		ac = ca = - 5 * _sqrt6 * self.B
+		ad = da = 0.
+		ae = ea = -_2sqrt2 * self.B
+		af = fa = _sqrt2 * (2 * self.B + self.C)
+		ag = ga = 0.
 
-		BC = CB = -5 * _sqrt3 * self.B
-		BD = DB = 3 * self.B
-		BE = EB = -3 * self.B
-		BF = FB = -3 * self.B
-		BG = GB = -_sqrt6 * self.B
+		bc = cb = -5 * _sqrt3 * self.B
+		bd = db = 3 * self.B
+		be = eb = -3 * self.B
+		bf = fb = -3 * self.B
+		bg = gb = -_sqrt6 * self.B
 
-		CD = DC = -3 * _sqrt3 * self.B
-		CE = EC = 5 * _sqrt3 * self.B
-		CF = FC = -5 * _sqrt3 * self.B
-		CG = GC = _sqrt2 * (3 * self.B + self.C)
+		cd = dc = -3 * _sqrt3 * self.B
+		ce = ec = 5 * _sqrt3 * self.B
+		cf = fc = -5 * _sqrt3 * self.B
+		cg = gc = _sqrt2 * (3 * self.B + self.C)
 
-		DE = ED = -6 * self.B
-		DF = FD = 0.
-		DG = GD = - _3sqrt6 * self.B
+		de = ed = -6 * self.B
+		df = fd = 0.
+		dg = gd = - _3sqrt6 * self.B
 
-		EF = FE = - 10 * self.B
-		EG = GE = _sqrt6 * self.B
+		ef = fe = - 10 * self.B
+		eg = ge = _sqrt6 * self.B
 
-		FG = GF = _sqrt6 * self.B
+		fg = gf = _sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE, AF, AG],
-			[BA, BB, BC, BD, BE, BF, BG],
-			[CA, CB, CC, CD, CE, CF, CG],
-			[DA, DB, DC, DD, DE, DF, DG],
-			[EA, EB, EC, ED, EE, EF, EG],
-			[FA, FB, FC, FD, FE, FF, FG],
-			[GA, GB, GC, GD, GE, GF, GG]
+			[aa, ab, ac, ad, ae, af, ag],
+			[ba, bb, bc, bd, be, bf, bg],
+			[ca, cb, cc, cd, ce, cf, cg],
+			[da, db, dc, dd, de, df, dg],
+			[ea, eb, ec, ed, ee, ef, eg],
+			[fa, fb, fc, fd, fe, ff, fg],
+			[ga, gb, gc, gd, ge, gf, gg]
 		])
 
 		return self.eigensolver(states)
@@ -1043,34 +1082,34 @@ class d6(object):
 	def A_1_1_states(self):
 		# diagonal elements
 
-		AA = +16 * self.Dq + 10 * self.C
-		BB = + 6 * self.Dq + 6 * self.C
-		CC = -4 * self.Dq + 14 * self.B + 11 * self.C
-		DD = -4 * self.Dq - 3 * self.B + 6 * self.C
-		EE = -24 * self.Dq - 16 * self.B + 8 * self.C
+		aa = +16 * self.Dq + 10 * self.C
+		bb = + 6 * self.Dq + 6 * self.C
+		cc = -4 * self.Dq + 14 * self.B + 11 * self.C
+		dd = -4 * self.Dq - 3 * self.B + 6 * self.C
+		ee = -24 * self.Dq - 16 * self.B + 8 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 12 * _sqrt2 * self.B
-		AC = CA = _sqrt2 * (4 * self.B + 2 * self.C)
-		AD = DA = _2sqrt2 * self.B
-		AE = EA = 0.
+		ab = ba = - 12 * _sqrt2 * self.B
+		ac = ca = _sqrt2 * (4 * self.B + 2 * self.C)
+		ad = da = _2sqrt2 * self.B
+		ae = ea = 0.
 
-		BC = CB = -12 * self.B
-		BD = DB = -6 * self.B
-		BE = EB = 0.
+		bc = cb = -12 * self.B
+		bd = db = -6 * self.B
+		be = eb = 0.
 
-		CD = DC = 20 * self.B
-		CE = EC = _sqrt6 * (2 * self.B + self.C)
+		cd = dc = 20 * self.B
+		ce = ec = _sqrt6 * (2 * self.B + self.C)
 
-		DE = ED = 2 * _sqrt6 * self.B
+		de = ed = 2 * _sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -1078,34 +1117,34 @@ class d6(object):
 	def E_1_1_states(self):
 		# diagonal elements
 
-		AA = +16 * self.Dq - 9 * self.B + 7 * self.C
-		BB = + 6 * self.Dq - 6 * self.B + 6 * self.C
-		CC = -4 * self.Dq + 5 * self.B + 8 * self.C
-		DD = -4 * self.Dq + 6 * self.B + 9 * self.C
-		EE = -4 * self.Dq - 3 * self.B + 6 * self.C
+		aa = +16 * self.Dq - 9 * self.B + 7 * self.C
+		bb = + 6 * self.Dq - 6 * self.B + 6 * self.C
+		cc = -4 * self.Dq + 5 * self.B + 8 * self.C
+		dd = -4 * self.Dq + 6 * self.B + 9 * self.C
+		ee = -4 * self.Dq - 3 * self.B + 6 * self.C
 
 		# non diagonal elements
 
-		AB = BA = 6 * self.B
-		AC = CA = _sqrt2 * (2 * self.B + self.C)
-		AD = DA = -2 * self.B
-		AE = EA = -4 * self.B
+		ab = ba = 6 * self.B
+		ac = ca = _sqrt2 * (2 * self.B + self.C)
+		ad = da = -2 * self.B
+		ae = ea = -4 * self.B
 
-		BC = CB = -_3sqrt2 * self.B
-		BD = DB = -12 * self.B
-		BE = EB = 0.
+		bc = cb = -_3sqrt2 * self.B
+		bd = db = -12 * self.B
+		be = eb = 0.
 
-		CD = DC = 10 * _sqrt2 * self.B
-		CE = EC = -10 * _sqrt2 * self.B
+		cd = dc = 10 * _sqrt2 * self.B
+		ce = ec = -10 * _sqrt2 * self.B
 
-		DE = ED = 0.
+		de = ed = 0.
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -1113,34 +1152,34 @@ class d6(object):
 	def T_3_2_states(self):
 		# diagonal elements
 
-		AA = + 6 * self.Dq - 9 * self.B + 4 * self.C
-		BB = + 6 * self.Dq - 5 * self.B + 6 * self.C
-		CC = -4 * self.Dq - 13 * self.B + 4 * self.C
-		DD = -4 * self.Dq - 9 * self.B + 4 * self.C
-		EE = -14 * self.Dq - 8 * self.B + 5 * self.C
+		aa = + 6 * self.Dq - 9 * self.B + 4 * self.C
+		bb = + 6 * self.Dq - 5 * self.B + 6 * self.C
+		cc = -4 * self.Dq - 13 * self.B + 4 * self.C
+		dd = -4 * self.Dq - 9 * self.B + 4 * self.C
+		ee = -14 * self.Dq - 8 * self.B + 5 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 5 * _sqrt3 * self.B
-		AC = CA = _sqrt6 * self.B
-		AD = DA = _sqrt3 * self.B
-		AE = EA = -_sqrt6 * self.B
+		ab = ba = - 5 * _sqrt3 * self.B
+		ac = ca = _sqrt6 * self.B
+		ad = da = _sqrt3 * self.B
+		ae = ea = -_sqrt6 * self.B
 
-		BC = CB = -_3sqrt2 * self.B
-		BD = DB = 3 * self.B
-		BE = EB = _sqrt2 * (3 * self.B + self.C)
+		bc = cb = -_3sqrt2 * self.B
+		bd = db = 3 * self.B
+		be = eb = _sqrt2 * (3 * self.B + self.C)
 
-		CD = DC = -2 * _sqrt2 * self.B
-		CE = EC = -6 * self.B
+		cd = dc = -2 * _sqrt2 * self.B
+		ce = ec = -6 * self.B
 
-		DE = ED = 3 * _sqrt2 * self.B
+		de = ed = 3 * _sqrt2 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -1148,27 +1187,27 @@ class d6(object):
 	def T_1_1_states(self):
 		# diagonal elements
 
-		AA = + 6 * self.Dq - 3 * self.B + 6 * self.C
-		BB = + 6 * self.Dq - 3 * self.B + 8 * self.C
-		CC = -4 * self.Dq - 3 * self.B + 6 * self.C
-		DD = -14 * self.Dq - 16 * self.B + 7 * self.C
+		aa = + 6 * self.Dq - 3 * self.B + 6 * self.C
+		bb = + 6 * self.Dq - 3 * self.B + 8 * self.C
+		cc = -4 * self.Dq - 3 * self.B + 6 * self.C
+		dd = -14 * self.Dq - 16 * self.B + 7 * self.C
 
 		# non diagonal elements
 
-		AB = BA = 5 * _sqrt3 * self.B
-		AC = CA = 3 * self.B
-		AD = DA = _sqrt6 * self.B
+		ab = ba = 5 * _sqrt3 * self.B
+		ac = ca = 3 * self.B
+		ad = da = _sqrt6 * self.B
 
-		BC = CB = - 5 * _sqrt3 * self.B
-		BD = DB = _sqrt2 * (self.B + self.C)
+		bc = cb = - 5 * _sqrt3 * self.B
+		bd = db = _sqrt2 * (self.B + self.C)
 
-		CD = DC = -_sqrt6 * self.B
+		cd = dc = -_sqrt6 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD],
-			[BA, BB, BC, BD],
-			[CA, CB, CC, CD],
-			[DA, DB, DC, DD]
+			[aa, ab, ac, ad],
+			[ba, bb, bc, bd],
+			[ca, cb, cc, cd],
+			[da, db, dc, dd]
 		])
 
 		return self.eigensolver(states)
@@ -1176,21 +1215,21 @@ class d6(object):
 	def E_3_1_states(self):
 		# diagonal elements
 
-		AA = + 6 * self.Dq - 13 * self.B + 4 * self.C
-		BB = - 6 * self.Dq - 10 * self.B + 4 * self.C
-		CC = -4 * self.Dq - 11 * self.B + 4 * self.C
+		aa = + 6 * self.Dq - 13 * self.B + 4 * self.C
+		bb = - 6 * self.Dq - 10 * self.B + 4 * self.C
+		cc = -4 * self.Dq - 11 * self.B + 4 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 4 * self.B
-		AC = CA = 0.
+		ab = ba = - 4 * self.B
+		ac = ca = 0.
 
-		BC = CB = - _3sqrt2 * self.B
+		bc = cb = - _3sqrt2 * self.B
 
 		states = np.array([
-			[AA, AB, AC],
-			[BA, BB, BC],
-			[CA, CB, CC]
+			[aa, ab, ac],
+			[ba, bb, bc],
+			[ca, cb, cc]
 		])
 
 		return self.eigensolver(states)
@@ -1198,16 +1237,16 @@ class d6(object):
 	def A_3_2_states(self):
 		# diagonal elements
 
-		AA = + 6 * self.Dq - 8 * self.B + 4 * self.C
-		BB = -4 * self.Dq - 2 * self.B + 7 * self.C
+		aa = + 6 * self.Dq - 8 * self.B + 4 * self.C
+		bb = -4 * self.Dq - 2 * self.B + 7 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 12 * self.B
+		ab = ba = - 12 * self.B
 
 		states = np.array([
-			[AA, AB],
-			[BA, BB]
+			[aa, ab],
+			[ba, bb]
 		])
 
 		return self.eigensolver(states)
@@ -1215,16 +1254,16 @@ class d6(object):
 	def A_1_2_states(self):
 		# diagonal elements
 
-		AA = + 6 * self.Dq - 12 * self.B + 6 * self.C
-		BB = -4 * self.Dq - 3 * self.B + 6 * self.C
+		aa = + 6 * self.Dq - 12 * self.B + 6 * self.C
+		bb = -4 * self.Dq - 3 * self.B + 6 * self.C
 
 		# non diagonal elements
 
-		AB = BA = 6 * self.B
+		ab = ba = 6 * self.B
 
 		states = np.array([
-			[AA, AB],
-			[BA, BB]
+			[aa, ab],
+			[ba, bb]
 		])
 
 		return self.eigensolver(states)
@@ -1290,13 +1329,26 @@ class d6(object):
 class d7(object):
 	def __init__(self, Dq=0., B=971., C=4499.):
 		"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
 
-				:param self:
-				:param Dq:
-				:param B:
-				:param C:
-				:return:
-				"""
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+
+		:returns
+		-------
+
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+
+		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
 		self.C = np.float64(C)
@@ -1304,34 +1356,34 @@ class d7(object):
 	def T_2_2_states(self):
 		# -  diagonal elements
 
-		AA = +12 * self.Dq + 5 * self.C
-		BB = + 2 * self.Dq - 6 * self.B + 3 * self.C
-		CC = + 2 * self.Dq + 4 * self.B + 3 * self.C
-		DD = - 8 * self.Dq + 6 * self.B + 5 * self.C
-		EE = - 8 * self.Dq - 2 * self.B + 3 * self.C
+		aa = +12 * self.Dq + 5 * self.C
+		bb = + 2 * self.Dq - 6 * self.B + 3 * self.C
+		cc = + 2 * self.Dq + 4 * self.B + 3 * self.C
+		dd = - 8 * self.Dq + 6 * self.B + 5 * self.C
+		ee = - 8 * self.Dq - 2 * self.B + 3 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - _3sqrt3 * self.B
-		AC = CA = - 5 * _sqrt3 * self.B
-		AD = DA = 4 * self.B + 2 * self.C
-		AE = EA = 2 * self.B
+		ab = ba = - _3sqrt3 * self.B
+		ac = ca = - 5 * _sqrt3 * self.B
+		ad = da = 4 * self.B + 2 * self.C
+		ae = ea = 2 * self.B
 
-		BC = CB = 3 * self.B
-		BD = DB = - _3sqrt3 * self.B
-		BE = EB = - _3sqrt3 * self.B
+		bc = cb = 3 * self.B
+		bd = db = - _3sqrt3 * self.B
+		be = eb = - _3sqrt3 * self.B
 
-		CD = DC = -_sqrt3 * self.B
-		CE = EC = +_sqrt3 * self.B
+		cd = dc = -_sqrt3 * self.B
+		ce = ec = +_sqrt3 * self.B
 
-		DE = ED = 10 * self.B
+		de = ed = 10 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -1339,34 +1391,34 @@ class d7(object):
 	def T_2_1_states(self):
 		# -  diagonal elements
 
-		AA = +12 * self.Dq - 6 * self.B + 3 * self.C
-		BB = + 2 * self.Dq + 3 * self.C
-		CC = + 2 * self.Dq - 6 * self.B + 3 * self.C
-		DD = - 8 * self.Dq - 6 * self.B + 3 * self.C
-		EE = - 8 * self.Dq - 2 * self.B + 3 * self.C
+		aa = +12 * self.Dq - 6 * self.B + 3 * self.C
+		bb = + 2 * self.Dq + 3 * self.C
+		cc = + 2 * self.Dq - 6 * self.B + 3 * self.C
+		dd = - 8 * self.Dq - 6 * self.B + 3 * self.C
+		ee = - 8 * self.Dq - 2 * self.B + 3 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 3 * self.B
-		AC = CA = + 3 * self.B
-		AD = DA = 0.
-		AE = EA = - _2sqrt3 * self.B
+		ab = ba = - 3 * self.B
+		ac = ca = + 3 * self.B
+		ad = da = 0.
+		ae = ea = - _2sqrt3 * self.B
 
-		BC = CB = - 3 * self.B
-		BD = DB = + 3 * self.B
-		BE = EB = _3sqrt3 * self.B
+		bc = cb = - 3 * self.B
+		bd = db = + 3 * self.B
+		be = eb = _3sqrt3 * self.B
 
-		CD = DC = - 3 * self.B
-		CE = EC = - _sqrt3 * self.B
+		cd = dc = - 3 * self.B
+		ce = ec = - _sqrt3 * self.B
 
-		DE = ED = _2sqrt3 * self.B
+		de = ed = _2sqrt3 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD, AE],
-			[BA, BB, BC, BD, BE],
-			[CA, CB, CC, CD, CE],
-			[DA, DB, DC, DD, DE],
-			[EA, EB, EC, ED, EE]
+			[aa, ab, ac, ad, ae],
+			[ba, bb, bc, bd, be],
+			[ca, cb, cc, cd, ce],
+			[da, db, dc, dd, de],
+			[ea, eb, ec, ed, ee]
 		])
 
 		return self.eigensolver(states)
@@ -1374,27 +1426,27 @@ class d7(object):
 	def E_2_states(self):
 		# -  diagonal elements
 
-		AA = +12 * self.Dq - 6 * self.B + 3 * self.C
-		BB = + 2 * self.Dq + 8 * self.B + 6 * self.C
-		CC = + 2 * self.Dq - 1 * self.B + 3 * self.C
-		DD = -18 * self.Dq - 8 * self.B + 4 * self.C
+		aa = +12 * self.Dq - 6 * self.B + 3 * self.C
+		bb = + 2 * self.Dq + 8 * self.B + 6 * self.C
+		cc = + 2 * self.Dq - 1 * self.B + 3 * self.C
+		dd = -18 * self.Dq - 8 * self.B + 4 * self.C
 
 		# non diagonal elements
 
-		AB = BA = - 6 * _sqrt2 * self.B
-		AC = CA = - _3sqrt2 * self.B
-		AD = DA = 0.
+		ab = ba = - 6 * _sqrt2 * self.B
+		ac = ca = - _3sqrt2 * self.B
+		ad = da = 0.
 
-		BC = CB = 10 * self.B
-		BD = DB = + _sqrt3 * (2 * self.B + self.C)
+		bc = cb = 10 * self.B
+		bd = db = + _sqrt3 * (2 * self.B + self.C)
 
-		CD = DC = _2sqrt3 * self.B
+		cd = dc = _2sqrt3 * self.B
 
 		states = np.array([
-			[AA, AB, AC, AD],
-			[BA, BB, BC, BD],
-			[CA, CB, CC, CD],
-			[DA, DB, DC, DD]
+			[aa, ab, ac, ad],
+			[ba, bb, bc, bd],
+			[ca, cb, cc, cd],
+			[da, db, dc, dd]
 		])
 
 		return self.eigensolver(states)
@@ -1402,16 +1454,16 @@ class d7(object):
 	def T_4_1_states(self):
 		# -  diagonal elements
 
-		AA = + 2 * self.Dq - 3 * self.B
-		BB = - 8 * self.Dq - 12 * self.B
+		aa = + 2 * self.Dq - 3 * self.B
+		bb = - 8 * self.Dq - 12 * self.B
 
 		# non diagonal elements
 
-		AB = BA = 6 * self.B
+		ab = ba = 6 * self.B
 
 		states = np.array([
-			[AA, AB],
-			[BA, BB]
+			[aa, ab],
+			[ba, bb]
 		])
 
 		return self.eigensolver(states)
