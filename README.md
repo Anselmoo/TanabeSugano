@@ -7,7 +7,7 @@
 
 
 # TanabeSugano
-A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d<sup>3</sup>-d<sup>7</sup> transition metal ions:
+A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d<sup>2</sup>-d<sup>8</sup> transition metal ions:
 
 1.  On the Absorption Spectra of Complex Ions. I
     
