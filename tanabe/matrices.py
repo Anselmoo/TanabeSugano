@@ -13,7 +13,124 @@ _3sqrt2 = _sqrt2 * 3.
 _3sqrt3 = _sqrt3 * 3.
 _3sqrt6 = _sqrt6 * 3.
 
-hallo = 'hallo'
+
+class d2(object):
+	def __init__(self, Dq=0., B=860., C=3801.):
+		"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+		:returns
+		-------
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+		"""
+		self.Dq = np.float64(Dq)
+		self.B = np.float64(B)
+		self.C = np.float64(C)
+
+	def A_1_1_states(self):
+		# -  diagonal elements
+
+		AA = - 8 * self.Dq + 10 * self.B + 5 * self.C
+		BB = +12 * self.Dq + 8 * self.B + 4 * self.C
+
+		# non diagonal elements
+
+		AB = BA = _sqrt6 * (2 * self.B + self.C)
+
+		states = np.array([
+			[AA, AB],
+			[BA, BB]
+		])
+
+		return self.eigensolver(states)
+
+	def E_1_states(self):
+		# -  diagonal elements
+
+		AA = +12 * self.Dq + self.B + 2 * self.C
+		BB = + 2 * self.Dq + 2 * self.C
+
+		# non diagonal elements
+
+		AB = BA = - _2sqrt3 * self.B
+
+		states = np.array([
+			[AA, AB],
+			[BA, BB]
+		])
+
+		return self.eigensolver(states)
+
+	def T_1_2_states(self):
+		# -  diagonal elements
+
+		AA = -8 * self.Dq + self.B + 2 * self.C
+		BB = +2 * self.Dq + 2 * self.C
+
+		# non diagonal elements
+
+		AB = BA = + _2sqrt3 * self.B
+
+		states = np.array([
+			[AA, AB],
+			[BA, BB]
+		])
+
+		return self.eigensolver(states)
+
+	def T_3_1_states(self):
+		# -  diagonal elements
+
+		AA = -8 * self.Dq - 5 * self.B
+		BB = +2 * self.Dq + 4 * self.B
+
+		# non diagonal elements
+
+		AB = BA = 6 * self.B
+
+		states = np.array([
+			[AA, AB],
+			[BA, BB]
+		])
+
+		return self.eigensolver(states)
+
+	def eigensolver(self, M):
+		"""
+		:param M: 2 dimensional square array == TS matrics of Ligand field Hamiltonian
+		:return: 1 dimensiona                                 l array == eigenvalues of the diagonalized Ligand field Hamiltonian
+		"""
+
+		return eigh(M)[0]
+
+	def solver(self):
+		# Ligand field independent states
+
+		# Ligendfield single depentent states
+
+		GS = self.T_3_1_states()[0]
+
+		T_1_1 = np.array([+2 * self.Dq + 4 * self.B + 2 * self.C]) - GS
+		T_3_2 = np.array([+2 * self.Dq - 8 * self.B]) - GS
+		A_3_2 = np.array([12 * self.Dq - 8 * self.B ]) - GS
+		# Ligandfield dependent
+		A_1_1 = self.A_1_1_states() - GS
+		E_1 = self.E_1_states() - GS
+		T_1_2 = self.T_1_2_states() - GS
+		T_3_1 = self.T_3_1_states() - GS
+
+		return {'1_A_1': A_1_1, '1_E': E_1, '1_T_3': T_1_2,
+		        '3_T_1': T_3_1, '1_T_1': T_1_1, '3_T_2': T_3_2, '3_A_2': A_3_2}
 
 
 class d3(object):
@@ -186,14 +303,24 @@ class d3(object):
 
 
 class d4(object):
-	def __init__(self, Dq=0., B=1182., C=4362.):
+	def __init__(self, Dq=0., B=965., C=4449.):
 		"""
-				:param self:
-				:param Dq:
-				:param B:
-				:param C:
-				:return:
-				"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+		:returns
+		-------
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
 		self.C = np.float64(C)
@@ -543,13 +670,23 @@ class d4(object):
 
 
 class d5(object):
-	def __init__(self, Dq=0., B=1293., C=4823.):
+	def __init__(self, Dq=0., B=860., C=3850.):
 		"""
-		:param self:
-		:param Dq:
-		:param B:
-		:param C:
-		:return:
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+		:returns
+		-------
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
 		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
@@ -910,18 +1047,25 @@ class d5(object):
 		        '4_T_2': T_4_2, '4_E': E_4, '6_A_1': A_6_1, '4_A_1': A_4_1, '4_A_2': A_4_2}
 
 
-# return { "2_T_2": T_2_2,"4_E": E_4, '6_A_1': A_6_1, '4_A_1': A_4_1, '4_A_2': A_4_2 }
-
-
 class d6(object):
-	def __init__(self, Dq=0., B=1182., C=4362.):
+	def __init__(self, Dq=0., B=1065., C=5120.):
 		"""
-				:param self:
-				:param Dq:
-				:param B:
-				:param C:
-				:return:
-				"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+		:returns
+		-------
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
 		self.C = np.float64(C)
@@ -1279,12 +1423,22 @@ class d6(object):
 class d7(object):
 	def __init__(self, Dq=0., B=971., C=4499.):
 		"""
-				:param self:
-				:param Dq:
-				:param B:
-				:param C:
-				:return:
-				"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+		:returns
+		-------
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+		"""
 		self.Dq = np.float64(Dq)
 		self.B = np.float64(B)
 		self.C = np.float64(C)
@@ -1448,6 +1602,125 @@ class d7(object):
 
 		return {'2_T_2': T_2_2, '2_T_1': T_2_1, '2_E': E_2, '4_T_1': T_4_1,
 		        '4_A_2': A_4_2, '4_T_2': T_4_2, '2_A_1': A_2_1, '2_A_2': A_2_2}
+
+
+class d8(object):
+	def __init__(self, Dq=0., B=1030., C=4850.):
+		"""
+		:parameter
+		---------
+		All parameters in wavenumbers (cm-)
+		Dq: float
+			Crystalfield-Splitting
+		B: float
+			Racah-Parameter
+		C: float
+			Racah-Parameter
+		:returns
+		-------
+		dictionary with elements of:
+			* Atomic-Termsymbols: str
+			* Eigen-Energies: float numpy-array
+				Eigen-Energies of the atomic states depending on the crystalfield
+		"""
+		self.Dq = np.float64(Dq)
+		self.B = np.float64(B)
+		self.C = np.float64(C)
+
+	def A_1_1_states(self):
+		# -  diagonal elements
+
+		AA = + 8 * self.Dq + 10 * self.B + 5 * self.C
+		BB = -12 * self.Dq + 8 * self.B + 4 * self.C
+
+		# non diagonal elements
+
+		AB = BA = _sqrt6 * (2 * self.B + self.C)
+
+		states = np.array([
+			[AA, AB],
+			[BA, BB]
+		])
+
+		return self.eigensolver(states)
+
+	def E_1_states(self):
+		# -  diagonal elements
+
+		AA = -12 * self.Dq + self.B + 2 * self.C
+		BB = + 2 * self.Dq + 2 * self.C
+
+		# non diagonal elements
+
+		AB = BA = - _2sqrt3 * self.B
+
+		states = np.array([
+			[AA, AB],
+			[BA, BB]
+		])
+
+		return self.eigensolver(states)
+
+	def T_1_2_states(self):
+		# -  diagonal elements
+
+		AA = +8 * self.Dq + self.B + 2 * self.C
+		BB = -2 * self.Dq + 2 * self.C
+
+		# non diagonal elements
+
+		AB = BA = + _2sqrt3 * self.B
+
+		states = np.array([
+			[AA, AB],
+			[BA, BB]
+		])
+
+		return self.eigensolver(states)
+
+	def T_3_1_states(self):
+		# -  diagonal elements
+
+		AA = +8 * self.Dq - 5 * self.B
+		BB = -2 * self.Dq + 4 * self.B
+
+		# non diagonal elements
+
+		AB = BA = 6 * self.B
+
+		states = np.array([
+			[AA, AB],
+			[BA, BB]
+		])
+
+		return self.eigensolver(states)
+
+	def eigensolver(self, M):
+		"""
+		:param M: 2 dimensional square array == TS matrics of Ligand field Hamiltonian
+		:return: 1 dimensiona                                 l array == eigenvalues of the diagonalized Ligand field Hamiltonian
+		"""
+
+		return eigh(M)[0]
+
+	def solver(self):
+		# Ligand field independent states
+
+		# Ligendfield single depentent states
+
+		GS = np.array([-12 * self.Dq - 8 * self.B ])
+
+		T_1_1 = np.array([-2 * self.Dq + 4 * self.B + 2 * self.C]) - GS
+		T_3_2 = np.array([-2 * self.Dq - 8 * self.B]) - GS
+		A_3_2 = np.array([0],dtype=float)
+		# Ligandfield dependent
+		A_1_1 = self.A_1_1_states() - GS
+		E_1 = self.E_1_states() - GS
+		T_1_2 = self.T_1_2_states() - GS
+		T_3_1 = self.T_3_1_states() - GS
+
+		return {'1_A_1': A_1_1, '1_E': E_1, '1_T_3': T_1_2,
+		        '3_T_1': T_3_1, '1_T_1': T_1_1, '3_T_2': T_3_2, '3_A_2': A_3_2}
 
 
 if __name__ == '__main__':
