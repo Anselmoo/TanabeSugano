@@ -140,8 +140,8 @@ class d3(object):
 	def T_4_1_states(self):
 		# -  diagonal elements
 
-		AA = - 2 * self.Dq - 3 * self.B
-		BB = + 8 * self.Dq - 12 * self.B
+		AA = -2 * self.Dq - 3 * self.B
+		BB = +8 * self.Dq - 12 * self.B
 
 		# non diagonal elements
 
@@ -204,10 +204,10 @@ class d4(object):
 		AA = -16 * self.Dq - 15 * self.B + 5 * self.C
 		BB = - 6 * self.Dq - 11 * self.B + 4 * self.C
 		CC = - 6 * self.Dq - 3 * self.B + 6 * self.C
-		DD = 4 * self.Dq - self.B + 6 * self.C
-		EE = 4 * self.Dq - 9 * self.B + 4 * self.C
-		FF = 4 * self.Dq - 11 * self.B + 4 * self.C
-		GG = 14 * self.Dq - 16 * self.B + 5 * self.C
+		DD = + 4 * self.Dq - self.B + 6 * self.C
+		EE = + 4 * self.Dq - 9 * self.B + 4 * self.C
+		FF = + 4 * self.Dq - 11 * self.B + 4 * self.C
+		GG = +14 * self.Dq - 16 * self.B + 5 * self.C
 
 		# non diagonal elements
 
@@ -256,10 +256,10 @@ class d4(object):
 		AA = -16 * self.Dq - 9 * self.B + 7 * self.C
 		BB = - 6 * self.Dq - 9 * self.B + 6 * self.C
 		CC = - 6 * self.Dq + 3 * self.B + 8 * self.C
-		DD = 4 * self.Dq - 9 * self.B + 6 * self.C
-		EE = 4 * self.Dq - 3 * self.B + 6 * self.C
-		FF = 4 * self.Dq + 5 * self.B + 8 * self.C
-		GG = 14 * self.Dq + 7 * self.C
+		DD = + 4 * self.Dq - 9 * self.B + 6 * self.C
+		EE = + 4 * self.Dq - 3 * self.B + 6 * self.C
+		FF = + 4 * self.Dq + 5 * self.B + 8 * self.C
+		GG = +14 * self.Dq + 7 * self.C
 
 		# non diagonal elements
 
@@ -307,9 +307,9 @@ class d4(object):
 
 		AA = -16 * self.Dq + 10 * self.C
 		BB = - 6 * self.Dq + 6 * self.C
-		CC = 4 * self.Dq + 14 * self.B + 11 * self.C
-		DD = 4 * self.Dq - 3 * self.B + 6 * self.C
-		EE = 24 * self.Dq - 16 * self.B + 8 * self.C
+		CC = + 4 * self.Dq + 14 * self.B + 11 * self.C
+		DD = + 4 * self.Dq - 3 * self.B + 6 * self.C
+		EE = +24 * self.Dq - 16 * self.B + 8 * self.C
 
 		# non diagonal elements
 
@@ -342,9 +342,9 @@ class d4(object):
 
 		AA = -16 * self.Dq - 9 * self.B + 7 * self.C
 		BB = - 6 * self.Dq - 6 * self.B + 6 * self.C
-		CC = 4 * self.Dq + 5 * self.B + 8 * self.C
-		DD = 4 * self.Dq + 6 * self.B + 9 * self.C
-		EE = 4 * self.Dq - 3 * self.B + 6 * self.C
+		CC = + 4 * self.Dq + 5 * self.B + 8 * self.C
+		DD = + 4 * self.Dq + 6 * self.B + 9 * self.C
+		EE = + 4 * self.Dq - 3 * self.B + 6 * self.C
 
 		# non diagonal elements
 
@@ -377,9 +377,9 @@ class d4(object):
 
 		AA = - 6 * self.Dq - 9 * self.B + 4 * self.C
 		BB = - 6 * self.Dq - 5 * self.B + 6 * self.C
-		CC = 4 * self.Dq - 13 * self.B + 4 * self.C
-		DD = 4 * self.Dq - 9 * self.B + 4 * self.C
-		EE = 14 * self.Dq - 8 * self.B + 5 * self.C
+		CC = + 4 * self.Dq - 13 * self.B + 4 * self.C
+		DD = + 4 * self.Dq - 9 * self.B + 4 * self.C
+		EE = +14 * self.Dq - 8 * self.B + 5 * self.C
 
 		# non diagonal elements
 
@@ -412,8 +412,8 @@ class d4(object):
 
 		AA = - 6 * self.Dq - 3 * self.B + 6 * self.C
 		BB = - 6 * self.Dq - 3 * self.B + 8 * self.C
-		CC = 4 * self.Dq - 3 * self.B + 6 * self.C
-		DD = 14 * self.Dq - 16 * self.B + 7 * self.C
+		CC = + 4 * self.Dq - 3 * self.B + 6 * self.C
+		DD = +14 * self.Dq - 16 * self.B + 7 * self.C
 
 		# non diagonal elements
 
@@ -438,9 +438,9 @@ class d4(object):
 	def E_3_1_states(self):
 		# diagonal elements
 
-		AA = - 6 * self.Dq - 13 * self.B + 4 * self.C
-		BB = - 6 * self.Dq - 10 * self.B + 4 * self.C
-		CC = 4 * self.Dq - 11 * self.B + 4 * self.C
+		AA = -6 * self.Dq - 13 * self.B + 4 * self.C
+		BB = -6 * self.Dq - 10 * self.B + 4 * self.C
+		CC = +4 * self.Dq - 11 * self.B + 4 * self.C
 
 		# non diagonal elements
 
@@ -460,8 +460,8 @@ class d4(object):
 	def A_3_2_states(self):
 		# diagonal elements
 
-		AA = - 6 * self.Dq - 8 * self.B + 4 * self.C
-		BB = 4 * self.Dq - 2 * self.B + 7 * self.C
+		AA = -6 * self.Dq - 8 * self.B + 4 * self.C
+		BB = +4 * self.Dq - 2 * self.B + 7 * self.C
 
 		# non diagonal elements
 
@@ -477,8 +477,8 @@ class d4(object):
 	def A_1_2_states(self):
 		# diagonal elements
 
-		AA = - 6 * self.Dq - 12 * self.B + 6 * self.C
-		BB = 4 * self.Dq - 3 * self.B + 6 * self.C
+		AA = -6 * self.Dq - 12 * self.B + 6 * self.C
+		BB = +4 * self.Dq - 3 * self.B + 6 * self.C
 
 		# non diagonal elements
 
@@ -561,13 +561,13 @@ class d5(object):
 		AA = -20 * self.Dq - 20 * self.B + 10 * self.C
 		BB = -10 * self.Dq - 8 * self.B + 9 * self.C
 		CC = -10 * self.Dq - 18 * self.B + 9 * self.C
-		DD = - 16 * self.B + 8 * self.C
-		EE = - 12 * self.B + 8 * self.C
-		FF = 2 * self.B + 12 * self.C
-		GG = -  6 * self.B + 10 * self.C
-		HH = 10 * self.Dq - 18 * self.B + 9 * self.C
-		II = 10 * self.Dq - 8 * self.B + 9 * self.C
-		JJ = 20 * self.Dq - 20 * self.B + 10 * self.C
+		DD = -16 * self.B + 8 * self.C
+		EE = -12 * self.B + 8 * self.C
+		FF = + 2 * self.B + 12 * self.C
+		GG = - 6 * self.B + 10 * self.C
+		HH = +10 * self.Dq - 18 * self.B + 9 * self.C
+		II = +10 * self.Dq - 8 * self.B + 9 * self.C
+		JJ = +20 * self.Dq - 20 * self.B + 10 * self.C
 
 		# non diagonal elements
 
@@ -645,12 +645,12 @@ class d5(object):
 
 		AA = -10 * self.Dq - 22 * self.B + 9 * self.C
 		BB = -10 * self.Dq - 8 * self.B + 9 * self.C
-		CC = -  4 * self.B + 10 * self.C
-		DD = - 12 * self.B + 8 * self.C
-		EE = - 10 * self.B + 10 * self.C
-		FF = -  6 * self.B + 10 * self.C
-		GG = 10 * self.Dq - 8 * self.B + 9 * self.C
-		HH = 10 * self.Dq - 22 * self.B + 9 * self.C
+		CC = - 4 * self.B + 10 * self.C
+		DD = -12 * self.B + 8 * self.C
+		EE = -10 * self.B + 10 * self.C
+		FF = - 6 * self.B + 10 * self.C
+		GG = +10 * self.Dq - 8 * self.B + 9 * self.C
+		HH = +10 * self.Dq - 22 * self.B + 9 * self.C
 
 		# non diagonal elements
 
@@ -707,11 +707,11 @@ class d5(object):
 
 		AA = -10 * self.Dq - 4 * self.B + 12 * self.C
 		BB = -10 * self.Dq - 13 * self.B + 9 * self.C
-		CC = -  4 * self.B + 10 * self.C
-		DD = - 16 * self.B + 8 * self.C
-		EE = - 12 * self.B + 8 * self.C
-		FF = 10 * self.Dq - 13 * self.B + 9 * self.C
-		GG = 10 * self.Dq - 4 * self.B + 12 * self.C
+		CC = - 4 * self.B + 10 * self.C
+		DD = -16 * self.B + 8 * self.C
+		EE = -12 * self.B + 8 * self.C
+		FF = +10 * self.Dq - 13 * self.B + 9 * self.C
+		GG = +10 * self.Dq - 4 * self.B + 12 * self.C
 
 		# non diagonal elements
 
@@ -758,9 +758,9 @@ class d5(object):
 		# diagonal elements
 
 		AA = -10 * self.Dq - 3 * self.B + 9 * self.C
-		BB = - 12 * self.B + 8 * self.C
-		CC = - 19 * self.B + 8 * self.C
-		DD = 10 * self.Dq - 3 * self.B + 9 * self.C
+		BB = -12 * self.B + 8 * self.C
+		CC = -19 * self.B + 8 * self.C
+		DD = +10 * self.Dq - 3 * self.B + 9 * self.C
 
 		# non diagonal elements
 
@@ -786,8 +786,8 @@ class d5(object):
 		# diagonal elements
 
 		AA = -10 * self.Dq - 23 * self.B + 9 * self.C
-		BB = - 12 * self.B + 8 * self.C
-		CC = 10 * self.Dq - 23 * self.B + 9 * self.C
+		BB = -12 * self.B + 8 * self.C
+		CC = +10 * self.Dq - 23 * self.B + 9 * self.C
 
 		# non diagonal elements
 
@@ -830,8 +830,8 @@ class d5(object):
 		# diagonal elements
 
 		AA = -10 * self.Dq - 17 * self.B + 6 * self.C
-		BB = - 22 * self.B + 5 * self.C
-		CC = 10 * self.Dq - 17 * self.B + 6 * self.C
+		BB = -22 * self.B + 5 * self.C
+		CC = +10 * self.Dq - 17 * self.B + 6 * self.C
 
 		# non diagonal elements
 
@@ -852,8 +852,8 @@ class d5(object):
 	def E_4_states(self):
 		# diagonal elements
 
-		AA = - 22 * self.B + 5 * self.C
-		BB = - 21 * self.B + 5 * self.C
+		AA = -22 * self.B + 5 * self.C
+		BB = -21 * self.B + 5 * self.C
 
 		# non diagonal elements
 
@@ -932,9 +932,9 @@ class d6(object):
 		AA = +16 * self.Dq - 15 * self.B + 5 * self.C
 		BB = + 6 * self.Dq - 11 * self.B + 4 * self.C
 		CC = + 6 * self.Dq - 3 * self.B + 6 * self.C
-		DD = -4 * self.Dq - self.B + 6 * self.C
-		EE = -4 * self.Dq - 9 * self.B + 4 * self.C
-		FF = -4 * self.Dq - 11 * self.B + 4 * self.C
+		DD = - 4 * self.Dq - self.B + 6 * self.C
+		EE = - 4 * self.Dq - 9 * self.B + 4 * self.C
+		FF = - 4 * self.Dq - 11 * self.B + 4 * self.C
 		GG = -14 * self.Dq - 16 * self.B + 5 * self.C
 
 		# non diagonal elements
@@ -1035,8 +1035,8 @@ class d6(object):
 
 		AA = +16 * self.Dq + 10 * self.C
 		BB = + 6 * self.Dq + 6 * self.C
-		CC = -4 * self.Dq + 14 * self.B + 11 * self.C
-		DD = -4 * self.Dq - 3 * self.B + 6 * self.C
+		CC = - 4 * self.Dq + 14 * self.B + 11 * self.C
+		DD = - 4 * self.Dq - 3 * self.B + 6 * self.C
 		EE = -24 * self.Dq - 16 * self.B + 8 * self.C
 
 		# non diagonal elements
@@ -1070,9 +1070,9 @@ class d6(object):
 
 		AA = +16 * self.Dq - 9 * self.B + 7 * self.C
 		BB = + 6 * self.Dq - 6 * self.B + 6 * self.C
-		CC = -4 * self.Dq + 5 * self.B + 8 * self.C
-		DD = -4 * self.Dq + 6 * self.B + 9 * self.C
-		EE = -4 * self.Dq - 3 * self.B + 6 * self.C
+		CC = - 4 * self.Dq + 5 * self.B + 8 * self.C
+		DD = - 4 * self.Dq + 6 * self.B + 9 * self.C
+		EE = - 4 * self.Dq - 3 * self.B + 6 * self.C
 
 		# non diagonal elements
 
@@ -1105,8 +1105,8 @@ class d6(object):
 
 		AA = + 6 * self.Dq - 9 * self.B + 4 * self.C
 		BB = + 6 * self.Dq - 5 * self.B + 6 * self.C
-		CC = -4 * self.Dq - 13 * self.B + 4 * self.C
-		DD = -4 * self.Dq - 9 * self.B + 4 * self.C
+		CC = - 4 * self.Dq - 13 * self.B + 4 * self.C
+		DD = - 4 * self.Dq - 9 * self.B + 4 * self.C
 		EE = -14 * self.Dq - 8 * self.B + 5 * self.C
 
 		# non diagonal elements
