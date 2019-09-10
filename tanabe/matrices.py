@@ -122,7 +122,7 @@ class d2(object):
 
 		T_1_1 = np.array([+2 * self.Dq + 4 * self.B + 2 * self.C]) - GS
 		T_3_2 = np.array([+2 * self.Dq - 8 * self.B]) - GS
-		A_3_2 = np.array([12 * self.Dq - 8 * self.B ]) - GS
+		A_3_2 = np.array([12 * self.Dq - 8 * self.B]) - GS
 		# Ligandfield dependent
 		A_1_1 = self.A_1_1_states() - GS
 		E_1 = self.E_1_states() - GS
@@ -1708,11 +1708,11 @@ class d8(object):
 
 		# Ligendfield single depentent states
 
-		GS = np.array([-12 * self.Dq - 8 * self.B ])
+		GS = np.array([-12 * self.Dq - 8 * self.B])
 
 		T_1_1 = np.array([-2 * self.Dq + 4 * self.B + 2 * self.C]) - GS
 		T_3_2 = np.array([-2 * self.Dq - 8 * self.B]) - GS
-		A_3_2 = np.array([0],dtype=float)
+		A_3_2 = np.array([0], dtype=float)
 		# Ligandfield dependent
 		A_1_1 = self.A_1_1_states() - GS
 		E_1 = self.E_1_states() - GS
