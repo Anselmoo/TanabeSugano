@@ -26,6 +26,8 @@ class CMDmain(object):
 			self._size = 42
 		if self.spin_state == 3 or self.spin_state == 7:
 			self._size = 19
+		if self.spin_state == 2 or self.spin_state == 8:
+			self._size = 10
 		self.result = np.zeros((self._size + 1, nroots))
 
 	def plot(self):
@@ -67,11 +69,15 @@ class CMDmain(object):
 		"""
 		for i, dq in enumerate(self.e_range):
 
-			if self.spin_state == 3:  # d3
+			if self.spin_state == 2:  # d3
+
+				states = ts.d2(Dq=dq, B=self.B, C=self.C).solver()
+				self.result[:, i] = np.concatenate(list(states.values()))
+
+			elif self.spin_state == 3:  # d3
 
 				states = ts.d3(Dq=dq, B=self.B, C=self.C).solver()
 				self.result[:, i] = np.concatenate(list(states.values()))
-
 
 			elif self.spin_state == 4:  # d4
 
@@ -81,7 +87,6 @@ class CMDmain(object):
 			elif self.spin_state == 5:  # d5
 				states = ts.d5(Dq=dq, B=self.B, C=self.C).solver()
 				self.result[:, i] = np.concatenate(list(states.values()))
-
 
 			elif self.spin_state == 6:  # d6
 
@@ -93,6 +98,11 @@ class CMDmain(object):
 				states = ts.d7(Dq=dq, B=self.B, C=self.C).solver()
 				self.result[:, i] = np.concatenate(list(states.values()))
 
+			elif self.spin_state == 8:  # d8
+
+				states = ts.d8(Dq=dq, B=self.B, C=self.C).solver()
+				self.result[:, i] = np.concatenate(list(states.values()))
+
 			else:
 
 				print('not a correct value!')
@@ -101,7 +111,12 @@ class CMDmain(object):
 		"""
 		Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
 		"""
-		if self.spin_state == 3:  # d3
+		if self.spin_state == 2:  # d2
+
+			states = ts.d2(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
+			self.ts_print(states, dq_ci=dq_ci)
+
+		elif self.spin_state == 3:  # d3
 
 			states = ts.d3(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
 			self.ts_print(states, dq_ci=dq_ci)
@@ -124,6 +139,11 @@ class CMDmain(object):
 		elif self.spin_state == 7:  # d7
 
 			states = ts.d7(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
+			self.ts_print(states, dq_ci=dq_ci)
+
+		elif self.spin_state == 8:  # d8
+
+			states = ts.d8(Dq=dq_ci / 10., B=self.B, C=self.C).solver()
 			self.ts_print(states, dq_ci=dq_ci)
 
 	def ts_print(self, states, dq_ci=None):
