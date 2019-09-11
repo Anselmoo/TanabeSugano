@@ -1,13 +1,14 @@
 [![Build Status](https://travis-ci.com/Anselmoo/TanabeSugano.svg?token=77iF1sqpzPpkXGuLWRs9&branch=master)](https://travis-ci.com/Anselmoo/TanabeSugano)
 [![CodeFactor](https://www.codefactor.io/repository/github/anselmoo/tanabesugano/badge)](https://www.codefactor.io/repository/github/anselmoo/tanabesugano)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3402486.svg)](https://doi.org/10.5281/zenodo.3402486)
+[![Mergify Status](https://img.shields.io/endpoint.svg?url=https://gh.mergify.io/badges/Anselmoo/TanabeSugano&style=flat)](https://github.com/Anselmoo/TanabeSugano/commits/master)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3403688.svg)](https://doi.org/10.5281/zenodo.3403688)
 [![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)](https://github.com/Anselmoo/TanabeSugano/blob/master/LICENSE)
 [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/Anselmoo/TanabeSugano?include_prereleases)](https://github.com/Anselmoo/TanabeSugano/releases)
 
 
 
 # TanabeSugano
-A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d<sup>3</sup>-d<sup>7</sup> transition metal ions:
+A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d<sup>2</sup>-d<sup>8</sup> transition metal ions:
 
 1.  On the Absorption Spectra of Complex Ions. I
     
