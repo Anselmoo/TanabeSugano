@@ -22,11 +22,11 @@ class CMDmain(object):
 		self.delta_B = self.e_range / self.B
 
 		self.spin_state = int(mode)
-		if self.spin_state == 4 or self.spin_state == 5 or self.spin_state == 6:
+		if self.spin_state in [4, 5, 6]:
 			self._size = 42
-		if self.spin_state == 3 or self.spin_state == 7:
+		if self.spin_state in [3, 7]:
 			self._size = 19
-		if self.spin_state == 2 or self.spin_state == 8:
+		if self.spin_state in [2, 8]:
 			self._size = 10
 		self.result = np.zeros((self._size + 1, nroots))
 

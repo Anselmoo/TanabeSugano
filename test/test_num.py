@@ -1,24 +1,20 @@
 from test import *
 
 def state_check(x):
-    if x == 3:
-        for i in np.linspace(0, 1500, 30):
+    for i in np.linspace(0, 1500, 30):
+        if x == 3:
             states = matrices.d3(Dq=i).solver()
             return len(states)
-    if x == 4:
-        for i in np.linspace(0, 1500, 30):
+        elif x == 4:
             states = matrices.d4(Dq=i).solver()
             return len(states)
-    if x == 5:
-        for i in np.linspace(0, 1500, 30):
+        elif x == 5:
             states = matrices.d5(Dq=i).solver()
             return len(states)
-    if x == 6:
-        for i in np.linspace(0, 1500, 30):
+        elif x == 6:
             states = matrices.d6(Dq=i).solver()
             return len(states)
-    if x == 7:
-        for i in np.linspace(0, 1500, 30):
+        elif x == 7:
             states = matrices.d7(Dq=i).solver()
             return len(states)
 
