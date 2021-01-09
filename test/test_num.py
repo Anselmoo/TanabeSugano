@@ -1,6 +1,12 @@
 from test import *
 
 def state_check(x):
+    """
+    Checks the state of a matrix.
+
+    Args:
+        x: (int): write your description
+    """
     if x == 3:
         for i in np.linspace(0, 1500, 30):
             states = matrices.d3(Dq=i).solver()
@@ -24,6 +30,11 @@ def state_check(x):
 
 
 def test_answer():
+    """
+    Sets the answer.
+
+    Args:
+    """
     assert state_check(3) == 8
     assert state_check(4) == 12
     assert state_check(5) == 11

@@ -10,6 +10,18 @@ from tanabe import *
 
 class CMDmain(object):
 	def __init__(self, Dq=4000., B=400., C=3600., nroots=100, mode=5, slater=False):
+     """
+     Initialize the spin.
+
+     Args:
+         self: (todo): write your description
+         Dq: (int): write your description
+         B: (int): write your description
+         C: (int): write your description
+         nroots: (list): write your description
+         mode: (todo): write your description
+         slater: (todo): write your description
+     """
 		self.Dq = Dq  # Oh-crystalfield-splitting
 		self.B = B  # Racah-Parameter B in wavenumbers
 		self.C = C  # Racah-Parameter C in wavenumbers
@@ -31,6 +43,12 @@ class CMDmain(object):
 		self.result = np.zeros((self._size + 1, nroots))
 
 	def plot(self):
+     """
+     Plots the results.
+
+     Args:
+         self: (todo): write your description
+     """
 
 		# Figure one for classical Tanabe-Sugano-Diagram with B-dependency
 		fig_1 = plt.figure(1)
@@ -54,6 +72,12 @@ class CMDmain(object):
 		plt.show()
 
 	def savetxt(self):
+     """
+     Saves state
+
+     Args:
+         self: (todo): write your description
+     """
 
 		title_TS = 'TS-diagram_d%i_10Dq_%i_B_%i_C_%i.txt' % (self.spin_state, self.Dq * 10., self.B, self.C)
 		ts_states = np.concatenate((np.array([self.delta_B]), np.divide(self.result, self.B)))
