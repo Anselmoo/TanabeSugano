@@ -11,9 +11,14 @@ __date__ = "08/09/2019"
 with open("requirements.txt") as f:
     required = f.read().splitlines()
 
+with open("README.md") as f:
+    long_description = f.read().splitlines()
+
 setup(
     name="TanabeSugano",
-    version="1.1.1",
+    description="A python-solver for Tanabe-Sugano and energy-correlation diagrams",
+    long_description=long_description,
+    version="1.1.2",
     packages=["tanabe", "test"],
     install_requires=required,
     url="https://github.com/Anselmoo/TanabeSugano",
@@ -23,7 +28,6 @@ setup(
     author_email=__author_email__,
     maintainer=__authors__,
     maintainer_email=__author_email__,
-    description="A python-solver for Tanabe-Sugano and energy-correlation diagrams",
     platforms=["MacOS :: MacOS X", "Microsoft :: Windows", "POSIX :: Linux"],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
