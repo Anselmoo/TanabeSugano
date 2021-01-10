@@ -5,7 +5,7 @@ import matplotlib.pylab as plt
 import numpy as np
 from prettytable import PrettyTable
 
-from tanabe import *
+from tanabe import ts
 
 
 class CMDmain(object):

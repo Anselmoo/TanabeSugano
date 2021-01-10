@@ -1,4 +1,4 @@
-from test import *
+from test import frontapp
 
 
 def calc_case():

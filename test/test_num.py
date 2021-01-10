@@ -1,4 +1,4 @@
-from test import *
+from test import matrices
 
 
 def state_check(x):
