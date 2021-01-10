@@ -4,7 +4,7 @@ except ImportError:
     from distutils.core import setup
 
 __authors__ = ["Anselm Hahn"]
-__author_email__ == "Anselm.Hahn@gmail.com"
+__author_email__ = "Anselm.Hahn@gmail.com"
 __license__ = "MIT"
 __date__ = "08/09/2019"
 
