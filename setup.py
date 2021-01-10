@@ -47,9 +47,10 @@ setup(
     keywords=[
         "terminal",
         "data-visualization",
-        "Tanabe",
-        "Sugano",
-        "Tanabe-Sugano",
-        "Energy Correlation",
+        "tanabe",
+        "sugano",
+        "tanabe-sugano",
+        "energy-correlation",
+        "complex-ions",
     ],
 )
