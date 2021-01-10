@@ -47,7 +47,7 @@ The **TanabeSugano**-application can be installed and run:
     #via pip+git
     pip git+https://github.com/Anselmoo/TanabeSugano.git
     
-    # Via local
+    #locally
     python setup.py install
     python -m tanabe
 ```
