@@ -1,6 +1,11 @@
 from test import *
 
+
 def calc_case():
-	return frontapp.CMDmain(Dq=4000., B=400., C=3600., nroots=100, mode=5).calculation()
+    return frontapp.CMDmain(
+        Dq=4000.0, B=400.0, C=3600.0, nroots=100, mode=5
+    ).calculation()
+
+
 def test_answer():
-	calc_case()
+    calc_case()
