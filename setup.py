@@ -12,7 +12,7 @@ with open("requirements.txt") as f:
     required = f.read().splitlines()
 
 with open("README.md") as f:
-    long_description = f.read().splitlines()
+    long_description = f.read()
 
 setup(
     name="TanabeSugano",
