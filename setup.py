@@ -20,7 +20,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     version="1.1.2",
-    packages=["tanabe", "test"],
+    packages=setuptools.find_packages(),
     install_requires=required,
     url="https://github.com/Anselmoo/TanabeSugano",
     download_url="https://github.com/Anselmoo/TanabeSugano/releases",
