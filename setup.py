@@ -16,8 +16,9 @@ with open("README.md") as f:
 
 setup(
     name="TanabeSugano",
-    description="A python-solver for Tanabe-Sugano and energy-correlation diagrams",
+    description="A python-solver for Tanabe-Sugano and Energy-Correlation diagrams",
     long_description=long_description,
+    long_description_content_type="text/markdown",
     version="1.1.2",
     packages=["tanabe", "test"],
     install_requires=required,
