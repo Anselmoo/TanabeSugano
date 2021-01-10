@@ -1,5 +1,4 @@
 ![Python package](https://github.com/Anselmoo/TanabeSugano/workflows/Python%20package/badge.svg)
-[![Travis (.com)](https://img.shields.io/travis/com/Anselmoo/TanabeSugano?logo=travis)](https://travis-ci.com/Anselmoo/TanabeSugano)
 [![CodeFactor](https://www.codefactor.io/repository/github/anselmoo/tanabesugano/badge)](https://www.codefactor.io/repository/github/anselmoo/tanabesugano)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3403688.svg)](https://doi.org/10.5281/zenodo.3403688)
 [![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)](https://github.com/Anselmoo/TanabeSugano/blob/master/LICENSE)
