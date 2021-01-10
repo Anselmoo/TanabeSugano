@@ -17,7 +17,7 @@ _3sqrt6 = _sqrt6 * 3.0
 class d2(object):
     def __init__(self, Dq=0.0, B=860.0, C=3801.0):
         """
-        :parameter
+        parameter
         ---------
         All parameters in wavenumbers (cm-)
         Dq: float
@@ -26,7 +26,7 @@ class d2(object):
                 Racah-Parameter
         C: float
                 Racah-Parameter
-        :returns
+        returns
         -------
         dictionary with elements of:
                 * Atomic-Termsymbols: str
@@ -131,7 +131,7 @@ class d2(object):
 class d3(object):
     def __init__(self, Dq=0.0, B=918.0, C=4133.0):
         """
-        :parameter
+        parameter
         ---------
         All parameters in wavenumbers (cm-)
         Dq: float
@@ -140,7 +140,8 @@ class d3(object):
                 Racah-Parameter
         C: float
                 Racah-Parameter
-        :returns
+
+        returns
         -------
         dictionary with elements of:
                 * Atomic-Termsymbols: str
@@ -306,7 +307,7 @@ class d3(object):
 class d4(object):
     def __init__(self, Dq=0.0, B=965.0, C=4449.0):
         """
-        :parameter
+        parameter
         ---------
         All parameters in wavenumbers (cm-)
         Dq: float
@@ -315,12 +316,12 @@ class d4(object):
                 Racah-Parameter
         C: float
                 Racah-Parameter
-        :returns
+        returns
         -------
         dictionary with elements of:
                 * Atomic-Termsymbols: str
                 * Eigen-Energies: float numpy-array
-                        Eigen-Energies of the atomic states depending on the crystalfield
+                * Eigen-Energies of the atomic states depending on the crystalfield
         """
         self.Dq = np.float64(Dq)
         self.B = np.float64(B)
@@ -682,7 +683,7 @@ class d4(object):
 class d5(object):
     def __init__(self, Dq=0.0, B=860.0, C=3850.0):
         """
-        :parameter
+        parameter
         ---------
         All parameters in wavenumbers (cm-)
         Dq: float
@@ -691,12 +692,13 @@ class d5(object):
                 Racah-Parameter
         C: float
                 Racah-Parameter
-        :returns
+
+        returns
         -------
         dictionary with elements of:
                 * Atomic-Termsymbols: str
                 * Eigen-Energies: float numpy-array
-                        Eigen-Energies of the atomic states depending on the crystalfield
+                * Eigen-Energies of the atomic states depending on the crystalfield
         """
         self.Dq = np.float64(Dq)
         self.B = np.float64(B)
@@ -1061,7 +1063,7 @@ class d5(object):
 class d6(object):
     def __init__(self, Dq=0.0, B=1065.0, C=5120.0):
         """
-        :parameter
+        parameter
         ---------
         All parameters in wavenumbers (cm-)
         Dq: float
@@ -1070,7 +1072,8 @@ class d6(object):
                 Racah-Parameter
         C: float
                 Racah-Parameter
-        :returns
+
+        returns
         -------
         dictionary with elements of:
                 * Atomic-Termsymbols: str
@@ -1443,7 +1446,7 @@ class d6(object):
 class d7(object):
     def __init__(self, Dq=0.0, B=971.0, C=4499.0):
         """
-        :parameter
+        parameter
         ---------
         All parameters in wavenumbers (cm-)
         Dq: float
@@ -1452,12 +1455,13 @@ class d7(object):
                 Racah-Parameter
         C: float
                 Racah-Parameter
-        :returns
+
+        returns
         -------
         dictionary with elements of:
                 * Atomic-Termsymbols: str
                 * Eigen-Energies: float numpy-array
-                        Eigen-Energies of the atomic states depending on the crystalfield
+                * Eigen-Energies of the atomic states depending on the crystalfield
         """
         self.Dq = np.float64(Dq)
         self.B = np.float64(B)
@@ -1633,7 +1637,7 @@ class d7(object):
 class d8(object):
     def __init__(self, Dq=0.0, B=1030.0, C=4850.0):
         """
-        :parameter
+        parameter
         ---------
         All parameters in wavenumbers (cm-)
         Dq: float
@@ -1642,12 +1646,13 @@ class d8(object):
                 Racah-Parameter
         C: float
                 Racah-Parameter
-        :returns
+
+        returns
         -------
         dictionary with elements of:
                 * Atomic-Termsymbols: str
                 * Eigen-Energies: float numpy-array
-                        Eigen-Energies of the atomic states depending on the crystalfield
+                * Eigen-Energies of the atomic states depending on the crystalfield
         """
         self.Dq = np.float64(Dq)
         self.B = np.float64(B)

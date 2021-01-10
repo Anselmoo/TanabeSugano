@@ -161,7 +161,7 @@ class CMDmain(object):
     def ts_print(self, states, dq_ci=None):
         """
 
-        :parameter
+        parameter
         ---------
 
         states: str-list
@@ -169,8 +169,8 @@ class CMDmain(object):
         dq_ci: float (optional)
                 Specific crystalfield-splitting in Dq
 
-        :action:
-        -------
+        action
+        ------
 
         Table: str
                 Print the state-energies and their atomic-termsymbols on the screen

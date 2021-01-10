@@ -21,8 +21,8 @@ setup(
     license=__license__,
     author=__authors__,
     author_email=__author_email__,
-    maintainer=__author__,
-    maintainer_email=__email__,
+    maintainer=__authors__,
+    maintainer_email=__author_email__,
     description="A python-solver for Tanabe-Sugano and energy-correlation diagrams",
     platforms=["MacOS :: MacOS X", "Microsoft :: Windows", "POSIX :: Linux"],
     classifiers=[
