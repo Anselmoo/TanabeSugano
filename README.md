@@ -75,4 +75,4 @@ The options of the **TanabeSugano**-application are:
 ```    
 
 **Reference-Example** for d<sup>6</sup> for *B = 860 cm<sup>-</sup>* and *C = 3850 cm<sup>-</sup>*:
-![alt text-1](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/TanabeSugano-diagram4d6.png "title-1")
+![placeholder](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/dd-diagram_for_d6.png?raw=true)
