@@ -13,7 +13,7 @@ with open("requirements.txt") as f:
 
 setup(
     name="TanabeSugano",
-    version="1.1",
+    version="1.1.1",
     packages=["tanabe", "test"],
     install_requires=required,
     url="https://github.com/Anselmoo/TanabeSugano",
