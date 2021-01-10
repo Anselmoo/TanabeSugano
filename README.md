@@ -3,8 +3,8 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4430571.svg)](https://doi.org/10.5281/zenodo.4430571)
 [![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)](https://github.com/Anselmoo/TanabeSugano/blob/master/LICENSE)
 [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/Anselmoo/TanabeSugano?include_prereleases)](https://github.com/Anselmoo/TanabeSugano/releases)
-
-
+[![PyPI](https://img.shields.io/pypi/v/TanabeSugano?logo=Pypi&logoColor=yellow)](https://pypi.org/project/TanabeSugano/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/TanabeSugano?logo=Python&logoColor=yellow)](https://pypi.org/project/TanabeSugano/)
 
 # TanabeSugano
 A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d<sup>2</sup>-d<sup>8</sup> transition metal ions:
