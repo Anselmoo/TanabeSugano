@@ -1,7 +1,7 @@
 try:
-    from setuptools import setup
+    from setuptools import setup, find_packages
 except ImportError:
-    from distutils.core import setup
+    from distutils.core import setup, find_packages
 
 __authors__ = ["Anselm Hahn"]
 __author_email__ = "Anselm.Hahn@gmail.com"
@@ -20,7 +20,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     version="1.1.2",
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
     install_requires=required,
     url="https://github.com/Anselmoo/TanabeSugano",
     download_url="https://github.com/Anselmoo/TanabeSugano/releases",
