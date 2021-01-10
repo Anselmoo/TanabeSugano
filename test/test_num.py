@@ -1,5 +1,7 @@
 from test import matrices
 
+import numpy as np
+
 
 def state_check(x):
     for i in np.linspace(0, 1500, 30):
