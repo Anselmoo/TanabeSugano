@@ -2,3 +2,5 @@
 /build/
 /TanabeSugano.egg-info/
 /test_tanabe/
+.dccache
+*.pyc
