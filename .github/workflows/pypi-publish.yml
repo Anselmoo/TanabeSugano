@@ -1,7 +1,7 @@
 
 
 
-name: Upload Python Package
+name: Plushing Python Package
 
 on:
   release:
