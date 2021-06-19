@@ -1,0 +1,57 @@
+[tool.poetry]
+name = "tanabesugano"
+version = "1.2.0"
+description = "A python-solver for Tanabe-Sugano and Energy-Correlation diagrams"
+authors = ["Anselm Hahn <Anselm.Hahn@gmail.com>"]
+maintainers = ["Anselm Hahn <Anselm.Hahn@gmail.com>"]
+readme = "README.md"
+license = "MIT"
+keywords = [
+        "terminal",
+        "data-visualization",
+        "tanabe-sugano",
+        "energy-correlation",
+        "complex-ions"
+]
+repository = "https://github.com/Anselmoo/TanabeSugano"
+homepage = "https://pypi.org/project/TanabeSugano"
+classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Environment :: Console",
+        "Intended Audience :: Education",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: MacOS",
+        "Operating System :: Unix",
+        "Operating System :: Microsoft :: Windows",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Topic :: System :: Shells",
+        "Topic :: Scientific/Engineering :: Visualization",
+        "Topic :: Scientific/Engineering :: Chemistry",
+        "Topic :: Scientific/Engineering :: Physics",
+        "Topic :: Utilities"
+]
+include = ["LICENSE", "example/**"]
+exclude = ["test/**/*.py"]
+
+[tool.poetry.dependencies]
+python = ">=3.7.1,<4.0"
+pandas = "^1.2.4"
+numpy = "^1.20.3"
+matplotlib = "^3.4.2"
+prettytable = "^2.1.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.4"
+pytest-clarity = "^1.0.1"
+pytest-cov = "^2.12.1"
+flake8 = "^3.9.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
