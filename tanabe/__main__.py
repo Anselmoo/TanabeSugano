@@ -9,7 +9,15 @@ from tanabe import ts
 
 
 class CMDmain(object):
-    def __init__(self, Dq=4000.0, B=400.0, C=3600.0, nroots=100, mode=5, slater=False):
+    def __init__(
+        self,
+        Dq: float = 4000.0,
+        B: float = 400.0,
+        C: float = 3600.0,
+        nroots: int = 100,
+        mode: int = 5,
+        slater: bool = False,
+    ):
         self.Dq = Dq  # Oh-crystalfield-splitting
         self.B = B  # Racah-Parameter B in wavenumbers
         self.C = C  # Racah-Parameter C in wavenumbers
@@ -214,7 +222,7 @@ class CMDmain(object):
             title, results.T, delimiter="\t", header="state\tcm\teV", fmt="%s\t%i\t%.4f"
         )
 
-    def racah(self, F2, F4):
+    def racah(self, F2: float, F4: float):
         """
         Re-calculating and normalization of the Slater-Condon-Parameter to Racah-Parameter
         eV will be converted to wavenumbers

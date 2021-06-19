@@ -15,7 +15,7 @@ _3sqrt6 = _sqrt6 * 3.0
 
 
 class d2(object):
-    def __init__(self, Dq=0.0, B=860.0, C=3801.0):
+    def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3801.0):
         """
         parameter
         ---------
@@ -129,7 +129,7 @@ class d2(object):
 
 
 class d3(object):
-    def __init__(self, Dq=0.0, B=918.0, C=4133.0):
+    def __init__(self, Dq: float = 0.0, B: float = 918.0, C: float = 4133.0):
         """
         parameter
         ---------
@@ -305,7 +305,7 @@ class d3(object):
 
 
 class d4(object):
-    def __init__(self, Dq=0.0, B=965.0, C=4449.0):
+    def __init__(self, Dq: float = 0.0, B: float = 965.0, C: float = 4449.0):
         """
         parameter
         ---------
@@ -681,7 +681,7 @@ class d4(object):
 
 
 class d5(object):
-    def __init__(self, Dq=0.0, B=860.0, C=3850.0):
+    def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3850.0):
         """
         parameter
         ---------
@@ -1061,7 +1061,7 @@ class d5(object):
 
 
 class d6(object):
-    def __init__(self, Dq=0.0, B=1065.0, C=5120.0):
+    def __init__(self, Dq: float = 0.0, B: float = 1065.0, C: float = 5120.0):
         """
         parameter
         ---------
@@ -1444,7 +1444,7 @@ class d6(object):
 
 
 class d7(object):
-    def __init__(self, Dq=0.0, B=971.0, C=4499.0):
+    def __init__(self, Dq: float = 0.0, B: float = 971.0, C: float = 4499.0):
         """
         parameter
         ---------
@@ -1635,7 +1635,7 @@ class d7(object):
 
 
 class d8(object):
-    def __init__(self, Dq=0.0, B=1030.0, C=4850.0):
+    def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0):
         """
         parameter
         ---------
@@ -1747,30 +1747,3 @@ class d8(object):
             "3_T_2": T_3_2,
             "3_A_2": A_3_2,
         }
-
-
-if __name__ == "__main__":
-    # print( d5( Dq=0, B=1293., C=4823. ).E_4_states( ) )
-    import matplotlib.pylab as plt
-
-    for i in np.linspace(0, 1500, 30):
-        states = d6(Dq=i).solver()
-        states = states["1_A_1"]
-        # en_step = np.full( len( states ), i )
-        # plt.plot( en_step, states, 'o', color='r' )
-        plt.plot(i, states[0], "o", color="r")
-
-    for i in np.linspace(0, 1500, 30):
-        states = d6(Dq=i).solver()
-        states = states["3_T_2"]
-        # en_step = np.full( len( states ), i )
-        # plt.plot( en_step, states, 'o', color='g' )
-        plt.plot(i, states[0], "o", color="g")
-
-    for i in np.linspace(0, 1500, 30):
-        states = d6(Dq=i).solver()
-        states = states["3_T_1"]
-        # en_step = np.full( len( states ), i )
-        # plt.plot( en_step, states, 'v', color='b' )
-        plt.plot(i, states[0], "v", color="b")
-    plt.show()
