@@ -1,6 +1,0 @@
-include requirements.txt
-include LICENSE
-include MANIFEST.in
-include README.md
-recursive-include test *py
-recursive-include README.md
