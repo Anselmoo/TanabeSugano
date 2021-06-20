@@ -11,14 +11,21 @@ on:
 
 jobs:
   build:
-    name: Python ${{ matrix.version }} - ${{ matrix.os }} - ${{ github.event_name }}
+    name: Python ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-
+        python-version:
+          - 3.7
+          - 3.8
+          - 3.9
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+        arch:
+          - x64
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
