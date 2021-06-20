@@ -4,3 +4,4 @@
 /test_tanabe/
 .dccache
 *.pyc
+.DS_Store
