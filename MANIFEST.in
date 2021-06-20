@@ -3,4 +3,4 @@ include LICENSE
 include MANIFEST.in
 include README.md
 recursive-include test *py
-recursive-include example
+recursive-include README.md

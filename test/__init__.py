@@ -1,2 +1,2 @@
-from tanabe import __main__ as frontapp
-from tanabe import matrices
+from tanabesugano import __main__ as frontapp
+from tanabesugano import matrices

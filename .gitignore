@@ -4,4 +4,5 @@
 /test_tanabe/
 .dccache
 *.pyc
+.vscode/
 .DS_Store
