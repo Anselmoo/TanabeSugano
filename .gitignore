@@ -5,3 +5,4 @@
 .dccache
 *.pyc
 .vscode/
+.DS_Store
