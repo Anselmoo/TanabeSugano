@@ -25,7 +25,6 @@ classifiers = [
         "Operating System :: Unix",
         "Operating System :: Microsoft :: Windows",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
@@ -50,6 +49,8 @@ pytest = "^6.2.4"
 pytest-clarity = "^1.0.1"
 pytest-cov = "^2.12.1"
 flake8 = "^3.9.2"
+black = "^21.6b0"
+isort = "^5.8.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
