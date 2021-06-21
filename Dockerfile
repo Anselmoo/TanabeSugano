@@ -8,7 +8,7 @@ COPY setup.py .
 COPY requirements.txt .
 COPY README.md .
 
-RUN pip3 install .
+RUN pip3 install --no-cache-dir .
 
 COPY . .
 
