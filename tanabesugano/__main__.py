@@ -5,7 +5,7 @@ import matplotlib.pylab as plt
 import numpy as np
 from prettytable import PrettyTable
 
-from tanabesugano import tools, ts
+from tanabesugano import tools, matrices
 
 
 class CMDmain(object):
@@ -91,36 +91,36 @@ class CMDmain(object):
 
             if self.spin_state == 2:  # d3
 
-                states = ts.d2(Dq=dq, B=self.B, C=self.C).solver()
+                states = matrices.d2(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
             elif self.spin_state == 3:  # d3
 
-                states = ts.d3(Dq=dq, B=self.B, C=self.C).solver()
+                states = matrices.d3(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
             elif self.spin_state == 4:  # d4
 
-                states = ts.d4(Dq=dq, B=self.B, C=self.C).solver()
+                states = matrices.d4(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
             elif self.spin_state == 5:  # d5
-                states = ts.d5(Dq=dq, B=self.B, C=self.C).solver()
+                states = matrices.d5(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
             elif self.spin_state == 6:  # d6
 
-                states = ts.d6(Dq=dq, B=self.B, C=self.C).solver()
+                states = matrices.d6(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
             elif self.spin_state == 7:  # d7
 
-                states = ts.d7(Dq=dq, B=self.B, C=self.C).solver()
+                states = matrices.d7(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
             elif self.spin_state == 8:  # d8
 
-                states = ts.d8(Dq=dq, B=self.B, C=self.C).solver()
+                states = matrices.d8(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
             else:
@@ -133,37 +133,37 @@ class CMDmain(object):
         """
         if self.spin_state == 2:  # d2
 
-            states = ts.d2(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+            states = matrices.d2(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.spin_state == 3:  # d3
 
-            states = ts.d3(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+            states = matrices.d3(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.spin_state == 4:  # d4
 
-            states = ts.d4(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+            states = matrices.d4(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.spin_state == 5:  # d5
 
-            states = ts.d5(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+            states = matrices.d5(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.spin_state == 6:  # d6
 
-            states = ts.d6(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+            states = matrices.d6(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.spin_state == 7:  # d7
 
-            states = ts.d7(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+            states = matrices.d7(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.spin_state == 8:  # d8
 
-            states = ts.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+            states = matrices.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
     def ts_print(self, states, dq_ci=None):
@@ -202,7 +202,7 @@ class CMDmain(object):
 
         results = np.sort(cut, order="eV")
 
-        x = PrettyTable(results.dtype.names)
+        x = PrettyTable(resulmatrices.dtype.names)
         for row in results:
             x.add_row(row)
         # Change some column alignments; default was 'c'
@@ -219,7 +219,11 @@ class CMDmain(object):
         )
 
         np.savetxt(
-            title, results.T, delimiter="\t", header="state\tcm\teV", fmt="%s\t%i\t%.4f"
+            title,
+            resulmatrices.T,
+            delimiter="\t",
+            header="state\tcm\teV",
+            fmt="%s\t%i\t%.4f",
         )
 
 

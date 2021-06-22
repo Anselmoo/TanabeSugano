@@ -1,6 +1,6 @@
 import numpy as np
 
-from tanabesugano import tools, ts
+from tanabesugano import tools, matrices
 
 from typing import List
 
@@ -8,9 +8,9 @@ from typing import List
 class Batch:
     def __init__(
         self,
-        Dq: List[float] = [4000.0, 4500.0, 100],
-        B: List[float] = [400.0, 4500.0, 100],
-        C: List[float] = [3600.0, 4000, 100],
+        Dq: List[float] = [4000.0, 4500.0, 10],
+        B: List[float] = [400.0, 4500.0, 10],
+        C: List[float] = [3600.0, 4000, 10],
         mode: int = 5,
         slater: bool = False,
     ):
@@ -61,38 +61,38 @@ class Batch:
                 for _C in self.C:
 
                     if self.spin_state == 2:  # d3
-                        states = ts.d2(Dq=_Dq, B=_B, C=_C).solver()
+                        states = matrices.d2(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {"Dq": _Dq, "B": _B, "C": _C, "states": states}
                         )
 
                     elif self.spin_state == 3:  # d3
-                        states = ts.d3(Dq=_Dq, B=_B, C=_C).solver()
+                        states = matrices.d3(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {"Dq": _Dq, "B": _B, "C": _C, "states": states}
                         )
                     elif self.spin_state == 4:  # d4
-                        states = ts.d4(Dq=_Dq, B=_B, C=_C).solver()
+                        states = matrices.d4(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {"Dq": _Dq, "B": _B, "C": _C, "states": states}
                         )
                     elif self.spin_state == 5:  # d5
-                        states = ts.d5(Dq=_Dq, B=_B, C=_C).solver()
+                        states = matrices.d5(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {"Dq": _Dq, "B": _B, "C": _C, "states": states}
                         )
                     elif self.spin_state == 6:  # d6
-                        states = ts.d6(Dq=_Dq, B=_B, C=_C).solver()
+                        states = matrices.d6(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {"Dq": _Dq, "B": _B, "C": _C, "states": states}
                         )
                     elif self.spin_state == 7:  # d7
-                        states = ts.d7(Dq=_Dq, B=_B, C=_C).solver()
+                        states = matrices.d7(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {"Dq": _Dq, "B": _B, "C": _C, "states": states}
                         )
                     elif self.spin_state == 8:  # d8
-                        states = ts.d8(Dq=_Dq, B=_B, C=_C).solver()
+                        states = matrices.d8(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {"Dq": _Dq, "B": _B, "C": _C, "states": states}
                         )
@@ -105,5 +105,6 @@ class Batch:
 
 
 if __name__ == "__main__":
-    res = Batch().calculation()
+    res = Batch()
+    res.calculation()
     print(res.return_result)
