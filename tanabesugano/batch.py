@@ -63,38 +63,80 @@ class Batch:
                     if self.spin_state == 2:  # d3
                         states = matrices.d2(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
-                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                            {
+                                "d_count": self.mode,
+                                "Dq": _Dq,
+                                "B": _B,
+                                "C": _C,
+                                "states": states,
+                            }
                         )
 
                     elif self.spin_state == 3:  # d3
                         states = matrices.d3(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
-                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                            {
+                                "d_count": self.mode,
+                                "Dq": _Dq,
+                                "B": _B,
+                                "C": _C,
+                                "states": states,
+                            }
                         )
                     elif self.spin_state == 4:  # d4
                         states = matrices.d4(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
-                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                            {
+                                "d_count": self.mode,
+                                "Dq": _Dq,
+                                "B": _B,
+                                "C": _C,
+                                "states": states,
+                            }
                         )
                     elif self.spin_state == 5:  # d5
                         states = matrices.d5(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
-                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                            {
+                                "d_count": self.mode,
+                                "Dq": _Dq,
+                                "B": _B,
+                                "C": _C,
+                                "states": states,
+                            }
                         )
                     elif self.spin_state == 6:  # d6
                         states = matrices.d6(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
-                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                            {
+                                "d_count": self.mode,
+                                "Dq": _Dq,
+                                "B": _B,
+                                "C": _C,
+                                "states": states,
+                            }
                         )
                     elif self.spin_state == 7:  # d7
                         states = matrices.d7(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
-                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                            {
+                                "d_count": self.mode,
+                                "Dq": _Dq,
+                                "B": _B,
+                                "C": _C,
+                                "states": states,
+                            }
                         )
                     elif self.spin_state == 8:  # d8
                         states = matrices.d8(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
-                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                            {
+                                "d_count": self.mode,
+                                "Dq": _Dq,
+                                "B": _B,
+                                "C": _C,
+                                "states": states,
+                            }
                         )
                     else:
                         raise ValueError("not a correct value!")
@@ -105,6 +147,5 @@ class Batch:
 
 
 if __name__ == "__main__":
-    res = Batch()
-    res.calculation()
+    res = Batch().calculation()
     print(res.return_result)
