@@ -1,9 +1,10 @@
 from typing import Tuple, Union
+
 import numpy as np
 
 
 def racah(
-    self, F2: Union[float, np.array], F4: Union[float, np.array]
+    F2: Union[float, np.array], F4: Union[float, np.array]
 ) -> Union[Tuple[float, float], Tuple[np.array, np.array]]:
     """Transform the Slater-Condon-Parameter to Racah-Parameter.
 
