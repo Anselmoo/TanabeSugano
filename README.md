@@ -43,20 +43,20 @@ The **TanabeSugano**-application can be installed and run:
 ```console
     #via PyPi
     pip install TanabeSugano
-    
+
     #via pip+git
     pip git+https://github.com/Anselmoo/TanabeSugano.git
-    
+
     #locally
     python setup.py install
-    python -m tanabe
+    python -m tanabesugano
 ```
 
 
 The options of the **TanabeSugano**-application are:
 
 ```console
-    python -m tanabe --help
+    python -m tanabesugano --help
 
     usage: __main__.py [-h] [-d D] [-Dq DQ] [-cut CUT] [-B B B] [-C C C] [-n N]
                    [-ndisp] [-ntxt] [-slater]
@@ -72,7 +72,7 @@ The options of the **TanabeSugano**-application are:
     -ndisp      Plot TS-diagram (default = on)
     -ntxt       Save TS-diagram and dd energies (default = on)
     -slater     Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)
-```    
+```
 
 **Reference-Example** for d<sup>6</sup> for *B = 860 cm<sup>-</sup>* and *C = 3850 cm<sup>-</sup>*:
 ![placeholder](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/dd-diagram_for_d6.png?raw=true)
