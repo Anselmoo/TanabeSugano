@@ -1,8 +1,8 @@
+from typing import List
+
 import numpy as np
 
-from tanabesugano import tools, matrices
-
-from typing import List
+from tanabesugano import matrices, tools
 
 
 class Batch:

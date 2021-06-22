@@ -5,7 +5,7 @@ import matplotlib.pylab as plt
 import numpy as np
 from prettytable import PrettyTable
 
-from tanabesugano import tools, matrices
+from tanabesugano import matrices, tools
 
 
 class CMDmain(object):
@@ -202,7 +202,7 @@ class CMDmain(object):
 
         results = np.sort(cut, order="eV")
 
-        x = PrettyTable(resulmatrices.dtype.names)
+        x = PrettyTable(results.dtype.names)
         for row in results:
             x.add_row(row)
         # Change some column alignments; default was 'c'
@@ -220,7 +220,7 @@ class CMDmain(object):
 
         np.savetxt(
             title,
-            resulmatrices.T,
+            results.T,
             delimiter="\t",
             header="state\tcm\teV",
             fmt="%s\t%i\t%.4f",

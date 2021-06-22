@@ -1,6 +1,6 @@
-from tanabesugano import matrices
-
 import numpy as np
+
+from tanabesugano import matrices
 
 
 def state_check(x):
