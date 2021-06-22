@@ -15,7 +15,7 @@ class CMDmain(object):
         B: float = 400.0,
         C: float = 3600.0,
         nroots: int = 100,
-        mode: int = 5,
+        d_count: int = 5,
         slater: bool = False,
     ):
         self.Dq = Dq  # Oh-crystalfield-splitting
@@ -29,12 +29,12 @@ class CMDmain(object):
         self.e_range = np.linspace(0.0, self.Dq, nroots)
         self.delta_B = self.e_range / self.B
 
-        self.spin_state = int(mode)
-        if self.spin_state in {4, 5, 6}:
+        self.d_count = int(d_count)
+        if self.d_count in {4, 5, 6}:
             self._size = 42
-        if self.spin_state in {3, 7}:
+        if self.d_count in {3, 7}:
             self._size = 19
-        if self.spin_state in {2, 8}:
+        if self.d_count in {2, 8}:
             self._size = 10
         self.result = np.zeros((self._size + 1, nroots))
 
@@ -64,7 +64,7 @@ class CMDmain(object):
     def savetxt(self):
 
         title_TS = "TS-diagram_d%i_10Dq_%i_B_%i_C_%i.txt" % (
-            self.spin_state,
+            self.d_count,
             self.Dq * 10.0,
             self.B,
             self.C,
@@ -75,7 +75,7 @@ class CMDmain(object):
         np.savetxt(title_TS, ts_states.T, delimiter="\t", fmt="%.6f")
 
         title_DD = "DD-energies_d%i_10Dq_%i_B_%i_C_%i.txt" % (
-            self.spin_state,
+            self.d_count,
             self.Dq * 10.0,
             self.B,
             self.C,
@@ -89,36 +89,36 @@ class CMDmain(object):
         """
         for i, dq in enumerate(self.e_range):
 
-            if self.spin_state == 2:  # d3
+            if self.d_count == 2:  # d3
 
                 states = matrices.d2(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
-            elif self.spin_state == 3:  # d3
+            elif self.d_count == 3:  # d3
 
                 states = matrices.d3(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
-            elif self.spin_state == 4:  # d4
+            elif self.d_count == 4:  # d4
 
                 states = matrices.d4(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
-            elif self.spin_state == 5:  # d5
+            elif self.d_count == 5:  # d5
                 states = matrices.d5(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
-            elif self.spin_state == 6:  # d6
+            elif self.d_count == 6:  # d6
 
                 states = matrices.d6(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
-            elif self.spin_state == 7:  # d7
+            elif self.d_count == 7:  # d7
 
                 states = matrices.d7(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
 
-            elif self.spin_state == 8:  # d8
+            elif self.d_count == 8:  # d8
 
                 states = matrices.d8(Dq=dq, B=self.B, C=self.C).solver()
                 self.result[:, i] = np.concatenate(list(states.values()))
@@ -131,37 +131,37 @@ class CMDmain(object):
         """
         Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
         """
-        if self.spin_state == 2:  # d2
+        if self.d_count == 2:  # d2
 
             states = matrices.d2(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-        elif self.spin_state == 3:  # d3
+        elif self.d_count == 3:  # d3
 
             states = matrices.d3(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-        elif self.spin_state == 4:  # d4
+        elif self.d_count == 4:  # d4
 
             states = matrices.d4(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-        elif self.spin_state == 5:  # d5
+        elif self.d_count == 5:  # d5
 
             states = matrices.d5(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-        elif self.spin_state == 6:  # d6
+        elif self.d_count == 6:  # d6
 
             states = matrices.d6(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-        elif self.spin_state == 7:  # d7
+        elif self.d_count == 7:  # d7
 
             states = matrices.d7(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-        elif self.spin_state == 8:  # d8
+        elif self.d_count == 8:  # d8
 
             states = matrices.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
@@ -212,7 +212,7 @@ class CMDmain(object):
         x.align["eV"] = "r"
         print(x)
         title = "TS_Cut_d%i_10Dq_%i_B_%i_C_%i.txt" % (
-            self.spin_state,
+            self.d_count,
             dq_ci,
             self.B,
             self.C,
@@ -298,7 +298,7 @@ if __name__ == "__main__":
         B=args.B[0] * args.B[1],
         C=args.C[0] * args.C[1],
         nroots=args.n,
-        mode=args.d,
+        d_count=args.d,
         slater=args.slater,
     )
     tmm.calculation()

@@ -11,7 +11,7 @@ class Batch:
         Dq: List[float] = [4000.0, 4500.0, 10],
         B: List[float] = [400.0, 4500.0, 10],
         C: List[float] = [3600.0, 4000, 10],
-        mode: int = 5,
+        d_count: int = 5,
         slater: bool = False,
     ):
         if len(Dq) != 3:
@@ -43,12 +43,12 @@ class Batch:
 
         # self.delta_B = self.e_range / self.B
 
-        self.spin_state = int(mode)
-        if self.spin_state in {4, 5, 6}:
+        self.d_count = int(d_count)
+        if self.d_count in {4, 5, 6}:
             self._size = 42
-        if self.spin_state in {3, 7}:
+        if self.d_count in {3, 7}:
             self._size = 19
-        if self.spin_state in {2, 8}:
+        if self.d_count in {2, 8}:
             self._size = 10
         self.result: List[dict] = []
 
@@ -60,11 +60,11 @@ class Batch:
             for _B in self.B:
                 for _C in self.C:
 
-                    if self.spin_state == 2:  # d3
+                    if self.d_count == 2:  # d3
                         states = matrices.d2(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {
-                                "d_count": self.mode,
+                                "d_count": self.d_count,
                                 "Dq": _Dq,
                                 "B": _B,
                                 "C": _C,
@@ -72,66 +72,66 @@ class Batch:
                             }
                         )
 
-                    elif self.spin_state == 3:  # d3
+                    elif self.d_count == 3:  # d3
                         states = matrices.d3(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {
-                                "d_count": self.mode,
+                                "d_count": self.d_count,
                                 "Dq": _Dq,
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
                             }
                         )
-                    elif self.spin_state == 4:  # d4
+                    elif self.d_count == 4:  # d4
                         states = matrices.d4(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {
-                                "d_count": self.mode,
+                                "d_count": self.d_count,
                                 "Dq": _Dq,
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
                             }
                         )
-                    elif self.spin_state == 5:  # d5
+                    elif self.d_count == 5:  # d5
                         states = matrices.d5(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {
-                                "d_count": self.mode,
+                                "d_count": self.d_count,
                                 "Dq": _Dq,
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
                             }
                         )
-                    elif self.spin_state == 6:  # d6
+                    elif self.d_count == 6:  # d6
                         states = matrices.d6(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {
-                                "d_count": self.mode,
+                                "d_count": self.d_count,
                                 "Dq": _Dq,
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
                             }
                         )
-                    elif self.spin_state == 7:  # d7
+                    elif self.d_count == 7:  # d7
                         states = matrices.d7(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {
-                                "d_count": self.mode,
+                                "d_count": self.d_count,
                                 "Dq": _Dq,
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
                             }
                         )
-                    elif self.spin_state == 8:  # d8
+                    elif self.d_count == 8:  # d8
                         states = matrices.d8(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {
-                                "d_count": self.mode,
+                                "d_count": self.d_count,
                                 "Dq": _Dq,
                                 "B": _B,
                                 "C": _C,
