@@ -6,6 +6,7 @@ import numpy as np
 from prettytable import PrettyTable
 
 from tanabesugano import ts
+from tanabesugano import tools
 
 
 class CMDmain(object):
@@ -24,7 +25,7 @@ class CMDmain(object):
 
         if slater:
             # Transformin Racah to Slater-Condon
-            self.B, self.C = self.racah(B, C)
+            self.B, self.C = tools.racah(B, C)
         self.nroot = nroots
         self.e_range = np.linspace(0.0, self.Dq, nroots)
         self.delta_B = self.e_range / self.B
@@ -221,31 +222,6 @@ class CMDmain(object):
         np.savetxt(
             title, results.T, delimiter="\t", header="state\tcm\teV", fmt="%s\t%i\t%.4f"
         )
-
-    def racah(self, F2: float, F4: float):
-        """
-        Re-calculating and normalization of the Slater-Condon-Parameter to Racah-Parameter
-        eV will be converted to wavenumbers
-        :parameter
-        ---------
-
-        F2: float
-                Slater-Condon-Parameter
-        F4: float
-                Slater-Condon-Parameter
-
-        :returns
-        -------
-
-        B: float
-                Racah-Parameter
-        C: float
-                Racah-Parameter
-        """
-        eVcm = 8065.54
-        B = eVcm * (F2 / 49.0 - 5 / 441.0 * F4)
-        C = eVcm * (35 / 441.0 * F4)
-        return B, C
 
 
 if __name__ == "__main__":
