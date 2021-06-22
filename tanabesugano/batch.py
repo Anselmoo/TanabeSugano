@@ -5,7 +5,7 @@ from tanabesugano import tools, ts
 from typing import List
 
 
-class CMDmain(object):
+class Batch:
     def __init__(
         self,
         Dq: List[float] = [4000.0, 4500.0, 100],
@@ -50,4 +50,60 @@ class CMDmain(object):
             self._size = 19
         if self.spin_state in {2, 8}:
             self._size = 10
-        # self.result = np.zeros((self._size + 1, nroots))
+        self.result: List[dict] = []
+
+    def calculation(self):
+        """
+        Is filling the self.result with the iTS states of over-iterated energy range
+        """
+        for _Dq in self.Dq:
+            for _B in self.B:
+                for _C in self.C:
+
+                    if self.spin_state == 2:  # d3
+                        states = ts.d2(Dq=_Dq, B=_B, C=_C).solver()
+                        self.result.append(
+                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                        )
+
+                    elif self.spin_state == 3:  # d3
+                        states = ts.d3(Dq=_Dq, B=_B, C=_C).solver()
+                        self.result.append(
+                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                        )
+                    elif self.spin_state == 4:  # d4
+                        states = ts.d4(Dq=_Dq, B=_B, C=_C).solver()
+                        self.result.append(
+                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                        )
+                    elif self.spin_state == 5:  # d5
+                        states = ts.d5(Dq=_Dq, B=_B, C=_C).solver()
+                        self.result.append(
+                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                        )
+                    elif self.spin_state == 6:  # d6
+                        states = ts.d6(Dq=_Dq, B=_B, C=_C).solver()
+                        self.result.append(
+                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                        )
+                    elif self.spin_state == 7:  # d7
+                        states = ts.d7(Dq=_Dq, B=_B, C=_C).solver()
+                        self.result.append(
+                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                        )
+                    elif self.spin_state == 8:  # d8
+                        states = ts.d8(Dq=_Dq, B=_B, C=_C).solver()
+                        self.result.append(
+                            {"Dq": _Dq, "B": _B, "C": _C, "states": states}
+                        )
+                    else:
+                        raise ValueError("not a correct value!")
+
+    @property
+    def return_result(self) -> List[dict]:
+        return self.result
+
+
+if __name__ == "__main__":
+    res = Batch().calculation()
+    print(res.return_result)
