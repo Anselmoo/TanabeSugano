@@ -5,4 +5,3 @@ def test_frontapp():
     return frontapp.CMDmain(
         Dq=4000.0, B=400.0, C=3600.0, nroots=100, d_count=5
     ).calculation()
-    assert True
