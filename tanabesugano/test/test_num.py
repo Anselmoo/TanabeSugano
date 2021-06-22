@@ -1,4 +1,4 @@
-from test import matrices
+from tanabesugano import matrices
 
 import numpy as np
 
