@@ -22,8 +22,8 @@ jobs:
           - 3.9
         os:
           - ubuntu-latest
-          - macOS-latest
-          - windows-latest
+          #- macOS-latest
+          #- windows-latest
         arch:
           - x64
     steps:
