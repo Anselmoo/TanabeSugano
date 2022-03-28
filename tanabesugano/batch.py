@@ -43,7 +43,7 @@ class Batch:
 
         # self.delta_B = self.e_range / self.B
 
-        self.d_count = int(d_count)
+        self.d_count = d_count
         if self.d_count in {4, 5, 6}:
             self._size = 42
         if self.d_count in {3, 7}:
