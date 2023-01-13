@@ -5,9 +5,9 @@ name: Python Package with Poetry
 
 on:
   push:
-    branches: [ "*" ]
+    branches: [ "master", "feature/*", "bugfix/*", "hotfix/*" ]
   pull_request:
-    branches: [ "*" ]
+    branches: [ "master", "develop" ]
 
 jobs:
   build:
