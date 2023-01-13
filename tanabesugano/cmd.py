@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import argparse
 
-import matplotlib.pylab as plt
+import matplotlib.pyplot as plt
 import numpy as np
 from prettytable import PrettyTable
 
@@ -41,21 +41,21 @@ class CMDmain(object):
     def plot(self):
 
         # Figure one for classical Tanabe-Sugano-Diagram with B-dependency
-        fig_1 = plt.figure(1)
+        plt.figure(1)
 
-        fig_1.canvas.set_window_title("Tanabe-Sugano-Diagram")
+        # Set Window Title
+
         for i in range(self._size + 1):
             plt.plot(self.delta_B, self.result[i, :] / self.B, ls="--")
-        # plt.title( 'Tanabe-Sugano-Diagram' )
+        plt.title("Tanabe-Sugano-Diagram")
         plt.ylabel("$E/B$")
         plt.xlabel("$\Delta/B$")
 
         # Figure one for Energy-Correlation-Diagram Dq-Energy versus State-Energy
-        fig_2 = plt.figure(2)
-        fig_2.canvas.set_window_title("DD excitations -Diagram")
+        plt.figure(2)
         for i in range(self._size + 1):
             plt.plot(self.e_range * 10.0, self.result[i, :], ls="--")
-        # plt.title( 'DD excitations -Diagram' )
+        plt.title("DD excitations -Diagram")
         plt.ylabel("$dd-state-energy\,(1/cm)$")
         plt.xlabel("$10Dq\,(1/cm)$")
 
@@ -195,7 +195,7 @@ class CMDmain(object):
         for irreducible in states.keys():
             for energy in states[irreducible]:
                 cut["state"][count] = irreducible
-                cut["cm"][count] = np.int(np.round(energy, 0))
+                cut["cm"][count] = np.round(energy, 0).astype(int)
                 cut["eV"][count] = np.round(energy * 0.00012, 4)
 
                 count += 1
@@ -227,7 +227,7 @@ class CMDmain(object):
         )
 
 
-if __name__ == "__main__":
+def cmd_line() -> None:
     description = (
         "A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams "
         "based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* "

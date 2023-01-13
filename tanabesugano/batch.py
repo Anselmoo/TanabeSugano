@@ -147,5 +147,6 @@ class Batch:
 
 
 if __name__ == "__main__":
-    res = Batch().calculation()
+    res = Batch()
+    res.calculation()
     print(res.return_result)

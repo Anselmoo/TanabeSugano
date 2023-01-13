@@ -49,14 +49,14 @@ The **TanabeSugano**-application can be installed and run:
 
     #locally
     python setup.py install
-    python -m tanabesugano
+    tanabesugano
 ```
 
 
 The options of the **TanabeSugano**-application are:
 
 ```console
-    python -m tanabesugano --help
+    tanabesugano --help
 
     usage: __main__.py [-h] [-d D] [-Dq DQ] [-cut CUT] [-B B B] [-C C C] [-n N]
                    [-ndisp] [-ntxt] [-slater]

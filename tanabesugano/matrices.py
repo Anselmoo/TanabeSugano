@@ -280,7 +280,7 @@ class d3(object):
 
         GS = np.array([-12 * self.Dq - 15 * self.B])
 
-        A_4_2 = np.array([0], dtype=np.float)
+        A_4_2 = np.array([0], dtype=np.float64)
         T_4_2 = np.array([-2 * self.Dq - 15 * self.B]) - GS
 
         A_2_1 = np.array([-2 * self.Dq - 11 * self.B + 3 * self.C]) - GS
@@ -637,7 +637,7 @@ class d4(object):
 
         GS = np.array([-6 * self.Dq - 21 * self.B])
 
-        E_5_1 = np.array([0], dtype=np.float)
+        E_5_1 = np.array([0], dtype=np.float64)
         T_5_2 = np.array([4 * self.Dq - 21 * self.B]) - GS
 
         A_3_1 = np.array([-6 * self.Dq - 12 * self.B + 4 * self.C]) - GS
@@ -1394,7 +1394,7 @@ class d6(object):
 
         GS = np.array([-4 * self.Dq - 21 * self.B])
 
-        T_5_2 = np.array([0], dtype=np.float)
+        T_5_2 = np.array([0], dtype=np.float64)
 
         E_5_1 = np.array([6 * self.Dq - 21 * self.B]) - GS
 
