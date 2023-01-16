@@ -54,8 +54,8 @@ class d2(object):
     def E_1_states(self):
         # -  diagonal elements
 
-        AA = +12 * self.Dq + self.B + 2 * self.C
-        BB = +2 * self.Dq + 2 * self.C
+        AA = -8 * self.Dq + self.B + 2 * self.C
+        BB = +12 * self.Dq + 2 * self.C
 
         # non diagonal elements
 
@@ -340,10 +340,10 @@ class d4(object):
 
         # non diagonal elements
 
-        AB = BA = _sqrt6 * self.B
-        AC = CA = _3sqrt2 * self.B
-        AD = DA = -_sqrt2 * (2 * self.B + self.C)
-        AE = EA = _2sqrt2 * self.B
+        AB = BA = -_sqrt6 * self.B
+        AC = CA = -_3sqrt2 * self.B
+        AD = DA = _sqrt2 * (2 * self.B + self.C)
+        AE = EA = -_2sqrt2 * self.B
         AF = FA = 0.0
         AG = GA = 0.0
 
@@ -394,11 +394,11 @@ class d4(object):
 
         # non diagonal elements
 
-        AB = BA = -_3sqrt2 * self.B
-        AC = CA = 5 * _sqrt6 * self.B
+        AB = BA = _3sqrt2 * self.B
+        AC = CA = -5 * _sqrt6 * self.B
         AD = DA = 0.0
-        AE = EA = _2sqrt2 * self.B
-        AF = FA = -_sqrt2 * (2 * self.B + self.C)
+        AE = EA = -_2sqrt2 * self.B
+        AF = FA = _sqrt2 * (2 * self.B + self.C)
         AG = GA = 0.0
 
         BC = CB = -5 * _sqrt3 * self.B
@@ -483,10 +483,10 @@ class d4(object):
 
         # non diagonal elements
 
-        AB = BA = -6 * self.B
+        AB = BA = 6 * self.B
         AC = CA = _sqrt2 * (2 * self.B + self.C)
-        AD = DA = 2 * self.B
-        AE = EA = 4 * self.B
+        AD = DA = -2 * self.B
+        AE = EA = -4 * self.B
 
         BC = CB = -_3sqrt2 * self.B
         BD = DB = -12 * self.B
@@ -523,7 +523,7 @@ class d4(object):
         AB = BA = -5 * _sqrt3 * self.B
         AC = CA = _sqrt6 * self.B
         AD = DA = _sqrt3 * self.B
-        AE = EA = _sqrt6 * self.B
+        AE = EA = -_sqrt6 * self.B
 
         BC = CB = -_3sqrt2 * self.B
         BD = DB = 3 * self.B
@@ -532,7 +532,7 @@ class d4(object):
         CD = DC = -2 * _sqrt2 * self.B
         CE = EC = -6 * self.B
 
-        DE = ED = -8 * self.B + 5 * self.C
+        DE = ED = _3sqrt2 * self.B
 
         states = np.array(
             [
@@ -556,7 +556,7 @@ class d4(object):
 
         # non diagonal elements
 
-        AB = BA = -5 * _sqrt3 * self.B
+        AB = BA = 5 * _sqrt3 * self.B
         AC = CA = 3 * self.B
         AD = DA = _sqrt6 * self.B
 
@@ -611,7 +611,7 @@ class d4(object):
 
         # non diagonal elements
 
-        AB = BA = -6 * self.B
+        AB = BA = 6 * self.B
 
         states = np.array([[AA, AB], [BA, BB]])
 
@@ -663,6 +663,9 @@ class d4(object):
             E_3_1 -= T_3_1[0]
             A_3_2 -= T_3_1[0]
             A_1_2 -= T_3_1[0]
+            E_5_1 -= T_3_1[0]
+            T_5_2 -= T_3_1[0]
+            A_3_1 -= T_3_1[0]
             T_3_1 -= T_3_1[0]
         return {
             "3_T_1": T_3_1,
@@ -720,8 +723,8 @@ class d5(object):
 
         # non diagonal elements
 
-        AB = BA = -_3sqrt6 * self.B
-        AC = CA = -_sqrt6 * self.B
+        AB = BA = _3sqrt6 * self.B
+        AC = CA = _sqrt6 * self.B
         AD = DA = 0.0
         AE = EA = -2 * _sqrt3 * self.B
         AF = FA = 4 * self.B + 2 * self.C
@@ -731,19 +734,19 @@ class d5(object):
         AJ = JA = 0.0
 
         BC = CB = 3 * self.B
-        BD = DB = -_sqrt6 / 2.0 * self.B
-        BE = EB = _3sqrt2 / 2.0 * self.B
-        BF = FB = -_3sqrt6 / 2.0 * self.B
-        BG = GB = -_3sqrt6 / 2.0 * self.B
+        BD = DB = _sqrt6 / 2.0 * self.B
+        BE = EB = -_3sqrt2 / 2.0 * self.B
+        BF = FB = _3sqrt6 / 2.0 * self.B
+        BG = GB = _3sqrt6 / 2.0 * self.B
         BH = HB = 0.0
-        BI = IB = -4 * self.B + self.C
+        BI = IB = 4 * self.B + self.C
         BJ = JB = 0.0
 
-        CD = DC = -_3sqrt6 / 2.0 * self.B
-        CE = EC = _3sqrt2 / 2.0 * self.B
-        CF = FC = -5 * _sqrt6 / 2.0 * self.B
-        CG = GC = +5 * _sqrt6 / 2.0 * self.B
-        CH = HC = -self.C
+        CD = DC = _3sqrt6 / 2.0 * self.B
+        CE = EC = -_3sqrt2 / 2.0 * self.B
+        CF = FC = +5 * _sqrt6 / 2.0 * self.B
+        CG = GC = -5 * _sqrt6 / 2.0 * self.B
+        CH = HC = self.C
         CI = IC = 0.0
         CJ = JC = 0.0
 
@@ -806,18 +809,18 @@ class d5(object):
         # non diagonal elements
 
         AB = BA = -3 * self.B
-        AC = CA = _3sqrt2 / 2.0 * self.B
-        AD = DA = -_3sqrt2 / 2.0 * self.B
-        AE = EA = _3sqrt2 / 2.0 * self.B
-        AF = FA = _3sqrt6 / 2.0 * self.B
+        AC = CA = -_3sqrt2 / 2.0 * self.B
+        AD = DA = _3sqrt2 / 2.0 * self.B
+        AE = EA = -_3sqrt2 / 2.0 * self.B
+        AF = FA = -_3sqrt6 / 2.0 * self.B
         AG = GA = 0.0
-        AH = HA = -self.C
+        AH = HA = self.C
 
-        BC = CB = -_3sqrt2 / 2.0 * self.B
-        BD = DB = -_3sqrt2 / 2.0 * self.B
-        BE = EB = -15 * _sqrt2 / 2.0 * self.B
-        BF = FB = -5 * _sqrt6 / 2.0 * self.B
-        BG = GB = -4 * self.B - self.C
+        BC = CB = _3sqrt2 / 2.0 * self.B
+        BD = DB = _3sqrt2 / 2.0 * self.B
+        BE = EB = 15 * _sqrt2 / 2.0 * self.B
+        BF = FB = 5 * _sqrt6 / 2.0 * self.B
+        BG = GB = 4 * self.B + self.C
         BH = HB = 0.0
 
         CD = DC = 0.0
@@ -868,18 +871,18 @@ class d5(object):
 
         # non diagonal elements
 
-        AB = BA = -10 * self.B
+        AB = BA = 10 * self.B
         AC = CA = 6 * self.B
         AD = DA = 6 * _sqrt3 * self.B
         AE = EA = 6 * _sqrt2 * self.B
         AF = FA = -2 * self.B
         AG = GA = 4 * self.B + 2 * self.C
 
-        BC = CB = 3 * self.B
-        BD = DB = -3 * _sqrt3 * self.B
+        BC = CB = -3 * self.B
+        BD = DB = 3 * _sqrt3 * self.B
         BE = EB = 0.0
-        BF = FB = -2 * self.B - self.C
-        BG = GB = -2 * self.B
+        BF = FB = 2 * self.B + self.C
+        BG = GB = 2 * self.B
 
         CD = DC = 0.0
         CE = EC = 0.0
@@ -919,9 +922,9 @@ class d5(object):
 
         # non diagonal elements
 
-        AB = BA = _3sqrt2 * self.B
+        AB = BA = -_3sqrt2 * self.B
         AC = CA = 0.0
-        AD = DA = -6 * self.B - self.C
+        AD = DA = 6 * self.B + self.C
 
         BC = CB = -4 * _sqrt3 * self.B
         BD = DB = _3sqrt2 * self.B
@@ -943,8 +946,8 @@ class d5(object):
 
         # non diagonal elements
 
-        AB = BA = -_3sqrt2 * self.B
-        AC = CA = _2sqrt2 * self.B - self.C
+        AB = BA = _3sqrt2 * self.B
+        AC = CA = -2 * self.B + self.C
 
         BC = CB = -_3sqrt2 * self.B
 
@@ -961,8 +964,8 @@ class d5(object):
 
         # non diagonal elements
 
-        AB = BA = _3sqrt2 * self.B
-        AC = CA = -self.C
+        AB = BA = -_3sqrt2 * self.B
+        AC = CA = self.C
 
         BC = CB = -_3sqrt2 * self.B
 
@@ -979,8 +982,8 @@ class d5(object):
 
         # non diagonal elements
 
-        AB = BA = -_sqrt6 * self.B
-        AC = CA = -4 * self.B - self.C
+        AB = BA = _sqrt6 * self.B
+        AC = CA = +4 * self.B + self.C
 
         BC = CB = -_sqrt6 * self.B
 
@@ -1013,23 +1016,23 @@ class d5(object):
 
     def solver(self):
         # Ligand field independent states
-        GS = 35 * self.B
+        GS = -35 * self.B
 
         A_6_1 = np.array(
             [0.0], dtype=float
         )  # Starting value is -35. * B, but has to set to zero per definition
-        E_4 = self.E_4_states() + GS
-        A_4_1 = np.array([-25 * self.B + 5 * self.C]) + GS
-        A_4_2 = np.array([-13 * self.B + 7 * self.C]) + GS
+        E_4 = self.E_4_states() - GS
+        A_4_1 = np.array([-25 * self.B + 5 * self.C]) - GS
+        A_4_2 = np.array([-13 * self.B + 7 * self.C]) - GS
 
         # Ligandfield dependent
-        T_2_2 = self.T_2_2_states() + GS
-        T_2_1 = self.T_2_1_states() + GS
-        E_2 = self.E_2_states() + GS
-        A_2_1 = self.A_2_1_states() + GS
-        A_2_2 = self.A_2_2_states() + GS
-        T_4_1 = self.T_4_1_states() + GS
-        T_4_2 = self.T_4_2_states() + GS
+        T_2_2 = self.T_2_2_states() - GS
+        T_2_1 = self.T_2_1_states() - GS
+        E_2 = self.E_2_states() - GS
+        A_2_1 = self.A_2_1_states() - GS
+        A_2_2 = self.A_2_2_states() - GS
+        T_4_1 = self.T_4_1_states() - GS
+        T_4_2 = self.T_4_2_states() - GS
 
         if T_2_2[0] <= 0:
             A_6_1 -= T_2_2[0]
@@ -1332,7 +1335,7 @@ class d6(object):
         # diagonal elements
 
         AA = +6 * self.Dq - 13 * self.B + 4 * self.C
-        BB = -6 * self.Dq - 10 * self.B + 4 * self.C
+        BB = +6 * self.Dq - 10 * self.B + 4 * self.C
         CC = -4 * self.Dq - 11 * self.B + 4 * self.C
 
         # non diagonal elements
@@ -1675,8 +1678,8 @@ class d8(object):
     def E_1_states(self):
         # -  diagonal elements
 
-        AA = -12 * self.Dq + self.B + 2 * self.C
-        BB = +2 * self.Dq + 2 * self.C
+        AA = +8 * self.Dq + self.B + 2 * self.C
+        BB = -12 * self.Dq + 2 * self.C
 
         # non diagonal elements
 
