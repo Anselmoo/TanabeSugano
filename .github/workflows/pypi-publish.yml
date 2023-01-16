@@ -1,12 +1,18 @@
 name: Plushing Python Package
-
 on:
   release:
     types:
       - published
 
+env:
+  # Use docker.io for Docker Hub if empty
+  REGISTRY: ghcr.io
+  # github.repository as <account>/<repo>
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   PyPi-Package-Release:
+    if: github.repository == 'Anselmoo/tanabesugano'
     name: Publish on PyPi
     runs-on: ubuntu-latest
     steps:
