@@ -7,7 +7,6 @@ on:
 
 jobs:
   PyPi-Package-Release:
-    if: github.repository == 'Anselmoo/TanabeSugano'
     name: Publish on PyPi
     runs-on: ubuntu-latest
     steps:
