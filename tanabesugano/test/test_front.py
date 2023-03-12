@@ -1,5 +1,6 @@
-from tanabesugano import cmd as frontapp
 from typing import Any
+
+from tanabesugano import cmd as frontapp
 
 
 def test_frontapp():
