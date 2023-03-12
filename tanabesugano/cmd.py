@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 import argparse
+from logging import warning
+
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from prettytable import PrettyTable
 
 from tanabesugano import matrices, tools
@@ -17,17 +20,16 @@ class CMDmain(object):
         nroots: int = 100,
         d_count: int = 5,
         slater: bool = False,
-    ):
+    ) -> None:
         self.Dq = Dq  # Oh-crystalfield-splitting
         self.B = B  # Racah-Parameter B in wavenumbers
         self.C = C  # Racah-Parameter C in wavenumbers
 
         if slater:
-            # Transformin Racah to Slater-Condon
+            # Transforming Racah to Slater-Condon
             self.B, self.C = tools.racah(B, C)
         self.nroot = nroots
-        self.e_range = np.linspace(0.0, self.Dq, nroots)
-        self.delta_B = self.e_range / self.B
+        energy = np.linspace(0.0, self.Dq, nroots)
 
         self.d_count = d_count
         if self.d_count in {4, 5, 6}:
@@ -38,96 +40,133 @@ class CMDmain(object):
             self._size = 10
         self.result = np.zeros((self._size + 1, nroots))
 
-    def plot(self):
+        self.df = pd.DataFrame({"Energy": energy, "delta_B": energy / self.B})
+
+    def plot(self) -> None:
 
         # Figure one for classical Tanabe-Sugano-Diagram with B-dependency
         plt.figure(1)
 
         # Set Window Title
 
-        for i in range(self._size + 1):
-            plt.plot(self.delta_B, self.result[i, :] / self.B, ls="--")
-        plt.title("Tanabe-Sugano-Diagram")
-        plt.ylabel("$E/B$")
-        plt.xlabel("$\Delta/B$")
-
+        plt.plot(
+            self.df["delta_B"],
+            # get the states from self.df
+            self.df.drop(["Energy", "delta_B"], axis=1).to_numpy() / self.B,
+            ls="--",
+        )
+        self.label_plot("Tanabe-Sugano-Diagram", "$E/B$", "$\Delta/B$")
         # Figure one for Energy-Correlation-Diagram Dq-Energy versus State-Energy
         plt.figure(2)
-        for i in range(self._size + 1):
-            plt.plot(self.e_range * 10.0, self.result[i, :], ls="--")
-        plt.title("DD excitations -Diagram")
-        plt.ylabel("$dd-state-energy\,(1/cm)$")
-        plt.xlabel("$10Dq\,(1/cm)$")
 
+        plt.plot(
+            self.df["Energy"] * 10.0,
+            self.df.drop(["Energy", "delta_B"], axis=1).to_numpy(),
+            ls="--",
+        )
+        self.label_plot(
+            "DD excitations -Diagram", "$dd-state-energy\,(1/cm)$", "$10Dq\,(1/cm)$"
+        )
         plt.show()
 
-    def savetxt(self):
+    def label_plot(self, arg0: str, arg1: str, arg2: str) -> None:
+        """Labels the plot."""
+        plt.title(arg0)
+        plt.ylabel(arg1)
+        plt.xlabel(arg2)
 
-        title_TS = "TS-diagram_d%i_10Dq_%i_B_%i_C_%i.txt" % (
-            self.d_count,
-            self.Dq * 10.0,
-            self.B,
-            self.C,
-        )
-        ts_states = np.concatenate(
-            (np.array([self.delta_B]), np.divide(self.result, self.B))
-        )
-        np.savetxt(title_TS, ts_states.T, delimiter="\t", fmt="%.6f")
+    def savetxt(self) -> None:
 
-        title_DD = "DD-energies_d%i_10Dq_%i_B_%i_C_%i.txt" % (
-            self.d_count,
-            self.Dq * 10.0,
-            self.B,
-            self.C,
+        title_TS = (
+            f"TS-diagram_d{self.d_count}_10Dq_{self.Dq * 10.0}_"
+            f"B_{self.B}_C_{self.C}.csv"
         )
-        dd_states = np.concatenate((np.array([self.e_range * 10.0]), self.result))
-        np.savetxt(title_DD, dd_states.T, delimiter="\t", fmt="%.6f")
 
-    def calculation(self):
+        pd.concat(
+            [self.df["delta_B"], self.df.drop(["Energy", "delta_B"], axis=1) / self.B],
+            axis=1,
+        ).to_csv(title_TS, index=False)
+
+        title_DD = (
+            f"DD-energies_d{self.d_count}_10Dq_{self.Dq * 10.0}_"
+            f"B_{self.B}_C_{self.C}.csv"
+        )
+
+        pd.concat(
+            [self.df["Energy"] * 10.0, self.df.drop(["Energy", "delta_B"], axis=1)],
+            axis=1,
+        ).to_csv(title_DD, index=False)
+
+    def calculation(self) -> None:
         """
         Is filling the self.result with the iTS states of over-iterated energy range
         """
-        for i, dq in enumerate(self.e_range):
-
-            if self.d_count == 2:  # d3
-
-                states = matrices.d2(Dq=dq, B=self.B, C=self.C).solver()
-                self.result[:, i] = np.concatenate(list(states.values()))
-
+        result = []
+        for dq in self.df["Energy"]:
+            if self.d_count == 2:  # d2
+                result.append(
+                    self.subsplit_states(
+                        matrices.d2(Dq=dq, B=self.B, C=self.C).solver()
+                    )
+                )
             elif self.d_count == 3:  # d3
-
-                states = matrices.d3(Dq=dq, B=self.B, C=self.C).solver()
-                self.result[:, i] = np.concatenate(list(states.values()))
-
+                result.append(
+                    self.subsplit_states(
+                        matrices.d3(Dq=dq, B=self.B, C=self.C).solver()
+                    )
+                )
             elif self.d_count == 4:  # d4
-
-                states = matrices.d4(Dq=dq, B=self.B, C=self.C).solver()
-                self.result[:, i] = np.concatenate(list(states.values()))
-
+                result.append(
+                    self.subsplit_states(
+                        matrices.d4(Dq=dq, B=self.B, C=self.C).solver()
+                    )
+                )
             elif self.d_count == 5:  # d5
-                states = matrices.d5(Dq=dq, B=self.B, C=self.C).solver()
-                self.result[:, i] = np.concatenate(list(states.values()))
-
+                result.append(
+                    self.subsplit_states(
+                        matrices.d5(Dq=dq, B=self.B, C=self.C).solver()
+                    )
+                )
             elif self.d_count == 6:  # d6
-
-                states = matrices.d6(Dq=dq, B=self.B, C=self.C).solver()
-                self.result[:, i] = np.concatenate(list(states.values()))
-
+                result.append(
+                    self.subsplit_states(
+                        matrices.d6(Dq=dq, B=self.B, C=self.C).solver()
+                    )
+                )
             elif self.d_count == 7:  # d7
-
-                states = matrices.d7(Dq=dq, B=self.B, C=self.C).solver()
-                self.result[:, i] = np.concatenate(list(states.values()))
-
+                result.append(
+                    self.subsplit_states(
+                        matrices.d7(Dq=dq, B=self.B, C=self.C).solver()
+                    )
+                )
             elif self.d_count == 8:  # d8
-
-                states = matrices.d8(Dq=dq, B=self.B, C=self.C).solver()
-                self.result[:, i] = np.concatenate(list(states.values()))
-
+                result.append(
+                    self.subsplit_states(
+                        matrices.d8(Dq=dq, B=self.B, C=self.C).solver()
+                    )
+                )
             else:
+                raise ValueError("`d_count` must be in {2,3,4,5,6,7,8}")
 
-                print("not a correct value!")
+        # Transform list of dictionaries to dictionary of arrays
+        result = {
+            key: np.array([d[key] for d in result]).flatten() for key in result[0]
+        }
+        self.df = pd.concat([self.df, pd.DataFrame(result)], axis=1)
 
-    def ci_cut(self, dq_ci=None):
+    @staticmethod
+    def subsplit_states(states: dict) -> dict:
+        """Subsplitting the states for a better overview."""
+        rearranged_states = {}
+        for key, value in states.items():
+            if len(value) > 1:
+                for i, _value in enumerate(value):
+                    rearranged_states[f"{key}_{i}"] = np.array([_value])
+            else:
+                rearranged_states[key] = value
+        return rearranged_states
+
+    def ci_cut(self, dq_ci=None) -> None:
         """
         Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
         """
@@ -166,7 +205,7 @@ class CMDmain(object):
             states = matrices.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-    def ts_print(self, states, dq_ci=None):
+    def ts_print(self, states, dq_ci=None) -> None:
         """
 
         parameter
@@ -211,7 +250,7 @@ class CMDmain(object):
         x.align["cm"] = "r"
         x.align["eV"] = "r"
         print(x)
-        title = "TS_Cut_d%i_10Dq_%i_B_%i_C_%i.txt" % (
+        title = "TS_Cut_d%i_10Dq_%i_B_%i_C_%i.csv" % (
             self.d_count,
             dq_ci,
             self.B,
@@ -221,9 +260,11 @@ class CMDmain(object):
         np.savetxt(
             title,
             results.T,
-            delimiter="\t",
-            header="state\tcm\teV",
-            fmt="%s\t%i\t%.4f",
+            delimiter=",",
+            header="state,cm,eV",
+            fmt=r"%s,%i,%.4f",
+            # Remove # for comments
+            comments="",
         )
 
 
