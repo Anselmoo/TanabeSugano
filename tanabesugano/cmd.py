@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 import argparse
-from logging import warning
-
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from prettytable import PrettyTable
+from pathlib import Path
 
-from tanabesugano import matrices, tools
+try:
+    import plotly.express as px
+except ImportError:  # pragma: no cover
+    px = None
+
+from tanabesugano import __version__, matrices, tools
 
 
 class CMDmain(object):
@@ -21,12 +25,29 @@ class CMDmain(object):
         d_count: int = 5,
         slater: bool = False,
     ) -> None:
-        self.Dq = Dq  # Oh-crystalfield-splitting
-        self.B = B  # Racah-Parameter B in wavenumbers
-        self.C = C  # Racah-Parameter C in wavenumbers
+        """CMD Interface for Tanabe-Sugano-Diagram
+
+        Parameters
+        ----------
+        Dq : float, optional
+            Oh-crystalfield-splitting, by default 4000.0
+        B : float, optional
+            Racah-Parameter B in wavenumbers, by default 400.0
+        C : float, optional
+            Racah-Parameter C in wavenumbers, by default 3600.0
+        nroots : int, optional
+            Number of roots to calculate the TS-diagram , by default 100
+        d_count : int, optional
+            Electron count, by default 5
+        slater : bool, optional
+             Transforming from Racah to Slater-Condon, by default False
+        """
+        self.Dq = Dq
+        self.B = B
+        self.C = C
 
         if slater:
-            # Transforming Racah to Slater-Condon
+
             self.B, self.C = tools.racah(B, C)
         self.nroot = nroots
         energy = np.linspace(0.0, self.Dq, nroots)
@@ -40,7 +61,17 @@ class CMDmain(object):
             self._size = 10
         self.result = np.zeros((self._size + 1, nroots))
 
-        self.df = pd.DataFrame({"Energy": energy, "delta_B": energy / self.B})
+        self.df = pd.DataFrame(
+            {"Energy": energy, "delta_B": energy / self.B, "10Dq": energy * 10.0}
+        )
+        self.title_TS = (
+            f"TS-diagram_d{self.d_count}_10Dq_{self.Dq * 10.0}_"
+            f"B_{self.B}_C_{self.C}"
+        )
+        self.title_DD = (
+            f"DD-energies_d{self.d_count}_10Dq_{self.Dq * 10.0}_"
+            f"B_{self.B}_C_{self.C}"
+        )
 
     def plot(self) -> None:
 
@@ -52,7 +83,7 @@ class CMDmain(object):
         plt.plot(
             self.df["delta_B"],
             # get the states from self.df
-            self.df.drop(["Energy", "delta_B"], axis=1).to_numpy() / self.B,
+            self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).to_numpy() / self.B,
             ls="--",
         )
         self.label_plot("Tanabe-Sugano-Diagram", "$E/B$", "$\Delta/B$")
@@ -60,8 +91,8 @@ class CMDmain(object):
         plt.figure(2)
 
         plt.plot(
-            self.df["Energy"] * 10.0,
-            self.df.drop(["Energy", "delta_B"], axis=1).to_numpy(),
+            self.df["10Dq"],
+            self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).to_numpy(),
             ls="--",
         )
         self.label_plot(
@@ -77,25 +108,18 @@ class CMDmain(object):
 
     def savetxt(self) -> None:
 
-        title_TS = (
-            f"TS-diagram_d{self.d_count}_10Dq_{self.Dq * 10.0}_"
-            f"B_{self.B}_C_{self.C}.csv"
-        )
+        pd.concat(
+            [
+                self.df["delta_B"],
+                self.df.drop(["Energy", "delta_B", "10Dq"], axis=1) / self.B,
+            ],
+            axis=1,
+        ).to_csv(Path(f"{self.title_TS}.csv"), index=False)
 
         pd.concat(
-            [self.df["delta_B"], self.df.drop(["Energy", "delta_B"], axis=1) / self.B],
+            [self.df["10Dq"], self.df.drop(["Energy", "delta_B", "10Dq"], axis=1)],
             axis=1,
-        ).to_csv(title_TS, index=False)
-
-        title_DD = (
-            f"DD-energies_d{self.d_count}_10Dq_{self.Dq * 10.0}_"
-            f"B_{self.B}_C_{self.C}.csv"
-        )
-
-        pd.concat(
-            [self.df["Energy"] * 10.0, self.df.drop(["Energy", "delta_B"], axis=1)],
-            axis=1,
-        ).to_csv(title_DD, index=False)
+        ).to_csv(Path(f"{self.title_DD}.csv"), index=False)
 
     def calculation(self) -> None:
         """
@@ -166,7 +190,7 @@ class CMDmain(object):
                 rearranged_states[key] = value
         return rearranged_states
 
-    def ci_cut(self, dq_ci=None) -> None:
+    def ci_cut(self, dq_ci: float = None) -> None:
         """
         Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
         """
@@ -205,33 +229,25 @@ class CMDmain(object):
             states = matrices.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-    def ts_print(self, states, dq_ci=None) -> None:
-        """
+    def ts_print(self, states: dict, dq_ci: float = None) -> None:
+        """Print the atomic-termsymbols
 
-        parameter
-        ---------
+        Print the atomic-termsymbols for a specific dq depending on the oxidation state
+        on the screen and save them as txt-file.
 
-        states: str-list
-                List of atomic-termsymbols for a specific oxidation state
-        dq_ci: float (optional)
-                Specific crystalfield-splitting in Dq
-
-        action
-        ------
-
-        Table: str
-                Print the state-energies and their atomic-termsymbols on the screen
-
-        txt-file: ascii
-                Save the state-energies and their atomic-termsymbols as txt-file
-
+        Parameters
+        ----------
+        states : dict
+            List of atomic-termsymbols for a specific oxidation state
+        dq_ci : float, optional
+            Specific crystalfield-splitting in Dq, by default None
         """
         count = 0
         cut = np.zeros(
             self._size + 1,
             dtype=[("state", np.unicode_, 7), ("cm", int), ("eV", float)],
         )
-        for irreducible in states.keys():
+        for irreducible in states:
             for energy in states[irreducible]:
                 cut["state"][count] = irreducible
                 cut["cm"][count] = np.round(energy, 0).astype(int)
@@ -267,8 +283,81 @@ class CMDmain(object):
             comments="",
         )
 
+    def interactive_plot(self) -> None:
+        """Interactive plot for the tanabe-sugano-diagram."""
+        if px is None:
+            raise ImportError(
+                "Plotly is not installed. Please install plotly "
+                "with 'pip install tanabesugano[plotly]'!"
+            )
+
+        _col = self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).columns
+        _font = dict(family="Avant Garde, sans-serif", size=12, color="grey")
+        _template = "plotly_white"
+        _size = dict(
+            autosize=False,
+            width=800,
+            height=800,
+        )
+        color_discrete_sequence = [
+            px.colors.qualitative.Light24[int(i[0]) - 1] for i in _col
+        ]
+
+        _df = self.df.copy()
+
+        fig_1 = px.line(
+            _df,
+            x="10Dq",
+            y=_col,
+            title="Energy-Correlation-Diagram",
+            labels={
+                "variable": "State",
+                "value": "Energy (cm-1)",
+                "10Dq": "10Dq (cm-1)",
+            },
+            color_discrete_sequence=color_discrete_sequence,
+        )
+        fig_1.update_layout(
+            xaxis_title="10Dq (cm-1)",
+            yaxis_title="dd-states (cm-1)",
+            legend_title="State",
+            template=_template,
+            font=_font,
+            **_size,
+        )
+        # Save as html-file
+        fig_1.write_html(Path(f"{self.title_DD}.html"))
+
+        # Apply / self.B to every column except for _col
+        _df[_col] = _df[_col].div(self.B, axis=0)
+
+        # Plot the tanabe-sugano-diagram
+        fig_2 = px.line(
+            _df,
+            x="delta_B",
+            y=_col,
+            title="Tanabe-Sugano-Diagram",
+            labels={
+                "variable": "State",
+                "value": " E / B",
+                "delta_B": "Δ / B",
+            },
+            color_discrete_sequence=color_discrete_sequence,
+        )
+        fig_2.update_layout(
+            xaxis_title="Δ / B",
+            yaxis_title="E / B",
+            legend_title="State",
+            template=_template,
+            font=_font,
+            **_size,
+        )
+        # Save as html-file
+        fig_2.write_html(Path(f"{self.title_TS}.html"))
+
 
 def cmd_line() -> None:
+    """Command line interface for tanabe-sugano."""
     description = (
         "A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams "
         "based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* "
@@ -329,9 +418,22 @@ def cmd_line() -> None:
         action="store_true",
         default=False,
         help="Using Slater-Condon F2,F4 parameter "
-        "instead Racah-Parameter B,C (default = "
-        "off)",
+        "instead Racah-Parameter B,C (default = off)",
     )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Print version number and exit",
+    )
+    parser.add_argument(
+        "-html",
+        action="store_true",
+        default=False,
+        help="Save TS-diagram and dd energies (default = on)",
+    )
+
     args = parser.parse_args()
 
     tmm = CMDmain(
@@ -350,3 +452,5 @@ def cmd_line() -> None:
         tmm.savetxt()
     if args.cut is not None:
         tmm.ci_cut(dq_ci=args.cut)
+    if args.html:
+        tmm.interactive_plot()
