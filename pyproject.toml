@@ -35,8 +35,8 @@ classifiers = [
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Utilities",
 ]
-include = ["LICENSE", "example/**"]
-exclude = ["test/**/*.py"]
+include = ["LICENSE", "ts-diagrams/**"]
+exclude = ["test/**/*.py", "example/**"]
 
         [tool.poetry.dependencies]
         python = ">=3.8.1,<4.0"
@@ -44,6 +44,7 @@ exclude = ["test/**/*.py"]
         numpy = "^1.20.3"
         matplotlib = "^3.4.2"
         prettytable = "^2.1.0"
+        plotly = { version = "^5.13.1", optional = true }
 
         [tool.poetry.group.dev.dependencies]
         pytest = "^7.2.0"
@@ -60,3 +61,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 tanabesugano = "tanabesugano.cmd:cmd_line"
+
+[tool.poetry.extras]
+plotly = ["plotly"]

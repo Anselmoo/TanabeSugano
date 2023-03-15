@@ -655,7 +655,6 @@ class d4(object):
 
         if T_3_1[0] <= 0:
             T_1_2 -= T_3_1[0]
-
             A_1_1 -= T_3_1[0]
             E_1_1 -= T_3_1[0]
             T_3_2 -= T_3_1[0]
@@ -1583,7 +1582,7 @@ class d7(object):
 
         return self.eigensolver(states)
 
-    def eigensolver(self, M):
+    def eigensolver(self, M: np.ndarray):
         """
         :param M: 2 dimensional square array == TS matrics of Ligand field Hamiltonian
         :return: 1 dimensiona                                 l array == eigenvalues of the diagonalized Ligand field Hamiltonian

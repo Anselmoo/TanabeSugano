@@ -6,7 +6,14 @@ from tanabesugano import matrices, tools
 
 
 class Batch:
-    def __init__(self, Dq: List[float] = None, B: List[float] = None, C: List[float] = None, d_count: int = 5, slater: bool = False):
+    def __init__(
+        self,
+        Dq: List[float] = None,
+        B: List[float] = None,
+        C: List[float] = None,
+        d_count: int = 5,
+        slater: bool = False,
+    ):
         if Dq is None:
             Dq = [4000.0, 4500.0, 10]
         if B is None:
