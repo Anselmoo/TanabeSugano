@@ -35,8 +35,8 @@ classifiers = [
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Utilities",
 ]
-include = ["LICENSE", "example/**"]
-exclude = ["test/**/*.py"]
+include = ["LICENSE", "ts-diagrams/**"]
+exclude = ["test/**/*.py", "example/**"]
 
         [tool.poetry.dependencies]
         python = ">=3.8.1,<4.0"
