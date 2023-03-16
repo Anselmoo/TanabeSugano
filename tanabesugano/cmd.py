@@ -65,12 +65,12 @@ class CMDmain(object):
             {"Energy": energy, "delta_B": energy / self.B, "10Dq": energy * 10.0}
         )
         self.title_TS = (
-            f"TS-diagram_d{self.d_count}_10Dq_{self.Dq * 10.0}_"
-            f"B_{self.B}_C_{self.C}"
+            f"TS-diagram_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_"
+            f"B_{int(self.B)}_C_{int(self.C)}"
         )
         self.title_DD = (
-            f"DD-energies_d{self.d_count}_10Dq_{self.Dq * 10.0}_"
-            f"B_{self.B}_C_{self.C}"
+            f"DD-energies_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_"
+            f"B_{int(self.B)}_C_{int(self.C)}"
         )
 
     def plot(self) -> None:
