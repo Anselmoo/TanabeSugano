@@ -34,26 +34,30 @@ It provides:
 
 - Tanabe-Sugano- & Energy-Correlation-Diagrams plotted via `matplotlib`
 - Tanabe-Sugano- & Energy-Correlation-Diagrams exported as `txt`-file
-- Atomic-Termsymbols and their eigen-energies for a given 10Dq and oxidation state as exported table via `prettytable`
-- Set-up individuall **C/B**-ratios
+- Atomic-Termsymbols and their **Eigen-Energies** for a given 10Dq and oxidation state as exported table via `prettytable`
+- Set-up individually **C/B**-ratios
 - Working with Slater-Condon-Parameters **F<sup>2</sup>, F<sup>4</sup>** instead of Racah-Parameters **B, C**
+- Export of the **Tanabe-Sugano-Diagram** as a `html`-file via `plotly` for interactive use
 
 The **TanabeSugano**-application can be installed and run:
 
 ```console
-    #via PyPi
+    # via PyPi
     pip install TanabeSugano
 
-    #via pip+git
+    # via pip+git
     pip git+https://github.com/Anselmoo/TanabeSugano.git
 
-    #locally
+    # locally
     python setup.py install
     tanabesugano
+
+    # for plotly-export
+    pip install TanabeSugano[plotly]
 ```
 
 
-The options of the **TanabeSugano**-application are:
+The options for the **TanabeSugano**-application are:
 
 ```console
     tanabesugano --help
@@ -62,16 +66,18 @@ The options of the **TanabeSugano**-application are:
                    [-ndisp] [-ntxt] [-slater]
 
     optional arguments:
-    -h, --help  show this help message and exit
-    -d D        Number of unpaired electrons (default d5)
-    -Dq DQ      10Dq crystal field splitting (default 10Dq = 8065 cm-)
-    -cut CUT    10Dq crystal field splitting (default 10Dq = 8065 cm-)
-    -B B B      Racah Parameter B and the corresponding reduction (default B = 860 cm- * 1.)
-    -C C C      Racah Parameter C and the corresponding reduction (default C = 4.477*860 cm- * 1.)
-    -n N        Number of roots (default nroots = 500)
-    -ndisp      Plot TS-diagram (default = on)
-    -ntxt       Save TS-diagram and dd energies (default = on)
-    -slater     Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)
+    -h, --help     show this help message and exit
+    -d D           Number of unpaired electrons (default d5)
+    -Dq DQ         10Dq crystal field splitting (default 10Dq = 8065 cm-)
+    -cut CUT       10Dq crystal field splitting (default 10Dq = 8065 cm-)
+    -B B B         Racah Parameter B and the corresponding reduction (default B = 860 cm- * 1.)
+    -C C C         Racah Parameter C and the corresponding reduction (default C = 4.477*860 cm- * 1.)
+    -n N           Number of roots (default nroots = 500)
+    -ndisp         Plot TS-diagram (default = on)
+    -ntxt          Save TS-diagram and dd energies (default = on)
+    -slater        Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)
+    -v, --version  Print version number and exit
+    -html          Save TS-diagram and dd energies (default = on)
 ```
 
 **Reference-Example** for d<sup>6</sup> for *B = 860 cm<sup>-</sup>* and *C = 3850 cm<sup>-</sup>*:
