@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tanabesugano"
-version = "1.4.0"
+version = "1.4.1"
 description = "A python-solver for Tanabe-Sugano and Energy-Correlation diagrams"
 authors = ["Anselm Hahn <anselm.hahn@gmail.com>"]
 maintainers = ["Anselm Hahn <anselm.hahn@gmail.com>"]
@@ -35,8 +35,8 @@ classifiers = [
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Utilities",
 ]
-include = ["LICENSE", "ts-diagrams/**"]
-exclude = ["test/**/*.py", "example/**"]
+include = ["LICENSE"]
+exclude = ["test/**/*.py", "example/**", "ts-diagrams/**"]
 
         [tool.poetry.dependencies]
         python = ">=3.8.1,<4.0"
