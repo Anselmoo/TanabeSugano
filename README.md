@@ -80,5 +80,10 @@ The options for the **TanabeSugano**-application are:
     -html          Save TS-diagram and dd energies (default = on)
 ```
 
-**Reference-Example** for d<sup>6</sup> for *B = 860 cm<sup>-</sup>* and *C = 3850 cm<sup>-</sup>*:
+**Reference-Example** for d<sup>6</sup> for *B = 860 cm<sup>-</sup>* and *C = 3850 cm<sup>-</sup>* as regular `matplotlib`-plot:
 ![placeholder](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/dd-diagram_for_d6.png?raw=true)
+
+
+**Reference-Example** for d<sup>6</sup> for *F<sup>2</sup> = 860 cm<sup>-</sup>* and *F<sup>4</sup> = 3850 cm<sup>-</sup>* as interactive `plotly`-plot:
+
+![placeholder](https://github.com/Anselmoo/TanabeSugano/blob/feature/readme/examples/d6_ts_interactive.gif?raw=true)
