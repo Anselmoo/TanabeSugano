@@ -86,5 +86,4 @@ The options for the **TanabeSugano**-application are:
 
 **Reference-Example** for d<sup>6</sup> for *F<sup>2</sup> = 1065 cm<sup>-</sup>* and *F<sup>4</sup> = 5120 cm<sup>-</sup>* as interactive `plotly`-plot:
 
-![placeholder](https://github.com/Anselmoo/TanabeSugano/blob/feature/readme/examples/d6_ts_interactive.gif?raw=true)
-pi
+![placeholder](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/d6_ts_interactive.gif?raw=true)
