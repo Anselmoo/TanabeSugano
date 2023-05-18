@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Anselm"
+  given-names: "Hahn"
+  orcid: "0000-0003-4543-4833"
+- family-names: "thebadgerchemist"
+- family-names: "Imgbot"
+title: "TanabeSugano"
+version: 1.4.1
+doi: 10.5281/zenodo.7751230
+date-released: 2023-03-20
+url: "https://github.com/Anselmoo/TanabeSugano/tree/v1.4.1"
