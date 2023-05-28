@@ -1,6 +1,6 @@
 [![Python package](https://github.com/Anselmoo/TanabeSugano/workflows/Python%20package/badge.svg)](https://github.com/Anselmoo/TanabeSugano/actions?query=workflow%3A%22Python+package%22)
 [![CodeFactor](https://www.codefactor.io/repository/github/anselmoo/tanabesugano/badge)](https://www.codefactor.io/repository/github/anselmoo/tanabesugano)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7751230.svg)](https://doi.org/10.5281/zenodo.7751230)
+[![DOI](https://zenodo.org/badge/206847682.svg)](https://zenodo.org/badge/latestdoi/206847682)
 [![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)](https://github.com/Anselmoo/TanabeSugano/blob/master/LICENSE)
 [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/Anselmoo/TanabeSugano?include_prereleases)](https://github.com/Anselmoo/TanabeSugano/releases)
 [![PyPI](https://img.shields.io/pypi/v/TanabeSugano?logo=Pypi&logoColor=yellow)](https://pypi.org/project/TanabeSugano/)
