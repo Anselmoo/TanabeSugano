@@ -267,6 +267,25 @@ unicode = ["unicodedata2 (>=15.0.0)"]
 woff = ["brotli (>=1.0.1)", "brotlicffi (>=0.8.0)", "zopfli (>=0.1.4)"]
 
 [[package]]
+name = "importlib-metadata"
+version = "6.7.0"
+description = "Read metadata from Python packages"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "importlib_metadata-6.7.0-py3-none-any.whl", hash = "sha256:cb52082e659e97afc5dac71e79de97d8681de3aa07ff18578330904a9d18e5b5"},
+    {file = "importlib_metadata-6.7.0.tar.gz", hash = "sha256:1aaf550d4f73e5d6783e7acb77aec43d49da8017410afae93822cc9cca98c4d4"},
+]
+
+[package.dependencies]
+zipp = ">=0.5"
+
+[package.extras]
+docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+perf = ["ipython"]
+testing = ["flufl.flake8", "importlib-resources (>=1.3)", "packaging", "pyfakefs", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-mypy (>=0.9.1)", "pytest-perf (>=0.9.2)", "pytest-ruff"]
+
+[[package]]
 name = "importlib-resources"
 version = "5.12.0"
 description = "Read resources from Python packages"
@@ -875,16 +894,17 @@ rich = ">=8.0.0"
 
 [[package]]
 name = "pytest-console-scripts"
-version = "1.3.1"
+version = "1.4.1"
 description = "Pytest plugin for testing console scripts"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.8"
 files = [
-    {file = "pytest-console-scripts-1.3.1.tar.gz", hash = "sha256:5c6c3daae9cf9fbed0e655072128938600193dc002a5cf1b187248644ba02857"},
-    {file = "pytest_console_scripts-1.3.1-py3-none-any.whl", hash = "sha256:21063b2e32df96da51412116e654babb1447a415929158d81d445667de9ea946"},
+    {file = "pytest-console-scripts-1.4.1.tar.gz", hash = "sha256:5a826ed84cc0afa202eb9e44381d7d762f7bdda8e0c23f9f79a7f1f44cf4a895"},
+    {file = "pytest_console_scripts-1.4.1-py3-none-any.whl", hash = "sha256:ad860a951a90eca4bd3bd1159b8f5428633ba4ea01abd5c9526b67a95f65437a"},
 ]
 
 [package.dependencies]
+importlib-metadata = {version = ">=3.6", markers = "python_version < \"3.10\""}
 pytest = ">=4.0.0"
 
 [[package]]
