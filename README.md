@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/TanabeSugano?logo=Pypi&logoColor=yellow)](https://pypi.org/project/TanabeSugano/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/TanabeSugano?logo=Python&logoColor=yellow)](https://pypi.org/project/TanabeSugano/)
 [![Downloads](https://static.pepy.tech/badge/tanabesugano)](https://pepy.tech/project/tanabesugano)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/feature%2Fcolab/Tanabe_Sugano.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/master/Tanabe_Sugano.ipynb)
 
 
 # TanabeSugano
@@ -94,4 +94,4 @@ The options for the **TanabeSugano**-application are:
 
 ## Test the TS-diagrams interactively in Google Colab
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/feature%2Fcolab/Tanabe_Sugano.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/master/Tanabe_Sugano.ipynb)
