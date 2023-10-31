@@ -1,4 +1,5 @@
-[![Python package](https://github.com/Anselmoo/TanabeSugano/workflows/Python%20package/badge.svg)](https://github.com/Anselmoo/TanabeSugano/actions?query=workflow%3A%22Python+package%22)
+[![Python Package](https://github.com/Anselmoo/TanabeSugano/actions/workflows/python-package.yml/badge.svg)](https://github.com/Anselmoo/TanabeSugano/actions/workflows/python-package.yml)
+[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
 [![CodeFactor](https://www.codefactor.io/repository/github/anselmoo/tanabesugano/badge)](https://www.codefactor.io/repository/github/anselmoo/tanabesugano)
 [![DOI](https://zenodo.org/badge/206847682.svg)](https://zenodo.org/badge/latestdoi/206847682)
 [![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)](https://github.com/Anselmoo/TanabeSugano/blob/master/LICENSE)
@@ -6,6 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/TanabeSugano?logo=Pypi&logoColor=yellow)](https://pypi.org/project/TanabeSugano/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/TanabeSugano?logo=Python&logoColor=yellow)](https://pypi.org/project/TanabeSugano/)
 [![Downloads](https://static.pepy.tech/badge/tanabesugano)](https://pepy.tech/project/tanabesugano)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/feature%2Fcolab/Tanabe_Sugano.ipynb)
+
 
 # TanabeSugano
 A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on the original three proposed studies of *Yukito Tanabe and Satoru Sugano* for d<sup>2</sup>-d<sup>8</sup> transition metal ions:
@@ -88,3 +91,7 @@ The options for the **TanabeSugano**-application are:
 **Reference-Example** for d<sup>6</sup> for *F<sup>2</sup> = 1065 cm<sup>-</sup>* and *F<sup>4</sup> = 5120 cm<sup>-</sup>* as interactive `plotly`-plot:
 
 ![placeholder](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/d6_ts_interactive.gif?raw=true)
+
+## Test the TS-diagrams interactively in Google Colab
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/feature%2Fcolab/Tanabe_Sugano.ipynb)
