@@ -1,1 +1,2 @@
-__version__ = "1.4.1"
+"""tanabesugano: A Python package for Tanabe-Sugano diagrams."""
+__version__ = "1.4.2"
