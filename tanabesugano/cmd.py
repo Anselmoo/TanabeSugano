@@ -431,7 +431,7 @@ def cmd_line() -> None:
         "-html",
         action="store_true",
         default=False,
-        help="Save TS-diagram and dd energies (default = on)",
+        help="Save TS-diagram and dd energies (default = off)",
     )
 
     args = parser.parse_args()
