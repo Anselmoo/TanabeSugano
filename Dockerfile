@@ -4,12 +4,17 @@ FROM python:3.13.0b4-slim-bullseye
 
 WORKDIR /app
 
-COPY poetry.lock /app
-COPY pyproject.toml /app
+# Copying the poetry files first to cache the dependencies installation
+COPY poetry.lock pyproject.toml /app/
 
+# Install poetry
+RUN pip install poetry
 
-RUN pip3 install .
+# Install dependencies using poetry
+RUN poetry config virtualenvs.create false \
+	&& poetry install --no-dev
 
+# Copy the rest of the application code
 COPY . /app
 
 CMD ["python3", "-m", "tanabesugano"]
