@@ -8,11 +8,12 @@ WORKDIR /app
 COPY poetry.lock pyproject.toml /app/
 
 # Install poetry
-RUN pip install --no-cache-dir poetry
+RUN python -m pip install --upgrade pip \
+	&& python -m pip install --no-cache-dir poetry
 
 # Install dependencies using poetry
-RUN poetry config virtualenvs.create false \
-	&& poetry install --no-dev
+RUN python -m poetry config virtualenvs.create false \
+	&& python -m poetry install --no-dev
 
 # Copy the rest of the application code
 COPY . /app
