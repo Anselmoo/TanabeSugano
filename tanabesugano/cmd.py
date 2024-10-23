@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+from __future__ import annotations
 import argparse
 
 import matplotlib.pyplot as plt
@@ -47,7 +49,6 @@ class CMDmain(object):
         self.C = C
 
         if slater:
-
             self.B, self.C = tools.racah(B, C)
         self.nroot = nroots
         energy = np.linspace(0.0, self.Dq, nroots)
@@ -74,7 +75,6 @@ class CMDmain(object):
         )
 
     def plot(self) -> None:
-
         # Figure one for classical Tanabe-Sugano-Diagram with B-dependency
         plt.figure(1)
 
@@ -107,7 +107,6 @@ class CMDmain(object):
         plt.xlabel(arg2)
 
     def savetxt(self) -> None:
-
         pd.concat(
             [
                 self.df["delta_B"],
@@ -170,7 +169,8 @@ class CMDmain(object):
                     )
                 )
             else:
-                raise ValueError("`d_count` must be in {2,3,4,5,6,7,8}")
+                msg = "The number of unpaired electrons should be between 2 and 8."
+                raise ValueError(msg)
 
         # Transform list of dictionaries to dictionary of arrays
         result = {
@@ -195,37 +195,30 @@ class CMDmain(object):
         Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
         """
         if self.d_count == 2:  # d2
-
             states = matrices.d2(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 3:  # d3
-
             states = matrices.d3(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 4:  # d4
-
             states = matrices.d4(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 5:  # d5
-
             states = matrices.d5(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 6:  # d6
-
             states = matrices.d6(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 7:  # d7
-
             states = matrices.d7(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 8:  # d8
-
             states = matrices.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 

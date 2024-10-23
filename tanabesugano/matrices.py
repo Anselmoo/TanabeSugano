@@ -3,9 +3,9 @@ from __future__ import print_function
 import numpy as np
 from numpy._typing._array_like import NDArray
 from numpy.linalg import eigh
-from numpy.typing import NDArray
 
-from typing import Dict
+
+from typing import Dict, TypeAlias
 
 _sqrt2 = np.sqrt(2.0)
 _sqrt3 = np.sqrt(3.0)
@@ -17,9 +17,49 @@ _3sqrt2 = _sqrt2 * 3.0
 _3sqrt3 = _sqrt3 * 3.0
 _3sqrt6 = _sqrt6 * 3.0
 
-Float64Array = NDArray[np.float64]
+Float64Array: TypeAlias = NDArray[np.float64]
 
-class d2(object):
+
+class LigandFieldTheory:
+    """Parent class for ligand field theory configurations."""
+
+    def __init__(self, Dq: float, B: float, C: float) -> None:
+        """
+        Initializes the configuration with given parameters.
+
+        Args:
+            dq (float): Crystal field splitting in wavenumbers (cm-1).
+            b (float): Racah parameter B in wavenumbers (cm-1).
+            c (float): Racah parameter C in wavenumbers (cm-1).
+        """
+        self.Dq = np.float64(Dq)
+        self.B = np.float64(B)
+        self.C = np.float64(C)
+
+    def eigensolver(self, matrix: Float64Array) -> Float64Array:
+        """
+        Solve for the eigenvalues of the given matrix.
+
+        Args:
+            matrix (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
+
+        Returns:
+            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
+        """
+        return eigh(matrix)[0]
+
+    def solver(self) -> Dict[str, Float64Array]:
+        """
+        Solve for all states and return a dictionary of results.
+
+        Returns:
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+        """
+        msg = "Subclasses should implement this method."
+        raise NotImplementedError(msg)
+
+
+class d2(LigandFieldTheory):
     """
     Class representing the d2 configuration in ligand field theory.
     """
@@ -33,9 +73,7 @@ class d2(object):
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
         """
-        self.Dq = np.float64(Dq)
-        self.B = np.float64(B)
-        self.C = np.float64(C)
+        super().__init__(Dq, B, C)
 
     def A_1_1_states(self) -> Float64Array:
         """Calculate the A_1_1 states."""
@@ -92,17 +130,6 @@ class d2(object):
 
         return self.eigensolver(states)
 
-    def eigensolver(self, M: Float64Array) -> Float64Array:
-        """Solve for the eigenvalues of the given matrix.
-
-        Args:
-            M (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
-
-        Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
-        """
-        return eigh(M)[0]
-
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
@@ -132,7 +159,8 @@ class d2(object):
             "3_A_2": A_3_2,
         }
 
-class d3(object):
+
+class d3(LigandFieldTheory):
     """Class representing the d3 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 918.0, C: float = 4133.0) -> None:
@@ -143,9 +171,7 @@ class d3(object):
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
         """
-        self.Dq = np.float64(Dq)
-        self.B = np.float64(B)
-        self.C = np.float64(C)
+        super().__init__(Dq, B, C)
 
     def T_2_2_states(self) -> Float64Array:
         """Calculate the T_2_2 states."""
@@ -256,17 +282,6 @@ class d3(object):
 
         return self.eigensolver(states)
 
-    def eigensolver(self, M: Float64Array) -> Float64Array:
-        """Solve for the eigenvalues of the given matrix.
-
-        Args:
-            M (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
-
-        Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
-        """
-        return eigh(M)[0]
-
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
@@ -300,7 +315,7 @@ class d3(object):
         }
 
 
-class d4(object):
+class d4(LigandFieldTheory):
     """Class representing the d4 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 965.0, C: float = 4449.0) -> None:
@@ -312,9 +327,7 @@ class d4(object):
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
         """
-        self.Dq = np.float64(Dq)
-        self.B = np.float64(B)
-        self.C = np.float64(C)
+        super().__init__(Dq, B, C)
 
     def T_3_1_states(self) -> Float64Array:
         """Calculate the T_3_1 states."""
@@ -600,17 +613,6 @@ class d4(object):
 
         return self.eigensolver(states)
 
-    def eigensolver(self, M: Float64Array) -> Float64Array:
-        """Solve for the eigenvalues of the given matrix.
-
-        Args:
-            M (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
-
-        Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
-        """
-        return eigh(M)[0]
-
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
@@ -666,8 +668,9 @@ class d4(object):
         }
 
 
-class d5(object):
+class d5(LigandFieldTheory):
     """Class representing the d5 configuration in ligand field theory."""
+
     def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3850.0) -> None:
         """
         Initializes the d5 configuration with given parameters.
@@ -677,13 +680,10 @@ class d5(object):
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
         """
-        self.Dq = np.float64(Dq)
-        self.B = np.float64(B)
-        self.C = np.float64(C)
+        super().__init__(Dq, B, C)
 
     def T_2_2_states(self) -> Float64Array:
         """Calculate the T_2_2 states."""
-
 
         # diagonal elements
 
@@ -990,18 +990,6 @@ class d5(object):
 
         return self.eigensolver(states)
 
-    def eigensolver(self, M: Float64Array) -> Float64Array:
-        """Solve for the eigenvalues of the given matrix.
-
-        Args:
-            M (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
-
-        Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
-        """
-
-        return eigh(M)[0]
-
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
@@ -1056,8 +1044,9 @@ class d5(object):
         }
 
 
-class d6(object):
+class d6(LigandFieldTheory):
     """Class representing the d6 configuration in ligand field theory."""
+
     def __init__(self, Dq: float = 0.0, B: float = 1065.0, C: float = 5120.0):
         """
         Initializes the d6 configuration with given parameters.
@@ -1067,9 +1056,7 @@ class d6(object):
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
         """
-        self.Dq = np.float64(Dq)
-        self.B = np.float64(B)
-        self.C = np.float64(C)
+        super().__init__(Dq, B, C)
 
     def T_3_1_states(self) -> Float64Array:
         """Calculate the T_3_1 states."""
@@ -1370,17 +1357,7 @@ class d6(object):
 
         return self.eigensolver(states)
 
-    def eigensolver(self, M: Float64Array) -> Float64Array:
-        """Solve for the eigenvalues of the given matrix.
 
-        Args:
-            M (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
-
-        Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
-        """
-
-        return eigh(M)[0]
 
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
@@ -1388,7 +1365,6 @@ class d6(object):
         Returns:
             Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
         """
-
 
         GS = np.array([-4 * self.Dq - 21 * self.B])
 
@@ -1441,7 +1417,7 @@ class d6(object):
         }
 
 
-class d7(object):
+class d7(LigandFieldTheory):
     """Class for d7 configuration."""
 
     def __init__(self, Dq: float = 0.0, B: float = 971.0, C: float = 4499.0):
@@ -1452,9 +1428,7 @@ class d7(object):
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
         """
-        self.Dq = np.float64(Dq)
-        self.B = np.float64(B)
-        self.C = np.float64(C)
+        super().__init__(Dq, B, C)
 
     def T_2_2_states(self):
         """Calculate the T_2_2 states."""
@@ -1573,17 +1547,7 @@ class d7(object):
 
         return self.eigensolver(states)
 
-    def eigensolver(self, M: Float64Array) -> Float64Array:
-        """Solve for the eigenvalues of the given matrix.
 
-        Args:
-            M (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
-
-        Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
-        """
-
-        return eigh(M)[0]
 
     def solver(self) -> Dict[str, np.ndarray]:
         """Solve for all states and return a dictionary of results.
@@ -1636,7 +1600,7 @@ class d7(object):
         }
 
 
-class d8(object):
+class d8(LigandFieldTheory):
     def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0):
         """
         Initializes the d8 configuration with given parameters.
@@ -1646,9 +1610,7 @@ class d8(object):
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
         """
-        self.Dq = np.float64(Dq)
-        self.B = np.float64(B)
-        self.C = np.float64(C)
+        super().__init__(Dq, B, C)
 
     def A_1_1_states(self):
         """Calculate the A_1_1 states."""
@@ -1711,17 +1673,7 @@ class d8(object):
 
         return self.eigensolver(states)
 
-    def eigensolver(self, M: Float64Array) -> Float64Array:
-        """Solve for the eigenvalues of the given matrix.
 
-        Args:
-            M (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
-
-        Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamilton
-        """
-
-        return eigh(M)[0]
 
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.

@@ -58,14 +58,11 @@ class Batch:
             self._size = 10
         self.result: List[dict] = []
 
-    def calculation(self):
-        """
-        Is filling the self.result with the iTS states of over-iterated energy range
-        """
+    def calculation(self) -> None:
+        """Is filling the self.result with the iTS states of over-iterated energy range."""
         for _Dq in self.Dq:
             for _B in self.B:
                 for _C in self.C:
-
                     if self.d_count == 2:  # d3
                         states = matrices.d2(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
