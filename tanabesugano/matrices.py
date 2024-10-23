@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict
-# from typing import TypeAlias
+from typing import TypeAlias
 
 import numpy as np
 
@@ -19,8 +19,7 @@ _3sqrt2 = _sqrt2 * 3.0
 _3sqrt3 = _sqrt3 * 3.0
 _3sqrt6 = _sqrt6 * 3.0
 
-# Float64Array: TypeAlias = NDArray[np.float64]
-Float64Array = NDArray[np.float64]
+Float64Array: TypeAlias = NDArray[np.float64]
 
 
 class LigandFieldTheory:
