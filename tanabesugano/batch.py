@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 from typing import List
 
 import numpy as np
 
-from tanabesugano import matrices, tools
+from tanabesugano import matrices
+from tanabesugano import tools
 
 
 class Batch:
@@ -22,26 +25,23 @@ class Batch:
             C = [3600.0, 4000, 10]
         if len(Dq) != 3:
             raise KeyError(
-                "The range of `Dq` is based on the three values: start, stop, steps!"
+                "The range of `Dq` is based on the three values: start, stop, steps!",
             )
-        else:
-            self.Dq = np.linspace(Dq[0], Dq[1], int(Dq[2]))  # Oh-crystalfield-splitting
+        self.Dq = np.linspace(Dq[0], Dq[1], int(Dq[2]))  # Oh-crystalfield-splitting
         if len(B) != 3:
             raise KeyError(
-                "The range of `B` is based on the three values: start, stop, steps!"
+                "The range of `B` is based on the three values: start, stop, steps!",
             )
-        else:
-            self.B = np.linspace(
-                B[0], B[1], int(B[2])
-            )  # Racah-Parameter B in wavenumbers
+        self.B = np.linspace(
+            B[0], B[1], int(B[2]),
+        )  # Racah-Parameter B in wavenumbers
         if len(C) != 3:
             raise KeyError(
-                "The range of `C` is based on the three values: start, stop, steps!"
+                "The range of `C` is based on the three values: start, stop, steps!",
             )
-        else:
-            self.C = np.linspace(
-                C[0], C[1], int(C[2])
-            )  # Racah-Parameter C in wavenumbers
+        self.C = np.linspace(
+            C[0], C[1], int(C[2]),
+        )  # Racah-Parameter C in wavenumbers
 
         if slater:
             # Transformin Racah to Slater-Condon
@@ -58,14 +58,11 @@ class Batch:
             self._size = 10
         self.result: List[dict] = []
 
-    def calculation(self):
-        """
-        Is filling the self.result with the iTS states of over-iterated energy range
-        """
+    def calculation(self) -> None:
+        """Is filling the self.result with the iTS states of over-iterated energy range."""
         for _Dq in self.Dq:
             for _B in self.B:
                 for _C in self.C:
-
                     if self.d_count == 2:  # d3
                         states = matrices.d2(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
@@ -75,7 +72,7 @@ class Batch:
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
-                            }
+                            },
                         )
 
                     elif self.d_count == 3:  # d3
@@ -87,7 +84,7 @@ class Batch:
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
-                            }
+                            },
                         )
                     elif self.d_count == 4:  # d4
                         states = matrices.d4(Dq=_Dq, B=_B, C=_C).solver()
@@ -98,7 +95,7 @@ class Batch:
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
-                            }
+                            },
                         )
                     elif self.d_count == 5:  # d5
                         states = matrices.d5(Dq=_Dq, B=_B, C=_C).solver()
@@ -109,7 +106,7 @@ class Batch:
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
-                            }
+                            },
                         )
                     elif self.d_count == 6:  # d6
                         states = matrices.d6(Dq=_Dq, B=_B, C=_C).solver()
@@ -120,7 +117,7 @@ class Batch:
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
-                            }
+                            },
                         )
                     elif self.d_count == 7:  # d7
                         states = matrices.d7(Dq=_Dq, B=_B, C=_C).solver()
@@ -131,7 +128,7 @@ class Batch:
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
-                            }
+                            },
                         )
                     elif self.d_count == 8:  # d8
                         states = matrices.d8(Dq=_Dq, B=_B, C=_C).solver()
@@ -142,7 +139,7 @@ class Batch:
                                 "B": _B,
                                 "C": _C,
                                 "states": states,
-                            }
+                            },
                         )
                     else:
                         raise ValueError("not a correct value!")

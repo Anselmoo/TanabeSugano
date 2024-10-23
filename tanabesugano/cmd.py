@@ -1,21 +1,29 @@
 #!/usr/bin/env python
+
+from __future__ import annotations
+
 import argparse
+
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 from prettytable import PrettyTable
-from pathlib import Path
+
 
 try:
     import plotly.express as px
 except ImportError:  # pragma: no cover
     px = None
 
-from tanabesugano import __version__, matrices, tools
+from tanabesugano import __version__
+from tanabesugano import matrices
+from tanabesugano import tools
 
 
-class CMDmain(object):
+class CMDmain:
     def __init__(
         self,
         Dq: float = 4000.0,
@@ -41,13 +49,13 @@ class CMDmain(object):
             Electron count, by default 5
         slater : bool, optional
              Transforming from Racah to Slater-Condon, by default False
+
         """
         self.Dq = Dq
         self.B = B
         self.C = C
 
         if slater:
-
             self.B, self.C = tools.racah(B, C)
         self.nroot = nroots
         energy = np.linspace(0.0, self.Dq, nroots)
@@ -62,7 +70,7 @@ class CMDmain(object):
         self.result = np.zeros((self._size + 1, nroots))
 
         self.df = pd.DataFrame(
-            {"Energy": energy, "delta_B": energy / self.B, "10Dq": energy * 10.0}
+            {"Energy": energy, "delta_B": energy / self.B, "10Dq": energy * 10.0},
         )
         self.title_TS = (
             f"TS-diagram_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_"
@@ -74,7 +82,6 @@ class CMDmain(object):
         )
 
     def plot(self) -> None:
-
         # Figure one for classical Tanabe-Sugano-Diagram with B-dependency
         plt.figure(1)
 
@@ -86,7 +93,7 @@ class CMDmain(object):
             self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).to_numpy() / self.B,
             ls="--",
         )
-        self.label_plot("Tanabe-Sugano-Diagram", "$E/B$", "$\Delta/B$")
+        self.label_plot("Tanabe-Sugano-Diagram", "$E/B$", r"$\Delta/B$")
         # Figure one for Energy-Correlation-Diagram Dq-Energy versus State-Energy
         plt.figure(2)
 
@@ -96,7 +103,7 @@ class CMDmain(object):
             ls="--",
         )
         self.label_plot(
-            "DD excitations -Diagram", "$dd-state-energy\,(1/cm)$", "$10Dq\,(1/cm)$"
+            "DD excitations -Diagram", r"$dd-state-energy\,(1/cm)$", r"$10Dq\,(1/cm)$",
         )
         plt.show()
 
@@ -107,7 +114,6 @@ class CMDmain(object):
         plt.xlabel(arg2)
 
     def savetxt(self) -> None:
-
         pd.concat(
             [
                 self.df["delta_B"],
@@ -122,55 +128,55 @@ class CMDmain(object):
         ).to_csv(Path(f"{self.title_DD}.csv"), index=False)
 
     def calculation(self) -> None:
-        """
-        Is filling the self.result with the iTS states of over-iterated energy range
+        """Is filling the self.result with the iTS states of over-iterated energy range
         """
         result = []
         for dq in self.df["Energy"]:
             if self.d_count == 2:  # d2
                 result.append(
                     self.subsplit_states(
-                        matrices.d2(Dq=dq, B=self.B, C=self.C).solver()
-                    )
+                        matrices.d2(Dq=dq, B=self.B, C=self.C).solver(),
+                    ),
                 )
             elif self.d_count == 3:  # d3
                 result.append(
                     self.subsplit_states(
-                        matrices.d3(Dq=dq, B=self.B, C=self.C).solver()
-                    )
+                        matrices.d3(Dq=dq, B=self.B, C=self.C).solver(),
+                    ),
                 )
             elif self.d_count == 4:  # d4
                 result.append(
                     self.subsplit_states(
-                        matrices.d4(Dq=dq, B=self.B, C=self.C).solver()
-                    )
+                        matrices.d4(Dq=dq, B=self.B, C=self.C).solver(),
+                    ),
                 )
             elif self.d_count == 5:  # d5
                 result.append(
                     self.subsplit_states(
-                        matrices.d5(Dq=dq, B=self.B, C=self.C).solver()
-                    )
+                        matrices.d5(Dq=dq, B=self.B, C=self.C).solver(),
+                    ),
                 )
             elif self.d_count == 6:  # d6
                 result.append(
                     self.subsplit_states(
-                        matrices.d6(Dq=dq, B=self.B, C=self.C).solver()
-                    )
+                        matrices.d6(Dq=dq, B=self.B, C=self.C).solver(),
+                    ),
                 )
             elif self.d_count == 7:  # d7
                 result.append(
                     self.subsplit_states(
-                        matrices.d7(Dq=dq, B=self.B, C=self.C).solver()
-                    )
+                        matrices.d7(Dq=dq, B=self.B, C=self.C).solver(),
+                    ),
                 )
             elif self.d_count == 8:  # d8
                 result.append(
                     self.subsplit_states(
-                        matrices.d8(Dq=dq, B=self.B, C=self.C).solver()
-                    )
+                        matrices.d8(Dq=dq, B=self.B, C=self.C).solver(),
+                    ),
                 )
             else:
-                raise ValueError("`d_count` must be in {2,3,4,5,6,7,8}")
+                msg = "The number of unpaired electrons should be between 2 and 8."
+                raise ValueError(msg)
 
         # Transform list of dictionaries to dictionary of arrays
         result = {
@@ -191,41 +197,33 @@ class CMDmain(object):
         return rearranged_states
 
     def ci_cut(self, dq_ci: float = None) -> None:
-        """
-        Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
+        """Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
         """
         if self.d_count == 2:  # d2
-
             states = matrices.d2(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 3:  # d3
-
             states = matrices.d3(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 4:  # d4
-
             states = matrices.d4(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 5:  # d5
-
             states = matrices.d5(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 6:  # d6
-
             states = matrices.d6(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 7:  # d7
-
             states = matrices.d7(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
         elif self.d_count == 8:  # d8
-
             states = matrices.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
@@ -241,11 +239,12 @@ class CMDmain(object):
             List of atomic-termsymbols for a specific oxidation state
         dq_ci : float, optional
             Specific crystalfield-splitting in Dq, by default None
+
         """
         count = 0
         cut = np.zeros(
             self._size + 1,
-            dtype=[("state", np.unicode_, 7), ("cm", int), ("eV", float)],
+            dtype=[("state", np.str_, 7), ("cm", int), ("eV", float)],
         )
         for irreducible in states:
             for energy in states[irreducible]:
@@ -288,7 +287,7 @@ class CMDmain(object):
         if px is None:
             raise ImportError(
                 "Plotly is not installed. Please install plotly "
-                "with 'pip install tanabesugano[plotly]'!"
+                "with 'pip install tanabesugano[plotly]'!",
             )
 
         _col = self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).columns
@@ -367,7 +366,7 @@ def cmd_line() -> None:
 
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
-        "-d", type=int, default=6, help="Number of unpaired electrons (default d5)"
+        "-d", type=int, default=6, help="Number of unpaired electrons (default d5)",
     )
     parser.add_argument(
         "-Dq",
@@ -399,7 +398,7 @@ def cmd_line() -> None:
         "1.)",
     )
     parser.add_argument(
-        "-n", type=int, default=500, help="Number of roots (default nroots = 500)"
+        "-n", type=int, default=500, help="Number of roots (default nroots = 500)",
     )
     parser.add_argument(
         "-ndisp",
