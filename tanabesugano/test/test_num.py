@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 from tanabesugano import matrices
@@ -8,16 +10,16 @@ def state_check(x):
         if x == 3:
             states = matrices.d3(Dq=i).solver()
             return len(states)
-        elif x == 4:
+        if x == 4:
             states = matrices.d4(Dq=i).solver()
             return len(states)
-        elif x == 5:
+        if x == 5:
             states = matrices.d5(Dq=i).solver()
             return len(states)
-        elif x == 6:
+        if x == 6:
             states = matrices.d6(Dq=i).solver()
             return len(states)
-        elif x == 7:
+        if x == 7:
             states = matrices.d7(Dq=i).solver()
             return len(states)
 

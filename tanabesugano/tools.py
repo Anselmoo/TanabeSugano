@@ -1,11 +1,13 @@
 from __future__ import annotations
-from typing import Tuple, Union
+
+from typing import Tuple
+from typing import Union
 
 import numpy as np
 
 
 def racah(
-    F2: Union[float, np.array], F4: Union[float, np.array]
+    F2: Union[float, np.array], F4: Union[float, np.array],
 ) -> Union[Tuple[float, float], Tuple[np.array, np.array]]:
     """Transform the Slater-Condon-Parameter to Racah-Parameter.
 
@@ -18,6 +20,7 @@ def racah(
 
     Returns:
         Union[Tuple[float, float], Tuple[np.array, np.array]]: Return the racah parameters.
+
     """
     eVcm = 8065.54
     B = eVcm * (F2 / 49.0 - 5 / 441.0 * F4)

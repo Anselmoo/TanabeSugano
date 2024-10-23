@@ -1,11 +1,13 @@
-from __future__ import print_function
+from __future__ import annotations
+
+from typing import Dict
+from typing import TypeAlias
 
 import numpy as np
+
 from numpy._typing._array_like import NDArray
 from numpy.linalg import eigh
 
-
-from typing import Dict, TypeAlias
 
 _sqrt2 = np.sqrt(2.0)
 _sqrt3 = np.sqrt(3.0)
@@ -24,54 +26,53 @@ class LigandFieldTheory:
     """Parent class for ligand field theory configurations."""
 
     def __init__(self, Dq: float, B: float, C: float) -> None:
-        """
-        Initializes the configuration with given parameters.
+        """Initializes the configuration with given parameters.
 
         Args:
             dq (float): Crystal field splitting in wavenumbers (cm-1).
             b (float): Racah parameter B in wavenumbers (cm-1).
             c (float): Racah parameter C in wavenumbers (cm-1).
+
         """
         self.Dq = np.float64(Dq)
         self.B = np.float64(B)
         self.C = np.float64(C)
 
     def eigensolver(self, matrix: Float64Array) -> Float64Array:
-        """
-        Solve for the eigenvalues of the given matrix.
+        """Solve for the eigenvalues of the given matrix.
 
         Args:
             matrix (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
 
         Returns:
             Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
+
         """
         return eigh(matrix)[0]
 
     def solver(self) -> Dict[str, Float64Array]:
-        """
-        Solve for all states and return a dictionary of results.
+        """Solve for all states and return a dictionary of results.
 
         Returns:
             Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+
         """
         msg = "Subclasses should implement this method."
         raise NotImplementedError(msg)
 
 
 class d2(LigandFieldTheory):
-    """
-    Class representing the d2 configuration in ligand field theory.
+    """Class representing the d2 configuration in ligand field theory.
     """
 
     def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3801.0) -> None:
-        """
-        Initializes the d2 configuration with given parameters.
+        """Initializes the d2 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
+
         """
         super().__init__(Dq, B, C)
 
@@ -90,7 +91,6 @@ class d2(LigandFieldTheory):
 
     def E_1_states(self) -> Float64Array:
         """Calculate the E_1 states."""
-
         # Diagonal elements
         AA = -8 * self.Dq + self.B + 2 * self.C
         BB = +12 * self.Dq + 2 * self.C
@@ -104,7 +104,6 @@ class d2(LigandFieldTheory):
 
     def T_1_2_states(self) -> Float64Array:
         """Calculate the T_1_2 states."""
-
         # Diagonal elements
         AA = -8 * self.Dq + self.B + 2 * self.C
         BB = +2 * self.Dq + 2 * self.C
@@ -118,7 +117,6 @@ class d2(LigandFieldTheory):
 
     def T_3_1_states(self) -> Float64Array:
         """Calculate the T_3_1 states."""
-
         # Diagonal elements
         AA = -8 * self.Dq - 5 * self.B
         BB = +2 * self.Dq + 4 * self.B
@@ -135,6 +133,7 @@ class d2(LigandFieldTheory):
 
         Returns:
             Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+
         """
         # Ligand field independent states
         GS = self.T_3_1_states()[0]
@@ -170,6 +169,7 @@ class d3(LigandFieldTheory):
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
+
         """
         super().__init__(Dq, B, C)
 
@@ -204,7 +204,7 @@ class d3(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -240,7 +240,7 @@ class d3(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -264,7 +264,7 @@ class d3(LigandFieldTheory):
         CD = DC = _2sqrt3 * self.B
 
         states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]]
+            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
         )
 
         return self.eigensolver(states)
@@ -287,6 +287,7 @@ class d3(LigandFieldTheory):
 
         Returns:
             Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+
         """
         # Ligand field independent states
         GS = np.array([-12 * self.Dq - 15 * self.B])
@@ -319,19 +320,18 @@ class d4(LigandFieldTheory):
     """Class representing the d4 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 965.0, C: float = 4449.0) -> None:
-        """
-        Initializes the d4 configuration with given parameters.
+        """Initializes the d4 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
+
         """
         super().__init__(Dq, B, C)
 
     def T_3_1_states(self) -> Float64Array:
         """Calculate the T_3_1 states."""
-
         # Diagonal elements
         AA = -16 * self.Dq - 15 * self.B + 5 * self.C
         BB = -6 * self.Dq - 11 * self.B + 4 * self.C
@@ -378,7 +378,7 @@ class d4(LigandFieldTheory):
                 [EA, EB, EC, ED, EE, EF, EG],
                 [FA, FB, FC, FD, FE, FF, FG],
                 [GA, GB, GC, GD, GE, GF, GG],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -431,7 +431,7 @@ class d4(LigandFieldTheory):
                 [EA, EB, EC, ED, EE, EF, EG],
                 [FA, FB, FC, FD, FE, FF, FG],
                 [GA, GB, GC, GD, GE, GF, GG],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -467,7 +467,7 @@ class d4(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -503,7 +503,7 @@ class d4(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -539,14 +539,13 @@ class d4(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
 
     def T_1_1_states(self) -> Float64Array:
         """Calculate the T_1_1 states."""
-
         # Diagonal elements
         AA = -6 * self.Dq - 3 * self.B + 6 * self.C
         BB = -6 * self.Dq - 3 * self.B + 8 * self.C
@@ -564,7 +563,7 @@ class d4(LigandFieldTheory):
         CD = DC = -_sqrt6 * self.B
 
         states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]]
+            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
         )
 
         return self.eigensolver(states)
@@ -601,7 +600,6 @@ class d4(LigandFieldTheory):
 
     def A_1_2_states(self) -> Float64Array:
         """Calculate the A_1_2 states."""
-
         # Diagonal elements
         AA = -6 * self.Dq - 12 * self.B + 6 * self.C
         BB = +4 * self.Dq - 3 * self.B + 6 * self.C
@@ -618,6 +616,7 @@ class d4(LigandFieldTheory):
 
         Returns:
             Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+
         """
         # Ligand field independent states
         GS = np.array([-6 * self.Dq - 21 * self.B])
@@ -672,19 +671,18 @@ class d5(LigandFieldTheory):
     """Class representing the d5 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3850.0) -> None:
-        """
-        Initializes the d5 configuration with given parameters.
+        """Initializes the d5 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
+
         """
         super().__init__(Dq, B, C)
 
     def T_2_2_states(self) -> Float64Array:
         """Calculate the T_2_2 states."""
-
         # diagonal elements
 
         AA = -20 * self.Dq - 20 * self.B + 10 * self.C
@@ -766,7 +764,7 @@ class d5(LigandFieldTheory):
                 [HA, HB, HC, HD, HE, HF, HG, HH, HI, HJ],
                 [IA, IB, IC, ID, IE, IF, IG, IH, II, IJ],
                 [JA, JB, JC, JD, JE, JF, JG, JH, JI, JJ],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -831,7 +829,7 @@ class d5(LigandFieldTheory):
                 [FA, FB, FC, FD, FE, FF, FG, FH],
                 [GA, GB, GC, GD, GE, GF, GG, GH],
                 [HA, HB, HC, HD, HE, HF, HG, HH],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -886,7 +884,7 @@ class d5(LigandFieldTheory):
                 [EA, EB, EC, ED, EE, EF, EG],
                 [FA, FB, FC, FD, FE, FF, FG],
                 [GA, GB, GC, GD, GE, GF, GG],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -912,7 +910,7 @@ class d5(LigandFieldTheory):
         CD = DC = 0.0
 
         states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]]
+            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
         )
 
         return self.eigensolver(states)
@@ -995,12 +993,13 @@ class d5(LigandFieldTheory):
 
         Returns:
             Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+
         """
         # Ligand field independent states
         GS = -35 * self.B
 
         A_6_1 = np.array(
-            [0.0], dtype=float
+            [0.0], dtype=float,
         )  # Starting value is -35. * B, but has to set to zero per definition
         E_4 = self.E_4_states() - GS
         A_4_1 = np.array([-25 * self.B + 5 * self.C]) - GS
@@ -1048,13 +1047,13 @@ class d6(LigandFieldTheory):
     """Class representing the d6 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 1065.0, C: float = 5120.0):
-        """
-        Initializes the d6 configuration with given parameters.
+        """Initializes the d6 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
+
         """
         super().__init__(Dq, B, C)
 
@@ -1108,7 +1107,7 @@ class d6(LigandFieldTheory):
                 [EA, EB, EC, ED, EE, EF, EG],
                 [FA, FB, FC, FD, FE, FF, FG],
                 [GA, GB, GC, GD, GE, GF, GG],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -1163,7 +1162,7 @@ class d6(LigandFieldTheory):
                 [EA, EB, EC, ED, EE, EF, EG],
                 [FA, FB, FC, FD, FE, FF, FG],
                 [GA, GB, GC, GD, GE, GF, GG],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -1201,7 +1200,7 @@ class d6(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -1239,7 +1238,7 @@ class d6(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -1277,7 +1276,7 @@ class d6(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -1303,7 +1302,7 @@ class d6(LigandFieldTheory):
         CD = DC = -_sqrt6 * self.B
 
         states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]]
+            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
         )
 
         return self.eigensolver(states)
@@ -1364,8 +1363,8 @@ class d6(LigandFieldTheory):
 
         Returns:
             Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
-        """
 
+        """
         GS = np.array([-4 * self.Dq - 21 * self.B])
 
         T_5_2 = np.array([0], dtype=np.float64)
@@ -1427,6 +1426,7 @@ class d7(LigandFieldTheory):
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
+
         """
         super().__init__(Dq, B, C)
 
@@ -1463,7 +1463,7 @@ class d7(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -1501,7 +1501,7 @@ class d7(LigandFieldTheory):
                 [CA, CB, CC, CD, CE],
                 [DA, DB, DC, DD, DE],
                 [EA, EB, EC, ED, EE],
-            ]
+            ],
         )
 
         return self.eigensolver(states)
@@ -1527,7 +1527,7 @@ class d7(LigandFieldTheory):
         CD = DC = _2sqrt3 * self.B
 
         states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]]
+            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
         )
 
         return self.eigensolver(states)
@@ -1554,6 +1554,7 @@ class d7(LigandFieldTheory):
 
         Returns:
             Dict[str, np.ndarray]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+
         """
         # Ligand field independent states
 
@@ -1602,13 +1603,13 @@ class d7(LigandFieldTheory):
 
 class d8(LigandFieldTheory):
     def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0):
-        """
-        Initializes the d8 configuration with given parameters.
+        """Initializes the d8 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
             B (float): Racah parameter B in wavenumbers (cm-1).
             C (float): Racah parameter C in wavenumbers (cm-1).
+
         """
         super().__init__(Dq, B, C)
 
@@ -1659,7 +1660,6 @@ class d8(LigandFieldTheory):
 
     def T_3_1_states(self):
         """Calculate the T_3_1 states."""
-
         # -  diagonal elements
 
         AA = +8 * self.Dq - 5 * self.B
@@ -1680,6 +1680,7 @@ class d8(LigandFieldTheory):
 
         Returns:
             Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+
         """
         # Ligand field independent states
 
