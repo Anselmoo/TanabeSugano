@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from typing import Dict
-# from typing import TypeAlias
+
+
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing import Any as TypeAlias
 
 import numpy as np
 
@@ -19,8 +24,7 @@ _3sqrt2 = _sqrt2 * 3.0
 _3sqrt3 = _sqrt3 * 3.0
 _3sqrt6 = _sqrt6 * 3.0
 
-# Float64Array: TypeAlias = NDArray[np.float64]
-Float64Array = NDArray[np.float64]
+Float64Array: TypeAlias = NDArray[np.float64]
 
 
 class LigandFieldTheory:
@@ -332,7 +336,7 @@ class d4(LigandFieldTheory):
         super().__init__(Dq, B, C)
 
     def T_3_1_states(self) -> Float64Array:
-        """Calculate the T_3_1 states."""
+        """Calculatee the T_3_1 states."""
         # Diagonal elements
         AA = -16 * self.Dq - 15 * self.B + 5 * self.C
         BB = -6 * self.Dq - 11 * self.B + 4 * self.C
