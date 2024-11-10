@@ -62,7 +62,7 @@ exclude = ["test/**/*.py", "example/**", "ts-diagrams/**"]
         ruff = "^0.7.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.1.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
@@ -84,3 +84,10 @@ lines-between-types = 1
 lines-after-imports = 2
 known-third-party = ["poetry.core"]
 required-imports = ["from __future__ import annotations"]
+
+[tool.pytest.ini_options]
+markers = """
+    xfail: mark test as expecting to fail
+    skip: mark test as skipped
+"""
+addopts = "-v --cov=tanabesugano"
