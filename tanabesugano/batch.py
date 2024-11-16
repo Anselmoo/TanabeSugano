@@ -67,7 +67,7 @@ class Batch:
         for _Dq in self.Dq:
             for _B in self.B:
                 for _C in self.C:
-                    if self.d_count == 2:  # d3
+                    if self.d_count == 2:  # d2
                         states = matrices.d2(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {
