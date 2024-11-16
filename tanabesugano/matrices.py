@@ -49,10 +49,12 @@ class LigandFieldTheory:
         """Solve for the eigenvalues of the given matrix.
 
         Args:
-            matrix (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
+            matrix (Float64Array): 2-dimensional square array representing the TS matrix
+                of the ligand field Hamiltonian.
 
         Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
+            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand
+                field Hamiltonian.
 
         """
         return eigh(matrix)[0]
@@ -61,7 +63,8 @@ class LigandFieldTheory:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         msg = "Subclasses should implement this method."
@@ -97,6 +100,7 @@ class d2(LigandFieldTheory):
         super().__init__(Dq, B, C)
 
     def A_1_1_states(self) -> Float64Array:
+        """Calculate the A_1_1 states."""
         diag_elements = [
             -8 * self.Dq + 10 * self.B + 5 * self.C,
             +12 * self.Dq + 8 * self.B + 4 * self.C,
@@ -106,6 +110,7 @@ class d2(LigandFieldTheory):
         return self.eigensolver(states)
 
     def E_1_states(self) -> Float64Array:
+        """Calculate the E_1 states."""
         diag_elements = [-8 * self.Dq + self.B + 2 * self.C, +12 * self.Dq + 2 * self.C]
         off_diag_elements = {(0, 1): -_2sqrt3 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
@@ -129,7 +134,8 @@ class d2(LigandFieldTheory):
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         # Ligand field independent states
@@ -248,7 +254,8 @@ class d3(LigandFieldTheory):
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         # Ligand field independent states
@@ -840,7 +847,7 @@ class d5(LigandFieldTheory):
 class d6(LigandFieldTheory):
     """Class representing the d6 configuration in ligand field theory."""
 
-    def __init__(self, Dq: float = 0.0, B: float = 1065.0, C: float = 5120.0):
+    def __init__(self, Dq: float = 0.0, B: float = 1065.0, C: float = 5120.0) -> None:
         """Initialize the d6 configuration with given parameters.
 
         Args:
@@ -1208,11 +1215,11 @@ class d7(LigandFieldTheory):
         """
         # Ligand field independent states
 
-        # Ligandfield multi depnedent state become GS
+        # Ligandfield multi dependent state become GS
 
         T_4_1 = self.T_4_1_states()
 
-        # Ligendfield single depentent states
+        # Ligendfield single dependent states
 
         GS = T_4_1[0]
 
@@ -1252,6 +1259,7 @@ class d7(LigandFieldTheory):
 
 
 class d8(LigandFieldTheory):
+    """Class for d8 configuration."""
     def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0) -> None:
         """Initialize the d8 configuration with given parameters.
 
