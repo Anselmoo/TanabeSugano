@@ -33,14 +33,18 @@ class Batch:
                 "The range of `B` is based on the three values: start, stop, steps!",
             )
         self.B = np.linspace(
-            B[0], B[1], int(B[2]),
+            B[0],
+            B[1],
+            int(B[2]),
         )  # Racah-Parameter B in wavenumbers
         if len(C) != 3:
             raise KeyError(
                 "The range of `C` is based on the three values: start, stop, steps!",
             )
         self.C = np.linspace(
-            C[0], C[1], int(C[2]),
+            C[0],
+            C[1],
+            int(C[2]),
         )  # Racah-Parameter C in wavenumbers
 
         if slater:
@@ -63,7 +67,7 @@ class Batch:
         for _Dq in self.Dq:
             for _B in self.B:
                 for _C in self.C:
-                    if self.d_count == 2:  # d3
+                    if self.d_count == 2:  # d2
                         states = matrices.d2(Dq=_Dq, B=_B, C=_C).solver()
                         self.result.append(
                             {

@@ -103,7 +103,9 @@ class CMDmain:
             ls="--",
         )
         self.label_plot(
-            "DD excitations -Diagram", r"$dd-state-energy\,(1/cm)$", r"$10Dq\,(1/cm)$",
+            "DD excitations -Diagram",
+            r"$dd-state-energy\,(1/cm)$",
+            r"$10Dq\,(1/cm)$",
         )
         plt.show()
 
@@ -128,8 +130,7 @@ class CMDmain:
         ).to_csv(Path(f"{self.title_DD}.csv"), index=False)
 
     def calculation(self) -> None:
-        """Is filling the self.result with the iTS states of over-iterated energy range
-        """
+        """Is filling the self.result with the iTS states of over-iterated energy range"""
         result = []
         for dq in self.df["Energy"]:
             if self.d_count == 2:  # d2
@@ -197,8 +198,7 @@ class CMDmain:
         return rearranged_states
 
     def ci_cut(self, dq_ci: float = None) -> None:
-        """Extracting the atomic-termsymbols for a specific dq depending on the oxidation state
-        """
+        """Extracting the atomic-termsymbols for a specific dq depending on the oxidation state"""
         if self.d_count == 2:  # d2
             states = matrices.d2(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
@@ -366,7 +366,10 @@ def cmd_line() -> None:
 
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
-        "-d", type=int, default=6, help="Number of unpaired electrons (default d5)",
+        "-d",
+        type=int,
+        default=6,
+        help="Number of unpaired electrons (default d5)",
     )
     parser.add_argument(
         "-Dq",
@@ -398,7 +401,10 @@ def cmd_line() -> None:
         "1.)",
     )
     parser.add_argument(
-        "-n", type=int, default=500, help="Number of roots (default nroots = 500)",
+        "-n",
+        type=int,
+        default=500,
+        help="Number of roots (default nroots = 500)",
     )
     parser.add_argument(
         "-ndisp",

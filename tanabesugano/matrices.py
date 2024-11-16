@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Dict
+from typing import List
+from typing import Tuple
 
 
 try:
@@ -31,12 +33,12 @@ class LigandFieldTheory:
     """Parent class for ligand field theory configurations."""
 
     def __init__(self, Dq: float, B: float, C: float) -> None:
-        """Initializes the configuration with given parameters.
+        """Initialize the configuration with given parameters.
 
         Args:
-            dq (float): Crystal field splitting in wavenumbers (cm-1).
-            b (float): Racah parameter B in wavenumbers (cm-1).
-            c (float): Racah parameter C in wavenumbers (cm-1).
+            Dq (float): Crystal field splitting in wavenumbers (cm-1).
+            B (float): Racah parameter B in wavenumbers (cm-1).
+            C (float): Racah parameter C in wavenumbers (cm-1).
 
         """
         self.Dq = np.float64(Dq)
@@ -47,10 +49,12 @@ class LigandFieldTheory:
         """Solve for the eigenvalues of the given matrix.
 
         Args:
-            matrix (Float64Array): 2-dimensional square array representing the TS matrix of the ligand field Hamiltonian.
+            matrix (Float64Array): 2-dimensional square array representing the TS matrix
+                of the ligand field Hamiltonian.
 
         Returns:
-            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand field Hamiltonian.
+            Float64Array: 1-dimensional array of eigenvalues of the diagonalized ligand
+                field Hamiltonian.
 
         """
         return eigh(matrix)[0]
@@ -59,19 +63,33 @@ class LigandFieldTheory:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         msg = "Subclasses should implement this method."
         raise NotImplementedError(msg)
 
+    def construct_matrix(
+        self,
+        diag_elements: List[float],
+        off_diag_elements: Dict[Tuple[int, int], float],
+    ) -> Float64Array:
+        """Construct a symmetric matrix from diagonal and off-diagonal elements."""
+        size = len(diag_elements)
+        matrix = np.zeros((size, size))
+        np.fill_diagonal(matrix, diag_elements)
+        for (i, j), value in off_diag_elements.items():
+            matrix[i, j] = value
+            matrix[j, i] = value  # Assuming the matrix is symmetric
+        return matrix
+
 
 class d2(LigandFieldTheory):
-    """Class representing the d2 configuration in ligand field theory.
-    """
+    """Class representing the d2 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3801.0) -> None:
-        """Initializes the d2 configuration with given parameters.
+        """Initialize the d2 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
@@ -83,61 +101,41 @@ class d2(LigandFieldTheory):
 
     def A_1_1_states(self) -> Float64Array:
         """Calculate the A_1_1 states."""
-        # Diagonal elements
-        AA = -8 * self.Dq + 10 * self.B + 5 * self.C
-        BB = +12 * self.Dq + 8 * self.B + 4 * self.C
-
-        # Non-diagonal elements
-        AB = BA = _sqrt6 * (2 * self.B + self.C)
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [
+            -8 * self.Dq + 10 * self.B + 5 * self.C,
+            +12 * self.Dq + 8 * self.B + 4 * self.C,
+        ]
+        off_diag_elements = {(0, 1): _sqrt6 * (2 * self.B + self.C)}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_1_states(self) -> Float64Array:
         """Calculate the E_1 states."""
-        # Diagonal elements
-        AA = -8 * self.Dq + self.B + 2 * self.C
-        BB = +12 * self.Dq + 2 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -_2sqrt3 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [-8 * self.Dq + self.B + 2 * self.C, +12 * self.Dq + 2 * self.C]
+        off_diag_elements = {(0, 1): -_2sqrt3 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_1_2_states(self) -> Float64Array:
         """Calculate the T_1_2 states."""
-        # Diagonal elements
-        AA = -8 * self.Dq + self.B + 2 * self.C
-        BB = +2 * self.Dq + 2 * self.C
-
-        # Non-diagonal elements
-        AB = BA = +_2sqrt3 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [-8 * self.Dq + self.B + 2 * self.C, +2 * self.Dq + 2 * self.C]
+        off_diag_elements = {(0, 1): +_2sqrt3 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_3_1_states(self) -> Float64Array:
         """Calculate the T_3_1 states."""
-        # Diagonal elements
-        AA = -8 * self.Dq - 5 * self.B
-        BB = +2 * self.Dq + 4 * self.B
-
-        # Non-diagonal elements
-        AB = BA = 6 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [-8 * self.Dq - 5 * self.B, +2 * self.Dq + 4 * self.B]
+        off_diag_elements = {(0, 1): 6 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         # Ligand field independent states
@@ -168,7 +166,7 @@ class d3(LigandFieldTheory):
     """Class representing the d3 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 918.0, C: float = 4133.0) -> None:
-        """Initializes the d3 configuration with given parameters.
+        """Initialize the d3 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
@@ -180,118 +178,84 @@ class d3(LigandFieldTheory):
 
     def T_2_2_states(self) -> Float64Array:
         """Calculate the T_2_2 states."""
-        # Diagonal elements
-        AA = -12 * self.Dq + 5 * self.C
-        BB = -2 * self.Dq - 6 * self.B + 3 * self.C
-        CC = -2 * self.Dq + 4 * self.B + 3 * self.C
-        DD = +8 * self.Dq + 6 * self.B + 5 * self.C
-        EE = +8 * self.Dq - 2 * self.B + 3 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -_3sqrt3 * self.B
-        AC = CA = -5 * _sqrt3 * self.B
-        AD = DA = 4 * self.B + 2 * self.C
-        AE = EA = 2 * self.B
-
-        BC = CB = 3 * self.B
-        BD = DB = -_3sqrt3 * self.B
-        BE = EB = -_3sqrt3 * self.B
-
-        CD = DC = -_sqrt3 * self.B
-        CE = EC = +_sqrt3 * self.B
-
-        DE = ED = 10 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            -12 * self.Dq + 5 * self.C,
+            -2 * self.Dq - 6 * self.B + 3 * self.C,
+            -2 * self.Dq + 4 * self.B + 3 * self.C,
+            +8 * self.Dq + 6 * self.B + 5 * self.C,
+            +8 * self.Dq - 2 * self.B + 3 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -_3sqrt3 * self.B,
+            (0, 2): -5 * _sqrt3 * self.B,
+            (0, 3): 4 * self.B + 2 * self.C,
+            (0, 4): 2 * self.B,
+            (1, 2): 3 * self.B,
+            (1, 3): -_3sqrt3 * self.B,
+            (1, 4): -_3sqrt3 * self.B,
+            (2, 3): -_sqrt3 * self.B,
+            (2, 4): +_sqrt3 * self.B,
+            (3, 4): 10 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_2_1_states(self) -> Float64Array:
         """Calculate the T_2_1 states."""
-        # Diagonal elements
-        AA = -12 * self.Dq - 6 * self.B + 3 * self.C
-        BB = -2 * self.Dq + 3 * self.C
-        CC = -2 * self.Dq - 6 * self.B + 3 * self.C
-        DD = +8 * self.Dq - 6 * self.B + 3 * self.C
-        EE = +8 * self.Dq - 2 * self.B + 3 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -3 * self.B
-        AC = CA = +3 * self.B
-        AD = DA = 0.0
-        AE = EA = -_2sqrt3 * self.B
-
-        BC = CB = -3 * self.B
-        BD = DB = +3 * self.B
-        BE = EB = _3sqrt3 * self.B
-
-        CD = DC = -3 * self.B
-        CE = EC = -_sqrt3 * self.B
-
-        DE = ED = _2sqrt3 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            -12 * self.Dq - 6 * self.B + 3 * self.C,
+            -2 * self.Dq + 3 * self.C,
+            -2 * self.Dq - 6 * self.B + 3 * self.C,
+            +8 * self.Dq - 6 * self.B + 3 * self.C,
+            +8 * self.Dq - 2 * self.B + 3 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -3 * self.B,
+            (0, 2): +3 * self.B,
+            (0, 3): 0.0,
+            (0, 4): -_2sqrt3 * self.B,
+            (1, 2): -3 * self.B,
+            (1, 3): +3 * self.B,
+            (1, 4): _3sqrt3 * self.B,
+            (2, 3): -3 * self.B,
+            (2, 4): -_sqrt3 * self.B,
+            (3, 4): _2sqrt3 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_2_states(self) -> Float64Array:
         """Calculate the E_2 states."""
-        # Diagonal elements
-        AA = -12 * self.Dq - 6 * self.B + 3 * self.C
-        BB = -2 * self.Dq + 8 * self.B + 6 * self.C
-        CC = -2 * self.Dq - 1 * self.B + 3 * self.C
-        DD = +18 * self.Dq - 8 * self.B + 4 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -6 * _sqrt2 * self.B
-        AC = CA = -_3sqrt2 * self.B
-        AD = DA = 0.0
-
-        BC = CB = 10 * self.B
-        BD = DB = +_sqrt3 * (2 * self.B + self.C)
-
-        CD = DC = _2sqrt3 * self.B
-
-        states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
-        )
-
+        diag_elements = [
+            -12 * self.Dq - 6 * self.B + 3 * self.C,
+            -2 * self.Dq + 8 * self.B + 6 * self.C,
+            -2 * self.Dq - 1 * self.B + 3 * self.C,
+            +18 * self.Dq - 8 * self.B + 4 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -6 * _sqrt2 * self.B,
+            (0, 2): -_3sqrt2 * self.B,
+            (0, 3): 0.0,
+            (1, 2): 10 * self.B,
+            (1, 3): +_sqrt3 * (2 * self.B + self.C),
+            (2, 3): _2sqrt3 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_4_1_states(self) -> Float64Array:
         """Calculate the T_4_1 states."""
-        # Diagonal elements
-        AA = -2 * self.Dq - 3 * self.B
-        BB = +8 * self.Dq - 12 * self.B
-
-        # Non-diagonal elements
-        AB = BA = 6 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [-2 * self.Dq - 3 * self.B, +8 * self.Dq - 12 * self.B]
+        off_diag_elements = {(0, 1): 6 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         # Ligand field independent states
@@ -325,7 +289,7 @@ class d4(LigandFieldTheory):
     """Class representing the d4 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 965.0, C: float = 4449.0) -> None:
-        """Initializes the d4 configuration with given parameters.
+        """Initialize the d4 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
@@ -336,291 +300,211 @@ class d4(LigandFieldTheory):
         super().__init__(Dq, B, C)
 
     def T_3_1_states(self) -> Float64Array:
-        """Calculatee the T_3_1 states."""
-        # Diagonal elements
-        AA = -16 * self.Dq - 15 * self.B + 5 * self.C
-        BB = -6 * self.Dq - 11 * self.B + 4 * self.C
-        CC = -6 * self.Dq - 3 * self.B + 6 * self.C
-        DD = +4 * self.Dq - self.B + 6 * self.C
-        EE = +4 * self.Dq - 9 * self.B + 4 * self.C
-        FF = +4 * self.Dq - 11 * self.B + 4 * self.C
-        GG = +14 * self.Dq - 16 * self.B + 5 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -_sqrt6 * self.B
-        AC = CA = -_3sqrt2 * self.B
-        AD = DA = _sqrt2 * (2 * self.B + self.C)
-        AE = EA = -_2sqrt2 * self.B
-        AF = FA = 0.0
-        AG = GA = 0.0
-
-        BC = CB = 5 * _sqrt3 * self.B
-        BD = DB = _sqrt3 * self.B
-        BE = EB = -_sqrt3 * self.B
-        BF = FB = 3 * self.B
-        BG = GB = _sqrt6 * self.B
-
-        CD = DC = -3 * self.B
-        CE = EC = -3 * self.B
-        CF = FC = 5 * _sqrt3 * self.B
-        CG = GC = _sqrt2 * (self.B + self.C)
-
-        DE = ED = -10 * self.B
-        DF = FD = 0.0
-        DG = GD = _3sqrt2 * self.B
-
-        EF = FE = -2 * _sqrt3 * self.B
-        EG = GE = -_3sqrt2 * self.B
-
-        FG = GF = _sqrt6 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE, AF, AG],
-                [BA, BB, BC, BD, BE, BF, BG],
-                [CA, CB, CC, CD, CE, CF, CG],
-                [DA, DB, DC, DD, DE, DF, DG],
-                [EA, EB, EC, ED, EE, EF, EG],
-                [FA, FB, FC, FD, FE, FF, FG],
-                [GA, GB, GC, GD, GE, GF, GG],
-            ],
-        )
-
+        """Calculate the T_3_1 states."""
+        diag_elements = [
+            -16 * self.Dq - 15 * self.B + 5 * self.C,
+            -6 * self.Dq - 11 * self.B + 4 * self.C,
+            -6 * self.Dq - 3 * self.B + 6 * self.C,
+            +4 * self.Dq - self.B + 6 * self.C,
+            +4 * self.Dq - 9 * self.B + 4 * self.C,
+            +4 * self.Dq - 11 * self.B + 4 * self.C,
+            +14 * self.Dq - 16 * self.B + 5 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -_sqrt6 * self.B,
+            (0, 2): -_3sqrt2 * self.B,
+            (0, 3): _sqrt2 * (2 * self.B + self.C),
+            (0, 4): -_2sqrt2 * self.B,
+            (0, 5): 0.0,
+            (0, 6): 0.0,
+            (1, 2): 5 * _sqrt3 * self.B,
+            (1, 3): _sqrt3 * self.B,
+            (1, 4): -_sqrt3 * self.B,
+            (1, 5): 3 * self.B,
+            (1, 6): _sqrt6 * self.B,
+            (2, 3): -3 * self.B,
+            (2, 4): -3 * self.B,
+            (2, 5): 5 * _sqrt3 * self.B,
+            (2, 6): _sqrt2 * (self.B + self.C),
+            (3, 4): -10 * self.B,
+            (3, 5): 0.0,
+            (3, 6): _3sqrt2 * self.B,
+            (4, 5): -2 * _sqrt3 * self.B,
+            (4, 6): -_3sqrt2 * self.B,
+            (5, 6): _sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_1_2_states(self) -> Float64Array:
         """Calculate the T_1_2 states."""
-        # Diagonal elements
-        AA = -16 * self.Dq - 9 * self.B + 7 * self.C
-        BB = -6 * self.Dq - 9 * self.B + 6 * self.C
-        CC = -6 * self.Dq + 3 * self.B + 8 * self.C
-        DD = +4 * self.Dq - 9 * self.B + 6 * self.C
-        EE = +4 * self.Dq - 3 * self.B + 6 * self.C
-        FF = +4 * self.Dq + 5 * self.B + 8 * self.C
-        GG = +14 * self.Dq + 7 * self.C
-
-        # Non-diagonal elements
-        AB = BA = _3sqrt2 * self.B
-        AC = CA = -5 * _sqrt6 * self.B
-        AD = DA = 0.0
-        AE = EA = -_2sqrt2 * self.B
-        AF = FA = _sqrt2 * (2 * self.B + self.C)
-        AG = GA = 0.0
-
-        BC = CB = -5 * _sqrt3 * self.B
-        BD = DB = 3 * self.B
-        BE = EB = -3 * self.B
-        BF = FB = -3 * self.B
-        BG = GB = -_sqrt6 * self.B
-
-        CD = DC = -3 * _sqrt3 * self.B
-        CE = EC = 5 * _sqrt3 * self.B
-        CF = FC = -5 * _sqrt3 * self.B
-        CG = GC = _sqrt2 * (3 * self.B + self.C)
-
-        DE = ED = -6 * self.B
-        DF = FD = 0.0
-        DG = GD = -_3sqrt6 * self.B
-
-        EF = FE = -10 * self.B
-        EG = GE = _sqrt6 * self.B
-
-        FG = GF = _sqrt6 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE, AF, AG],
-                [BA, BB, BC, BD, BE, BF, BG],
-                [CA, CB, CC, CD, CE, CF, CG],
-                [DA, DB, DC, DD, DE, DF, DG],
-                [EA, EB, EC, ED, EE, EF, EG],
-                [FA, FB, FC, FD, FE, FF, FG],
-                [GA, GB, GC, GD, GE, GF, GG],
-            ],
-        )
-
+        diag_elements = [
+            -16 * self.Dq - 9 * self.B + 7 * self.C,
+            -6 * self.Dq - 9 * self.B + 6 * self.C,
+            -6 * self.Dq + 3 * self.B + 8 * self.C,
+            +4 * self.Dq - 9 * self.B + 6 * self.C,
+            +4 * self.Dq - 3 * self.B + 6 * self.C,
+            +4 * self.Dq + 5 * self.B + 8 * self.C,
+            +14 * self.Dq + 7 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): _3sqrt2 * self.B,
+            (0, 2): -5 * _sqrt6 * self.B,
+            (0, 3): 0.0,
+            (0, 4): -_2sqrt2 * self.B,
+            (0, 5): _sqrt2 * (2 * self.B + self.C),
+            (0, 6): 0.0,
+            (1, 2): -5 * _sqrt3 * self.B,
+            (1, 3): 3 * self.B,
+            (1, 4): -3 * self.B,
+            (1, 5): -3 * self.B,
+            (1, 6): -_sqrt6 * self.B,
+            (2, 3): -3 * _sqrt3 * self.B,
+            (2, 4): 5 * _sqrt3 * self.B,
+            (2, 5): -5 * _sqrt3 * self.B,
+            (2, 6): _sqrt2 * (3 * self.B + self.C),
+            (3, 4): -6 * self.B,
+            (3, 5): 0.0,
+            (3, 6): -_3sqrt6 * self.B,
+            (4, 5): -10 * self.B,
+            (4, 6): _sqrt6 * self.B,
+            (5, 6): _sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def A_1_1_states(self) -> Float64Array:
         """Calculate the A_1_1 states."""
-        # Diagonal elements
-        AA = -16 * self.Dq + 10 * self.C
-        BB = -6 * self.Dq + 6 * self.C
-        CC = +4 * self.Dq + 14 * self.B + 11 * self.C
-        DD = +4 * self.Dq - 3 * self.B + 6 * self.C
-        EE = +24 * self.Dq - 16 * self.B + 8 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -12 * _sqrt2 * self.B
-        AC = CA = _sqrt2 * (4 * self.B + 2 * self.C)
-        AD = DA = _2sqrt2 * self.B
-        AE = EA = 0.0
-
-        BC = CB = -12 * self.B
-        BD = DB = -6 * self.B
-        BE = EB = 0.0
-
-        CD = DC = 20 * self.B
-        CE = EC = _sqrt6 * (2 * self.B + self.C)
-
-        DE = ED = 2 * _sqrt6 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            -16 * self.Dq + 10 * self.C,
+            -6 * self.Dq + 6 * self.C,
+            +4 * self.Dq + 14 * self.B + 11 * self.C,
+            +4 * self.Dq - 3 * self.B + 6 * self.C,
+            +24 * self.Dq - 16 * self.B + 8 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -12 * _sqrt2 * self.B,
+            (0, 2): _sqrt2 * (4 * self.B + 2 * self.C),
+            (0, 3): _2sqrt2 * self.B,
+            (0, 4): 0.0,
+            (1, 2): -12 * self.B,
+            (1, 3): -6 * self.B,
+            (1, 4): 0.0,
+            (2, 3): 20 * self.B,
+            (2, 4): _sqrt6 * (2 * self.B + self.C),
+            (3, 4): 2 * _sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_1_1_states(self) -> Float64Array:
         """Calculate the E_1_1 states."""
-        # Diagonal elements
-        AA = -16 * self.Dq - 9 * self.B + 7 * self.C
-        BB = -6 * self.Dq - 6 * self.B + 6 * self.C
-        CC = +4 * self.Dq + 5 * self.B + 8 * self.C
-        DD = +4 * self.Dq + 6 * self.B + 9 * self.C
-        EE = +4 * self.Dq - 3 * self.B + 6 * self.C
-
-        # Non-diagonal elements
-        AB = BA = 6 * self.B
-        AC = CA = _sqrt2 * (2 * self.B + self.C)
-        AD = DA = -2 * self.B
-        AE = EA = -4 * self.B
-
-        BC = CB = -_3sqrt2 * self.B
-        BD = DB = -12 * self.B
-        BE = EB = 0.0
-
-        CD = DC = 10 * _sqrt2 * self.B
-        CE = EC = -10 * _sqrt2 * self.B
-
-        DE = ED = 0.0
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            -16 * self.Dq - 9 * self.B + 7 * self.C,
+            -6 * self.Dq - 6 * self.B + 6 * self.C,
+            +4 * self.Dq + 5 * self.B + 8 * self.C,
+            +4 * self.Dq + 6 * self.B + 9 * self.C,
+            +4 * self.Dq - 3 * self.B + 6 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): 6 * self.B,
+            (0, 2): _sqrt2 * (2 * self.B + self.C),
+            (0, 3): -2 * self.B,
+            (0, 4): -4 * self.B,
+            (1, 2): -_3sqrt2 * self.B,
+            (1, 3): -12 * self.B,
+            (1, 4): 0.0,
+            (2, 3): 10 * _sqrt2 * self.B,
+            (2, 4): -10 * _sqrt2 * self.B,
+            (3, 4): 0.0,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_3_2_states(self) -> Float64Array:
         """Calculate the T_3_2 states."""
-        # Diagonal elements
-        AA = -6 * self.Dq - 9 * self.B + 4 * self.C
-        BB = -6 * self.Dq - 5 * self.B + 6 * self.C
-        CC = +4 * self.Dq - 13 * self.B + 4 * self.C
-        DD = +4 * self.Dq - 9 * self.B + 4 * self.C
-        EE = +14 * self.Dq - 8 * self.B + 5 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -5 * _sqrt3 * self.B
-        AC = CA = _sqrt6 * self.B
-        AD = DA = _sqrt3 * self.B
-        AE = EA = -_sqrt6 * self.B
-
-        BC = CB = -_3sqrt2 * self.B
-        BD = DB = 3 * self.B
-        BE = EB = _sqrt2 * (3 * self.B + self.C)
-
-        CD = DC = -2 * _sqrt2 * self.B
-        CE = EC = -6 * self.B
-
-        DE = ED = _3sqrt2 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            -6 * self.Dq - 9 * self.B + 4 * self.C,
+            -6 * self.Dq - 5 * self.B + 6 * self.C,
+            +4 * self.Dq - 13 * self.B + 4 * self.C,
+            +4 * self.Dq - 9 * self.B + 4 * self.C,
+            +14 * self.Dq - 8 * self.B + 5 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -5 * _sqrt3 * self.B,
+            (0, 2): _sqrt6 * self.B,
+            (0, 3): _sqrt3 * self.B,
+            (0, 4): -_sqrt6 * self.B,
+            (1, 2): -_3sqrt2 * self.B,
+            (1, 3): 3 * self.B,
+            (1, 4): _sqrt2 * (3 * self.B + self.C),
+            (2, 3): -2 * _sqrt2 * self.B,
+            (2, 4): -6 * self.B,
+            (3, 4): _3sqrt2 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_1_1_states(self) -> Float64Array:
         """Calculate the T_1_1 states."""
-        # Diagonal elements
-        AA = -6 * self.Dq - 3 * self.B + 6 * self.C
-        BB = -6 * self.Dq - 3 * self.B + 8 * self.C
-        CC = +4 * self.Dq - 3 * self.B + 6 * self.C
-        DD = +14 * self.Dq - 16 * self.B + 7 * self.C
-
-        # Non-diagonal elements
-        AB = BA = 5 * _sqrt3 * self.B
-        AC = CA = 3 * self.B
-        AD = DA = _sqrt6 * self.B
-
-        BC = CB = -5 * _sqrt3 * self.B
-        BD = DB = _sqrt2 * (self.B + self.C)
-
-        CD = DC = -_sqrt6 * self.B
-
-        states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
-        )
-
+        diag_elements = [
+            -6 * self.Dq - 3 * self.B + 6 * self.C,
+            -6 * self.Dq - 3 * self.B + 8 * self.C,
+            +4 * self.Dq - 3 * self.B + 6 * self.C,
+            +14 * self.Dq - 16 * self.B + 7 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): 5 * _sqrt3 * self.B,
+            (0, 2): 3 * self.B,
+            (0, 3): _sqrt6 * self.B,
+            (1, 2): -5 * _sqrt3 * self.B,
+            (1, 3): _sqrt2 * (self.B + self.C),
+            (2, 3): -_sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_3_1_states(self) -> Float64Array:
         """Calculate the E_3_1 states."""
-        # Diagonal elements
-        AA = -6 * self.Dq - 13 * self.B + 4 * self.C
-        BB = -6 * self.Dq - 10 * self.B + 4 * self.C
-        CC = +4 * self.Dq - 11 * self.B + 4 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -4 * self.B
-        AC = CA = 0.0
-
-        BC = CB = -_3sqrt2 * self.B
-
-        states = np.array([[AA, AB, AC], [BA, BB, BC], [CA, CB, CC]])
-
+        diag_elements = [
+            -6 * self.Dq - 13 * self.B + 4 * self.C,
+            -6 * self.Dq - 10 * self.B + 4 * self.C,
+            +4 * self.Dq - 11 * self.B + 4 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -4 * self.B,
+            (0, 2): 0.0,
+            (1, 2): -_3sqrt2 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def A_3_2_states(self) -> Float64Array:
         """Calculate the A_3_2 states."""
-        # Diagonal elements
-        AA = -6 * self.Dq - 8 * self.B + 4 * self.C
-        BB = +4 * self.Dq - 2 * self.B + 7 * self.C
-
-        # Non-diagonal elements
-        AB = BA = -12 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [
+            -6 * self.Dq - 8 * self.B + 4 * self.C,
+            +4 * self.Dq - 2 * self.B + 7 * self.C,
+        ]
+        off_diag_elements = {(0, 1): -12 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def A_1_2_states(self) -> Float64Array:
         """Calculate the A_1_2 states."""
-        # Diagonal elements
-        AA = -6 * self.Dq - 12 * self.B + 6 * self.C
-        BB = +4 * self.Dq - 3 * self.B + 6 * self.C
-
-        # Non-diagonal elements
-        AB = BA = 6 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [
+            -6 * self.Dq - 12 * self.B + 6 * self.C,
+            +4 * self.Dq - 3 * self.B + 6 * self.C,
+        ]
+        off_diag_elements = {(0, 1): 6 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         # Ligand field independent states
@@ -676,7 +560,7 @@ class d5(LigandFieldTheory):
     """Class representing the d5 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3850.0) -> None:
-        """Initializes the d5 configuration with given parameters.
+        """Initialize the d5 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
@@ -688,323 +572,235 @@ class d5(LigandFieldTheory):
 
     def T_2_2_states(self) -> Float64Array:
         """Calculate the T_2_2 states."""
-        # diagonal elements
-
-        AA = -20 * self.Dq - 20 * self.B + 10 * self.C
-        BB = -10 * self.Dq - 8 * self.B + 9 * self.C
-        CC = -10 * self.Dq - 18 * self.B + 9 * self.C
-        DD = -16 * self.B + 8 * self.C
-        EE = -12 * self.B + 8 * self.C
-        FF = +2 * self.B + 12 * self.C
-        GG = -6 * self.B + 10 * self.C
-        HH = +10 * self.Dq - 18 * self.B + 9 * self.C
-        II = +10 * self.Dq - 8 * self.B + 9 * self.C
-        JJ = +20 * self.Dq - 20 * self.B + 10 * self.C
-
-        # non diagonal elements
-
-        AB = BA = _3sqrt6 * self.B
-        AC = CA = _sqrt6 * self.B
-        AD = DA = 0.0
-        AE = EA = -2 * _sqrt3 * self.B
-        AF = FA = 4 * self.B + 2 * self.C
-        AG = GA = 2 * self.B
-        AH = HA = 0.0
-        AI = IA = 0.0
-        AJ = JA = 0.0
-
-        BC = CB = 3 * self.B
-        BD = DB = _sqrt6 / 2.0 * self.B
-        BE = EB = -_3sqrt2 / 2.0 * self.B
-        BF = FB = _3sqrt6 / 2.0 * self.B
-        BG = GB = _3sqrt6 / 2.0 * self.B
-        BH = HB = 0.0
-        BI = IB = 4 * self.B + self.C
-        BJ = JB = 0.0
-
-        CD = DC = _3sqrt6 / 2.0 * self.B
-        CE = EC = -_3sqrt2 / 2.0 * self.B
-        CF = FC = +5 * _sqrt6 / 2.0 * self.B
-        CG = GC = -5 * _sqrt6 / 2.0 * self.B
-        CH = HC = self.C
-        CI = IC = 0.0
-        CJ = JC = 0.0
-
-        DE = ED = 2 * _sqrt3 * self.B
-        DF = FD = 0.0
-        DG = GD = 0.0
-        DH = HD = -_3sqrt6 / 2.0 * self.B
-        DI = ID = -_sqrt6 / 2.0 * self.B
-        DJ = JD = 0.0
-
-        EF = FE = -10 * _sqrt3 * self.B
-        EG = GE = 0.0
-        EH = HE = _3sqrt2 / 2.0 * self.B
-        EI = IE = _3sqrt2 / 2.0 * self.B
-        EJ = JE = -2 * _sqrt3 * self.B
-
-        FG = GF = 0.0
-        FH = HF = -5 * _sqrt6 / 2.0 * self.B
-        FI = IF = -_3sqrt6 / 2.0 * self.B
-        FJ = JF = 4 * self.B + 2 * self.C
-
-        GH = HG = -5 * _sqrt6 / 2.0 * self.B
-        GI = IG = _3sqrt6 / 2.0 * self.B
-        GJ = JG = -2.0 * self.B
-
-        HI = IH = 3 * self.B
-        HJ = JH = -_sqrt6 * self.B
-
-        IJ = JI = -_3sqrt6 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE, AF, AG, AH, AI, AJ],
-                [BA, BB, BC, BD, BE, BF, BG, BH, BI, BJ],
-                [CA, CB, CC, CD, CE, CF, CG, CH, CI, CJ],
-                [DA, DB, DC, DD, DE, DF, DG, DH, DI, DJ],
-                [EA, EB, EC, ED, EE, EF, EG, EH, EI, EJ],
-                [FA, FB, FC, FD, FE, FF, FG, FH, FI, FJ],
-                [GA, GB, GC, GD, GE, GF, GG, GH, GI, GJ],
-                [HA, HB, HC, HD, HE, HF, HG, HH, HI, HJ],
-                [IA, IB, IC, ID, IE, IF, IG, IH, II, IJ],
-                [JA, JB, JC, JD, JE, JF, JG, JH, JI, JJ],
-            ],
-        )
-
+        diag_elements = [
+            -20 * self.Dq - 20 * self.B + 10 * self.C,
+            -10 * self.Dq - 8 * self.B + 9 * self.C,
+            -10 * self.Dq - 18 * self.B + 9 * self.C,
+            -16 * self.B + 8 * self.C,
+            -12 * self.B + 8 * self.C,
+            +2 * self.B + 12 * self.C,
+            -6 * self.B + 10 * self.C,
+            +10 * self.Dq - 18 * self.B + 9 * self.C,
+            +10 * self.Dq - 8 * self.B + 9 * self.C,
+            +20 * self.Dq - 20 * self.B + 10 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): _3sqrt6 * self.B,
+            (0, 2): _sqrt6 * self.B,
+            (0, 3): 0.0,
+            (0, 4): -2 * _sqrt3 * self.B,
+            (0, 5): 4 * self.B + 2 * self.C,
+            (0, 6): 2 * self.B,
+            (0, 7): 0.0,
+            (0, 8): 0.0,
+            (0, 9): 0.0,
+            (1, 2): 3 * self.B,
+            (1, 3): _sqrt6 / 2.0 * self.B,
+            (1, 4): -_3sqrt2 / 2.0 * self.B,
+            (1, 5): _3sqrt6 / 2.0 * self.B,
+            (1, 6): _3sqrt6 / 2.0 * self.B,
+            (1, 7): 0.0,
+            (1, 8): 4 * self.B + self.C,
+            (1, 9): 0.0,
+            (2, 3): _3sqrt6 / 2.0 * self.B,
+            (2, 4): -_3sqrt2 / 2.0 * self.B,
+            (2, 5): +5 * _sqrt6 / 2.0 * self.B,
+            (2, 6): -5 * _sqrt6 / 2.0 * self.B,
+            (2, 7): self.C,
+            (2, 8): 0.0,
+            (2, 9): 0.0,
+            (3, 4): 2 * _sqrt3 * self.B,
+            (3, 5): 0.0,
+            (3, 6): 0.0,
+            (3, 7): -_3sqrt6 / 2.0 * self.B,
+            (3, 8): -_sqrt6 / 2.0 * self.B,
+            (3, 9): 0.0,
+            (4, 5): -10 * _sqrt3 * self.B,
+            (4, 6): 0.0,
+            (4, 7): _3sqrt2 / 2.0 * self.B,
+            (4, 8): _3sqrt2 / 2.0 * self.B,
+            (4, 9): -2 * _sqrt3 * self.B,
+            (5, 6): 0.0,
+            (5, 7): -5 * _sqrt6 / 2.0 * self.B,
+            (5, 8): -_3sqrt6 / 2.0 * self.B,
+            (5, 9): 4 * self.B + 2 * self.C,
+            (6, 7): -5 * _sqrt6 / 2.0 * self.B,
+            (6, 8): _3sqrt6 / 2.0 * self.B,
+            (6, 9): -2.0 * self.B,
+            (7, 8): 3 * self.B,
+            (7, 9): -_sqrt6 * self.B,
+            (8, 9): -_3sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_2_1_states(self) -> Float64Array:
         """Calculate the T_2_1 states."""
-        # diagonal elements
-
-        AA = -10 * self.Dq - 22 * self.B + 9 * self.C
-        BB = -10 * self.Dq - 8 * self.B + 9 * self.C
-        CC = -4 * self.B + 10 * self.C
-        DD = -12 * self.B + 8 * self.C
-        EE = -10 * self.B + 10 * self.C
-        FF = -6 * self.B + 10 * self.C
-        GG = +10 * self.Dq - 8 * self.B + 9 * self.C
-        HH = +10 * self.Dq - 22 * self.B + 9 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -3 * self.B
-        AC = CA = -_3sqrt2 / 2.0 * self.B
-        AD = DA = _3sqrt2 / 2.0 * self.B
-        AE = EA = -_3sqrt2 / 2.0 * self.B
-        AF = FA = -_3sqrt6 / 2.0 * self.B
-        AG = GA = 0.0
-        AH = HA = self.C
-
-        BC = CB = _3sqrt2 / 2.0 * self.B
-        BD = DB = _3sqrt2 / 2.0 * self.B
-        BE = EB = 15 * _sqrt2 / 2.0 * self.B
-        BF = FB = 5 * _sqrt6 / 2.0 * self.B
-        BG = GB = 4 * self.B + self.C
-        BH = HB = 0.0
-
-        CD = DC = 0.0
-        CE = EC = 0.0
-        CF = FC = 10 * _sqrt3 * self.B
-        CG = GC = _3sqrt2 / 2.0 * self.B
-        CH = HC = -_3sqrt2 / 2.0 * self.B
-
-        DE = ED = 0.0
-        DF = FD = 0.0
-        DG = GD = -_3sqrt2 / 2.0 * self.B
-        DH = HD = -_3sqrt2 / 2.0 * self.B
-
-        EF = FE = 2 * _sqrt3 * self.B
-        EG = GE = 15 * _sqrt2 / 2.0 * self.B
-        EH = HE = -_3sqrt2 / 2.0 * self.B
-
-        FG = GF = 5 * _sqrt6 / 2.0 * self.B
-        FH = HF = -_3sqrt6 / 2.0 * self.B
-
-        GH = HG = -3 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE, AF, AG, AH],
-                [BA, BB, BC, BD, BE, BF, BG, BH],
-                [CA, CB, CC, CD, CE, CF, CG, CH],
-                [DA, DB, DC, DD, DE, DF, DG, DH],
-                [EA, EB, EC, ED, EE, EF, EG, EH],
-                [FA, FB, FC, FD, FE, FF, FG, FH],
-                [GA, GB, GC, GD, GE, GF, GG, GH],
-                [HA, HB, HC, HD, HE, HF, HG, HH],
-            ],
-        )
-
+        diag_elements = [
+            -10 * self.Dq - 22 * self.B + 9 * self.C,
+            -10 * self.Dq - 8 * self.B + 9 * self.C,
+            -4 * self.B + 10 * self.C,
+            -12 * self.B + 8 * self.C,
+            -10 * self.B + 10 * self.C,
+            -6 * self.B + 10 * self.C,
+            +10 * self.Dq - 8 * self.B + 9 * self.C,
+            +10 * self.Dq - 22 * self.B + 9 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -3 * self.B,
+            (0, 2): -_3sqrt2 / 2.0 * self.B,
+            (0, 3): _3sqrt2 / 2.0 * self.B,
+            (0, 4): -_3sqrt2 / 2.0 * self.B,
+            (0, 5): -_3sqrt6 / 2.0 * self.B,
+            (0, 6): 0.0,
+            (0, 7): self.C,
+            (1, 2): _3sqrt2 / 2.0 * self.B,
+            (1, 3): _3sqrt2 / 2.0 * self.B,
+            (1, 4): 15 * _sqrt2 / 2.0 * self.B,
+            (1, 5): 5 * _sqrt6 / 2.0 * self.B,
+            (1, 6): 4 * self.B + self.C,
+            (1, 7): 0.0,
+            (2, 3): 0.0,
+            (2, 4): 0.0,
+            (2, 5): 10 * _sqrt3 * self.B,
+            (2, 6): _3sqrt2 / 2.0 * self.B,
+            (2, 7): -_3sqrt2 / 2.0 * self.B,
+            (3, 4): 0.0,
+            (3, 5): 0.0,
+            (3, 6): -_3sqrt2 / 2.0 * self.B,
+            (3, 7): -_3sqrt2 / 2.0 * self.B,
+            (4, 5): 2 * _sqrt3 * self.B,
+            (4, 6): 15 * _sqrt2 / 2.0 * self.B,
+            (4, 7): -_3sqrt2 / 2.0 * self.B,
+            (5, 6): 5 * _sqrt6 / 2.0 * self.B,
+            (5, 7): -_3sqrt6 / 2.0 * self.B,
+            (6, 7): -3 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_2_states(self) -> Float64Array:
         """Calculate the E_2 states."""
-        # diagonal elements
-
-        AA = -10 * self.Dq - 4 * self.B + 12 * self.C
-        BB = -10 * self.Dq - 13 * self.B + 9 * self.C
-        CC = -4 * self.B + 10 * self.C
-        DD = -16 * self.B + 8 * self.C
-        EE = -12 * self.B + 8 * self.C
-        FF = +10 * self.Dq - 13 * self.B + 9 * self.C
-        GG = +10 * self.Dq - 4 * self.B + 12 * self.C
-
-        # non diagonal elements
-
-        AB = BA = 10 * self.B
-        AC = CA = 6 * self.B
-        AD = DA = 6 * _sqrt3 * self.B
-        AE = EA = 6 * _sqrt2 * self.B
-        AF = FA = -2 * self.B
-        AG = GA = 4 * self.B + 2 * self.C
-
-        BC = CB = -3 * self.B
-        BD = DB = 3 * _sqrt3 * self.B
-        BE = EB = 0.0
-        BF = FB = 2 * self.B + self.C
-        BG = GB = 2 * self.B
-
-        CD = DC = 0.0
-        CE = EC = 0.0
-        CF = FC = -3 * self.B
-        CG = GC = -6 * self.B
-
-        DE = ED = 2 * _sqrt6 * self.B
-        DF = FD = -3 * _sqrt3 * self.B
-        DG = GD = 6 * _sqrt3 * self.B
-
-        EF = FE = 0.0
-        EG = GE = 6 * _sqrt2 * self.B
-
-        FG = GF = -10 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE, AF, AG],
-                [BA, BB, BC, BD, BE, BF, BG],
-                [CA, CB, CC, CD, CE, CF, CG],
-                [DA, DB, DC, DD, DE, DF, DG],
-                [EA, EB, EC, ED, EE, EF, EG],
-                [FA, FB, FC, FD, FE, FF, FG],
-                [GA, GB, GC, GD, GE, GF, GG],
-            ],
-        )
-
+        diag_elements = [
+            -10 * self.Dq - 4 * self.B + 12 * self.C,
+            -10 * self.Dq - 13 * self.B + 9 * self.C,
+            -4 * self.B + 10 * self.C,
+            -16 * self.B + 8 * self.C,
+            -12 * self.B + 8 * self.C,
+            +10 * self.Dq - 13 * self.B + 9 * self.C,
+            +10 * self.Dq - 4 * self.B + 12 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): 10 * self.B,
+            (0, 2): 6 * self.B,
+            (0, 3): 6 * _sqrt3 * self.B,
+            (0, 4): 6 * _sqrt2 * self.B,
+            (0, 5): -2 * self.B,
+            (0, 6): 4 * self.B + 2 * self.C,
+            (1, 2): -3 * self.B,
+            (1, 3): 3 * _sqrt3 * self.B,
+            (1, 4): 0.0,
+            (1, 5): 2 * self.B + self.C,
+            (1, 6): 2 * self.B,
+            (2, 3): 0.0,
+            (2, 4): 0.0,
+            (2, 5): -3 * self.B,
+            (2, 6): -6 * self.B,
+            (3, 4): 2 * _sqrt6 * self.B,
+            (3, 5): -3 * _sqrt3 * self.B,
+            (3, 6): 6 * _sqrt3 * self.B,
+            (4, 5): 0.0,
+            (4, 6): 6 * _sqrt2 * self.B,
+            (5, 6): -10 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def A_2_1_states(self) -> Float64Array:
         """Calculate the A_2_1 states."""
-        # diagonal elements
-
-        AA = -10 * self.Dq - 3 * self.B + 9 * self.C
-        BB = -12 * self.B + 8 * self.C
-        CC = -19 * self.B + 8 * self.C
-        DD = +10 * self.Dq - 3 * self.B + 9 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -_3sqrt2 * self.B
-        AC = CA = 0.0
-        AD = DA = 6 * self.B + self.C
-
-        BC = CB = -4 * _sqrt3 * self.B
-        BD = DB = _3sqrt2 * self.B
-
-        CD = DC = 0.0
-
-        states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
-        )
-
+        diag_elements = [
+            -10 * self.Dq - 3 * self.B + 9 * self.C,
+            -12 * self.B + 8 * self.C,
+            -19 * self.B + 8 * self.C,
+            +10 * self.Dq - 3 * self.B + 9 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -_3sqrt2 * self.B,
+            (0, 2): 0.0,
+            (0, 3): 6 * self.B + self.C,
+            (1, 2): -4 * _sqrt3 * self.B,
+            (1, 3): _3sqrt2 * self.B,
+            (2, 3): 0.0,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def A_2_2_states(self) -> Float64Array:
         """Calculate the A_2_2 states."""
-        # diagonal elements
-
-        AA = -10 * self.Dq - 23 * self.B + 9 * self.C
-        BB = -12 * self.B + 8 * self.C
-        CC = +10 * self.Dq - 23 * self.B + 9 * self.C
-
-        # non diagonal elements
-
-        AB = BA = _3sqrt2 * self.B
-        AC = CA = -2 * self.B + self.C
-
-        BC = CB = -_3sqrt2 * self.B
-
-        states = np.array([[AA, AB, AC], [BA, BB, BC], [CA, CB, CC]])
-
+        diag_elements = [
+            -10 * self.Dq - 23 * self.B + 9 * self.C,
+            -12 * self.B + 8 * self.C,
+            +10 * self.Dq - 23 * self.B + 9 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): _3sqrt2 * self.B,
+            (0, 2): -2 * self.B + self.C,
+            (1, 2): -_3sqrt2 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_4_1_states(self) -> Float64Array:
         """Calculate the T_4_1 states."""
-        # diagonal elements
-
-        AA = -10 * self.Dq - 25 * self.B + 6 * self.C
-        BB = -16 * self.B + 7 * self.C
-        CC = 10 * self.Dq - 25 * self.B + 6 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -_3sqrt2 * self.B
-        AC = CA = self.C
-
-        BC = CB = -_3sqrt2 * self.B
-
-        states = np.array([[AA, AB, AC], [BA, BB, BC], [CA, CB, CC]])
-
+        diag_elements = [
+            -10 * self.Dq - 25 * self.B + 6 * self.C,
+            -16 * self.B + 7 * self.C,
+            10 * self.Dq - 25 * self.B + 6 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -_3sqrt2 * self.B,
+            (0, 2): self.C,
+            (1, 2): -_3sqrt2 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_4_2_states(self) -> Float64Array:
         """Calculate the T_4_2 states."""
-        # diagonal elements
-
-        AA = -10 * self.Dq - 17 * self.B + 6 * self.C
-        BB = -22 * self.B + 5 * self.C
-        CC = +10 * self.Dq - 17 * self.B + 6 * self.C
-
-        # non diagonal elements
-
-        AB = BA = _sqrt6 * self.B
-        AC = CA = +4 * self.B + self.C
-
-        BC = CB = -_sqrt6 * self.B
-
-        # AB = BC = AC = 0
-        states = np.array([[AA, AB, AC], [BA, BB, BC], [CA, CB, CC]])
-
+        diag_elements = [
+            -10 * self.Dq - 17 * self.B + 6 * self.C,
+            -22 * self.B + 5 * self.C,
+            +10 * self.Dq - 17 * self.B + 6 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): _sqrt6 * self.B,
+            (0, 2): +4 * self.B + self.C,
+            (1, 2): -_sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_4_states(self) -> Float64Array:
         """Calculate the E_4 states."""
-        # diagonal elements
-
-        AA = -22 * self.B + 5 * self.C
-        BB = -21 * self.B + 5 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -2 * _sqrt3 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [-22 * self.B + 5 * self.C, -21 * self.B + 5 * self.C]
+        off_diag_elements = {(0, 1): -2 * _sqrt3 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         # Ligand field independent states
         GS = -35 * self.B
 
         A_6_1 = np.array(
-            [0.0], dtype=float,
+            [0.0],
+            dtype=float,
         )  # Starting value is -35. * B, but has to set to zero per definition
         E_4 = self.E_4_states() - GS
         A_4_1 = np.array([-25 * self.B + 5 * self.C]) - GS
@@ -1051,8 +847,8 @@ class d5(LigandFieldTheory):
 class d6(LigandFieldTheory):
     """Class representing the d6 configuration in ligand field theory."""
 
-    def __init__(self, Dq: float = 0.0, B: float = 1065.0, C: float = 5120.0):
-        """Initializes the d6 configuration with given parameters.
+    def __init__(self, Dq: float = 0.0, B: float = 1065.0, C: float = 5120.0) -> None:
+        """Initialize the d6 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
@@ -1064,310 +860,210 @@ class d6(LigandFieldTheory):
 
     def T_3_1_states(self) -> Float64Array:
         """Calculate the T_3_1 states."""
-        # -  diagonal elements
-
-        AA = +16 * self.Dq - 15 * self.B + 5 * self.C
-        BB = +6 * self.Dq - 11 * self.B + 4 * self.C
-        CC = +6 * self.Dq - 3 * self.B + 6 * self.C
-        DD = -4 * self.Dq - self.B + 6 * self.C
-        EE = -4 * self.Dq - 9 * self.B + 4 * self.C
-        FF = -4 * self.Dq - 11 * self.B + 4 * self.C
-        GG = -14 * self.Dq - 16 * self.B + 5 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -_sqrt6 * self.B
-        AC = CA = -_3sqrt2 * self.B
-        AD = DA = _sqrt2 * (2 * self.B + self.C)
-        AE = EA = -_2sqrt2 * self.B
-        AF = FA = 0.0
-        AG = GA = 0.0
-
-        BC = CB = 5 * _sqrt3 * self.B
-        BD = DB = _sqrt3 * self.B
-        BE = EB = -_sqrt3 * self.B
-        BF = FB = 3 * self.B
-        BG = GB = _sqrt6 * self.B
-
-        CD = DC = -3 * self.B
-        CE = EC = -3 * self.B
-        CF = FC = 5 * _sqrt3 * self.B
-        CG = GC = _sqrt2 * (self.B + self.C)
-
-        DE = ED = -10 * self.B
-        DF = FD = 0.0
-        DG = GD = _3sqrt2 * self.B
-
-        EF = FE = -2 * _sqrt3 * self.B
-        EG = GE = -_3sqrt2 * self.B
-
-        FG = GF = _sqrt6 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE, AF, AG],
-                [BA, BB, BC, BD, BE, BF, BG],
-                [CA, CB, CC, CD, CE, CF, CG],
-                [DA, DB, DC, DD, DE, DF, DG],
-                [EA, EB, EC, ED, EE, EF, EG],
-                [FA, FB, FC, FD, FE, FF, FG],
-                [GA, GB, GC, GD, GE, GF, GG],
-            ],
-        )
-
+        diag_elements = [
+            +16 * self.Dq - 15 * self.B + 5 * self.C,
+            +6 * self.Dq - 11 * self.B + 4 * self.C,
+            +6 * self.Dq - 3 * self.B + 6 * self.C,
+            -4 * self.Dq - self.B + 6 * self.C,
+            -4 * self.Dq - 9 * self.B + 4 * self.C,
+            -4 * self.Dq - 11 * self.B + 4 * self.C,
+            -14 * self.Dq - 16 * self.B + 5 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -_sqrt6 * self.B,
+            (0, 2): -_3sqrt2 * self.B,
+            (0, 3): _sqrt2 * (2 * self.B + self.C),
+            (0, 4): -_2sqrt2 * self.B,
+            (0, 5): 0.0,
+            (0, 6): 0.0,
+            (1, 2): 5 * _sqrt3 * self.B,
+            (1, 3): _sqrt3 * self.B,
+            (1, 4): -_sqrt3 * self.B,
+            (1, 5): 3 * self.B,
+            (1, 6): _sqrt6 * self.B,
+            (2, 3): -3 * self.B,
+            (2, 4): -3 * self.B,
+            (2, 5): 5 * _sqrt3 * self.B,
+            (2, 6): _sqrt2 * (self.B + self.C),
+            (3, 4): -10 * self.B,
+            (3, 5): 0.0,
+            (3, 6): _3sqrt2 * self.B,
+            (4, 5): -2 * _sqrt3 * self.B,
+            (4, 6): -_3sqrt2 * self.B,
+            (5, 6): _sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_1_2_states(self) -> Float64Array:
         """Calculate the T_1_2 states."""
-        # diagonal elements
-
-        AA = +16 * self.Dq - 9 * self.B + 7 * self.C
-        BB = +6 * self.Dq - 9 * self.B + 6 * self.C
-        CC = +6 * self.Dq + 3 * self.B + 8 * self.C
-        DD = -4 * self.Dq - 9 * self.B + 6 * self.C
-        EE = -4 * self.Dq - 3 * self.B + 6 * self.C
-        FF = -4 * self.Dq + 5 * self.B + 8 * self.C
-        GG = -14 * self.Dq + 7 * self.C
-
-        # non diagonal elements
-
-        AB = BA = _3sqrt2 * self.B
-        AC = CA = -5 * _sqrt6 * self.B
-        AD = DA = 0.0
-        AE = EA = -_2sqrt2 * self.B
-        AF = FA = _sqrt2 * (2 * self.B + self.C)
-        AG = GA = 0.0
-
-        BC = CB = -5 * _sqrt3 * self.B
-        BD = DB = 3 * self.B
-        BE = EB = -3 * self.B
-        BF = FB = -3 * self.B
-        BG = GB = -_sqrt6 * self.B
-
-        CD = DC = -3 * _sqrt3 * self.B
-        CE = EC = 5 * _sqrt3 * self.B
-        CF = FC = -5 * _sqrt3 * self.B
-        CG = GC = _sqrt2 * (3 * self.B + self.C)
-
-        DE = ED = -6 * self.B
-        DF = FD = 0.0
-        DG = GD = -_3sqrt6 * self.B
-
-        EF = FE = -10 * self.B
-        EG = GE = _sqrt6 * self.B
-
-        FG = GF = _sqrt6 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE, AF, AG],
-                [BA, BB, BC, BD, BE, BF, BG],
-                [CA, CB, CC, CD, CE, CF, CG],
-                [DA, DB, DC, DD, DE, DF, DG],
-                [EA, EB, EC, ED, EE, EF, EG],
-                [FA, FB, FC, FD, FE, FF, FG],
-                [GA, GB, GC, GD, GE, GF, GG],
-            ],
-        )
-
+        diag_elements = [
+            +16 * self.Dq - 9 * self.B + 7 * self.C,
+            +6 * self.Dq - 9 * self.B + 6 * self.C,
+            +6 * self.Dq + 3 * self.B + 8 * self.C,
+            -4 * self.Dq - 9 * self.B + 6 * self.C,
+            -4 * self.Dq - 3 * self.B + 6 * self.C,
+            -4 * self.Dq + 5 * self.B + 8 * self.C,
+            -14 * self.Dq + 7 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): _3sqrt2 * self.B,
+            (0, 2): -5 * _sqrt6 * self.B,
+            (0, 3): 0.0,
+            (0, 4): -_2sqrt2 * self.B,
+            (0, 5): _sqrt2 * (2 * self.B + self.C),
+            (0, 6): 0.0,
+            (1, 2): -5 * _sqrt3 * self.B,
+            (1, 3): 3 * self.B,
+            (1, 4): -3 * self.B,
+            (1, 5): -3 * self.B,
+            (1, 6): -_sqrt6 * self.B,
+            (2, 3): -3 * _sqrt3 * self.B,
+            (2, 4): 5 * _sqrt3 * self.B,
+            (2, 5): -5 * _sqrt3 * self.B,
+            (2, 6): _sqrt2 * (3 * self.B + self.C),
+            (3, 4): -6 * self.B,
+            (3, 5): 0.0,
+            (3, 6): -_3sqrt6 * self.B,
+            (4, 5): -10 * self.B,
+            (4, 6): _sqrt6 * self.B,
+            (5, 6): _sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def A_1_1_states(self) -> Float64Array:
         """Calculate the A_1_1 states."""
-        # diagonal elements
-
-        AA = +16 * self.Dq + 10 * self.C
-        BB = +6 * self.Dq + 6 * self.C
-        CC = -4 * self.Dq + 14 * self.B + 11 * self.C
-        DD = -4 * self.Dq - 3 * self.B + 6 * self.C
-        EE = -24 * self.Dq - 16 * self.B + 8 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -12 * _sqrt2 * self.B
-        AC = CA = _sqrt2 * (4 * self.B + 2 * self.C)
-        AD = DA = _2sqrt2 * self.B
-        AE = EA = 0.0
-
-        BC = CB = -12 * self.B
-        BD = DB = -6 * self.B
-        BE = EB = 0.0
-
-        CD = DC = 20 * self.B
-        CE = EC = _sqrt6 * (2 * self.B + self.C)
-
-        DE = ED = 2 * _sqrt6 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            +16 * self.Dq + 10 * self.C,
+            +6 * self.Dq + 6 * self.C,
+            -4 * self.Dq + 14 * self.B + 11 * self.C,
+            -4 * self.Dq - 3 * self.B + 6 * self.C,
+            -24 * self.Dq - 16 * self.B + 8 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -12 * _sqrt2 * self.B,
+            (0, 2): _sqrt2 * (4 * self.B + 2 * self.C),
+            (0, 3): _2sqrt2 * self.B,
+            (0, 4): 0.0,
+            (1, 2): -12 * self.B,
+            (1, 3): -6 * self.B,
+            (1, 4): 0.0,
+            (2, 3): 20 * self.B,
+            (2, 4): _sqrt6 * (2 * self.B + self.C),
+            (3, 4): 2 * _sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_1_1_states(self) -> Float64Array:
         """Calculate the E_1_1 states."""
-        # diagonal elements
-
-        AA = +16 * self.Dq - 9 * self.B + 7 * self.C
-        BB = +6 * self.Dq - 6 * self.B + 6 * self.C
-        CC = -4 * self.Dq + 5 * self.B + 8 * self.C
-        DD = -4 * self.Dq + 6 * self.B + 9 * self.C
-        EE = -4 * self.Dq - 3 * self.B + 6 * self.C
-
-        # non diagonal elements
-
-        AB = BA = 6 * self.B
-        AC = CA = _sqrt2 * (2 * self.B + self.C)
-        AD = DA = -2 * self.B
-        AE = EA = -4 * self.B
-
-        BC = CB = -_3sqrt2 * self.B
-        BD = DB = -12 * self.B
-        BE = EB = 0.0
-
-        CD = DC = 10 * _sqrt2 * self.B
-        CE = EC = -10 * _sqrt2 * self.B
-
-        DE = ED = 0.0
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            +16 * self.Dq - 9 * self.B + 7 * self.C,
+            +6 * self.Dq - 6 * self.B + 6 * self.C,
+            -4 * self.Dq + 5 * self.B + 8 * self.C,
+            -4 * self.Dq + 6 * self.B + 9 * self.C,
+            -4 * self.Dq - 3 * self.B + 6 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): 6 * self.B,
+            (0, 2): _sqrt2 * (2 * self.B + self.C),
+            (0, 3): -2 * self.B,
+            (0, 4): -4 * self.B,
+            (1, 2): -_3sqrt2 * self.B,
+            (1, 3): -12 * self.B,
+            (1, 4): 0.0,
+            (2, 3): 10 * _sqrt2 * self.B,
+            (2, 4): -10 * _sqrt2 * self.B,
+            (3, 4): 0.0,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_3_2_states(self) -> Float64Array:
         """Calculate the T_3_2 states."""
-        # diagonal elements
-
-        AA = +6 * self.Dq - 9 * self.B + 4 * self.C
-        BB = +6 * self.Dq - 5 * self.B + 6 * self.C
-        CC = -4 * self.Dq - 13 * self.B + 4 * self.C
-        DD = -4 * self.Dq - 9 * self.B + 4 * self.C
-        EE = -14 * self.Dq - 8 * self.B + 5 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -5 * _sqrt3 * self.B
-        AC = CA = _sqrt6 * self.B
-        AD = DA = _sqrt3 * self.B
-        AE = EA = -_sqrt6 * self.B
-
-        BC = CB = -_3sqrt2 * self.B
-        BD = DB = 3 * self.B
-        BE = EB = _sqrt2 * (3 * self.B + self.C)
-
-        CD = DC = -2 * _sqrt2 * self.B
-        CE = EC = -6 * self.B
-
-        DE = ED = 3 * _sqrt2 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            +6 * self.Dq - 9 * self.B + 4 * self.C,
+            +6 * self.Dq - 5 * self.B + 6 * self.C,
+            -4 * self.Dq - 13 * self.B + 4 * self.C,
+            -4 * self.Dq - 9 * self.B + 4 * self.C,
+            -14 * self.Dq - 8 * self.B + 5 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -5 * _sqrt3 * self.B,
+            (0, 2): _sqrt6 * self.B,
+            (0, 3): _sqrt3 * self.B,
+            (0, 4): -_sqrt6 * self.B,
+            (1, 2): -_3sqrt2 * self.B,
+            (1, 3): 3 * self.B,
+            (1, 4): _sqrt2 * (3 * self.B + self.C),
+            (2, 3): -2 * _sqrt2 * self.B,
+            (2, 4): -6 * self.B,
+            (3, 4): 3 * _sqrt2 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_1_1_states(self) -> Float64Array:
         """Calculate the T_1_1 states."""
-        # diagonal elements
-
-        AA = +6 * self.Dq - 3 * self.B + 6 * self.C
-        BB = +6 * self.Dq - 3 * self.B + 8 * self.C
-        CC = -4 * self.Dq - 3 * self.B + 6 * self.C
-        DD = -14 * self.Dq - 16 * self.B + 7 * self.C
-
-        # non diagonal elements
-
-        AB = BA = 5 * _sqrt3 * self.B
-        AC = CA = 3 * self.B
-        AD = DA = _sqrt6 * self.B
-
-        BC = CB = -5 * _sqrt3 * self.B
-        BD = DB = _sqrt2 * (self.B + self.C)
-
-        CD = DC = -_sqrt6 * self.B
-
-        states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
-        )
-
+        diag_elements = [
+            +6 * self.Dq - 3 * self.B + 6 * self.C,
+            +6 * self.Dq - 3 * self.B + 8 * self.C,
+            -4 * self.Dq - 3 * self.B + 6 * self.C,
+            -14 * self.Dq - 16 * self.B + 7 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): 5 * _sqrt3 * self.B,
+            (0, 2): 3 * self.B,
+            (0, 3): _sqrt6 * self.B,
+            (1, 2): -5 * _sqrt3 * self.B,
+            (1, 3): _sqrt2 * (self.B + self.C),
+            (2, 3): -_sqrt6 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_3_1_states(self) -> Float64Array:
         """Calculate the E_3_1 states."""
-        # diagonal elements
-
-        AA = +6 * self.Dq - 13 * self.B + 4 * self.C
-        BB = +6 * self.Dq - 10 * self.B + 4 * self.C
-        CC = -4 * self.Dq - 11 * self.B + 4 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -4 * self.B
-        AC = CA = 0.0
-
-        BC = CB = -_3sqrt2 * self.B
-
-        states = np.array([[AA, AB, AC], [BA, BB, BC], [CA, CB, CC]])
-
+        diag_elements = [
+            +6 * self.Dq - 13 * self.B + 4 * self.C,
+            +6 * self.Dq - 10 * self.B + 4 * self.C,
+            -4 * self.Dq - 11 * self.B + 4 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -4 * self.B,
+            (0, 2): 0.0,
+            (1, 2): -_3sqrt2 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def A_3_2_states(self) -> Float64Array:
         """Calculate the A_3_2 states."""
-        # diagonal elements
-
-        AA = +6 * self.Dq - 8 * self.B + 4 * self.C
-        BB = -4 * self.Dq - 2 * self.B + 7 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -12 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [
+            +6 * self.Dq - 8 * self.B + 4 * self.C,
+            -4 * self.Dq - 2 * self.B + 7 * self.C,
+        ]
+        off_diag_elements = {(0, 1): -12 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def A_1_2_states(self) -> Float64Array:
         """Calculate the A_1_2 states."""
-        # diagonal elements
-
-        AA = +6 * self.Dq - 12 * self.B + 6 * self.C
-        BB = -4 * self.Dq - 3 * self.B + 6 * self.C
-
-        # non diagonal elements
-
-        AB = BA = 6 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [
+            +6 * self.Dq - 12 * self.B + 6 * self.C,
+            -4 * self.Dq - 3 * self.B + 6 * self.C,
+        ]
+        off_diag_elements = {(0, 1): 6 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
-
-
 
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         GS = np.array([-4 * self.Dq - 21 * self.B])
@@ -1424,8 +1120,8 @@ class d6(LigandFieldTheory):
 class d7(LigandFieldTheory):
     """Class for d7 configuration."""
 
-    def __init__(self, Dq: float = 0.0, B: float = 971.0, C: float = 4499.0):
-        """Initializes the d7 configuration with given parameters.
+    def __init__(self, Dq: float = 0.0, B: float = 971.0, C: float = 4499.0) -> None:
+        """Initialize the d7 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
@@ -1435,139 +1131,95 @@ class d7(LigandFieldTheory):
         """
         super().__init__(Dq, B, C)
 
-    def T_2_2_states(self):
+    def T_2_2_states(self) -> Float64Array:
         """Calculate the T_2_2 states."""
-        # -  diagonal elements
-
-        AA = +12 * self.Dq + 5 * self.C
-        BB = +2 * self.Dq - 6 * self.B + 3 * self.C
-        CC = +2 * self.Dq + 4 * self.B + 3 * self.C
-        DD = -8 * self.Dq + 6 * self.B + 5 * self.C
-        EE = -8 * self.Dq - 2 * self.B + 3 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -_3sqrt3 * self.B
-        AC = CA = -5 * _sqrt3 * self.B
-        AD = DA = 4 * self.B + 2 * self.C
-        AE = EA = 2 * self.B
-
-        BC = CB = 3 * self.B
-        BD = DB = -_3sqrt3 * self.B
-        BE = EB = -_3sqrt3 * self.B
-
-        CD = DC = -_sqrt3 * self.B
-        CE = EC = +_sqrt3 * self.B
-
-        DE = ED = 10 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            +12 * self.Dq + 5 * self.C,
+            +2 * self.Dq - 6 * self.B + 3 * self.C,
+            +2 * self.Dq + 4 * self.B + 3 * self.C,
+            -8 * self.Dq + 6 * self.B + 5 * self.C,
+            -8 * self.Dq - 2 * self.B + 3 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -_3sqrt3 * self.B,
+            (0, 2): -5 * _sqrt3 * self.B,
+            (0, 3): 4 * self.B + 2 * self.C,
+            (0, 4): 2 * self.B,
+            (1, 2): 3 * self.B,
+            (1, 3): -_3sqrt3 * self.B,
+            (1, 4): -_3sqrt3 * self.B,
+            (2, 3): -_sqrt3 * self.B,
+            (2, 4): +_sqrt3 * self.B,
+            (3, 4): 10 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def T_2_1_states(self):
+    def T_2_1_states(self) -> Float64Array:
         """Calculate the T_2_1 states."""
-        # -  diagonal elements
-
-        AA = +12 * self.Dq - 6 * self.B + 3 * self.C
-        BB = +2 * self.Dq + 3 * self.C
-        CC = +2 * self.Dq - 6 * self.B + 3 * self.C
-        DD = -8 * self.Dq - 6 * self.B + 3 * self.C
-        EE = -8 * self.Dq - 2 * self.B + 3 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -3 * self.B
-        AC = CA = +3 * self.B
-        AD = DA = 0.0
-        AE = EA = -_2sqrt3 * self.B
-
-        BC = CB = -3 * self.B
-        BD = DB = +3 * self.B
-        BE = EB = _3sqrt3 * self.B
-
-        CD = DC = -3 * self.B
-        CE = EC = -_sqrt3 * self.B
-
-        DE = ED = _2sqrt3 * self.B
-
-        states = np.array(
-            [
-                [AA, AB, AC, AD, AE],
-                [BA, BB, BC, BD, BE],
-                [CA, CB, CC, CD, CE],
-                [DA, DB, DC, DD, DE],
-                [EA, EB, EC, ED, EE],
-            ],
-        )
-
+        diag_elements = [
+            +12 * self.Dq - 6 * self.B + 3 * self.C,
+            +2 * self.Dq + 3 * self.C,
+            +2 * self.Dq - 6 * self.B + 3 * self.C,
+            -8 * self.Dq - 6 * self.B + 3 * self.C,
+            -8 * self.Dq - 2 * self.B + 3 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -3 * self.B,
+            (0, 2): +3 * self.B,
+            (0, 3): 0.0,
+            (0, 4): -_2sqrt3 * self.B,
+            (1, 2): -3 * self.B,
+            (1, 3): +3 * self.B,
+            (1, 4): _3sqrt3 * self.B,
+            (2, 3): -3 * self.B,
+            (2, 4): -_sqrt3 * self.B,
+            (3, 4): _2sqrt3 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def E_2_states(self):
+    def E_2_states(self) -> Float64Array:
         """Calculate the E_2 states."""
-        # -  diagonal elements
-
-        AA = +12 * self.Dq - 6 * self.B + 3 * self.C
-        BB = +2 * self.Dq + 8 * self.B + 6 * self.C
-        CC = +2 * self.Dq - 1 * self.B + 3 * self.C
-        DD = -18 * self.Dq - 8 * self.B + 4 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -6 * _sqrt2 * self.B
-        AC = CA = -_3sqrt2 * self.B
-        AD = DA = 0.0
-
-        BC = CB = 10 * self.B
-        BD = DB = +_sqrt3 * (2 * self.B + self.C)
-
-        CD = DC = _2sqrt3 * self.B
-
-        states = np.array(
-            [[AA, AB, AC, AD], [BA, BB, BC, BD], [CA, CB, CC, CD], [DA, DB, DC, DD]],
-        )
-
+        diag_elements = [
+            +12 * self.Dq - 6 * self.B + 3 * self.C,
+            +2 * self.Dq + 8 * self.B + 6 * self.C,
+            +2 * self.Dq - 1 * self.B + 3 * self.C,
+            -18 * self.Dq - 8 * self.B + 4 * self.C,
+        ]
+        off_diag_elements = {
+            (0, 1): -6 * _sqrt2 * self.B,
+            (0, 2): -_3sqrt2 * self.B,
+            (0, 3): 0.0,
+            (1, 2): 10 * self.B,
+            (1, 3): +_sqrt3 * (2 * self.B + self.C),
+            (2, 3): _2sqrt3 * self.B,
+        }
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def T_4_1_states(self):
+    def T_4_1_states(self) -> Float64Array:
         """Calculate the T_4_1 states."""
-        # -  diagonal elements
-
-        AA = +2 * self.Dq - 3 * self.B
-        BB = -8 * self.Dq - 12 * self.B
-
-        # non diagonal elements
-
-        AB = BA = 6 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [+2 * self.Dq - 3 * self.B, -8 * self.Dq - 12 * self.B]
+        off_diag_elements = {(0, 1): 6 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
-
-
 
     def solver(self) -> Dict[str, np.ndarray]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, np.ndarray]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, np.ndarray]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         # Ligand field independent states
 
-        # Ligandfield multi depnedent state become GS
+        # Ligandfield multi dependent state become GS
 
         T_4_1 = self.T_4_1_states()
 
-        # Ligendfield single depentent states
+        # Ligendfield single dependent states
 
         GS = T_4_1[0]
 
@@ -1607,8 +1259,9 @@ class d7(LigandFieldTheory):
 
 
 class d8(LigandFieldTheory):
-    def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0):
-        """Initializes the d8 configuration with given parameters.
+    """Class for d8 configuration."""
+    def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0) -> None:
+        """Initialize the d8 configuration with given parameters.
 
         Args:
             Dq (float): Crystal field splitting in wavenumbers (cm-1).
@@ -1618,73 +1271,43 @@ class d8(LigandFieldTheory):
         """
         super().__init__(Dq, B, C)
 
-    def A_1_1_states(self):
+    def A_1_1_states(self) -> Float64Array:
         """Calculate the A_1_1 states."""
-        # -  diagonal elements
-
-        AA = +8 * self.Dq + 10 * self.B + 5 * self.C
-        BB = -12 * self.Dq + 8 * self.B + 4 * self.C
-
-        # non diagonal elements
-
-        AB = BA = _sqrt6 * (2 * self.B + self.C)
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [
+            +8 * self.Dq + 10 * self.B + 5 * self.C,
+            -12 * self.Dq + 8 * self.B + 4 * self.C,
+        ]
+        off_diag_elements = {(0, 1): _sqrt6 * (2 * self.B + self.C)}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def E_1_states(self):
+    def E_1_states(self) -> Float64Array:
         """Calculate the E_1 states."""
-        # -  diagonal elements
-
-        AA = +8 * self.Dq + self.B + 2 * self.C
-        BB = -12 * self.Dq + 2 * self.C
-
-        # non diagonal elements
-
-        AB = BA = -_2sqrt3 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [+8 * self.Dq + self.B + 2 * self.C, -12 * self.Dq + 2 * self.C]
+        off_diag_elements = {(0, 1): -_2sqrt3 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def T_1_2_states(self):
+    def T_1_2_states(self) -> Float64Array:
         """Calculate the T_1_2 states."""
-        # -  diagonal elements
-
-        AA = +8 * self.Dq + self.B + 2 * self.C
-        BB = -2 * self.Dq + 2 * self.C
-
-        # non diagonal elements
-
-        AB = BA = +_2sqrt3 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [+8 * self.Dq + self.B + 2 * self.C, -2 * self.Dq + 2 * self.C]
+        off_diag_elements = {(0, 1): +_2sqrt3 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def T_3_1_states(self):
+    def T_3_1_states(self) -> Float64Array:
         """Calculate the T_3_1 states."""
-        # -  diagonal elements
-
-        AA = +8 * self.Dq - 5 * self.B
-        BB = -2 * self.Dq + 4 * self.B
-
-        # non diagonal elements
-
-        AB = BA = 6 * self.B
-
-        states = np.array([[AA, AB], [BA, BB]])
-
+        diag_elements = [+8 * self.Dq - 5 * self.B, -2 * self.Dq + 4 * self.B]
+        off_diag_elements = {(0, 1): 6 * self.B}
+        states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
-
-
 
     def solver(self) -> Dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and eigenvalues as values.
+            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
+                eigenvalues as values.
 
         """
         # Ligand field independent states
