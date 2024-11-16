@@ -1,6 +1,10 @@
-import pytest
+from __future__ import annotations
+
 import numpy as np
+import pytest
+
 from tanabesugano.matrices import LigandFieldTheory
+
 
 # Define a type alias for clarity
 Float64Array = np.ndarray
@@ -53,7 +57,7 @@ def test_eigensolver(ligand_field_theory, matrix, expected_eigenvalues):
     ids=["simple_2x2", "complex_3x3", "zero_2x2"],
 )
 def test_construct_matrix(
-    ligand_field_theory, diag_elements, off_diag_elements, expected_matrix
+    ligand_field_theory, diag_elements, off_diag_elements, expected_matrix,
 ):
     # Act
     matrix = ligand_field_theory.construct_matrix(diag_elements, off_diag_elements)
@@ -65,7 +69,7 @@ def test_construct_matrix(
 def test_solver_not_implemented(ligand_field_theory):
     # Act & Assert
     with pytest.raises(
-        NotImplementedError, match="Subclasses should implement this method."
+        NotImplementedError, match="Subclasses should implement this method.",
     ):
         ligand_field_theory.solver()
 

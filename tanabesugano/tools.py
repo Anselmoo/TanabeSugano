@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Tuple
 from typing import Union
 
-import numpy as np
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 def racah(
@@ -16,11 +19,14 @@ def racah(
         eV will be converted to wavenumbers
 
     Args:
-        F2 (Union[float, np.array]): Slater-Condon-Pramater `F2` as float-value or array.
-        F4 (Union[float, np.array]): Slater-Condon-Pramater `F4` as float-value or array.
+        F2 (Union[float, np.array]): Slater-Condon-Pramater `F2` as float-value or
+            array.
+        F4 (Union[float, np.array]): Slater-Condon-Pramater `F4` as float-value or
+            array.
 
     Returns:
-        Union[Tuple[float, float], Tuple[np.array, np.array]]: Return the racah parameters.
+        Union[Tuple[float, float], Tuple[np.array, np.array]]: Return the racah
+            parameters.
 
     """
     eVcm = 8065.54
