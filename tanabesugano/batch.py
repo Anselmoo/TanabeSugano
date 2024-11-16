@@ -33,14 +33,18 @@ class Batch:
                 "The range of `B` is based on the three values: start, stop, steps!",
             )
         self.B = np.linspace(
-            B[0], B[1], int(B[2]),
+            B[0],
+            B[1],
+            int(B[2]),
         )  # Racah-Parameter B in wavenumbers
         if len(C) != 3:
             raise KeyError(
                 "The range of `C` is based on the three values: start, stop, steps!",
             )
         self.C = np.linspace(
-            C[0], C[1], int(C[2]),
+            C[0],
+            C[1],
+            int(C[2]),
         )  # Racah-Parameter C in wavenumbers
 
         if slater:

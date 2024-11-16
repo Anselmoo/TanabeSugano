@@ -68,7 +68,7 @@ class LigandFieldTheory:
     def construct_matrix(
         self,
         diag_elements: List[float],
-        off_diag_elements: Dict[Tuple[int, int], float]
+        off_diag_elements: Dict[Tuple[int, int], float],
     ) -> Float64Array:
         """Constructs a symmetric matrix from diagonal and off-diagonal elements."""
         size = len(diag_elements)
@@ -81,8 +81,7 @@ class LigandFieldTheory:
 
 
 class d2(LigandFieldTheory):
-    """Class representing the d2 configuration in ligand field theory.
-    """
+    """Class representing the d2 configuration in ligand field theory."""
 
     def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3801.0) -> None:
         """Initializes the d2 configuration with given parameters.
@@ -98,46 +97,29 @@ class d2(LigandFieldTheory):
     def A_1_1_states(self) -> Float64Array:
         diag_elements = [
             -8 * self.Dq + 10 * self.B + 5 * self.C,
-            +12 * self.Dq + 8 * self.B + 4 * self.C
+            +12 * self.Dq + 8 * self.B + 4 * self.C,
         ]
-        off_diag_elements = {
-            (0, 1): _sqrt6 * (2 * self.B + self.C)
-        }
+        off_diag_elements = {(0, 1): _sqrt6 * (2 * self.B + self.C)}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_1_states(self) -> Float64Array:
-        diag_elements = [
-            -8 * self.Dq + self.B + 2 * self.C,
-            +12 * self.Dq + 2 * self.C
-        ]
-        off_diag_elements = {
-            (0, 1): -_2sqrt3 * self.B
-        }
+        diag_elements = [-8 * self.Dq + self.B + 2 * self.C, +12 * self.Dq + 2 * self.C]
+        off_diag_elements = {(0, 1): -_2sqrt3 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_1_2_states(self) -> Float64Array:
         """Calculate the T_1_2 states."""
-        diag_elements = [
-            -8 * self.Dq + self.B + 2 * self.C,
-            +2 * self.Dq + 2 * self.C
-        ]
-        off_diag_elements = {
-            (0, 1): +_2sqrt3 * self.B
-        }
+        diag_elements = [-8 * self.Dq + self.B + 2 * self.C, +2 * self.Dq + 2 * self.C]
+        off_diag_elements = {(0, 1): +_2sqrt3 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_3_1_states(self) -> Float64Array:
         """Calculate the T_3_1 states."""
-        diag_elements = [
-            -8 * self.Dq - 5 * self.B,
-            +2 * self.Dq + 4 * self.B
-        ]
-        off_diag_elements = {
-            (0, 1): 6 * self.B
-        }
+        diag_elements = [-8 * self.Dq - 5 * self.B, +2 * self.Dq + 4 * self.B]
+        off_diag_elements = {(0, 1): 6 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
@@ -193,7 +175,7 @@ class d3(LigandFieldTheory):
             -2 * self.Dq - 6 * self.B + 3 * self.C,
             -2 * self.Dq + 4 * self.B + 3 * self.C,
             +8 * self.Dq + 6 * self.B + 5 * self.C,
-            +8 * self.Dq - 2 * self.B + 3 * self.C
+            +8 * self.Dq - 2 * self.B + 3 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -_3sqrt3 * self.B,
@@ -205,7 +187,7 @@ class d3(LigandFieldTheory):
             (1, 4): -_3sqrt3 * self.B,
             (2, 3): -_sqrt3 * self.B,
             (2, 4): +_sqrt3 * self.B,
-            (3, 4): 10 * self.B
+            (3, 4): 10 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -217,7 +199,7 @@ class d3(LigandFieldTheory):
             -2 * self.Dq + 3 * self.C,
             -2 * self.Dq - 6 * self.B + 3 * self.C,
             +8 * self.Dq - 6 * self.B + 3 * self.C,
-            +8 * self.Dq - 2 * self.B + 3 * self.C
+            +8 * self.Dq - 2 * self.B + 3 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -3 * self.B,
@@ -229,7 +211,7 @@ class d3(LigandFieldTheory):
             (1, 4): _3sqrt3 * self.B,
             (2, 3): -3 * self.B,
             (2, 4): -_sqrt3 * self.B,
-            (3, 4): _2sqrt3 * self.B
+            (3, 4): _2sqrt3 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -240,7 +222,7 @@ class d3(LigandFieldTheory):
             -12 * self.Dq - 6 * self.B + 3 * self.C,
             -2 * self.Dq + 8 * self.B + 6 * self.C,
             -2 * self.Dq - 1 * self.B + 3 * self.C,
-            +18 * self.Dq - 8 * self.B + 4 * self.C
+            +18 * self.Dq - 8 * self.B + 4 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -6 * _sqrt2 * self.B,
@@ -248,20 +230,15 @@ class d3(LigandFieldTheory):
             (0, 3): 0.0,
             (1, 2): 10 * self.B,
             (1, 3): +_sqrt3 * (2 * self.B + self.C),
-            (2, 3): _2sqrt3 * self.B
+            (2, 3): _2sqrt3 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_4_1_states(self) -> Float64Array:
         """Calculate the T_4_1 states."""
-        diag_elements = [
-            -2 * self.Dq - 3 * self.B,
-            +8 * self.Dq - 12 * self.B
-        ]
-        off_diag_elements = {
-            (0, 1): 6 * self.B
-        }
+        diag_elements = [-2 * self.Dq - 3 * self.B, +8 * self.Dq - 12 * self.B]
+        off_diag_elements = {(0, 1): 6 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
@@ -322,7 +299,7 @@ class d4(LigandFieldTheory):
             +4 * self.Dq - self.B + 6 * self.C,
             +4 * self.Dq - 9 * self.B + 4 * self.C,
             +4 * self.Dq - 11 * self.B + 4 * self.C,
-            +14 * self.Dq - 16 * self.B + 5 * self.C
+            +14 * self.Dq - 16 * self.B + 5 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -_sqrt6 * self.B,
@@ -345,7 +322,7 @@ class d4(LigandFieldTheory):
             (3, 6): _3sqrt2 * self.B,
             (4, 5): -2 * _sqrt3 * self.B,
             (4, 6): -_3sqrt2 * self.B,
-            (5, 6): _sqrt6 * self.B
+            (5, 6): _sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -359,7 +336,7 @@ class d4(LigandFieldTheory):
             +4 * self.Dq - 9 * self.B + 6 * self.C,
             +4 * self.Dq - 3 * self.B + 6 * self.C,
             +4 * self.Dq + 5 * self.B + 8 * self.C,
-            +14 * self.Dq + 7 * self.C
+            +14 * self.Dq + 7 * self.C,
         ]
         off_diag_elements = {
             (0, 1): _3sqrt2 * self.B,
@@ -382,7 +359,7 @@ class d4(LigandFieldTheory):
             (3, 6): -_3sqrt6 * self.B,
             (4, 5): -10 * self.B,
             (4, 6): _sqrt6 * self.B,
-            (5, 6): _sqrt6 * self.B
+            (5, 6): _sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -394,7 +371,7 @@ class d4(LigandFieldTheory):
             -6 * self.Dq + 6 * self.C,
             +4 * self.Dq + 14 * self.B + 11 * self.C,
             +4 * self.Dq - 3 * self.B + 6 * self.C,
-            +24 * self.Dq - 16 * self.B + 8 * self.C
+            +24 * self.Dq - 16 * self.B + 8 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -12 * _sqrt2 * self.B,
@@ -406,7 +383,7 @@ class d4(LigandFieldTheory):
             (1, 4): 0.0,
             (2, 3): 20 * self.B,
             (2, 4): _sqrt6 * (2 * self.B + self.C),
-            (3, 4): 2 * _sqrt6 * self.B
+            (3, 4): 2 * _sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -418,7 +395,7 @@ class d4(LigandFieldTheory):
             -6 * self.Dq - 6 * self.B + 6 * self.C,
             +4 * self.Dq + 5 * self.B + 8 * self.C,
             +4 * self.Dq + 6 * self.B + 9 * self.C,
-            +4 * self.Dq - 3 * self.B + 6 * self.C
+            +4 * self.Dq - 3 * self.B + 6 * self.C,
         ]
         off_diag_elements = {
             (0, 1): 6 * self.B,
@@ -430,7 +407,7 @@ class d4(LigandFieldTheory):
             (1, 4): 0.0,
             (2, 3): 10 * _sqrt2 * self.B,
             (2, 4): -10 * _sqrt2 * self.B,
-            (3, 4): 0.0
+            (3, 4): 0.0,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -442,7 +419,7 @@ class d4(LigandFieldTheory):
             -6 * self.Dq - 5 * self.B + 6 * self.C,
             +4 * self.Dq - 13 * self.B + 4 * self.C,
             +4 * self.Dq - 9 * self.B + 4 * self.C,
-            +14 * self.Dq - 8 * self.B + 5 * self.C
+            +14 * self.Dq - 8 * self.B + 5 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -5 * _sqrt3 * self.B,
@@ -454,7 +431,7 @@ class d4(LigandFieldTheory):
             (1, 4): _sqrt2 * (3 * self.B + self.C),
             (2, 3): -2 * _sqrt2 * self.B,
             (2, 4): -6 * self.B,
-            (3, 4): _3sqrt2 * self.B
+            (3, 4): _3sqrt2 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -465,7 +442,7 @@ class d4(LigandFieldTheory):
             -6 * self.Dq - 3 * self.B + 6 * self.C,
             -6 * self.Dq - 3 * self.B + 8 * self.C,
             +4 * self.Dq - 3 * self.B + 6 * self.C,
-            +14 * self.Dq - 16 * self.B + 7 * self.C
+            +14 * self.Dq - 16 * self.B + 7 * self.C,
         ]
         off_diag_elements = {
             (0, 1): 5 * _sqrt3 * self.B,
@@ -473,7 +450,7 @@ class d4(LigandFieldTheory):
             (0, 3): _sqrt6 * self.B,
             (1, 2): -5 * _sqrt3 * self.B,
             (1, 3): _sqrt2 * (self.B + self.C),
-            (2, 3): -_sqrt6 * self.B
+            (2, 3): -_sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -483,12 +460,12 @@ class d4(LigandFieldTheory):
         diag_elements = [
             -6 * self.Dq - 13 * self.B + 4 * self.C,
             -6 * self.Dq - 10 * self.B + 4 * self.C,
-            +4 * self.Dq - 11 * self.B + 4 * self.C
+            +4 * self.Dq - 11 * self.B + 4 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -4 * self.B,
             (0, 2): 0.0,
-            (1, 2): -_3sqrt2 * self.B
+            (1, 2): -_3sqrt2 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -497,11 +474,9 @@ class d4(LigandFieldTheory):
         """Calculate the A_3_2 states."""
         diag_elements = [
             -6 * self.Dq - 8 * self.B + 4 * self.C,
-            +4 * self.Dq - 2 * self.B + 7 * self.C
+            +4 * self.Dq - 2 * self.B + 7 * self.C,
         ]
-        off_diag_elements = {
-            (0, 1): -12 * self.B
-        }
+        off_diag_elements = {(0, 1): -12 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
@@ -509,11 +484,9 @@ class d4(LigandFieldTheory):
         """Calculate the A_1_2 states."""
         diag_elements = [
             -6 * self.Dq - 12 * self.B + 6 * self.C,
-            +4 * self.Dq - 3 * self.B + 6 * self.C
+            +4 * self.Dq - 3 * self.B + 6 * self.C,
         ]
-        off_diag_elements = {
-            (0, 1): 6 * self.B
-        }
+        off_diag_elements = {(0, 1): 6 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
@@ -599,7 +572,7 @@ class d5(LigandFieldTheory):
             -6 * self.B + 10 * self.C,
             +10 * self.Dq - 18 * self.B + 9 * self.C,
             +10 * self.Dq - 8 * self.B + 9 * self.C,
-            +20 * self.Dq - 20 * self.B + 10 * self.C
+            +20 * self.Dq - 20 * self.B + 10 * self.C,
         ]
         off_diag_elements = {
             (0, 1): _3sqrt6 * self.B,
@@ -646,7 +619,7 @@ class d5(LigandFieldTheory):
             (6, 9): -2.0 * self.B,
             (7, 8): 3 * self.B,
             (7, 9): -_sqrt6 * self.B,
-            (8, 9): -_3sqrt6 * self.B
+            (8, 9): -_3sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -661,7 +634,7 @@ class d5(LigandFieldTheory):
             -10 * self.B + 10 * self.C,
             -6 * self.B + 10 * self.C,
             +10 * self.Dq - 8 * self.B + 9 * self.C,
-            +10 * self.Dq - 22 * self.B + 9 * self.C
+            +10 * self.Dq - 22 * self.B + 9 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -3 * self.B,
@@ -691,7 +664,7 @@ class d5(LigandFieldTheory):
             (4, 7): -_3sqrt2 / 2.0 * self.B,
             (5, 6): 5 * _sqrt6 / 2.0 * self.B,
             (5, 7): -_3sqrt6 / 2.0 * self.B,
-            (6, 7): -3 * self.B
+            (6, 7): -3 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -705,7 +678,7 @@ class d5(LigandFieldTheory):
             -16 * self.B + 8 * self.C,
             -12 * self.B + 8 * self.C,
             +10 * self.Dq - 13 * self.B + 9 * self.C,
-            +10 * self.Dq - 4 * self.B + 12 * self.C
+            +10 * self.Dq - 4 * self.B + 12 * self.C,
         ]
         off_diag_elements = {
             (0, 1): 10 * self.B,
@@ -728,7 +701,7 @@ class d5(LigandFieldTheory):
             (3, 6): 6 * _sqrt3 * self.B,
             (4, 5): 0.0,
             (4, 6): 6 * _sqrt2 * self.B,
-            (5, 6): -10 * self.B
+            (5, 6): -10 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -739,7 +712,7 @@ class d5(LigandFieldTheory):
             -10 * self.Dq - 3 * self.B + 9 * self.C,
             -12 * self.B + 8 * self.C,
             -19 * self.B + 8 * self.C,
-            +10 * self.Dq - 3 * self.B + 9 * self.C
+            +10 * self.Dq - 3 * self.B + 9 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -_3sqrt2 * self.B,
@@ -747,7 +720,7 @@ class d5(LigandFieldTheory):
             (0, 3): 6 * self.B + self.C,
             (1, 2): -4 * _sqrt3 * self.B,
             (1, 3): _3sqrt2 * self.B,
-            (2, 3): 0.0
+            (2, 3): 0.0,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -757,12 +730,12 @@ class d5(LigandFieldTheory):
         diag_elements = [
             -10 * self.Dq - 23 * self.B + 9 * self.C,
             -12 * self.B + 8 * self.C,
-            +10 * self.Dq - 23 * self.B + 9 * self.C
+            +10 * self.Dq - 23 * self.B + 9 * self.C,
         ]
         off_diag_elements = {
             (0, 1): _3sqrt2 * self.B,
             (0, 2): -2 * self.B + self.C,
-            (1, 2): -_3sqrt2 * self.B
+            (1, 2): -_3sqrt2 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -772,12 +745,12 @@ class d5(LigandFieldTheory):
         diag_elements = [
             -10 * self.Dq - 25 * self.B + 6 * self.C,
             -16 * self.B + 7 * self.C,
-            10 * self.Dq - 25 * self.B + 6 * self.C
+            10 * self.Dq - 25 * self.B + 6 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -_3sqrt2 * self.B,
             (0, 2): self.C,
-            (1, 2): -_3sqrt2 * self.B
+            (1, 2): -_3sqrt2 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -787,25 +760,20 @@ class d5(LigandFieldTheory):
         diag_elements = [
             -10 * self.Dq - 17 * self.B + 6 * self.C,
             -22 * self.B + 5 * self.C,
-            +10 * self.Dq - 17 * self.B + 6 * self.C
+            +10 * self.Dq - 17 * self.B + 6 * self.C,
         ]
         off_diag_elements = {
             (0, 1): _sqrt6 * self.B,
             (0, 2): +4 * self.B + self.C,
-            (1, 2): -_sqrt6 * self.B
+            (1, 2): -_sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_4_states(self) -> Float64Array:
         """Calculate the E_4 states."""
-        diag_elements = [
-            -22 * self.B + 5 * self.C,
-            -21 * self.B + 5 * self.C
-        ]
-        off_diag_elements = {
-            (0, 1): -2 * _sqrt3 * self.B
-        }
+        diag_elements = [-22 * self.B + 5 * self.C, -21 * self.B + 5 * self.C]
+        off_diag_elements = {(0, 1): -2 * _sqrt3 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
@@ -820,7 +788,8 @@ class d5(LigandFieldTheory):
         GS = -35 * self.B
 
         A_6_1 = np.array(
-            [0.0], dtype=float,
+            [0.0],
+            dtype=float,
         )  # Starting value is -35. * B, but has to set to zero per definition
         E_4 = self.E_4_states() - GS
         A_4_1 = np.array([-25 * self.B + 5 * self.C]) - GS
@@ -887,7 +856,7 @@ class d6(LigandFieldTheory):
             -4 * self.Dq - self.B + 6 * self.C,
             -4 * self.Dq - 9 * self.B + 4 * self.C,
             -4 * self.Dq - 11 * self.B + 4 * self.C,
-            -14 * self.Dq - 16 * self.B + 5 * self.C
+            -14 * self.Dq - 16 * self.B + 5 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -_sqrt6 * self.B,
@@ -910,7 +879,7 @@ class d6(LigandFieldTheory):
             (3, 6): _3sqrt2 * self.B,
             (4, 5): -2 * _sqrt3 * self.B,
             (4, 6): -_3sqrt2 * self.B,
-            (5, 6): _sqrt6 * self.B
+            (5, 6): _sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -924,7 +893,7 @@ class d6(LigandFieldTheory):
             -4 * self.Dq - 9 * self.B + 6 * self.C,
             -4 * self.Dq - 3 * self.B + 6 * self.C,
             -4 * self.Dq + 5 * self.B + 8 * self.C,
-            -14 * self.Dq + 7 * self.C
+            -14 * self.Dq + 7 * self.C,
         ]
         off_diag_elements = {
             (0, 1): _3sqrt2 * self.B,
@@ -947,7 +916,7 @@ class d6(LigandFieldTheory):
             (3, 6): -_3sqrt6 * self.B,
             (4, 5): -10 * self.B,
             (4, 6): _sqrt6 * self.B,
-            (5, 6): _sqrt6 * self.B
+            (5, 6): _sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -959,7 +928,7 @@ class d6(LigandFieldTheory):
             +6 * self.Dq + 6 * self.C,
             -4 * self.Dq + 14 * self.B + 11 * self.C,
             -4 * self.Dq - 3 * self.B + 6 * self.C,
-            -24 * self.Dq - 16 * self.B + 8 * self.C
+            -24 * self.Dq - 16 * self.B + 8 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -12 * _sqrt2 * self.B,
@@ -971,7 +940,7 @@ class d6(LigandFieldTheory):
             (1, 4): 0.0,
             (2, 3): 20 * self.B,
             (2, 4): _sqrt6 * (2 * self.B + self.C),
-            (3, 4): 2 * _sqrt6 * self.B
+            (3, 4): 2 * _sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -983,7 +952,7 @@ class d6(LigandFieldTheory):
             +6 * self.Dq - 6 * self.B + 6 * self.C,
             -4 * self.Dq + 5 * self.B + 8 * self.C,
             -4 * self.Dq + 6 * self.B + 9 * self.C,
-            -4 * self.Dq - 3 * self.B + 6 * self.C
+            -4 * self.Dq - 3 * self.B + 6 * self.C,
         ]
         off_diag_elements = {
             (0, 1): 6 * self.B,
@@ -995,7 +964,7 @@ class d6(LigandFieldTheory):
             (1, 4): 0.0,
             (2, 3): 10 * _sqrt2 * self.B,
             (2, 4): -10 * _sqrt2 * self.B,
-            (3, 4): 0.0
+            (3, 4): 0.0,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -1007,7 +976,7 @@ class d6(LigandFieldTheory):
             +6 * self.Dq - 5 * self.B + 6 * self.C,
             -4 * self.Dq - 13 * self.B + 4 * self.C,
             -4 * self.Dq - 9 * self.B + 4 * self.C,
-            -14 * self.Dq - 8 * self.B + 5 * self.C
+            -14 * self.Dq - 8 * self.B + 5 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -5 * _sqrt3 * self.B,
@@ -1019,7 +988,7 @@ class d6(LigandFieldTheory):
             (1, 4): _sqrt2 * (3 * self.B + self.C),
             (2, 3): -2 * _sqrt2 * self.B,
             (2, 4): -6 * self.B,
-            (3, 4): 3 * _sqrt2 * self.B
+            (3, 4): 3 * _sqrt2 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -1030,7 +999,7 @@ class d6(LigandFieldTheory):
             +6 * self.Dq - 3 * self.B + 6 * self.C,
             +6 * self.Dq - 3 * self.B + 8 * self.C,
             -4 * self.Dq - 3 * self.B + 6 * self.C,
-            -14 * self.Dq - 16 * self.B + 7 * self.C
+            -14 * self.Dq - 16 * self.B + 7 * self.C,
         ]
         off_diag_elements = {
             (0, 1): 5 * _sqrt3 * self.B,
@@ -1038,7 +1007,7 @@ class d6(LigandFieldTheory):
             (0, 3): _sqrt6 * self.B,
             (1, 2): -5 * _sqrt3 * self.B,
             (1, 3): _sqrt2 * (self.B + self.C),
-            (2, 3): -_sqrt6 * self.B
+            (2, 3): -_sqrt6 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -1048,12 +1017,12 @@ class d6(LigandFieldTheory):
         diag_elements = [
             +6 * self.Dq - 13 * self.B + 4 * self.C,
             +6 * self.Dq - 10 * self.B + 4 * self.C,
-            -4 * self.Dq - 11 * self.B + 4 * self.C
+            -4 * self.Dq - 11 * self.B + 4 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -4 * self.B,
             (0, 2): 0.0,
-            (1, 2): -_3sqrt2 * self.B
+            (1, 2): -_3sqrt2 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -1062,11 +1031,9 @@ class d6(LigandFieldTheory):
         """Calculate the A_3_2 states."""
         diag_elements = [
             +6 * self.Dq - 8 * self.B + 4 * self.C,
-            -4 * self.Dq - 2 * self.B + 7 * self.C
+            -4 * self.Dq - 2 * self.B + 7 * self.C,
         ]
-        off_diag_elements = {
-            (0, 1): -12 * self.B
-        }
+        off_diag_elements = {(0, 1): -12 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
@@ -1074,11 +1041,9 @@ class d6(LigandFieldTheory):
         """Calculate the A_1_2 states."""
         diag_elements = [
             +6 * self.Dq - 12 * self.B + 6 * self.C,
-            -4 * self.Dq - 3 * self.B + 6 * self.C
+            -4 * self.Dq - 3 * self.B + 6 * self.C,
         ]
-        off_diag_elements = {
-            (0, 1): 6 * self.B
-        }
+        off_diag_elements = {(0, 1): 6 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
@@ -1161,7 +1126,7 @@ class d7(LigandFieldTheory):
             +2 * self.Dq - 6 * self.B + 3 * self.C,
             +2 * self.Dq + 4 * self.B + 3 * self.C,
             -8 * self.Dq + 6 * self.B + 5 * self.C,
-            -8 * self.Dq - 2 * self.B + 3 * self.C
+            -8 * self.Dq - 2 * self.B + 3 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -_3sqrt3 * self.B,
@@ -1173,7 +1138,7 @@ class d7(LigandFieldTheory):
             (1, 4): -_3sqrt3 * self.B,
             (2, 3): -_sqrt3 * self.B,
             (2, 4): +_sqrt3 * self.B,
-            (3, 4): 10 * self.B
+            (3, 4): 10 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -1185,7 +1150,7 @@ class d7(LigandFieldTheory):
             +2 * self.Dq + 3 * self.C,
             +2 * self.Dq - 6 * self.B + 3 * self.C,
             -8 * self.Dq - 6 * self.B + 3 * self.C,
-            -8 * self.Dq - 2 * self.B + 3 * self.C
+            -8 * self.Dq - 2 * self.B + 3 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -3 * self.B,
@@ -1197,7 +1162,7 @@ class d7(LigandFieldTheory):
             (1, 4): _3sqrt3 * self.B,
             (2, 3): -3 * self.B,
             (2, 4): -_sqrt3 * self.B,
-            (3, 4): _2sqrt3 * self.B
+            (3, 4): _2sqrt3 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
@@ -1208,7 +1173,7 @@ class d7(LigandFieldTheory):
             +12 * self.Dq - 6 * self.B + 3 * self.C,
             +2 * self.Dq + 8 * self.B + 6 * self.C,
             +2 * self.Dq - 1 * self.B + 3 * self.C,
-            -18 * self.Dq - 8 * self.B + 4 * self.C
+            -18 * self.Dq - 8 * self.B + 4 * self.C,
         ]
         off_diag_elements = {
             (0, 1): -6 * _sqrt2 * self.B,
@@ -1216,20 +1181,15 @@ class d7(LigandFieldTheory):
             (0, 3): 0.0,
             (1, 2): 10 * self.B,
             (1, 3): +_sqrt3 * (2 * self.B + self.C),
-            (2, 3): _2sqrt3 * self.B
+            (2, 3): _2sqrt3 * self.B,
         }
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_4_1_states(self):
         """Calculate the T_4_1 states."""
-        diag_elements = [
-            +2 * self.Dq - 3 * self.B,
-            -8 * self.Dq - 12 * self.B
-        ]
-        off_diag_elements = {
-            (0, 1): 6 * self.B
-        }
+        diag_elements = [+2 * self.Dq - 3 * self.B, -8 * self.Dq - 12 * self.B]
+        off_diag_elements = {(0, 1): 6 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
@@ -1301,47 +1261,30 @@ class d8(LigandFieldTheory):
         """Calculate the A_1_1 states."""
         diag_elements = [
             +8 * self.Dq + 10 * self.B + 5 * self.C,
-            -12 * self.Dq + 8 * self.B + 4 * self.C
+            -12 * self.Dq + 8 * self.B + 4 * self.C,
         ]
-        off_diag_elements = {
-            (0, 1): _sqrt6 * (2 * self.B + self.C)
-        }
+        off_diag_elements = {(0, 1): _sqrt6 * (2 * self.B + self.C)}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def E_1_states(self):
         """Calculate the E_1 states."""
-        diag_elements = [
-            +8 * self.Dq + self.B + 2 * self.C,
-            -12 * self.Dq + 2 * self.C
-        ]
-        off_diag_elements = {
-            (0, 1): -_2sqrt3 * self.B
-        }
+        diag_elements = [+8 * self.Dq + self.B + 2 * self.C, -12 * self.Dq + 2 * self.C]
+        off_diag_elements = {(0, 1): -_2sqrt3 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_1_2_states(self):
         """Calculate the T_1_2 states."""
-        diag_elements = [
-            +8 * self.Dq + self.B + 2 * self.C,
-            -2 * self.Dq + 2 * self.C
-        ]
-        off_diag_elements = {
-            (0, 1): +_2sqrt3 * self.B
-        }
+        diag_elements = [+8 * self.Dq + self.B + 2 * self.C, -2 * self.Dq + 2 * self.C]
+        off_diag_elements = {(0, 1): +_2sqrt3 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
     def T_3_1_states(self):
         """Calculate the T_3_1 states."""
-        diag_elements = [
-            +8 * self.Dq - 5 * self.B,
-            -2 * self.Dq + 4 * self.B
-        ]
-        off_diag_elements = {
-            (0, 1): 6 * self.B
-        }
+        diag_elements = [+8 * self.Dq - 5 * self.B, -2 * self.Dq + 4 * self.B]
+        off_diag_elements = {(0, 1): 6 * self.B}
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
