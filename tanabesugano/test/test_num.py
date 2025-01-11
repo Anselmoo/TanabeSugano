@@ -1,5 +1,4 @@
 from __future__ import annotations
-import stat
 
 import numpy as np
 
@@ -29,9 +28,12 @@ def state_check(x) -> int:
         if x == 8:
             states = matrices.d8(Dq=i).solver()
             return len(states)
+    return None
+
 
 def test_answer_d2() -> None:
     assert state_check(2) == 7
+
 
 def test_answer_d3() -> None:
     assert state_check(3) == 8
