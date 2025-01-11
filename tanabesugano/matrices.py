@@ -12,7 +12,7 @@ except ImportError:
 
 import numpy as np
 
-from numpy._typing._array_like import NDArray
+from numpy import ndarray as NDArray
 from numpy.linalg import eigh
 
 
@@ -1260,6 +1260,7 @@ class d7(LigandFieldTheory):
 
 class d8(LigandFieldTheory):
     """Class for d8 configuration."""
+
     def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0) -> None:
         """Initialize the d8 configuration with given parameters.
 
