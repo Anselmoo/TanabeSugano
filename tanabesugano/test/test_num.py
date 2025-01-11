@@ -1,12 +1,11 @@
 from __future__ import annotations
-import stat
 
 import numpy as np
 
 from tanabesugano import matrices
 
 
-def state_check(x) -> int:"
+def state_check(x) -> int:
     for i in np.linspace(0, 1500, 30):
         if x == 2:
             states = matrices.d2(Dq=i).solver()
