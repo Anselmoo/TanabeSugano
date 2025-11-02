@@ -38,6 +38,10 @@ jobs:
           cd docs-site
           npm run build
 
+      - name: Copy diagram files
+        run: |
+          cp -r ts-diagrams docs/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -91,7 +91,7 @@ function App() {
 
               <div className="iframe-container">
                 <iframe
-                  src={`../${viewType === 'ts' ? selectedDiagram.files.tsDiagram : selectedDiagram.files.ddEnergies}`}
+                  src={`/TanabeSugano/${viewType === 'ts' ? selectedDiagram.files.tsDiagram : selectedDiagram.files.ddEnergies}`}
                   title={`${viewType === 'ts' ? 'Tanabe-Sugano' : 'DD Energies'} Diagram for d${selectedDiagram.dNumber}`}
                   className="diagram-iframe"
                 />
@@ -101,22 +101,22 @@ function App() {
                 <h3>Download Data</h3>
                 <div className="links">
                   {selectedDiagram.files.tsCsv && (
-                    <a href={`../${selectedDiagram.files.tsCsv}`} download>
+                    <a href={`/TanabeSugano/${selectedDiagram.files.tsCsv}`} download>
                       📊 TS Diagram CSV
                     </a>
                   )}
                   {selectedDiagram.files.ddCsv && (
-                    <a href={`../${selectedDiagram.files.ddCsv}`} download>
+                    <a href={`/TanabeSugano/${selectedDiagram.files.ddCsv}`} download>
                       📊 DD Energies CSV
                     </a>
                   )}
                   {selectedDiagram.files.tsDiagram && (
-                    <a href={`../${selectedDiagram.files.tsDiagram}`} download>
+                    <a href={`/TanabeSugano/${selectedDiagram.files.tsDiagram}`} download>
                       📄 TS Diagram HTML
                     </a>
                   )}
                   {selectedDiagram.files.ddEnergies && (
-                    <a href={`../${selectedDiagram.files.ddEnergies}`} download>
+                    <a href={`/TanabeSugano/${selectedDiagram.files.ddEnergies}`} download>
                       📄 DD Energies HTML
                     </a>
                   )}
