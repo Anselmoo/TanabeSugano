@@ -6,6 +6,16 @@ interface DiagramViewerProps {
   config: string
 }
 
+interface ManifestFile {
+  name: string
+  path: string
+  type: string
+}
+
+interface Manifest {
+  [key: string]: ManifestFile[]
+}
+
 const DiagramViewer = ({ config }: DiagramViewerProps) => {
   const [diagramType, setDiagramType] = useState<'TS' | 'DD'>('TS')
   const [data, setData] = useState<DiagramData | null>(null)
@@ -20,18 +30,18 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
         const response = await fetch('/TanabeSugano/ts-diagrams/manifest.json')
         
         if (response.ok) {
-          const manifest = await response.json()
-          const configFiles = manifest[config] || []
+          const manifest: Manifest = await response.json()
+          const configFiles: ManifestFile[] = manifest[config] || []
           
           // Filter files by diagram type
-          const filteredFiles = configFiles.filter((file: any) => 
+          const filteredFiles = configFiles.filter((file: ManifestFile) => 
             diagramType === 'TS' 
               ? (file.name.includes('TS_Cut') || file.name.includes('TS-diagram'))
               : file.name.includes('DD-energies')
           )
           
           // Sort to prefer full diagrams over cut diagrams
-          filteredFiles.sort((a: any, b: any) => {
+          filteredFiles.sort((a: ManifestFile, b: ManifestFile) => {
             // Prefer TS-diagram over TS_Cut for TS type
             if (diagramType === 'TS') {
               if (a.name.includes('TS-diagram') && !b.name.includes('TS-diagram')) return -1
@@ -40,7 +50,7 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
             return a.name.localeCompare(b.name)
           })
           
-          setAvailableFiles(filteredFiles.map((f: any) => f.name))
+          setAvailableFiles(filteredFiles.map((f: ManifestFile) => f.name))
 
           // Auto-select first file of current diagram type (now sorted to prefer full diagrams)
           if (filteredFiles.length > 0) {
