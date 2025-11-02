@@ -1,14 +1,26 @@
-# Tanabe-Sugano Diagrams Viewer
+# Tanabe-Sugano Diagram Viewer
 
-This is a React-based web application for viewing and exploring Tanabe-Sugano diagrams for d²-d⁸ transition metal ions.
+An interactive web application for visualizing Tanabe-Sugano diagrams and DD energy diagrams for d2-d8 electron configurations.
 
 ## Features
 
-- Interactive visualization of Tanabe-Sugano diagrams
-- Energy-Correlation (DD) diagrams
-- Download CSV and HTML files for each diagram
-- Responsive design for mobile and desktop
-- Hosted on GitHub Pages
+- **Interactive Visualization**: Powered by Plotly.js for smooth, interactive charts
+- **Multiple Configurations**: Support for d2, d3, d4, d5, d6, d7, and d8 electron configurations
+- **Dual Diagram Types**:
+  - Tanabe-Sugano diagrams (Energy/B vs Δ/B)
+  - DD Energy diagrams (Energy vs 10Dq)
+- **CSV Data Loading**: Dynamically loads diagram data from CSV files
+- **Export Capability**: Download diagrams as PNG images
+- **Responsive Design**: Works on desktop and mobile devices
+
+## Technology Stack
+
+- **Vite**: Fast build tool and dev server
+- **React 19**: UI framework
+- **TypeScript**: Type-safe development
+- **Plotly.js**: Scientific charting library
+- **PapaParse**: CSV parsing
+- **GitHub Pages**: Static site hosting
 
 ## Development
 
@@ -20,6 +32,7 @@ This is a React-based web application for viewing and exploring Tanabe-Sugano di
 ### Setup
 
 ```bash
+cd docs-site
 npm install
 ```
 
@@ -29,7 +42,7 @@ npm install
 npm run dev
 ```
 
-This will start a local development server at `http://localhost:5173`.
+Visit `http://localhost:5173/TanabeSugano/` in your browser.
 
 ### Build
 
@@ -37,27 +50,67 @@ This will start a local development server at `http://localhost:5173`.
 npm run build
 ```
 
-This will:
-1. Generate an index of all available diagrams
-2. Build the production-ready site in the `../docs` folder
+Output will be in `../docs/` directory.
 
-### Generate Diagram Index
+### Preview Production Build
 
 ```bash
-npm run generate-index
+npm run preview
 ```
 
-This script scans the `../ts-diagrams` directory and creates an index of all available Tanabe-Sugano diagrams.
+## Project Structure
+
+```
+docs-site/
+├── public/
+│   └── ts-diagrams/     # CSV data files (d2-d8)
+├── src/
+│   ├── components/
+│   │   └── DiagramViewer.tsx    # Main diagram component
+│   ├── utils/
+│   │   └── dataLoader.ts        # CSV loading utilities
+│   ├── App.tsx                   # Main app component
+│   ├── main.tsx                  # App entry point
+│   └── index.css                 # Global styles
+├── index.html
+├── vite.config.ts
+└── package.json
+```
+
+## Data Format
+
+The application expects CSV files in the following format:
+
+- **Tanabe-Sugano diagrams**: `TS_Cut_<config>_*.csv`
+  - First column: Δ/B (10Dq/B)
+  - Subsequent columns: Energy states (E/B)
+
+- **DD Energy diagrams**: `DD-energies_<config>_*.csv`
+  - First column: 10Dq (cm⁻¹)
+  - Subsequent columns: Energy states
 
 ## Deployment
 
-The site is automatically deployed to GitHub Pages when changes are pushed to the `master` branch via GitHub Actions.
+The site is automatically deployed to GitHub Pages via GitHub Actions when changes are pushed to the master branch.
 
-## Configuration
+The workflow:
+1. Checks out the repository
+2. Installs Node.js dependencies
+3. Copies CSV data to public directory
+4. Builds the Vite application
+5. Uploads and deploys to GitHub Pages
 
-- `vite.config.js` - Vite configuration, including the base path for GitHub Pages
-- `generate-index.js` - Script to generate the diagram index
+## Usage
 
-## About
+1. Select an electron configuration (d2-d8) using the buttons at the top
+2. Choose between Tanabe-Sugano or DD Energy diagram type
+3. Select a specific CSV file from the dropdown
+4. Interact with the plot:
+   - Zoom: Click and drag
+   - Pan: Shift + click and drag
+   - Reset: Double-click
+   - Export: Click camera icon
 
-The diagrams are based on the original studies by Yukito Tanabe and Satoru Sugano (1954-1956) for d²-d⁸ transition metal ions.
+## License
+
+See main project LICENSE file.

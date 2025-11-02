@@ -33,14 +33,15 @@ jobs:
           cd docs-site
           npm ci
 
+      - name: Copy diagram CSV files to public directory
+        run: |
+          mkdir -p docs-site/public/ts-diagrams
+          cp -r ts-diagrams/* docs-site/public/ts-diagrams/
+
       - name: Build site
         run: |
           cd docs-site
           npm run build
-
-      - name: Copy diagram files
-        run: |
-          cp -r ts-diagrams docs/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
