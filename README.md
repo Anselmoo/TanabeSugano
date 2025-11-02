@@ -92,6 +92,12 @@ The options for the **TanabeSugano**-application are:
 
 ![placeholder](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/d6_ts_interactive.gif?raw=true)
 
+## View the TS-diagrams on GitHub Pages
+
+All Tanabe-Sugano diagrams (d<sup>2</sup>-d<sup>8</sup>) are available on our interactive GitHub Pages site:
+
+**[🔗 View Interactive Diagrams](https://anselmoo.github.io/TanabeSugano/)**
+
 ## Test the TS-diagrams interactively in Google Colab
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/master/Tanabe_Sugano.ipynb)

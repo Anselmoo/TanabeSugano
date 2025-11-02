@@ -6,3 +6,5 @@
 *.pyc
 .vscode/
 .DS_Store
+node_modules/
+docs-site/node_modules/
