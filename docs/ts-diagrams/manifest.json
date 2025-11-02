@@ -1,0 +1,121 @@
+{
+  "d8": [
+    {
+      "name": "TS-diagram_d8_10Dq_40000_B_1030_C_4850.csv",
+      "path": "ts-diagrams/d8/TS-diagram_d8_10Dq_40000_B_1030_C_4850.csv",
+      "type": "TS"
+    },
+    {
+      "name": "TS_Cut_d8_10Dq_24000_B_1030_C_4850.csv",
+      "path": "ts-diagrams/d8/TS_Cut_d8_10Dq_24000_B_1030_C_4850.csv",
+      "type": "TS"
+    },
+    {
+      "name": "DD-energies_d8_10Dq_40000_B_1030_C_4850.csv",
+      "path": "ts-diagrams/d8/DD-energies_d8_10Dq_40000_B_1030_C_4850.csv",
+      "type": "DD"
+    }
+  ],
+  "d4": [
+    {
+      "name": "TS_Cut_d4_10Dq_24000_B_965_C_4449.csv",
+      "path": "ts-diagrams/d4/TS_Cut_d4_10Dq_24000_B_965_C_4449.csv",
+      "type": "TS"
+    },
+    {
+      "name": "DD-energies_d4_10Dq_40000_B_965_C_4449.csv",
+      "path": "ts-diagrams/d4/DD-energies_d4_10Dq_40000_B_965_C_4449.csv",
+      "type": "DD"
+    },
+    {
+      "name": "TS-diagram_d4_10Dq_40000_B_965_C_4449.csv",
+      "path": "ts-diagrams/d4/TS-diagram_d4_10Dq_40000_B_965_C_4449.csv",
+      "type": "TS"
+    }
+  ],
+  "d7": [
+    {
+      "name": "TS-diagram_d7_10Dq_25065_B_971_C_4498.csv",
+      "path": "ts-diagrams/d7/TS-diagram_d7_10Dq_25065_B_971_C_4498.csv",
+      "type": "TS"
+    },
+    {
+      "name": "DD-energies_d7_10Dq_25065_B_971_C_4498.csv",
+      "path": "ts-diagrams/d7/DD-energies_d7_10Dq_25065_B_971_C_4498.csv",
+      "type": "DD"
+    },
+    {
+      "name": "TS_Cut_d7_10Dq_24000_B_971_C_4498.csv",
+      "path": "ts-diagrams/d7/TS_Cut_d7_10Dq_24000_B_971_C_4498.csv",
+      "type": "TS"
+    }
+  ],
+  "d5": [
+    {
+      "name": "TS-diagram_d5_10Dq_40000_B_860_C_3850.csv",
+      "path": "ts-diagrams/d5/TS-diagram_d5_10Dq_40000_B_860_C_3850.csv",
+      "type": "TS"
+    },
+    {
+      "name": "TS_Cut_d5_10Dq_24000_B_860_C_3850.csv",
+      "path": "ts-diagrams/d5/TS_Cut_d5_10Dq_24000_B_860_C_3850.csv",
+      "type": "TS"
+    },
+    {
+      "name": "DD-energies_d5_10Dq_40000_B_860_C_3850.csv",
+      "path": "ts-diagrams/d5/DD-energies_d5_10Dq_40000_B_860_C_3850.csv",
+      "type": "DD"
+    }
+  ],
+  "d6": [
+    {
+      "name": "DD-energies_d6_10Dq_40000_B_1065_C_5120.csv",
+      "path": "ts-diagrams/d6/DD-energies_d6_10Dq_40000_B_1065_C_5120.csv",
+      "type": "DD"
+    },
+    {
+      "name": "TS-diagram_d6_10Dq_40000_B_1065_C_5120.csv",
+      "path": "ts-diagrams/d6/TS-diagram_d6_10Dq_40000_B_1065_C_5120.csv",
+      "type": "TS"
+    },
+    {
+      "name": "TS_Cut_d6_10Dq_24000_B_1065_C_5120.csv",
+      "path": "ts-diagrams/d6/TS_Cut_d6_10Dq_24000_B_1065_C_5120.csv",
+      "type": "TS"
+    }
+  ],
+  "d2": [
+    {
+      "name": "TS_Cut_d2_10Dq_24000_B_860_C_3801.csv",
+      "path": "ts-diagrams/d2/TS_Cut_d2_10Dq_24000_B_860_C_3801.csv",
+      "type": "TS"
+    },
+    {
+      "name": "TS-diagram_d2_10Dq_40000_B_860_C_3801.csv",
+      "path": "ts-diagrams/d2/TS-diagram_d2_10Dq_40000_B_860_C_3801.csv",
+      "type": "TS"
+    },
+    {
+      "name": "DD-energies_d2_10Dq_40000_B_860_C_3801.csv",
+      "path": "ts-diagrams/d2/DD-energies_d2_10Dq_40000_B_860_C_3801.csv",
+      "type": "DD"
+    }
+  ],
+  "d3": [
+    {
+      "name": "TS_Cut_d3_10Dq_24000_B_918_C_4132.csv",
+      "path": "ts-diagrams/d3/TS_Cut_d3_10Dq_24000_B_918_C_4132.csv",
+      "type": "TS"
+    },
+    {
+      "name": "TS-diagram_d3_10Dq_40000_B_918_C_4132.csv",
+      "path": "ts-diagrams/d3/TS-diagram_d3_10Dq_40000_B_918_C_4132.csv",
+      "type": "TS"
+    },
+    {
+      "name": "DD-energies_d3_10Dq_40000_B_918_C_4132.csv",
+      "path": "ts-diagrams/d3/DD-energies_d3_10Dq_40000_B_918_C_4132.csv",
+      "type": "DD"
+    }
+  ]
+}
