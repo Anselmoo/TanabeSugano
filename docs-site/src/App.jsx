@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import './App.css'
-import diagramsData from './diagrams-index.json'
+import diagramsDataRaw from './diagrams-index.json'
+
+// Validate the imported data
+const diagramsData = Array.isArray(diagramsDataRaw) ? diagramsDataRaw : [];
 
 function App() {
   const [selectedDiagram, setSelectedDiagram] = useState(null);
@@ -10,6 +13,30 @@ function App() {
     setSelectedDiagram(diagram);
     setViewType('ts');
   };
+
+  // Show error state if no diagrams are available
+  if (diagramsData.length === 0) {
+    return (
+      <div className="App">
+        <header className="header">
+          <h1>Tanabe-Sugano Diagrams</h1>
+          <p className="subtitle">
+            Interactive visualization of d<sup>2</sup>-d<sup>8</sup> transition metal ion diagrams
+          </p>
+        </header>
+        <main className="main-content">
+          <section className="content">
+            <div className="welcome">
+              <h2>Error Loading Diagrams</h2>
+              <p style={{ color: 'red' }}>
+                Unable to load diagram data. Please ensure the diagrams-index.json file is generated and valid.
+              </p>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="App">
