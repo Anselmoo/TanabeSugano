@@ -1,8 +1,10 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: ["master"]
+  # Deploy the Pages site when a new release is published
+  release:
+    types: [published]
+  # Allow manual runs
   workflow_dispatch:
 
 permissions:
@@ -24,24 +26,24 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: docs-site/package-lock.json
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: docs/package-lock.json
 
       - name: Install dependencies
         run: |
-          cd docs-site
+          cd docs
           npm ci
-
-      - name: Copy diagram CSV files to public directory
-        run: |
-          mkdir -p docs-site/public/ts-diagrams
-          cp -r ts-diagrams/* docs-site/public/ts-diagrams/
 
       - name: Build site
         run: |
-          cd docs-site
+          cd docs
           npm run build
+
+      - name: Copy diagram CSVs into output (docs/) after build
+        run: |
+          mkdir -p docs/ts-diagrams
+          cp -r ts-diagrams/* docs/ts-diagrams/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
