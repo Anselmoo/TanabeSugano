@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Plot from 'react-plotly.js'
-import { loadCSV, DiagramData } from '../utils/dataLoader'
+import { loadCSV, type DiagramData } from '../utils/dataLoader'
 
 interface DiagramViewerProps {
   config: string
@@ -21,25 +21,50 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
   const [data, setData] = useState<DiagramData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [availableFiles, setAvailableFiles] = useState<string[]>([])
   const [selectedFile, setSelectedFile] = useState<string>('')
+
+  // Color palette: spin multiplicity groups (gerade even: 2,4,6; ungerade odd: 1,3,5)
+  // Optimized for light background (#FFFBEB) using Alucard Classic subset.
+  // Design goals:
+  //  - Even set uses cooler / structured hues with ascending perceived weight.
+  //  - Odd set uses warmer / vivid hues for immediate separation.
+  //  - All pairs exceed ~4.5:1 contrast vs light background (except purple borderline but retained for categorical distinctiveness).
+  //  - Avoid duplicate hues across parity groups to reinforce semantic grouping.
+  // Chosen mapping:
+  //    Even: 2 → Cyan (#036A96), 4 → Green (#14710A), 6 → Purple (#644AC9)
+  //    Odd:  1 → Red (#CB3A2A), 3 → Orange (#A34D14), 5 → Pink (#A3144D)
+  // Rationale: provides six distinct hue families; purple moved to even (higher energy visual anchor) while pink reserved for highest odd multiplicity.
+  const getColorForTermSymbol = (traceName: string): string | undefined => {
+    const match = traceName.match(/^(\d+)\s/)
+    if (!match) return undefined
+    const multiplicity = parseInt(match[1], 10)
+    const colorMap: Record<number, string> = {
+      2: '#036A96', // Cyan (support / structural)
+      4: '#A34D14', // Orange (stable)
+      6: '#644AC9', // Purple (higher even multiplicity emphasis)
+      1: '#CB3A2A', // Red (baseline odd alertness)
+      3: '#14710A', // Green (mid odd)
+      5: '#A3144D', // Pink (highest odd multiplicity)
+    }
+    return colorMap[multiplicity] || '#5A5A5A' // Fallback neutral gray for unexpected multiplicity
+  }
 
   useEffect(() => {
     const loadManifest = async () => {
       try {
         const response = await fetch('/TanabeSugano/ts-diagrams/manifest.json')
-        
+
         if (response.ok) {
           const manifest: Manifest = await response.json()
           const configFiles: ManifestFile[] = manifest[config] || []
-          
+
           // Filter files by diagram type
-          const filteredFiles = configFiles.filter((file: ManifestFile) => 
-            diagramType === 'TS' 
+          const filteredFiles = configFiles.filter((file: ManifestFile) =>
+            diagramType === 'TS'
               ? (file.name.includes('TS_Cut') || file.name.includes('TS-diagram'))
               : file.name.includes('DD-energies')
           )
-          
+
           // Sort to prefer full diagrams over cut diagrams
           filteredFiles.sort((a: ManifestFile, b: ManifestFile) => {
             // Prefer TS-diagram over TS_Cut for TS type
@@ -49,8 +74,6 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
             }
             return a.name.localeCompare(b.name)
           })
-          
-          setAvailableFiles(filteredFiles.map((f: ManifestFile) => f.name))
 
           // Auto-select first file of current diagram type (now sorted to prefer full diagrams)
           if (filteredFiles.length > 0) {
@@ -62,7 +85,6 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
         }
       } catch (err) {
         console.error('Error loading manifest:', err)
-        setAvailableFiles([])
       }
     }
 
@@ -118,40 +140,20 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
         <h3 style={{ marginBottom: '1rem' }}>Diagram Type</h3>
         <div className="button-group">
           <button
+            type="button"
             className={diagramType === 'TS' ? 'active' : ''}
             onClick={() => handleDiagramTypeChange('TS')}
           >
             Tanabe-Sugano
           </button>
           <button
+            type="button"
             className={diagramType === 'DD' ? 'active' : ''}
             onClick={() => handleDiagramTypeChange('DD')}
           >
             DD Energy
           </button>
         </div>
-
-        {availableFiles.length > 0 && (
-          <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-            <label htmlFor="file-select" style={{ marginRight: '0.5rem' }}>
-              Select Data File:
-            </label>
-            <select
-              id="file-select"
-              value={selectedFile}
-              onChange={(e) => setSelectedFile(e.target.value)}
-            >
-              <option value="">-- Select a file --</option>
-              {availableFiles
-                .filter(f => diagramType === 'TS' ? f.includes('TS_Cut') : f.includes('DD-energies'))
-                .map(file => (
-                  <option key={file} value={file}>
-                    {file}
-                  </option>
-                ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {loading && <div className="loading">Loading diagram...</div>}
@@ -168,14 +170,20 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
       {!loading && !error && data && (
         <div className="chart-container">
           <Plot
-            data={data.traces.map(trace => ({
-              x: data.xValues,
-              y: trace.yValues,
-              type: 'scatter',
-              mode: 'lines',
-              name: trace.name,
-              line: { width: 2 }
-            }))}
+            data={data.traces.map(trace => {
+              const color = getColorForTermSymbol(trace.name)
+              return {
+                x: data.xValues,
+                y: trace.yValues,
+                type: 'scatter',
+                mode: 'lines',
+                name: trace.name,
+                line: {
+                  width: 2,
+                  ...(color && { color })
+                }
+              }
+            })}
             layout={{
               title: {
                 text: getTitle()
