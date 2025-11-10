@@ -6,6 +6,16 @@ interface DiagramViewerProps {
   config: string
 }
 
+interface ManifestFile {
+  name: string
+  path: string
+  type: string
+}
+
+interface Manifest {
+  [key: string]: ManifestFile[]
+}
+
 const DiagramViewer = ({ config }: DiagramViewerProps) => {
   const [diagramType, setDiagramType] = useState<'TS' | 'DD'>('TS')
   const [data, setData] = useState<DiagramData | null>(null)
@@ -15,39 +25,48 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
   const [selectedFile, setSelectedFile] = useState<string>('')
 
   useEffect(() => {
-    const discoverFiles = async () => {
+    const loadManifest = async () => {
       try {
-        const basePath = `/TanabeSugano/ts-diagrams/${config}`
-        const response = await fetch(basePath + '/')
-
+        const response = await fetch('/TanabeSugano/ts-diagrams/manifest.json')
+        
         if (response.ok) {
-          const text = await response.text()
-          const parser = new DOMParser()
-          const doc = parser.parseFromString(text, 'text/html')
-          const links = Array.from(doc.querySelectorAll('a'))
-
-          const csvFiles = links
-            .map(link => link.getAttribute('href'))
-            .filter(href => href?.endsWith('.csv'))
-            .filter(Boolean) as string[]
-
-          setAvailableFiles(csvFiles)
-
-          // Auto-select first file of current diagram type
-          const typeFiles = csvFiles.filter(f =>
-            diagramType === 'TS' ? f.includes('TS_Cut') : f.includes('DD-energies')
+          const manifest: Manifest = await response.json()
+          const configFiles: ManifestFile[] = manifest[config] || []
+          
+          // Filter files by diagram type
+          const filteredFiles = configFiles.filter((file: ManifestFile) => 
+            diagramType === 'TS' 
+              ? (file.name.includes('TS_Cut') || file.name.includes('TS-diagram'))
+              : file.name.includes('DD-energies')
           )
+          
+          // Sort to prefer full diagrams over cut diagrams
+          filteredFiles.sort((a: ManifestFile, b: ManifestFile) => {
+            // Prefer TS-diagram over TS_Cut for TS type
+            if (diagramType === 'TS') {
+              if (a.name.includes('TS-diagram') && !b.name.includes('TS-diagram')) return -1
+              if (!a.name.includes('TS-diagram') && b.name.includes('TS-diagram')) return 1
+            }
+            return a.name.localeCompare(b.name)
+          })
+          
+          setAvailableFiles(filteredFiles.map((f: ManifestFile) => f.name))
 
-          if (typeFiles.length > 0) {
-            setSelectedFile(typeFiles[0])
+          // Auto-select first file of current diagram type (now sorted to prefer full diagrams)
+          if (filteredFiles.length > 0) {
+            setSelectedFile(filteredFiles[0].name)
+          } else {
+            setSelectedFile('')
+            setData(null)
           }
         }
       } catch (err) {
-        console.error('Error discovering files:', err)
+        console.error('Error loading manifest:', err)
+        setAvailableFiles([])
       }
     }
 
-    discoverFiles()
+    loadManifest()
   }, [config, diagramType])
 
   useEffect(() => {
@@ -158,13 +177,19 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
               line: { width: 2 }
             }))}
             layout={{
-              title: getTitle(),
+              title: {
+                text: getTitle()
+              },
               xaxis: {
-                title: getXAxisTitle(),
+                title: {
+                  text: getXAxisTitle()
+                },
                 gridcolor: '#e0e0e0'
               },
               yaxis: {
-                title: getYAxisTitle(),
+                title: {
+                  text: getYAxisTitle()
+                },
                 gridcolor: '#e0e0e0'
               },
               autosize: true,
