@@ -1,0 +1,32 @@
+{
+  "name": "docs-site",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.0",
+    "papaparse": "^5.5.3",
+    "plotly.js-dist-min": "^3.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-plotly.js": "^2.6.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  },
+  "devDependencies": {
+    "@types/papaparse": "^5.3.16",
+    "@types/plotly.js": "^3.0.8",
+    "@types/react": "^18.3.26",
+    "@types/react-dom": "^18.3.7",
+    "@types/react-plotly.js": "^2.6.3"
+  }
+}
