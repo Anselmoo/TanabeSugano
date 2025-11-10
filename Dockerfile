@@ -4,14 +4,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY poetry.lock /app
+COPY uv.lock /app
 COPY pyproject.toml /app
 
 
-RUN pip3 install --no-cache-dir poetry &&\
-    poetry config virtualenvs.create false &&\
-    poetry install --no-interaction
+RUN pip3 install --no-cache-dir uv &&\
+    uv sync --frozen --no-cache
 
 COPY . /app
 
-CMD ["python3", "-m", "tanabesugano"]
+CMD ["uv", "run", "tanabesugano"]

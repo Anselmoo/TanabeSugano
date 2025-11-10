@@ -1,5 +1,5 @@
 [![Python Package](https://github.com/Anselmoo/TanabeSugano/actions/workflows/python-package.yml/badge.svg)](https://github.com/Anselmoo/TanabeSugano/actions/workflows/python-package.yml)
-[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![CodeFactor](https://www.codefactor.io/repository/github/anselmoo/tanabesugano/badge)](https://www.codefactor.io/repository/github/anselmoo/tanabesugano)
 [![DOI](https://zenodo.org/badge/206847682.svg)](https://zenodo.org/badge/latestdoi/206847682)
 [![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)](https://github.com/Anselmoo/TanabeSugano/blob/master/LICENSE)
