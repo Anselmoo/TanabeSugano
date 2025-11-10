@@ -8,3 +8,8 @@
 .DS_Store
 node_modules/
 docs-site/node_modules/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.venv/
