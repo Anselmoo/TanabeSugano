@@ -13,3 +13,4 @@ docs-site/node_modules/
 htmlcov/
 .pytest_cache/
 .venv/
+.serena/
