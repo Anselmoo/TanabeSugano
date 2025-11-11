@@ -33,7 +33,7 @@ class CMDmain:
         d_count: int = 5,
         slater: bool = False,
     ) -> None:
-        """CMD Interface for Tanabe-Sugano-Diagram
+        """CMD Interface for Tanabe-Sugano-Diagram.
 
         Parameters
         ----------
@@ -130,7 +130,7 @@ class CMDmain:
         ).to_csv(Path(f"{self.title_DD}.csv"), index=False)
 
     def calculation(self) -> None:
-        """Is filling the self.result with the iTS states of over-iterated energy range"""
+        """Is filling the self.result with the iTS states of over-iterated energy range."""
         result = []
         for dq in self.df["Energy"]:
             if self.d_count == 2:  # d2
@@ -197,8 +197,8 @@ class CMDmain:
                 rearranged_states[key] = value
         return rearranged_states
 
-    def ci_cut(self, dq_ci: float = None) -> None:
-        """Extracting the atomic-termsymbols for a specific dq depending on the oxidation state"""
+    def ci_cut(self, dq_ci: float | None = None) -> None:
+        """Extracting the atomic-termsymbols for a specific dq depending on the oxidation state."""
         if self.d_count == 2:  # d2
             states = matrices.d2(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
@@ -227,8 +227,8 @@ class CMDmain:
             states = matrices.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
             self.ts_print(states, dq_ci=dq_ci)
 
-    def ts_print(self, states: dict, dq_ci: float = None) -> None:
-        """Print the atomic-termsymbols
+    def ts_print(self, states: dict, dq_ci: float | None = None) -> None:
+        """Print the atomic-termsymbols.
 
         Print the atomic-termsymbols for a specific dq depending on the oxidation state
         on the screen and save them as txt-file.
@@ -264,7 +264,6 @@ class CMDmain:
         x.align["state"] = "l"
         x.align["cm"] = "r"
         x.align["eV"] = "r"
-        print(x)
         title = "TS_Cut_d%i_10Dq_%i_B_%i_C_%i.csv" % (
             self.d_count,
             dq_ci,
@@ -289,13 +288,13 @@ class CMDmain:
             raise ImportError(msg)
 
         _col = self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).columns
-        _font = dict(family="Avant Garde, sans-serif", size=12, color="grey")
+        _font = {"family": "Avant Garde, sans-serif", "size": 12, "color": "grey"}
         _template = "plotly_white"
-        _size = dict(
-            autosize=False,
-            width=800,
-            height=800,
-        )
+        _size = {
+            "autosize": False,
+            "width": 800,
+            "height": 800,
+        }
         color_discrete_sequence = [
             px.colors.qualitative.Light24[int(i[0]) - 1] for i in _col
         ]

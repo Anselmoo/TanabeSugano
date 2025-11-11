@@ -9,12 +9,12 @@ from tanabesugano import tools
 class Batch:
     def __init__(
         self,
-        Dq: list[float] = None,
-        B: list[float] = None,
-        C: list[float] = None,
+        Dq: list[float] | None = None,
+        B: list[float] | None = None,
+        C: list[float] | None = None,
         d_count: int = 5,
         slater: bool = False,
-    ):
+    ) -> None:
         if Dq is None:
             Dq = [4000.0, 4500.0, 10]
         if B is None:
@@ -133,7 +133,8 @@ class Batch:
                             },
                         )
                     else:
-                        raise ValueError("not a correct value!")
+                        msg = "not a correct value!"
+                        raise ValueError(msg)
 
     @property
     def return_result(self) -> list[dict]:
@@ -143,4 +144,3 @@ class Batch:
 if __name__ == "__main__":
     res = Batch()
     res.calculation()
-    print(res.return_result)
