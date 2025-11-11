@@ -7,7 +7,7 @@ from enum import IntEnum
 
 class ElectronConfiguration(IntEnum):
     """d-electron configurations for transition metal complexes.
-    
+
     These values represent the number of d-electrons in the partially
     filled d-orbital shell of transition metal ions.
     """

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -10,6 +10,10 @@ from tanabesugano import matrices
 from tanabesugano import tools
 from tanabesugano.constants import PARAMETER_RANGE_LENGTH
 from tanabesugano.constants import ElectronConfiguration
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 # Mapping from electron configuration to solver class
@@ -29,18 +33,19 @@ def _validate_parameter_range(
     param_name: str,
 ) -> None:
     """Validate that a parameter range has the expected format.
-    
+
     Parameters
     ----------
     param : list[float]
         Parameter range to validate
     param_name : str
         Name of the parameter for error messages
-        
+
     Raises
     ------
     KeyError
         If the parameter range doesn't have exactly PARAMETER_RANGE_LENGTH values
+
     """
     if len(param) != PARAMETER_RANGE_LENGTH:
         msg = (
@@ -65,12 +70,12 @@ class Batch:
             B = [400.0, 4500.0, 10]
         if C is None:
             C = [3600.0, 4000, 10]
-        
+
         # Validate parameter ranges
         _validate_parameter_range(Dq, "Dq")
         _validate_parameter_range(B, "B")
         _validate_parameter_range(C, "C")
-        
+
         self.Dq = np.linspace(Dq[0], Dq[1], int(Dq[2]))  # Oh-crystalfield-splitting
         self.B = np.linspace(B[0], B[1], int(B[2]))  # Racah-B-parameter
         self.C = np.linspace(C[0], C[1], int(C[2]))  # Racah-C-parameter
@@ -99,7 +104,7 @@ class Batch:
         if solver_class is None:
             msg = "not a correct value!"
             raise ValueError(msg)
-        
+
         for _Dq in self.Dq:
             for _B in self.B:
                 for _C in self.C:

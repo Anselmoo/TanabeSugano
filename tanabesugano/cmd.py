@@ -20,13 +20,11 @@ except ImportError:  # pragma: no cover
     px = None
 
 from tanabesugano import __version__
-from tanabesugano import matrices
 from tanabesugano import tools
-from tanabesugano.constants import ElectronConfiguration
-
 
 # Import the solver mapping from batch module
 from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
+from tanabesugano.constants import ElectronConfiguration
 
 
 class CMDmain:
@@ -146,7 +144,7 @@ class CMDmain:
         if solver_class is None:
             msg = "The number of unpaired electrons should be between 2 and 8."
             raise ValueError(msg)
-        
+
         result = []
         for dq in self.df["Energy"]:
             states = solver_class(Dq=dq, B=self.B, C=self.C).solver()
@@ -177,7 +175,7 @@ class CMDmain:
         if solver_class is None:
             msg = "The number of unpaired electrons should be between 2 and 8."
             raise ValueError(msg)
-        
+
         states = solver_class(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
         self.ts_print(states, dq_ci=dq_ci)
 
