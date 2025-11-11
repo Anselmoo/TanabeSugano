@@ -1,3 +1,5 @@
+"""Tools for Slater-Condon to Racah parameter transformations."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
