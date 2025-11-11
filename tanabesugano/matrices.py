@@ -13,6 +13,8 @@ import numpy as np
 from numpy._typing._array_like import NDArray
 from numpy.linalg import eigh
 
+from tanabesugano.constants import ENERGY_TOLERANCE
+
 
 _sqrt2 = np.sqrt(2.0)
 _sqrt3 = np.sqrt(3.0)
@@ -1083,7 +1085,7 @@ class d6(LigandFieldTheory):
         A_3_2 = -GS + self.A_3_2_states()
         A_1_2 = -GS + self.A_1_2_states()
 
-        if A_1_1[0] <= 1e-4:
+        if A_1_1[0] <= ENERGY_TOLERANCE:
             T_1_2 -= A_1_1[0]
 
             E_1_1 -= A_1_1[0]

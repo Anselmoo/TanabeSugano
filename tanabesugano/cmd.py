@@ -22,6 +22,11 @@ except ImportError:  # pragma: no cover
 from tanabesugano import __version__
 from tanabesugano import matrices
 from tanabesugano import tools
+from tanabesugano.constants import ElectronConfiguration
+
+
+# Import the solver mapping from batch module
+from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
 
 
 class CMDmain:
@@ -62,11 +67,15 @@ class CMDmain:
         energy = np.linspace(0.0, self.Dq, nroots)
 
         self.d_count = d_count
-        if self.d_count in {4, 5, 6}:
+        if self.d_count in {
+            ElectronConfiguration.D4,
+            ElectronConfiguration.D5,
+            ElectronConfiguration.D6,
+        }:
             self._size = 42
-        if self.d_count in {3, 7}:
+        if self.d_count in {ElectronConfiguration.D3, ElectronConfiguration.D7}:
             self._size = 19
-        if self.d_count in {2, 8}:
+        if self.d_count in {ElectronConfiguration.D2, ElectronConfiguration.D8}:
             self._size = 10
         self.result = np.zeros((self._size + 1, nroots))
 
@@ -132,53 +141,16 @@ class CMDmain:
 
     def calculation(self) -> None:
         """Fill self.result with iTS states of over-iterated energy range."""
+        # Get the solver class for this electron configuration
+        solver_class = ELECTRON_CONFIG_SOLVERS.get(self.d_count)
+        if solver_class is None:
+            msg = "The number of unpaired electrons should be between 2 and 8."
+            raise ValueError(msg)
+        
         result = []
         for dq in self.df["Energy"]:
-            if self.d_count == 2:  # d2
-                result.append(
-                    self.subsplit_states(
-                        matrices.d2(Dq=dq, B=self.B, C=self.C).solver(),
-                    ),
-                )
-            elif self.d_count == 3:  # d3
-                result.append(
-                    self.subsplit_states(
-                        matrices.d3(Dq=dq, B=self.B, C=self.C).solver(),
-                    ),
-                )
-            elif self.d_count == 4:  # d4
-                result.append(
-                    self.subsplit_states(
-                        matrices.d4(Dq=dq, B=self.B, C=self.C).solver(),
-                    ),
-                )
-            elif self.d_count == 5:  # d5
-                result.append(
-                    self.subsplit_states(
-                        matrices.d5(Dq=dq, B=self.B, C=self.C).solver(),
-                    ),
-                )
-            elif self.d_count == 6:  # d6
-                result.append(
-                    self.subsplit_states(
-                        matrices.d6(Dq=dq, B=self.B, C=self.C).solver(),
-                    ),
-                )
-            elif self.d_count == 7:  # d7
-                result.append(
-                    self.subsplit_states(
-                        matrices.d7(Dq=dq, B=self.B, C=self.C).solver(),
-                    ),
-                )
-            elif self.d_count == 8:  # d8
-                result.append(
-                    self.subsplit_states(
-                        matrices.d8(Dq=dq, B=self.B, C=self.C).solver(),
-                    ),
-                )
-            else:
-                msg = "The number of unpaired electrons should be between 2 and 8."
-                raise ValueError(msg)
+            states = solver_class(Dq=dq, B=self.B, C=self.C).solver()
+            result.append(self.subsplit_states(states))
 
         # Transform list of dictionaries to dictionary of arrays
         result = {
@@ -200,33 +172,14 @@ class CMDmain:
 
     def ci_cut(self, dq_ci: float | None = None) -> None:
         """Extract atomic-termsymbols for specific dq by oxidation state."""
-        if self.d_count == 2:  # d2
-            states = matrices.d2(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
-            self.ts_print(states, dq_ci=dq_ci)
-
-        elif self.d_count == 3:  # d3
-            states = matrices.d3(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
-            self.ts_print(states, dq_ci=dq_ci)
-
-        elif self.d_count == 4:  # d4
-            states = matrices.d4(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
-            self.ts_print(states, dq_ci=dq_ci)
-
-        elif self.d_count == 5:  # d5
-            states = matrices.d5(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
-            self.ts_print(states, dq_ci=dq_ci)
-
-        elif self.d_count == 6:  # d6
-            states = matrices.d6(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
-            self.ts_print(states, dq_ci=dq_ci)
-
-        elif self.d_count == 7:  # d7
-            states = matrices.d7(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
-            self.ts_print(states, dq_ci=dq_ci)
-
-        elif self.d_count == 8:  # d8
-            states = matrices.d8(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
-            self.ts_print(states, dq_ci=dq_ci)
+        # Get the solver class for this electron configuration
+        solver_class = ELECTRON_CONFIG_SOLVERS.get(self.d_count)
+        if solver_class is None:
+            msg = "The number of unpaired electrons should be between 2 and 8."
+            raise ValueError(msg)
+        
+        states = solver_class(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+        self.ts_print(states, dq_ci=dq_ci)
 
     def ts_print(self, states: dict, dq_ci: float | None = None) -> None:
         """Print the atomic-termsymbols.
