@@ -285,10 +285,8 @@ class CMDmain:
     def interactive_plot(self) -> None:
         """Interactive plot for the tanabe-sugano-diagram."""
         if px is None:
-            raise ImportError(
-                "Plotly is not installed. Please install plotly "
-                "with 'pip install tanabesugano[plotly]'!",
-            )
+            msg = "Plotly is not installed. Please install plotly with 'pip install tanabesugano[plotly]'!"
+            raise ImportError(msg)
 
         _col = self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).columns
         _font = dict(family="Avant Garde, sans-serif", size=12, color="grey")

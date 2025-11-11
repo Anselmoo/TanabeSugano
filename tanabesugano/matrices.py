@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from typing import Dict
-from typing import List
-from typing import Tuple
-
 
 try:
     from typing import TypeAlias
@@ -59,7 +55,7 @@ class LigandFieldTheory:
         """
         return eigh(matrix)[0]
 
-    def solver(self) -> Dict[str, Float64Array]:
+    def solver(self) -> dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
@@ -72,8 +68,8 @@ class LigandFieldTheory:
 
     def construct_matrix(
         self,
-        diag_elements: List[float],
-        off_diag_elements: Dict[Tuple[int, int], float],
+        diag_elements: list[float],
+        off_diag_elements: dict[tuple[int, int], float],
     ) -> Float64Array:
         """Construct a symmetric matrix from diagonal and off-diagonal elements."""
         size = len(diag_elements)
@@ -130,7 +126,7 @@ class d2(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> Dict[str, Float64Array]:
+    def solver(self) -> dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
@@ -250,7 +246,7 @@ class d3(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> Dict[str, Float64Array]:
+    def solver(self) -> dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
@@ -499,7 +495,7 @@ class d4(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> Dict[str, Float64Array]:
+    def solver(self) -> dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
@@ -787,7 +783,7 @@ class d5(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> Dict[str, Float64Array]:
+    def solver(self) -> dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
@@ -1058,7 +1054,7 @@ class d6(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> Dict[str, Float64Array]:
+    def solver(self) -> dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
@@ -1205,7 +1201,7 @@ class d7(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> Dict[str, np.ndarray]:
+    def solver(self) -> dict[str, np.ndarray]:
         """Solve for all states and return a dictionary of results.
 
         Returns:
@@ -1260,6 +1256,7 @@ class d7(LigandFieldTheory):
 
 class d8(LigandFieldTheory):
     """Class for d8 configuration."""
+
     def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0) -> None:
         """Initialize the d8 configuration with given parameters.
 
@@ -1302,7 +1299,7 @@ class d8(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> Dict[str, Float64Array]:
+    def solver(self) -> dict[str, Float64Array]:
         """Solve for all states and return a dictionary of results.
 
         Returns:

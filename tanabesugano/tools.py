@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Tuple
-from typing import Union
 
 
 if TYPE_CHECKING:
@@ -10,9 +8,9 @@ if TYPE_CHECKING:
 
 
 def racah(
-    F2: Union[float, np.array],
-    F4: Union[float, np.array],
-) -> Union[Tuple[float, float], Tuple[np.array, np.array]]:
+    F2: float | np.array,
+    F4: float | np.array,
+) -> tuple[float, float] | tuple[np.array, np.array]:
     """Transform the Slater-Condon-Parameter to Racah-Parameter.
 
     Re-calculating and normalization of the Slater-Condon-Parameter to Racah-Parameter

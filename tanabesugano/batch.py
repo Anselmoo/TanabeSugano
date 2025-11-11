@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 import numpy as np
 
 from tanabesugano import matrices
@@ -11,9 +9,9 @@ from tanabesugano import tools
 class Batch:
     def __init__(
         self,
-        Dq: List[float] = None,
-        B: List[float] = None,
-        C: List[float] = None,
+        Dq: list[float] = None,
+        B: list[float] = None,
+        C: list[float] = None,
         d_count: int = 5,
         slater: bool = False,
     ):
@@ -24,28 +22,17 @@ class Batch:
         if C is None:
             C = [3600.0, 4000, 10]
         if len(Dq) != 3:
-            raise KeyError(
-                "The range of `Dq` is based on the three values: start, stop, steps!",
-            )
+            msg = "The range of `Dq` is based on the three values: start, stop, steps!"
+            raise KeyError(msg)
         self.Dq = np.linspace(Dq[0], Dq[1], int(Dq[2]))  # Oh-crystalfield-splitting
         if len(B) != 3:
-            raise KeyError(
-                "The range of `B` is based on the three values: start, stop, steps!",
-            )
-        self.B = np.linspace(
-            B[0],
-            B[1],
-            int(B[2]),
-        )  # Racah-Parameter B in wavenumbers
+            msg = "The range of `B` is based on the three values: start, stop, steps!"
+            raise KeyError(msg)
+        self.B = np.linspace(B[0], B[1], int(B[2]))  # Racah-B-parameter
         if len(C) != 3:
-            raise KeyError(
-                "The range of `C` is based on the three values: start, stop, steps!",
-            )
-        self.C = np.linspace(
-            C[0],
-            C[1],
-            int(C[2]),
-        )  # Racah-Parameter C in wavenumbers
+            msg = "The range of `C` is based on the three values: start, stop, steps!"
+            raise KeyError(msg)
+        self.C = np.linspace(C[0], C[1], int(C[2]))  # Racah-C-parameter
 
         if slater:
             # Transformin Racah to Slater-Condon
@@ -60,7 +47,7 @@ class Batch:
             self._size = 19
         if self.d_count in {2, 8}:
             self._size = 10
-        self.result: List[dict] = []
+        self.result: list[dict] = []
 
     def calculation(self) -> None:
         """Is filling the self.result with the iTS states of over-iterated energy range."""
@@ -149,7 +136,7 @@ class Batch:
                         raise ValueError("not a correct value!")
 
     @property
-    def return_result(self) -> List[dict]:
+    def return_result(self) -> list[dict]:
         return self.result
 
 
