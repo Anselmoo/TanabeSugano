@@ -89,17 +89,7 @@ dev = [
 
 [tool.ruff]
 lint.select = ["ALL"]
-lint.ignore = [
-    "UP006", "UP007",  # Deprecated typing imports handled by pyupgrade
-    "N801", "N802", "N803", "N806",  # Naming conventions for legacy vars
-    "D100", "D101", "D104",  # Missing module/class/package docstrings
-    "D102", "D107",  # Missing method/init docstrings (legacy codebase)
-    "FBT001", "FBT002",  # Boolean positional args (API design)
-    "C901",  # Function complexity (intentional legacy design)
-    "PLR2004",  # Magic values (many comparison constants)
-    "PLR0913",  # Too many function arguments (API design)
-    "A005",  # Module shadows builtin (cmd module name)
-]
+lint.ignore = ["UP006", "UP007", "N801", "N802", "N803", "N806"]
 target-version = "py310"
 src = ["tanabesugano"]
 

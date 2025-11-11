@@ -41,15 +41,15 @@ jobs:
           cd docs
           npm run build
 
-      - name: Copy diagram CSVs into output (docs/) after build
+      - name: Copy diagram CSVs into build output
         run: |
-          mkdir -p docs/ts-diagrams
-          cp -r ts-diagrams/* docs/ts-diagrams/
+          mkdir -p docs/dist/ts-diagrams
+          cp -r ts-diagrams/* docs/dist/ts-diagrams/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs
+          path: ./docs/dist
 
   deploy:
     environment:
