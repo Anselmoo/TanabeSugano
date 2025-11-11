@@ -1,3 +1,5 @@
+"""Tests for matrix calculation module."""
+
 from __future__ import annotations
 
 import numpy as np

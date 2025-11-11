@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Command-line interface for Tanabe-Sugano diagram generation."""
 
 from __future__ import annotations
 

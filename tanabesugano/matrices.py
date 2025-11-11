@@ -1,3 +1,5 @@
+"""Matrix definitions for d-orbital electronic state calculations."""
+
 from __future__ import annotations
 
 

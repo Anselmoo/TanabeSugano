@@ -16,8 +16,8 @@ repos:
   -   repo: https://github.com/astral-sh/ruff-pre-commit
       rev: v0.14.4
       hooks:
-        - id: ruff-check
+        - id: ruff
           types_or: [python, pyi]
-          args: [--fix]
+          args: [--fix, --select=D100,E,F,W]
         - id: ruff-format
           types_or: [python, pyi]
