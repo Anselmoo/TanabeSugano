@@ -27,8 +27,6 @@ classifiers = [
         "Operating System :: Unix",
         "Operating System :: Microsoft :: Windows",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -38,15 +36,12 @@ classifiers = [
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Utilities",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "pandas>=1.2.4,<4.0.0",
-    "numpy>=1.24.4; python_version < '3.9'",
-    "numpy>=1.26.4,<2.0; python_version >= '3.9' and python_version < '3.10'",
-    "numpy>=2.0.2; python_version >= '3.10'",
+    "numpy>=2.0.2",
     "matplotlib>=3.4.2",
     "prettytable>=2.1,<4.0",
-    "update>=0.0.1",
 ]
 
 [project.optional-dependencies]
@@ -93,7 +88,7 @@ dev = [
 [tool.ruff]
 lint.select = ["ALL"]
 lint.ignore = ["UP006", "UP007", "N801", "N802", "N803", "N806"]
-target-version = "py38"
+target-version = "py310"
 src = ["tanabesugano"]
 
 [tool.ruff.lint.per-file-ignores]

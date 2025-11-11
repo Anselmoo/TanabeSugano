@@ -1,5 +1,6 @@
 name: Deploy GitHub Pages
 
+# This will be automatically updated via new release
 on:
   # Deploy the Pages site when a new release is published
   release:

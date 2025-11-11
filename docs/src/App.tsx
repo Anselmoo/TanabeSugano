@@ -27,6 +27,16 @@ function App() {
         </div>
       </div>
       <DiagramViewer config={selectedConfig} />
+      <footer className="footer">
+        <div className="footer-content">
+          <p>
+            Made with <span className="heart">♥</span> for open science
+          </p>
+          <p>
+            MIT License | <a href="https://github.com/Anselmoo/TanabeSugano" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+          </p>
+        </div>
+      </footer>
     </>
   )
 }
