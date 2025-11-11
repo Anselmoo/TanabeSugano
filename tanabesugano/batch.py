@@ -38,8 +38,6 @@ class Batch:
             # Transformin Racah to Slater-Condon
             self.B, self.C = tools.racah(B, C)
 
-        # self.delta_B = self.e_range / self.B
-
         self.d_count = d_count
         if self.d_count in {4, 5, 6}:
             self._size = 42
@@ -50,7 +48,7 @@ class Batch:
         self.result: list[dict] = []
 
     def calculation(self) -> None:
-        """Is filling the self.result with the iTS states of over-iterated energy range."""
+        """Fill self.result with iTS states of over-iterated energy range."""
         for _Dq in self.Dq:
             for _B in self.B:
                 for _C in self.C:

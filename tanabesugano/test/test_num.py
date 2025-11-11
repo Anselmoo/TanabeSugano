@@ -5,29 +5,24 @@ import numpy as np
 from tanabesugano import matrices
 
 
-def state_check(x) -> int:
+def state_check(x: int) -> int | None:
+    state_functions = {
+        2: matrices.d2,
+        3: matrices.d3,
+        4: matrices.d4,
+        5: matrices.d5,
+        6: matrices.d6,
+        7: matrices.d7,
+        8: matrices.d8,
+    }
+
+    if x not in state_functions:
+        return None
+
     for i in np.linspace(0, 1500, 30):
-        if x == 2:
-            states = matrices.d2(Dq=i).solver()
-            return len(states)
-        if x == 3:
-            states = matrices.d3(Dq=i).solver()
-            return len(states)
-        if x == 4:
-            states = matrices.d4(Dq=i).solver()
-            return len(states)
-        if x == 5:
-            states = matrices.d5(Dq=i).solver()
-            return len(states)
-        if x == 6:
-            states = matrices.d6(Dq=i).solver()
-            return len(states)
-        if x == 7:
-            states = matrices.d7(Dq=i).solver()
-            return len(states)
-        if x == 8:
-            states = matrices.d8(Dq=i).solver()
-            return len(states)
+        states = state_functions[x](Dq=i).solver()
+        return len(states)
+
     return None
 
 

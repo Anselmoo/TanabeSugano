@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from tanabesugano import cmd as frontapp
+
+
+if TYPE_CHECKING:
+    from pytest_console_scripts import ScriptRunner
 
 
 def test_frontapp():
@@ -15,6 +19,6 @@ def test_frontapp():
     ).calculation()
 
 
-def test_cmd(script_runner: Any) -> None:
+def test_cmd(script_runner: ScriptRunner) -> None:
     ret = script_runner.run("tanabesugano", "--help")
     assert ret.success

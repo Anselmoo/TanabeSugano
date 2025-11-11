@@ -73,7 +73,7 @@ def test_solver_not_implemented(ligand_field_theory):
     # Act & Assert
     with pytest.raises(
         NotImplementedError,
-        match="Subclasses should implement this method.",
+        match=r"Subclasses should implement this method\.",
     ):
         ligand_field_theory.solver()
 
