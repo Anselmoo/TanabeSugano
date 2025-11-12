@@ -5,6 +5,9 @@ on:
   # Deploy the Pages site when a new release is published
   release:
     types: [published]
+  # Deploy automatically when code is pushed to master so site and diagrams stay up-to-date
+  push:
+    branches: [master]
   # Allow manual runs
   workflow_dispatch:
 
@@ -44,7 +47,15 @@ jobs:
       - name: Copy diagram CSVs into build output
         run: |
           mkdir -p docs/dist/ts-diagrams
-          cp -r ts-diagrams/* docs/dist/ts-diagrams/
+          # The diagram CSVs are located under docs/ts-diagrams, not the repository root
+          cp -r docs/ts-diagrams/* docs/dist/ts-diagrams/
+
+      - name: Show build output summary (for debugging)
+        run: |
+          echo "-- dist/index.html --"
+          ls -la docs/dist | sed -n '1,200p'
+          echo "-- dist/ts-diagrams --"
+          ls -la docs/dist/ts-diagrams | sed -n '1,200p'
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
