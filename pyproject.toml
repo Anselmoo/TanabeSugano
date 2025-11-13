@@ -1,6 +1,6 @@
 [project]
 name = "tanabesugano"
-version = "1.6.0"
+version = "1.6.1"
 description = "A python-solver for Tanabe-Sugano and Energy-Correlation diagrams"
 authors = [
     {name = "Anselm Hahn", email = "anselm.hahn@gmail.com"}
@@ -30,6 +30,8 @@ classifiers = [
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: System :: Shells",
         "Topic :: Scientific/Engineering :: Visualization",
         "Topic :: Scientific/Engineering :: Chemistry",
@@ -90,18 +92,13 @@ dev = [
 [tool.ruff]
 lint.select = ["ALL"]
 lint.ignore = [
-    "UP006",   # Use `type` instead of `Type` for type annotations
-    "UP007",   # Use `X | Y` for Union type annotations
-    "N801",    # Class name should use CapWords convention
-    "N802",    # Function name should be lowercase
-    "N803",    # Argument name should be lowercase
-    "N806",    # Variable in function should be lowercase
-    "D101",    # Missing docstring in public class
-    "D102",    # Missing docstring in public method
-    "D107",    # Missing docstring in __init__
-    "PLR0913", # Too many arguments in function definition
-    "FBT001",  # Boolean-typed positional argument in function
-    "FBT002",  # Boolean default positional argument in function
+    "N801",    # Class name should use CapWords convention (d2, d3, etc. are scientific notation)
+    "N802",    # Function name should be lowercase (A_1_1_states, etc. are scientific notation)
+    "N803",    # Argument name should be lowercase (Dq, B, C are standard scientific notation)
+    "N806",    # Variable in function should be lowercase (Dq, B, C are standard scientific notation)
+    "PLR0913", # Too many arguments in function definition (CLI design choice)
+    "FBT001",  # Boolean-typed positional argument in function (intentional design)
+    "FBT002",  # Boolean default positional argument in function (intentional design)
     "A005",    # Module shadows Python standard library (cmd.py is intentional)
 ]
 target-version = "py310"
