@@ -28,6 +28,12 @@ from tanabesugano.constants import ElectronConfiguration
 
 
 class CMDmain:
+    """Command-line interface for Tanabe-Sugano diagram generation and visualization.
+
+    This class provides the main interface for generating and plotting Tanabe-Sugano
+    diagrams from the command line, supporting both matplotlib and plotly outputs.
+    """
+
     def __init__(
         self,
         Dq: float = 4000.0,
@@ -90,6 +96,13 @@ class CMDmain:
         )
 
     def plot(self) -> None:
+        """Generate and display Tanabe-Sugano and DD excitation diagrams.
+
+        Creates two matplotlib figures:
+        1. Tanabe-Sugano diagram with E/B vs Delta/B
+        2. DD excitations diagram with dd-state-energy vs 10Dq
+
+        """
         # Figure one for classical Tanabe-Sugano-Diagram with B-dependency
         plt.figure(1)
 
@@ -124,6 +137,13 @@ class CMDmain:
         plt.xlabel(arg2)
 
     def savetxt(self) -> None:
+        """Save Tanabe-Sugano and DD excitation data to CSV files.
+
+        Creates two CSV files:
+        - TS diagram data (E/B vs Delta/B)
+        - DD excitations data (dd-state-energy vs 10Dq)
+
+        """
         pd.concat(
             [
                 self.df["delta_B"],

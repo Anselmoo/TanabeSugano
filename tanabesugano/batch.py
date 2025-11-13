@@ -56,6 +56,12 @@ def _validate_parameter_range(
 
 
 class Batch:
+    """Batch calculation of Tanabe-Sugano diagrams across parameter ranges.
+
+    This class performs calculations across ranges of crystal field splitting (Dq),
+    Racah parameters (B, C) to generate comprehensive Tanabe-Sugano diagram data.
+    """
+
     def __init__(
         self,
         Dq: list[float] | None = None,
@@ -64,6 +70,25 @@ class Batch:
         d_count: int = 5,
         slater: bool = False,
     ) -> None:
+        """Initialize batch calculation parameters.
+
+        Parameters
+        ----------
+        Dq : list[float] | None, optional
+            Range for Oh crystal field splitting [start, stop, steps],
+            by default [4000.0, 4500.0, 10]
+        B : list[float] | None, optional
+            Range for Racah B parameter [start, stop, steps],
+            by default [400.0, 4500.0, 10]
+        C : list[float] | None, optional
+            Range for Racah C parameter [start, stop, steps],
+            by default [3600.0, 4000, 10]
+        d_count : int, optional
+            Electron configuration (d2-d8), by default 5
+        slater : bool, optional
+            Transform from Racah to Slater-Condon parameters, by default False
+
+        """
         if Dq is None:
             Dq = [4000.0, 4500.0, 10]
         if B is None:
@@ -121,6 +146,15 @@ class Batch:
 
     @property
     def return_result(self) -> list[dict]:
+        """Return the calculated Tanabe-Sugano diagram results.
+
+        Returns
+        -------
+        list[dict]
+            List of dictionaries containing d_count, Dq, B, C,
+            and states for each calculation.
+
+        """
         return self.result
 
 
