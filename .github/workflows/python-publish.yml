@@ -43,6 +43,9 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/tanabesugano/
     permissions:
       id-token: write # IMPORTANT: mandatory for trusted publishing
 
@@ -61,6 +64,9 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/tanabesugano/
     permissions:
       id-token: write # IMPORTANT: mandatory for trusted publishing
 
