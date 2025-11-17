@@ -79,7 +79,7 @@ exclude = [
 
 [dependency-groups]
 dev = [
-    "pytest>=7.2,<9.0",
+    "pytest>=7.2,<10.0",
     "pytest-clarity>=1.0.1",
     "pytest-cov>=4,<6",
     "flake8>=6,<8",
