@@ -12,9 +12,9 @@ on:
 
 # Cancel superseded runs on PR / non-master pushes. Tag and master runs are
 # allowed to complete (publishes must not be cancelled mid-flight).
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+# concurrency:
+#   group: ci-${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
