@@ -154,7 +154,7 @@ def fit_spectrum(
             transitions = _extract_transition_energies(terms)
             predicted = np.array([t[0] for t in transitions])
             return _match_peaks(observed, predicted)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return 1e6
 
     initial_guess = np.array([5000.0, 600.0])
@@ -175,3 +175,106 @@ def fit_spectrum(
     final_rmse = _match_peaks(observed, np.array([t[0] for t in predicted_transitions]))
 
     return fitted_dq, fitted_b, C, final_rmse, predicted_transitions
+
+
+def _classify_covalency(beta: float) -> str:
+    """Map a nephelauxetic ratio to a qualitative bond-covalency label."""
+    if beta >= 0.95:
+        return "essentially ionic"
+    if beta >= 0.85:
+        return "weakly covalent"
+    if beta >= 0.70:
+        return "moderately covalent"
+    if beta >= 0.55:
+        return "strongly covalent"
+    return "very strongly covalent"
+
+
+def _suggest_ligands(beta: float, ion: str) -> list[str]:
+    """Suggest ligands whose nephelauxetic cloud expansion matches the observed beta.
+
+    Uses Jorgensen's (1 - beta) = h(ligand) * k(metal) relation. We solve for the
+    h(ligand) implied by the fit and return the nearest entries in the series.
+    """
+    from tanabesugano.mcp._defaults import NEPHELAUXETIC_METAL_K
+    from tanabesugano.mcp._defaults import NEPHELAUXETIC_SERIES
+
+    k_metal = NEPHELAUXETIC_METAL_K.get(ion)
+    if not k_metal or k_metal <= 0:
+        return []
+
+    implied_h = (1.0 - beta) / k_metal
+    ranked = sorted(
+        NEPHELAUXETIC_SERIES,
+        key=lambda entry: abs(entry[1] - implied_h),
+    )
+    return [name for name, _h in ranked[:3]]
+
+
+def nephelauxetic_analysis(
+    d_count: int,
+    fitted_B: float,
+    ion: str | None = None,
+) -> dict[str, object]:
+    """Interpret a fitted Racah B as metal-ligand bond covalency.
+
+    Computes the nephelauxetic ratio beta = B(complex) / B(free ion), classifies
+    the bond covalency, and suggests the ligand class implied by the cloud
+    expansion.
+
+    Parameters
+    ----------
+    d_count : int
+        Number of d electrons (2-8); used to validate / default the ion.
+    fitted_B : float
+        The Racah B parameter of the complex (cm^-1), e.g. from fit_spectrum.
+    ion : str, optional
+        Free-ion label such as "Ni2+". If None, the first ion tabulated for the
+        given d_count is used.
+
+    Returns
+    -------
+    dict[str, object]
+        ion, free_ion_B, beta, covalency, suggested_ligands, interpretation.
+
+    """
+    from tanabesugano.mcp._defaults import FREE_ION_RACAH_B
+    from tanabesugano.mcp._defaults import ION_BY_D_COUNT
+
+    if fitted_B <= 0:
+        msg = f"fitted_B must be positive, got {fitted_B}"
+        raise ValueError(msg)
+
+    candidates = ION_BY_D_COUNT.get(d_count)
+    if not candidates:
+        msg = f"No tabulated free ions for d_count={d_count}"
+        raise ValueError(msg)
+
+    if ion is None:
+        ion = candidates[0]
+    elif ion not in FREE_ION_RACAH_B:
+        msg = f"Unknown ion {ion!r}; known ions: {sorted(FREE_ION_RACAH_B)}"
+        raise ValueError(msg)
+
+    free_ion_b = FREE_ION_RACAH_B[ion]
+    beta = fitted_B / free_ion_b
+    covalency = _classify_covalency(beta)
+    suggested = _suggest_ligands(beta, ion)
+
+    reduction_pct = (1.0 - beta) * 100.0
+    interpretation = (
+        f"beta = {beta:.3f}: the d-electron cloud of {ion} has expanded by "
+        f"{reduction_pct:.0f}% relative to the free ion, indicating a(n) "
+        f"{covalency} metal-ligand bond."
+    )
+    if suggested:
+        interpretation += f" Consistent with ligands such as {', '.join(suggested)}."
+
+    return {
+        "ion": ion,
+        "free_ion_B": free_ion_b,
+        "beta": beta,
+        "covalency": covalency,
+        "suggested_ligands": suggested,
+        "interpretation": interpretation,
+    }

@@ -8,6 +8,7 @@ from tanabesugano import __version__
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
 from tanabesugano.mcp._compute import compute_point
 from tanabesugano.mcp._compute import fit_spectrum
+from tanabesugano.mcp._compute import nephelauxetic_analysis
 from tanabesugano.mcp._compute import sweep_dq
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
@@ -16,6 +17,7 @@ from tanabesugano.mcp.models import ComputeResult
 from tanabesugano.mcp.models import DiagramPoint
 from tanabesugano.mcp.models import DiagramResult
 from tanabesugano.mcp.models import FitResult
+from tanabesugano.mcp.models import NephelauxeticResult
 from tanabesugano.mcp.models import SpectrumPeak
 from tanabesugano.mcp.models import SupportedConfig
 from tanabesugano.mcp.tools._shared import READONLY
@@ -203,4 +205,62 @@ def register(mcp: FastMCP) -> None:
             observed_peaks_cm1=observed_peaks_cm1,
             predicted_peaks_cm1=predicted_energies,
             peak_assignments=peak_assignments,
+        )
+
+    @mcp.tool(
+        name="ts_nephelauxetic",
+        title="Interpret a fitted Racah B as metal-ligand bond covalency",
+        version=__version__,
+        tags={"tanabesugano", "interpret", "covalency", "spectroscopy"},
+        annotations=READONLY,
+        meta=TS_META,
+    )
+    def ts_nephelauxetic(
+        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        fitted_B: float,
+        ion: str | None = None,
+    ) -> NephelauxeticResult | ComputeError:
+        """Interpret a fitted Racah B as metal-ligand bond covalency.
+
+        Computes the nephelauxetic ratio β = B(complex) / B(free ion) — the
+        classic spectroscopic measure of how far the d-electron cloud has
+        expanded onto the ligands. β near 1.0 means an essentially ionic bond;
+        β well below 1.0 means increasing covalent character. The ratio also
+        places the ligand on the nephelauxetic series.
+
+        Pairs naturally with ts_fit_spectrum: fit a spectrum to get B, then feed
+        that B here to learn what kind of bond produced it.
+
+        Args:
+            d_count: d-electron count (2..8); selects the free-ion table.
+            fitted_B: Racah B of the complex (cm^-1), e.g. from ts_fit_spectrum.
+            ion: Free-ion label such as "Ni2+". If omitted, the first ion
+                tabulated for the d_count is used.
+
+        Returns:
+            NephelauxeticResult with β, a covalency label, suggested ligand
+            classes, and a human-readable interpretation.
+
+        Example:
+            A d8 Ni2+ complex fitted to B = 890 cm^-1:
+            ts_nephelauxetic(d_count=8, fitted_B=890, ion="Ni2+")
+            → β ≈ 0.85 (weakly covalent; consistent with H2O / NH3).
+
+        """
+        if fitted_B <= 0:
+            return ComputeError(error=f"fitted_B must be positive, got {fitted_B}")
+
+        try:
+            result = nephelauxetic_analysis(d_count, fitted_B, ion=ion)
+        except (ValueError, KeyError) as exc:
+            return ComputeError(error=f"Nephelauxetic analysis failed: {exc!s}")
+
+        return NephelauxeticResult(
+            ion=str(result["ion"]),
+            free_ion_B=float(result["free_ion_B"]),  # type: ignore[arg-type]
+            complex_B=fitted_B,
+            beta=float(result["beta"]),  # type: ignore[arg-type]
+            covalency=str(result["covalency"]),
+            suggested_ligands=list(result["suggested_ligands"]),  # type: ignore[arg-type]
+            interpretation=str(result["interpretation"]),
         )

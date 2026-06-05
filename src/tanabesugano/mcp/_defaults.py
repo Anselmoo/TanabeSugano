@@ -27,6 +27,78 @@ DEFAULTS: dict[int, _DConfig] = {
 }
 
 
+FREE_ION_RACAH_B: dict[str, float] = {
+    # Free-ion Racah B parameters in cm^-1. Source: A.B.P. Lever,
+    # "Inorganic Electronic Spectroscopy" (2nd ed., 1984), Table 6.
+    # Grouped by the d-electron count each ion presents in an octahedral field.
+    # d2
+    "Ti2+": 718.0,
+    "V3+": 861.0,
+    # d3
+    "V2+": 766.0,
+    "Cr3+": 918.0,
+    "Mn4+": 1064.0,
+    # d4
+    "Cr2+": 830.0,
+    "Mn3+": 1140.0,
+    # d5
+    "Mn2+": 860.0,
+    "Fe3+": 1015.0,
+    # d6
+    "Fe2+": 1058.0,
+    "Co3+": 1100.0,
+    # d7
+    "Co2+": 971.0,
+    "Ni3+": 1035.0,
+    # d8
+    "Ni2+": 1041.0,
+}
+
+# Which free ions map onto each d-electron count (for validation + suggestions).
+ION_BY_D_COUNT: dict[int, tuple[str, ...]] = {
+    2: ("Ti2+", "V3+"),
+    3: ("V2+", "Cr3+", "Mn4+"),
+    4: ("Cr2+", "Mn3+"),
+    5: ("Mn2+", "Fe3+"),
+    6: ("Fe2+", "Co3+"),
+    7: ("Co2+", "Ni3+"),
+    8: ("Ni2+",),
+}
+
+# Jorgensen k(metal) parameters for the nephelauxetic relation
+# (1 - beta) = h(ligand) * k(metal). Source: Jorgensen (1962); Lever (1984).
+# Only well-established values are listed; ions absent here simply skip the
+# ligand-suggestion step (beta and covalency are still reported).
+NEPHELAUXETIC_METAL_K: dict[str, float] = {
+    "Mn2+": 0.07,
+    "V2+": 0.10,
+    "Ni2+": 0.12,
+    "Co2+": 0.14,
+    "Cr3+": 0.21,
+    "Fe3+": 0.24,
+    "Co3+": 0.35,
+    "Mn4+": 0.50,
+}
+
+# Nephelauxetic series: ligands ordered by increasing cloud expansion
+# (decreasing beta). Each entry carries Jorgensen's h parameter, where
+# (1 - beta) ~= h(ligand) * k(metal). Source: Jorgensen (1962); Lever (1984).
+NEPHELAUXETIC_SERIES: tuple[tuple[str, float], ...] = (
+    ("F-", 0.8),
+    ("H2O", 1.0),
+    ("urea", 1.2),
+    ("NH3", 1.4),
+    ("en", 1.5),
+    ("ox2-", 1.5),
+    ("NCS-", 2.0),
+    ("Cl-", 2.0),
+    ("CN-", 2.0),
+    ("Br-", 2.3),
+    ("N3-", 2.4),
+    ("I-", 2.7),
+)
+
+
 WHY_TANABE_SUGANO = (
     "Why use a Tanabe-Sugano diagram? They normalise all term energies by "
     "Racah B, so one chart is universal for every metal ion with a given "

@@ -70,6 +70,20 @@ class FitResult(BaseModel):
     peak_assignments: list[SpectrumPeak] = Field(description="Detailed transition assignments.")
 
 
+class NephelauxeticResult(BaseModel):
+    """Bond-covalency interpretation of a fitted Racah B via the nephelauxetic ratio."""
+
+    ion: str = Field(description="Free-ion label, e.g. 'Ni2+'.")
+    free_ion_B: float = Field(description="Tabulated free-ion Racah B (cm^-1).")
+    complex_B: float = Field(description="Racah B of the complex (cm^-1).")
+    beta: float = Field(description="Nephelauxetic ratio β = B(complex) / B(free ion).")
+    covalency: str = Field(description="Qualitative bond covalency label.")
+    suggested_ligands: list[str] = Field(
+        description="Ligands whose cloud expansion matches the observed β.",
+    )
+    interpretation: str = Field(description="Human-readable chemical interpretation.")
+
+
 class ComputeError(BaseModel):
     """Structured error so agents can recover instead of crashing."""
 
