@@ -19,10 +19,13 @@ from tanabesugano.mcp._compute import sweep_dq  # noqa: E402
 from tanabesugano.mcp.server import create_server  # noqa: E402
 
 
+# ─────────────────────────── core numeric tools ──────────────────────────
+
+
 def test_compute_point_returns_term_dict() -> None:
     terms = compute_point(d_count=3, Dq=900.0, B=918.0, C=4133.0)
     assert isinstance(terms, dict)
-    assert terms  # non-empty
+    assert terms
     for values in terms.values():
         assert isinstance(values, list)
         for v in values:
@@ -45,87 +48,122 @@ def test_sweep_dq_shapes() -> None:
         assert set(pt.keys()) == keys
 
 
-def test_create_server_registers_tools() -> None:
+# ─────────────────────────── server registration ─────────────────────────
+
+
+def test_create_server_registers_expected_tools() -> None:
     server = create_server()
     tools = asyncio.run(server.list_tools())
     tool_names = {t.name for t in tools}
+
     expected = {
+        # numeric
         "ts_supported_configs",
         "ts_compute",
         "ts_diagram",
+        "ts_terms_table_data",
+        # plotting
         "ts_plot_png",
         "ts_plot_view",
+        "ts_diagram_app",
+        "ts_dashboard_app",
+        "ts_compare_app",
+        "ts_parameter_heatmap_app",
+        "ts_explore_app",
+        # docs
         "ts_explain",
     }
-    assert expected <= tool_names
+    assert expected <= tool_names, sorted(expected - tool_names)
 
 
-def test_ts_plot_view_returns_plotly_payload() -> None:
-    import json as _json
+def test_generative_ui_tools_are_absent() -> None:
+    """The wrong-domain GenerativeUI tools must NOT show up in our server.
 
-    from fastmcp import Client
-
+    They previously appeared because `register_apps` registered the
+    GenerativeUI provider. We've removed it deliberately -- this test
+    pins that decision.
+    """
     server = create_server()
-
-    async def _call():  # noqa: ANN202
-        async with Client(server) as client:
-            return await client.call_tool(
-                "ts_plot_view",
-                {"d_count": 3, "steps": 5},
-            )
-
-    result = asyncio.run(_call())
-    text_items = [c for c in result.content if getattr(c, "type", None) == "text"]
-    assert text_items, "ts_plot_view must emit a TextContent payload"
-    payload = _json.loads(text_items[0].text)
-    assert payload["d_count"] == 3
-    assert payload["series"], "payload.series must be non-empty"
-    assert all({"name", "x", "y"} <= set(s) for s in payload["series"])
+    tools = asyncio.run(server.list_tools())
+    names = {t.name for t in tools}
+    assert "generate_prefab_ui" not in names
+    assert "search_prefab_components" not in names
 
 
-def test_interactive_view_resource_present() -> None:
+def test_interactive_resources_present() -> None:
     server = create_server()
     resources = asyncio.run(server.list_resources())
     uris = {str(r.uri) for r in resources}
-    assert "ui://tanabesugano/diagram.html" in uris
+    # Heatmap HTML resource for the Chart.js view.
+    assert "ui://tanabesugano/heatmap.html" in uris
 
 
-def test_ts_compute_via_in_process_client() -> None:
+# ─────────────────────────── tool invocations ────────────────────────────
+
+
+def _call(tool: str, args: dict) -> object:
     from fastmcp import Client
 
     server = create_server()
 
-    async def _call():  # noqa: ANN202
+    async def go():  # noqa: ANN202
         async with Client(server) as client:
-            return await client.call_tool(
-                "ts_compute",
-                {"d_count": 3, "Dq": 900.0},
-            )
+            return await client.call_tool(tool, args)
 
-    result = asyncio.run(_call())
-    # FastMCP returns a CallToolResult; the structured payload sits in .data.
-    data = result.data
+    return asyncio.run(go())
+
+
+def test_ts_compute_returns_typed_payload() -> None:
+    result = _call("ts_compute", {"d_count": 3, "Dq": 900.0})
+    data = result.data  # type: ignore[attr-defined]
     assert data is not None
     assert data.d_count == 3
     assert data.Dq == 900.0
     assert data.terms
 
 
+def test_ts_terms_table_returns_sorted_rows() -> None:
+    result = _call("ts_terms_table_data", {"d_count": 3, "Dq": 900.0})
+    data = result.data  # type: ignore[attr-defined]
+    rows = data.rows
+    assert rows, "table must be non-empty"
+    energies = [r.energy_cm for r in rows]
+    assert energies == sorted(energies), "rows must be sorted ascending"
+    assert sum(1 for r in rows if r.is_ground) == 1
+
+
 def test_ts_plot_png_returns_image() -> None:
-    from fastmcp import Client
-
-    server = create_server()
-
-    async def _call():  # noqa: ANN202
-        async with Client(server) as client:
-            return await client.call_tool(
-                "ts_plot_png",
-                {"d_count": 3, "steps": 6},
-            )
-
-    result = asyncio.run(_call())
-    content = result.content if hasattr(result, "content") else result
+    result = _call("ts_plot_png", {"d_count": 3, "steps": 6})
+    content = result.content  # type: ignore[attr-defined]
     assert any(
-        getattr(item, "type", None) == "image" or getattr(item, "mimeType", "") == "image/png"
-        for item in content
+        getattr(c, "type", None) == "image" or getattr(c, "mimeType", "") == "image/png"
+        for c in content
     )
+
+
+@pytest.mark.parametrize(
+    ("tool", "args"),
+    [
+        ("ts_plot_view", {"d_count": 3, "steps": 5}),
+        ("ts_diagram_app", {"d_count": 5, "steps": 8}),
+        ("ts_dashboard_app", {}),
+        ("ts_compare_app", {"d_counts": [3, 5, 8]}),
+        ("ts_parameter_heatmap_app", {"d_count": 5, "term": "6_A_1", "steps": 4}),
+        ("ts_explore_app", {}),
+    ],
+)
+def test_app_tools_return_non_empty_payload(tool: str, args: dict) -> None:
+    result = _call(tool, args)
+    assert not result.is_error, f"{tool} returned is_error=True"  # type: ignore[attr-defined]
+    assert result.content, f"{tool} returned empty content"  # type: ignore[attr-defined]
+
+
+# ─────────────────────────── chemistry sanity ────────────────────────────
+
+
+def test_ts_explain_includes_why_rationale() -> None:
+    result = _call("ts_explain", {"d_count": 5})
+    data = result.data  # type: ignore[attr-defined]
+    text = str(data)
+    assert "Racah B" in text
+    assert "Tanabe" in text

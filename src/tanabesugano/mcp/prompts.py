@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from tanabesugano import __version__
+from tanabesugano.mcp._defaults import WHY_TANABE_SUGANO
 
 
 if TYPE_CHECKING:
@@ -13,6 +14,21 @@ if TYPE_CHECKING:
 
 def register_prompts(mcp: FastMCP) -> None:
     """Register tanabesugano_* prompts on *mcp*."""
+
+    @mcp.prompt(
+        name="tanabesugano_why",
+        title="Why use a Tanabe-Sugano diagram?",
+        version=__version__,
+        tags={"tanabesugano", "background"},
+        meta={"domain": "tanabesugano", "surface": "mcp"},
+    )
+    def tanabesugano_why() -> str:
+        """Return the universal 'why Tanabe-Sugano matters' explanation.
+
+        Use as a first turn when a user asks 'what is a Tanabe-Sugano
+        diagram for?' rather than re-deriving the rationale each time.
+        """
+        return WHY_TANABE_SUGANO
 
     @mcp.prompt(
         name="tanabesugano_explain_complex",

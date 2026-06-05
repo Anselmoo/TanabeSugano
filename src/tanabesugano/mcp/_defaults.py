@@ -27,6 +27,21 @@ DEFAULTS: dict[int, _DConfig] = {
 }
 
 
+WHY_TANABE_SUGANO = (
+    "Why use a Tanabe-Sugano diagram? They normalise all term energies by "
+    "Racah B, so one chart is universal for every metal ion with a given "
+    "d-electron count. The chart shows spin-allowed AND spin-forbidden d-d "
+    "transitions side-by-side, exposes the high-spin / low-spin crossover "
+    "for d4-d7 as a discontinuity in the ground term, and lets chemists fit "
+    "Dq and B from two experimental band ratios (the 'two-ratio method') "
+    "without numerical optimisation. That is why TS diagrams remain the "
+    "go-to tool 70+ years after Tanabe & Sugano (1954) for interpreting "
+    "visible/UV absorption spectra of octahedral transition-metal complexes "
+    "-- a single coarse approximation (crystal-field theory + Racah "
+    "parameters) that nails both paired and unpaired d-electron systems."
+)
+
+
 GROUND_STATE_NOTES: dict[int, str] = {
     2: "d2 (e.g. Ti2+, V3+): octahedral ground state 3T1g, three spin-allowed d-d transitions.",
     3: "d3 (e.g. V2+, Cr3+): 4A2g ground state; classic three-band spectrum used to fit Dq, B.",

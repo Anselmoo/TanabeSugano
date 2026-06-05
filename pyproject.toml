@@ -98,6 +98,10 @@ ignore = [
 "src/tanabesugano/mcp/*" = [
     "PLC0415", # lazy / soft imports are intentional for optional [mcp] extra
     "C901",    # register_tools dispatches the whole ts_* tool family
+    "RUF001",  # nice typography (–, ⁻¹) in user-facing strings is intentional
+    "RUF002",  # ditto in docstrings shown to humans
+    "RUF003",  # ditto in inline comments
+    "TC001",   # D_COUNT_LITERAL needs to be evaluated at runtime for Pydantic
 ]
 "scripts/*" = ["INP001", "T201"]
 

@@ -121,7 +121,12 @@ class CMDmain:
         ground_term, _ = _split(str(ground_col))
 
         def _draw(
-            ax: plt.Axes, x_col: str, y_scale: float, title: str, x_label: str, y_label: str
+            ax: plt.Axes,
+            x_col: str,
+            y_scale: float,
+            title: str,
+            x_label: str,
+            y_label: str,
         ) -> None:
             seen: set[str] = set()
             for col in data_cols:
