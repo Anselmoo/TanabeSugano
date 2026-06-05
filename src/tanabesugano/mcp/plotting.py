@@ -77,9 +77,10 @@ def render_diagram_png(
     x_label = r"$10\,Dq / B$" if normalize else r"$10\,Dq$ (cm$^{-1}$)"
     y_label = r"$E / B$" if normalize else r"$E$ (cm$^{-1}$)"
 
-    # Track the y-position of each term's lowest level at xmax so we can
-    # annotate the ground state precisely.
-    ground_end_y = 0.0
+    # Track the y-position of the ground term's level-0 at xmax for annotation.
+    # Sentinel None means "not yet found"; avoids placing annotation at y=0
+    # when the ground term produces an empty eigenseries.
+    ground_end_y: float | None = None
 
     for term in term_keys:
         series = [pt[term] for pt in points]
@@ -96,7 +97,11 @@ def render_diagram_png(
                 **style,
             )
             if term == ground_term and n == 0 and y_plot:
-                ground_end_y = float(y_plot[-1])
+                import math
+
+                last = y_plot[-1]
+                if not math.isnan(last):  # skip NaN
+                    ground_end_y = float(last)
 
     style_axes(
         ax,
@@ -105,8 +110,8 @@ def render_diagram_png(
         y_label=y_label,
     )
 
-    # Inline annotation of the ground term at the right edge.
-    if x_axis.size:
+    # Inline annotation of the ground term at the right edge (only when found).
+    if x_axis.size and ground_end_y is not None:
         annotate_ground_term(ax, term=ground_term, x=float(x_axis[-1]), y=ground_end_y)
 
     # Secondary x-axis: when normalized show raw 10Dq in cm^-1 on top.

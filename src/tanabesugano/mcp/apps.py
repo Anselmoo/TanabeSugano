@@ -115,13 +115,19 @@ def _sweep_payload(
 
     for i, dq in enumerate(dq_values):
         row: dict[str, float] = {
-            x_key: float(dq * 10.0 / b_val) if normalize else float(dq * 10.0),
+            # Round x to 3 significant figures so tooltips show "0.72" not "0.7161613750298401".
+            x_key: round(float(dq * 10.0 / b_val), 3) if normalize else round(float(dq * 10.0), 1),
         }
         for term, energies in points[i].items():
             if not energies:
                 continue
             key = f"{term}_0"
-            row[key] = float(energies[0] / b_val) if normalize else float(energies[0])
+            # Guard b_val==0 consistently (matches ts_diagram_app line 296).
+            row[key] = (
+                round(float(energies[0] / b_val), 3)
+                if (normalize and b_val)
+                else round(float(energies[0]), 1)
+            )
             if term not in seen_terms:
                 seen_terms.add(term)
                 series_specs.append((key, term_to_unicode(term)))
@@ -455,7 +461,7 @@ def _register_compare(mcp: FastMCP) -> None:
                 for d in valid:
                     cfg = DEFAULTS[d]
                     b_val, c_val = resolve_bc(d, None, None)
-                    rows, series, _title, x_key, _, _, _ = _sweep_payload(
+                    rows, series, _title, x_key, x_label, y_label, _ = _sweep_payload(
                         d,
                         dq_min,
                         dq_max,
@@ -479,6 +485,7 @@ def _register_compare(mcp: FastMCP) -> None:
                             show_dots=False,
                             height=240,
                         )
+                        pf.Muted(content=f"{x_label}  /  {y_label}")
         return app
 
 
