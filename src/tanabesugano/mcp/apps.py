@@ -93,7 +93,7 @@ def _sweep_payload(
     """
     from tanabesugano.mcp._compute import sweep_dq
     from tanabesugano.plot_style import color_for
-    from tanabesugano.plot_style import term_to_mathtext
+    from tanabesugano.plot_style import term_to_unicode
 
     dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
     if not points:
@@ -106,27 +106,30 @@ def _sweep_payload(
 
     x_key = "x"
     rows: list[dict] = []
-    series_specs: list[tuple[str, str]] = []  # (column_key, label)
+    series_specs: list[tuple[str, str]] = []  # (column_key, unicode_label)
     series_colors: dict[str, str] = {}
+    # One series per unique term (level-0 only).  With 42+ states in d6,
+    # including every eigenvalue collapses Prefab's LineChart height to zero.
+    # The full multi-level diagram is available via ts_plot_png (matplotlib PNG).
+    seen_terms: set[str] = set()
 
     for i, dq in enumerate(dq_values):
         row: dict[str, float] = {
             x_key: float(dq * 10.0 / b_val) if normalize else float(dq * 10.0),
         }
         for term, energies in points[i].items():
-            mathtext_label = term_to_mathtext(term)
-            for n, e in enumerate(energies):
-                key = f"{term}_{n}"
-                row[key] = float(e / b_val) if normalize else float(e)
-                if (key, mathtext_label) not in series_specs:
-                    # Show only the lowest level per term in the legend to avoid
-                    # 20-entry legends; higher levels still get plotted.
-                    series_specs.append((key, mathtext_label if n == 0 else ""))
-                    series_colors[key] = color_for(term)
+            if not energies:
+                continue
+            key = f"{term}_0"
+            row[key] = float(energies[0] / b_val) if normalize else float(energies[0])
+            if term not in seen_terms:
+                seen_terms.add(term)
+                series_specs.append((key, term_to_unicode(term)))
+                series_colors[key] = color_for(term)
         rows.append(row)
 
     series = [
-        ChartSeries(data_key=key, label=label or None, color=series_colors[key])
+        ChartSeries(data_key=key, label=label, color=series_colors[key])
         for key, label in series_specs
     ]
 
@@ -266,7 +269,7 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         from tanabesugano.mcp._compute import compute_point
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
-        from tanabesugano.plot_style import term_to_mathtext
+        from tanabesugano.plot_style import term_to_unicode
 
         b_val, c_val = resolve_bc(d_count, B, C)
         rows, series, title, x_key, x_label, y_label, _ground_y = _sweep_payload(
@@ -283,11 +286,11 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         terms_at_end = compute_point(d_count, dq_max, b_val, c_val)
         table_rows: list[dict] = []
         for term, energies in terms_at_end.items():
-            mathtext_label = term_to_mathtext(term)
+            unicode_label = term_to_unicode(term)
             for n, e in enumerate(energies):
                 table_rows.append(
                     {
-                        "term": mathtext_label,
+                        "term": unicode_label,
                         "level": n,
                         "energy_cm": round(float(e), 1),
                         "energy_over_B": round(float(e / b_val), 3) if b_val else 0.0,

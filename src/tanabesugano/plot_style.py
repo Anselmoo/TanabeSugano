@@ -153,6 +153,36 @@ def term_to_mathtext(term: str, *, assume_gerade: bool = True) -> str:
     return rf"$^{{{mult}}}{irrep}$"
 
 
+_SUPER = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+_SUB = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+
+
+def term_to_unicode(term: str, *, assume_gerade: bool = True) -> str:
+    """Convert a key like ``"4_T_1"`` to Unicode ``"⁴T₁g"``.
+
+    Uses Unicode superscript digits for multiplicity and subscript digits for
+    the symmetry label. Suitable for Prefab DataTable cells, chart labels, and
+    any context that cannot render matplotlib mathtext or LaTeX.
+
+    Falls back to the raw key with underscores replaced by spaces if the
+    pattern does not match.
+
+    Args:
+        term: The raw term-symbol key from `tanabesugano.matrices.solver()`.
+        assume_gerade: When True (default) and no parity is encoded in the key,
+            append the octahedral ``g`` subscript.
+
+    """
+    m = _TERM_RE.match(term)
+    if not m:
+        return term.replace("_", " ")
+    mult = m.group("mult").translate(_SUPER)
+    irrep = m.group("irrep")
+    sub = (m.group("sub") or "").translate(_SUB)
+    parity = m.group("parity") or ("g" if assume_gerade else "")
+    return f"{mult}{irrep}{sub}{parity}"
+
+
 def apply_scientific_rcparams() -> None:
     """Push a single set of publication-style rcParams.
 
