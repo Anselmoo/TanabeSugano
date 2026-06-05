@@ -37,6 +37,7 @@ requires-python = ">=3.12"
 dependencies = [
     "pandas>=1.2.4,<4.0.0",
     "numpy>=2.0.2",
+    "scipy>=1.14.0",
     "matplotlib>=3.4.2",
     "prettytable>=2.1,<4.0",
     "update>=0.0.1,<1.0.0",
@@ -62,6 +63,10 @@ build-backend = "uv_build"
 module-root = "src"
 
 [dependency-groups]
+screenshot = [
+    "playwright>=1.50",
+    "pytest-playwright>=0.6",
+]
 dev = [
     "pytest>=7.2,<9.0",
     "pytest-clarity>=1.0.1",
@@ -96,6 +101,11 @@ ignore = [
 "src/tanabesugano/test/*" = [
     "PT006", "ANN001", "ANN201", "D103", "S101", "PLR2004", "PLC0415",
 ]
+"src/tanabesugano/test/test_screenshots.py" = [
+    "PT006", "ANN001", "ANN201", "D103", "S101", "PLR2004", "PLC0415",
+    "PT007",  # parametrize values don't need type annotations
+    "INP001",  # test files don't need __init__ namespace package membership
+]
 "src/tanabesugano/mcp/*" = [
     "PLC0415", # lazy / soft imports are intentional for optional [mcp] extra
     "C901",    # register_tools dispatches the whole ts_* tool family
@@ -111,6 +121,7 @@ ignore = [
     "S112",    # try-except-continue is the correct pattern for solver grid searches
     "BLE001",  # bare except is intentional: catches numpy LinAlgError in grid loops
     "RUF059",  # discarded sweep title in overlay/ratio tools is deliberate
+    "PLR0912", # grid-search and UI-rendering functions are inherently branch-heavy
     "PLR0915", # grid-search functions are inherently statement-heavy
     "PLR2004", # scientific threshold constants (1e-3, 2.0) are more readable inline
 ]
@@ -146,5 +157,6 @@ markers = """
     xfail: mark test as expecting to fail
     skip: mark test as skipped
     mcp: tests requiring the [mcp] optional extra (fastmcp)
+    screenshot: tests requiring playwright (install the screenshot dep-group)
 """
 addopts = "-v --cov=src/tanabesugano"

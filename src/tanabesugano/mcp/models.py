@@ -48,6 +48,28 @@ class DiagramResult(BaseModel):
     points: list[DiagramPoint]
 
 
+class SpectrumPeak(BaseModel):
+    """One transition energy in a fitted spectrum."""
+
+    energy_cm1: float = Field(description="Transition energy in cm^-1.")
+    assignment: str = Field(description="Ground state → excited state term assignment.")
+    intensity: float = Field(description="Relative intensity (0-1).")
+
+
+class FitResult(BaseModel):
+    """Result of fitting a spectrum to find Dq and B parameters."""
+
+    d_count: int
+    fitted_Dq: float = Field(description="Optimized ligand field parameter (cm^-1).")
+    fitted_B: float = Field(description="Optimized Racah B parameter (cm^-1).")
+    fitted_C: float = Field(description="Racah C parameter used (typically fixed or default).")
+    r_squared: float = Field(description="Goodness of fit (R² metric, 0-1 is typical).")
+    rmse_cm1: float = Field(description="Root-mean-square error in cm^-1.")
+    observed_peaks_cm1: list[float] = Field(description="Input observed peak positions.")
+    predicted_peaks_cm1: list[float] = Field(description="Predicted peaks from fitted model.")
+    peak_assignments: list[SpectrumPeak] = Field(description="Detailed transition assignments.")
+
+
 class ComputeError(BaseModel):
     """Structured error so agents can recover instead of crashing."""
 

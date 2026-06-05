@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from tanabesugano import __version__
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
 from tanabesugano.mcp._compute import compute_point
+from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import sweep_dq
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
@@ -14,6 +15,8 @@ from tanabesugano.mcp.models import ComputeError
 from tanabesugano.mcp.models import ComputeResult
 from tanabesugano.mcp.models import DiagramPoint
 from tanabesugano.mcp.models import DiagramResult
+from tanabesugano.mcp.models import FitResult
+from tanabesugano.mcp.models import SpectrumPeak
 from tanabesugano.mcp.models import SupportedConfig
 from tanabesugano.mcp.tools._shared import READONLY
 from tanabesugano.mcp.tools._shared import TS_META
@@ -74,6 +77,8 @@ def register(mcp: FastMCP) -> None:
 
         """
         b_val, c_val = resolve_bc(d_count, B, C)
+        if b_val <= 0:
+            return ComputeError(error=f"Racah B must be positive, got {b_val}")
         try:
             terms = compute_point(d_count, Dq, b_val, c_val)
         except (ValueError, RuntimeError) as exc:
@@ -109,6 +114,8 @@ def register(mcp: FastMCP) -> None:
 
         """
         b_val, c_val = resolve_bc(d_count, B, C)
+        if b_val <= 0:
+            return ComputeError(error=f"Racah B must be positive, got {b_val}")
         try:
             dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
         except ValueError as exc:
@@ -128,4 +135,72 @@ def register(mcp: FastMCP) -> None:
                 )
                 for dq, pt in zip(dq_values, points, strict=True)
             ],
+        )
+
+    @mcp.tool(
+        name="ts_fit_spectrum",
+        title="Fit observed absorption bands to extract Dq and B parameters",
+        version=__version__,
+        tags={"tanabesugano", "compute", "fit", "spectroscopy"},
+        annotations=READONLY,
+        meta=TS_META,
+    )
+    def ts_fit_spectrum(
+        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        observed_peaks_cm1: list[float],
+        C: float | None = None,
+    ) -> FitResult | ComputeError:
+        """Fit observed UV-Vis absorption bands to determine Dq and B parameters.
+
+        Given a list of absorption peak positions measured in the lab (in cm^-1),
+        this tool performs a least-squares optimization to find the crystal-field
+        strength (Dq) and Racah B parameter that best reproduce the observed
+        spectrum.
+
+        Args:
+            d_count: d-electron count (2..8).
+            observed_peaks_cm1: List of observed transition energies in cm^-1.
+                Typically in the range 10000-40000 cm^-1 for visible/near-UV regions.
+            C: Optional Racah C parameter (cm^-1). If not provided, uses the
+                default value for the given d_count.
+
+        Returns:
+            FitResult containing the optimized Dq, B, quality metrics, and
+            predicted peak assignments.
+
+        Example:
+            Fitting a d8 (Ni2+) complex with three observed bands:
+            ts_fit_spectrum(d_count=8, observed_peaks_cm1=[8000, 13000, 25000])
+
+        """
+        if not observed_peaks_cm1:
+            return ComputeError(error="At least one observed peak required")
+        if len(observed_peaks_cm1) > 50:
+            return ComputeError(error="Too many peaks (max 50); filter or summarize")
+
+        try:
+            fitted_dq, fitted_b, fitted_c, rmse, transitions = fit_spectrum(
+                d_count,
+                observed_peaks_cm1,
+                C=C,
+            )
+        except (ValueError, RuntimeError) as exc:
+            return ComputeError(error=f"Fitting failed: {exc!s}")
+
+        predicted_energies = [t[0] for t in transitions]
+        peak_assignments = [
+            SpectrumPeak(energy_cm1=t[0], assignment=t[1], intensity=1.0) for t in transitions
+        ]
+
+        r_squared = 1.0 - (rmse**2 / max(1.0, sum(e**2 for e in observed_peaks_cm1)))
+        return FitResult(
+            d_count=d_count,
+            fitted_Dq=fitted_dq,
+            fitted_B=fitted_b,
+            fitted_C=fitted_c,
+            r_squared=max(0.0, r_squared),
+            rmse_cm1=rmse,
+            observed_peaks_cm1=observed_peaks_cm1,
+            predicted_peaks_cm1=predicted_energies,
+            peak_assignments=peak_assignments,
         )
