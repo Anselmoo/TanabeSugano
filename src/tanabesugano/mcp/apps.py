@@ -208,10 +208,10 @@ def _chartjs_series_payload(
     for s in series:
         data = [{"x": row[x_key], "y": row.get(s.data_key)} for row in rows]
         chart_series.append(
-            {"label": s.label or s.data_key, "color": s.color or "#888", "data": data}
+            {"label": s.label or s.data_key, "color": s.color or "#888", "data": data},
         )
     return _json.dumps(
-        {"title": title, "x_label": x_label, "y_label": y_label, "series": chart_series}
+        {"title": title, "x_label": x_label, "y_label": y_label, "series": chart_series},
     )
 
 
@@ -301,7 +301,12 @@ def _register_plot_view(mcp: FastMCP) -> None:
             energy_unit=energy_unit,
         )
         payload = _chartjs_series_payload(
-            rows, series, x_key, title=title, x_label=x_label, y_label=y_label
+            rows,
+            series,
+            x_key,
+            title=title,
+            x_label=x_label,
+            y_label=y_label,
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
@@ -346,7 +351,9 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         bottom half is a sortable / searchable table of every eigenvalue at
         the high end of the Dq sweep, plus Metric cards summarising the run.
         """
-        from tanabesugano.mcp._compute import compute_point
+        from prefab_ui.rx import Rx
+
+        from tanabesugano.mcp._compute import sweep_dq
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
         from tanabesugano.plot_style import term_to_unicode
@@ -363,29 +370,38 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             energy_unit=energy_unit,
         )
 
-        # Build table rows for terms at the end of the sweep (Dq = dq_max).
-        terms_at_end = compute_point(d_count, dq_max, b_val, c_val)
-        table_rows: list[dict] = []
-        for term, energies in terms_at_end.items():
-            unicode_label = term_to_unicode(term)
-            for n, e in enumerate(energies):
-                table_rows.append(
-                    {
-                        "term": unicode_label,
-                        "level": n,
-                        "energy_cm": round(float(e), 1),
-                        "energy_over_B": round(float(e / b_val), 3) if b_val else 0.0,
-                        "spin_family": pf.Badge(
-                            label=str(_multiplicity_of(term)),
-                            variant=_badge_variant(term),
-                        ),
-                    },
-                )
-        table_rows.sort(key=lambda r: r["energy_cm"])
+        # Build a per-Dq table for every sweep point so the slider can pick any.
+        dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
+        all_dq_tables: list[list[dict]] = []
+        dq_labels: list[str] = [f"{dq * 10.0:.1f}" for dq in dq_values]
+        for i, _dq in enumerate(dq_values):
+            tbl: list[dict] = []
+            for term, energies in points[i].items():
+                unicode_label = term_to_unicode(term)
+                for n, e in enumerate(energies):
+                    tbl.append(
+                        {
+                            "term": unicode_label,
+                            "level": n,
+                            "energy_cm": round(float(e), 1),
+                            "energy_over_B": round(float(e / b_val), 3) if b_val else 0.0,
+                            "mult": str(_multiplicity_of(term)),
+                        }
+                    )
+            tbl.sort(key=lambda r: r["energy_cm"])
+            all_dq_tables.append(tbl)
 
         ground_term = DEFAULTS[d_count]["ground_term"]
+        last_idx = max(len(dq_values) - 1, 0)
 
-        with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
+        app = PrefabApp(
+            state={
+                "dq_idx": last_idx,
+                "tables": all_dq_tables,
+                "dq_labels": dq_labels,
+            },
+        )
+        with app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content=title, level=3)
             with pf.Grid(columns=3, gap=4):
                 pf.Metric(label="Ground term", value=ground_term)
@@ -414,16 +430,29 @@ def _register_diagram_app(mcp: FastMCP) -> None:
                 css_class="text-xs text-muted-foreground font-mono text-right",
             )
             pf.Separator()
-            pf.Heading(content=f"Term energies at Dq = {dq_max:g} cm⁻¹", level=4)
+            # Slider: drag to select which Dq step the table shows.
+            with pf.Row(align="center", gap=4):
+                pf.Heading(content="Term energies at", level=4)
+                pf.Text(
+                    content=Rx("'10Dq = ' + dq_labels[dq_idx] + ' cm⁻¹'"),
+                    css_class="text-sm font-mono text-primary",
+                )
+            pf.Slider(
+                name="dq_idx",
+                min=0,
+                max=last_idx,
+                step=1,
+                value=last_idx,
+            )
             pf.DataTable(
                 columns=[
                     pf.DataTableColumn(key="term", header="Term", sortable=True),
                     pf.DataTableColumn(key="level", header="Level", sortable=True),
                     pf.DataTableColumn(key="energy_cm", header="E (cm⁻¹)", sortable=True),
                     pf.DataTableColumn(key="energy_over_B", header="E/B", sortable=True),
-                    pf.DataTableColumn(key="spin_family", header="2S+1"),
+                    pf.DataTableColumn(key="mult", header="2S+1", sortable=True),
                 ],
-                rows=table_rows,
+                rows=Rx("tables[dq_idx]"),
                 search=True,
             )
         return app
@@ -739,7 +768,7 @@ def _register_overlay(mcp: FastMCP) -> None:
                         "color": s.color or color_for(s.data_key.rsplit("_", 1)[0]),
                         "data": data,
                         "d_count": d,
-                    }
+                    },
                 )
 
         title_overlay = f"Overlay: {', '.join(f'd{d}' for d in valid)}"
@@ -749,7 +778,7 @@ def _register_overlay(mcp: FastMCP) -> None:
                 "x_label": x_label,
                 "y_label": y_label,
                 "series": all_series,
-            }
+            },
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
@@ -861,7 +890,7 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                         "level": n,
                         "energy_cm": round(float(e), 1),
                         "spin_allowed": _multiplicity_of(term_key) == ground_mult,
-                    }
+                    },
                 )
         table_rows.sort(key=lambda r: r["energy_cm"])
 
@@ -963,8 +992,8 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                     _mcp_types.TextContent(
                         type="text",
                         text='{"title":"Error","x_label":"","y_label":"","series":[],"error":"Need at least 2 peaks."}',
-                    )
-                ]
+                    ),
+                ],
             )
 
         obs_ratios = [obs[i] / obs[0] for i in range(1, len(obs))]
@@ -1001,7 +1030,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 # Score: RMS of ratio differences + magnitude match of v1.
                 ratio_err = math.sqrt(
                     sum((cr - or_) ** 2 for cr, or_ in zip(comp_ratios, obs_ratios))
-                    / len(comp_ratios)
+                    / len(comp_ratios),
                 )
                 mag_err = abs(allowed[0] - obs[0]) / obs[0]
                 score = ratio_err + 0.3 * mag_err
@@ -1023,10 +1052,10 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                                 "y_label": "",
                                 "series": [],
                                 "error": "Could not converge: try different peak values or a wider B range.",
-                            }
+                            },
                         ),
-                    )
-                ]
+                    ),
+                ],
             )
 
         b_fit, c_fit = resolve_bc(d_count, best_b, None)
@@ -1059,7 +1088,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         for s in series:
             data = [{"x": row[x_key], "y": row.get(s.data_key)} for row in rows]
             all_series.append(
-                {"label": s.label or s.data_key, "color": s.color or "#888", "data": data}
+                {"label": s.label or s.data_key, "color": s.color or "#888", "data": data},
             )
         # Add vertical marker series at the fitted Dq.
         all_series.append(
@@ -1068,12 +1097,12 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 "color": "#FF0000",
                 "data": [{"x": x_fit_norm, "y": 0}, {"x": x_fit_norm, "y": 150}],
                 "borderDash": [6, 3],
-            }
+            },
         )
 
         title_custom = f"Custom TS d{d_count}: Dq={best_dq:.1f}, B={b_fit:.1f} cm⁻¹"
         payload = _json.dumps(
-            {"title": title_custom, "x_label": x_label, "y_label": y_label, "series": all_series}
+            {"title": title_custom, "x_label": x_label, "y_label": y_label, "series": all_series},
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
@@ -1143,7 +1172,7 @@ def _register_spectrum(mcp: FastMCP) -> None:
                     "x_label": "",
                     "y_label": "Abs.",
                     "series": [],
-                }
+                },
             )
             return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
@@ -1177,7 +1206,7 @@ def _register_spectrum(mcp: FastMCP) -> None:
                 "x_label": x_label,
                 "y_label": "Absorbance (arb. units)",
                 "series": [{"label": "Simulated spectrum", "color": "#0072B2", "data": data}],
-            }
+            },
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
