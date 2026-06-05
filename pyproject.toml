@@ -129,7 +129,9 @@ changelog_file = "CHANGELOG.md"
 changelog_workflow = "incremental"
 
 [tool.rrt.checks.pre_commit]
-# ensure pre-commit is configured
+status = "warning"
+message = ".pre-commit-config.yaml exists but no repo-release-tools hooks were detected"
+updated_at = "2026-06-05T14:02:23+00:00"
 
 [[tool.rrt.version_targets]]
 path = "pyproject.toml"
