@@ -1590,6 +1590,15 @@ wheels = [
 ]
 
 [[package]]
+name = "repo-release-tools"
+version = "1.8.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/5f/a9e3cf5d0a5c8f5cbfb8e052b2ab8e32904af88c6f7f6fb3fbffd3682dfe/repo_release_tools-1.8.1.tar.gz", hash = "sha256:c317a92c78054c12132bc4b2ce1f88df1d02cbdc07cb935420bb94c1b4d9dc61", size = 310742, upload-time = "2026-06-02T18:15:42.655Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2b/0d/5479f3284a4f16d731a6f497171826a1f56204b8bede79333fea16333528/repo_release_tools-1.8.1-py3-none-any.whl", hash = "sha256:55fa5f8bc2990d091a186a66e40286a1f30447f24ad619b3695d7121c9a0047a", size = 392367, upload-time = "2026-06-02T18:15:41.285Z" },
+]
+
+[[package]]
 name = "rich"
 version = "14.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1834,6 +1843,7 @@ dev = [
     { name = "pytest-clarity" },
     { name = "pytest-console-scripts" },
     { name = "pytest-cov" },
+    { name = "repo-release-tools" },
     { name = "ruff" },
 ]
 
@@ -1855,6 +1865,7 @@ dev = [
     { name = "pytest-clarity", specifier = ">=1.0.1" },
     { name = "pytest-console-scripts", specifier = ">=1.3.1" },
     { name = "pytest-cov", specifier = ">=4,<6" },
+    { name = "repo-release-tools", specifier = ">=1.8.1,<2.0.0" },
     { name = "ruff", specifier = ">=0.7.0" },
 ]
 
