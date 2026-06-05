@@ -49,8 +49,45 @@ def test_create_server_registers_tools() -> None:
     server = create_server()
     tools = asyncio.run(server.list_tools())
     tool_names = {t.name for t in tools}
-    expected = {"ts_supported_configs", "ts_compute", "ts_diagram", "ts_plot_png", "ts_explain"}
+    expected = {
+        "ts_supported_configs",
+        "ts_compute",
+        "ts_diagram",
+        "ts_plot_png",
+        "ts_plot_view",
+        "ts_explain",
+    }
     assert expected <= tool_names
+
+
+def test_ts_plot_view_returns_plotly_payload() -> None:
+    import json as _json
+
+    from fastmcp import Client
+
+    server = create_server()
+
+    async def _call():  # noqa: ANN202
+        async with Client(server) as client:
+            return await client.call_tool(
+                "ts_plot_view",
+                {"d_count": 3, "steps": 5},
+            )
+
+    result = asyncio.run(_call())
+    text_items = [c for c in result.content if getattr(c, "type", None) == "text"]
+    assert text_items, "ts_plot_view must emit a TextContent payload"
+    payload = _json.loads(text_items[0].text)
+    assert payload["d_count"] == 3
+    assert payload["series"], "payload.series must be non-empty"
+    assert all({"name", "x", "y"} <= set(s) for s in payload["series"])
+
+
+def test_interactive_view_resource_present() -> None:
+    server = create_server()
+    resources = asyncio.run(server.list_resources())
+    uris = {str(r.uri) for r in resources}
+    assert "ui://tanabesugano/diagram.html" in uris
 
 
 def test_ts_compute_via_in_process_client() -> None:

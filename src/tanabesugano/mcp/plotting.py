@@ -1,7 +1,9 @@
 """Matplotlib renderer for MCP plot tools.
 
 Returns raw PNG bytes so the MCP layer can wrap them as ImageContent without
-needing matplotlib at import time on the agent side.
+needing matplotlib at import time on the agent side. The palette is shared
+with the CLI (see tanabesugano.plot_style) so both surfaces produce
+visually-consistent figures.
 """
 
 from __future__ import annotations
@@ -16,6 +18,8 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 from tanabesugano.mcp._compute import sweep_dq
+from tanabesugano.plot_style import line_style_for
+from tanabesugano.plot_style import style_axes
 
 
 def render_diagram_png(
@@ -31,6 +35,11 @@ def render_diagram_png(
 ) -> bytes:
     """Render a Tanabe-Sugano (or DD-energy) diagram and return PNG bytes.
 
+    Curves are coloured by spin multiplicity (Okabe-Ito palette, colour-blind
+    safe), level index within a term uses linestyle, and the ground-state
+    line is emphasised. Replaces the prior rainbow colouring, which made
+    states from different spin manifolds indistinguishable.
+
     Args:
         d_count: 2..8.
         dq_min: Lower Dq bound of the sweep (cm^-1).
@@ -38,15 +47,23 @@ def render_diagram_png(
         steps: Number of sweep points.
         B: Racah B parameter (cm^-1).
         C: Racah C parameter (cm^-1).
-        normalize: If True, render the classical Tanabe-Sugano diagram (E/B vs 10Dq/B).
-            If False, render the DD-energy diagram (energy vs 10Dq, both in cm^-1).
+        normalize: If True, render the classical Tanabe-Sugano diagram
+            (E/B vs 10Dq/B). If False, render the DD-energy diagram
+            (energy vs 10Dq, both in cm^-1).
         dpi: Output resolution.
 
     """
     dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, B, C)
     term_keys = list(points[0].keys())
 
-    fig, ax = plt.subplots(figsize=(6.5, 4.5), dpi=dpi)
+    # Identify the ground term — the one with the lowest eigenvalue at Dq=0.
+    ground_term = min(
+        term_keys,
+        key=lambda t: min(points[0][t]) if points[0][t] else float("inf"),
+    )
+
+    fig, ax = plt.subplots(figsize=(6.8, 4.6), dpi=dpi)
+    x_axis = (dq_values * 10.0 / B) if normalize else (dq_values * 10.0)
     x_label = r"$10Dq/B$" if normalize else r"$10Dq$ (cm$^{-1}$)"
     y_label = r"$E/B$" if normalize else r"$E$ (cm$^{-1}$)"
 
@@ -55,15 +72,21 @@ def render_diagram_png(
         max_n = max(len(s) for s in series)
         for n in range(max_n):
             y = [s[n] if n < len(s) else float("nan") for s in series]
-            x = (dq_values * 10.0 / B) if normalize else (dq_values * 10.0)
             y_plot = [v / B if normalize else v for v in y]
-            ax.plot(x, y_plot, lw=1.1, label=term if n == 0 else None)
+            style = line_style_for(term, level=n, is_ground=(term == ground_term))
+            ax.plot(
+                x_axis,
+                y_plot,
+                label=term if n == 0 else None,
+                **style,
+            )
 
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
-    ax.set_title(f"Tanabe-Sugano diagram (d{d_count}, B={B:g}, C={C:g})")
-    ax.legend(loc="best", fontsize=7, ncol=2, frameon=False)
-    ax.grid(visible=True, alpha=0.25)
+    style_axes(
+        ax,
+        title=f"Tanabe-Sugano d{d_count} (B={B:g}, C={C:g})",
+        x_label=x_label,
+        y_label=y_label,
+    )
     fig.tight_layout()
 
     buf = io.BytesIO()

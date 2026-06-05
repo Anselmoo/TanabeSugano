@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from fastmcp.tools import ToolResult
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from tanabesugano import __version__
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
@@ -32,14 +33,20 @@ def _resolve_bc(d_count: int, B: float | None, C: float | None) -> tuple[float, 
     return (B if B is not None else cfg["default_B"], C if C is not None else cfg["default_C"])
 
 
+_READONLY = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False)
+_TS_META: dict[str, object] = {"domain": "tanabesugano", "surface": "mcp"}
+
+
 def register_tools(mcp: FastMCP) -> None:
     """Register the ts_* tool family on *mcp*."""
 
     @mcp.tool(
         name="ts_supported_configs",
         title="Supported d-configurations",
+        version=__version__,
         tags={"tanabesugano", "metadata"},
-        meta={"domain": "tanabesugano", "surface": "mcp", "read_only": True},
+        annotations=_READONLY,
+        meta=_TS_META,
     )
     def ts_supported_configs() -> list[SupportedConfig]:
         """List the d-electron configurations supported by TanabeSugano (d2-d8)."""
@@ -57,8 +64,10 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="ts_compute",
         title="Compute one Tanabe-Sugano point",
+        version=__version__,
         tags={"tanabesugano", "compute"},
-        meta={"domain": "tanabesugano", "surface": "mcp", "read_only": True},
+        annotations=_READONLY,
+        meta=_TS_META,
     )
     def ts_compute(
         d_count: int,
@@ -89,8 +98,10 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="ts_diagram",
         title="Compute a Tanabe-Sugano diagram",
+        version=__version__,
         tags={"tanabesugano", "compute", "diagram"},
-        meta={"domain": "tanabesugano", "surface": "mcp", "read_only": True},
+        annotations=_READONLY,
+        meta=_TS_META,
     )
     def ts_diagram(
         d_count: int,
@@ -139,8 +150,10 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="ts_plot_png",
         title="Render a Tanabe-Sugano diagram (PNG)",
+        version=__version__,
         tags={"tanabesugano", "plot"},
-        meta={"domain": "tanabesugano", "surface": "mcp", "read_only": True},
+        annotations=_READONLY,
+        meta=_TS_META,
     )
     def ts_plot_png(
         d_count: int,
@@ -185,8 +198,10 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="ts_explain",
         title="Explain a d-configuration",
+        version=__version__,
         tags={"tanabesugano", "docs"},
-        meta={"domain": "tanabesugano", "surface": "mcp", "read_only": True},
+        annotations=_READONLY,
+        meta=_TS_META,
     )
     def ts_explain(d_count: int) -> str | ComputeError:
         """Return a one-paragraph description of the d^n ground state and spectrum."""

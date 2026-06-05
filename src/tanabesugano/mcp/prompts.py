@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from tanabesugano import __version__
+
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -15,7 +17,9 @@ def register_prompts(mcp: FastMCP) -> None:
     @mcp.prompt(
         name="tanabesugano_explain_complex",
         title="Interpret a transition-metal complex absorption spectrum",
+        version=__version__,
         tags={"tanabesugano", "interpretation"},
+        meta={"domain": "tanabesugano", "surface": "mcp"},
     )
     def tanabesugano_explain_complex(
         d_count: int,
