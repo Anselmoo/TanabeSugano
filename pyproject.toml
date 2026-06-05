@@ -102,6 +102,16 @@ ignore = [
     "RUF002",  # ditto in docstrings shown to humans
     "RUF003",  # ditto in inline comments
     "TC001",   # D_COUNT_LITERAL needs to be evaluated at runtime for Pydantic
+    "B905",    # zip(..., strict=True) would break streaming rows in payload builders
+    "F841",    # some local assignments are kept for readability in grid-search loops
+    "E501",    # long lines in HTML string constants and JSON payloads are intentional
+    "D401",    # imperative mood not always natural for internal helper docstrings
+    "D417",    # partial arg-doc OK in internal helpers; full docs in compute_tools
+    "S112",    # try-except-continue is the correct pattern for solver grid searches
+    "BLE001",  # bare except is intentional: catches numpy LinAlgError in grid loops
+    "RUF059",  # discarded sweep title in overlay/ratio tools is deliberate
+    "PLR0915", # grid-search functions are inherently statement-heavy
+    "PLR2004", # scientific threshold constants (1e-3, 2.0) are more readable inline
 ]
 "scripts/*" = ["INP001", "T201"]
 

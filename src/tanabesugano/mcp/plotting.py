@@ -25,6 +25,24 @@ from tanabesugano.plot_style import style_axes
 from tanabesugano.plot_style import term_to_mathtext
 
 
+_Y_LABEL_MATHTEXT: dict[str, str] = {
+    "cm1": r"$E$ (cm$^{-1}$)",
+    "eV": r"$E$ (eV)",
+    "nm": r"$\lambda$ (nm)",
+}
+
+_CM1_TO_EV_PNG: float = 1.0 / 8065.54
+
+
+def _convert_energy_png(e_cm: float, unit: str) -> float:
+    """Convert cm^-1 to the requested unit for matplotlib rendering."""
+    if unit == "eV":
+        return e_cm * _CM1_TO_EV_PNG
+    if unit == "nm":
+        return 1e7 / e_cm if e_cm else float("nan")
+    return e_cm
+
+
 def render_diagram_png(
     d_count: int,
     dq_min: float = 0.0,
@@ -34,6 +52,7 @@ def render_diagram_png(
     C: float = 3850.0,
     *,
     normalize: bool = True,
+    energy_unit: str = "cm1",
     dpi: int = 144,
 ) -> bytes:
     """Render a Tanabe-Sugano (or DD-energy) diagram and return PNG bytes.
@@ -57,7 +76,9 @@ def render_diagram_png(
         B: Racah B parameter (cm^-1).
         C: Racah C parameter (cm^-1).
         normalize: Classical Tanabe-Sugano view (E/B vs 10Dq/B) when True;
-            DD-energy diagram (cm^-1 on both axes) when False.
+            DD-energy diagram (energy_unit axes) when False.
+        energy_unit: "cm1", "eV", or "nm". Only affects the y-axis when
+            normalize=False.  "nm" inverts the energy axis.
         dpi: Output resolution.
 
     """
@@ -75,7 +96,7 @@ def render_diagram_png(
     fig, ax = plt.subplots(figsize=(7.2, 4.8), dpi=dpi)
     x_axis = (dq_values * 10.0 / B) if normalize else (dq_values * 10.0)
     x_label = r"$10\,Dq / B$" if normalize else r"$10\,Dq$ (cm$^{-1}$)"
-    y_label = r"$E / B$" if normalize else r"$E$ (cm$^{-1}$)"
+    y_label = r"$E / B$" if normalize else _Y_LABEL_MATHTEXT.get(energy_unit, r"$E$ (cm$^{-1}$)")
 
     # Track the y-position of the ground term's level-0 at xmax for annotation.
     # Sentinel None means "not yet found"; avoids placing annotation at y=0
@@ -88,7 +109,10 @@ def render_diagram_png(
         label = term_to_mathtext(term)
         for n in range(max_n):
             y = [s[n] if n < len(s) else float("nan") for s in series]
-            y_plot = [v / B if normalize else v for v in y]
+            if normalize:
+                y_plot = [v / B for v in y]
+            else:
+                y_plot = [_convert_energy_png(v, energy_unit) for v in y]
             style = line_style_for(term, level=n, is_ground=(term == ground_term))
             ax.plot(
                 x_axis,

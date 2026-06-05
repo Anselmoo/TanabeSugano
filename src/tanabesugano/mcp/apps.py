@@ -21,11 +21,15 @@ from typing import TYPE_CHECKING
 log = logging.getLogger(__name__)
 
 HEATMAP_URI = "ui://tanabesugano/heatmap.html"
+DIAGRAM_URI = "ui://tanabesugano/diagram.html"
+SPECTRUM_URI = "ui://tanabesugano/spectrum.html"
 
 # ── Optional Prefab / FastMCP apps API ───────────────────────────────────
 try:
     from fastmcp.apps import AppConfig
     from fastmcp.apps import ResourceCSP
+    from fastmcp.tools import ToolResult
+    from mcp import types as _mcp_types
     from mcp.types import ToolAnnotations
     from prefab_ui import components as pf
     from prefab_ui.actions import CallTool
@@ -35,6 +39,7 @@ try:
     from prefab_ui.components.charts import Sparkline
 
     from tanabesugano import __version__ as _pkg_version
+    from tanabesugano.mcp._inputs import CM1_TO_EV
 
     _HAVE_APPS = True
 except ImportError:  # pragma: no cover - environment-dependent
@@ -46,7 +51,7 @@ if TYPE_CHECKING:
 
 
 def register_apps(mcp: FastMCP) -> None:
-    """Register every Prefab-native ts_*_app tool plus the Chart.js heatmap resource."""
+    """Register every Prefab-native ts_*_app tool plus the Chart.js resources."""
     if not _HAVE_APPS:
         log.debug("prefab_ui / fastmcp.apps not available; skipping all *_app tools.")
         return
@@ -57,6 +62,10 @@ def register_apps(mcp: FastMCP) -> None:
     _register_dashboard(mcp)
     _register_compare(mcp)
     _register_heatmap(mcp)
+    _register_overlay(mcp)
+    _register_reverse_fit(mcp)
+    _register_ratio_fit(mcp)
+    _register_spectrum(mcp)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -71,6 +80,29 @@ _READONLY_ANNOTATIONS = (
 _TS_META: dict[str, object] = {"domain": "tanabesugano", "surface": "mcp", "interactive": True}
 
 
+def _convert_energy(e_cm: float, unit: str) -> float:
+    """Convert a cm^-1 value to the requested display unit.
+
+    Args:
+        e_cm: Energy in wavenumbers (cm^-1).
+        unit: One of "cm1", "eV", "nm".  "nm" inverts the axis
+            (shorter wavelength = higher energy).
+
+    """
+    if unit == "eV":
+        return e_cm * CM1_TO_EV
+    if unit == "nm":
+        return 1e7 / e_cm if e_cm else float("nan")
+    return e_cm  # "cm1" — no conversion
+
+
+_Y_LABEL: dict[str, str] = {
+    "cm1": "E (cm⁻¹)",
+    "eV": "E (eV)",
+    "nm": "E (nm)",
+}
+
+
 def _sweep_payload(
     d_count: int,
     dq_min: float,
@@ -80,15 +112,15 @@ def _sweep_payload(
     c_val: float,
     *,
     normalize: bool,
+    energy_unit: str = "cm1",
 ) -> tuple[list[dict], list[ChartSeries], str, str, str, str, float]:
     """Compute one sweep and return Prefab-shaped data: rows + ChartSeries list.
 
     Returns:
-        (rows, series, title, x_axis_key, x_label, y_label, ground_y) — `rows`
-        is a list of dicts keyed by x-axis value and one column per term-level
-        (suitable as `LineChart.data`); `series` is one `ChartSeries` per
-        term-level pointing at those columns; `ground_y` is the lowest
-        y-value of the ground term over the sweep (used for Metric cards).
+        (rows, series, title, x_axis_key, x_label, y_label, ground_y) where
+        `rows` is a list of dicts keyed by x-axis value and one column per
+        unique term (level-0 only, so Prefab LineChart doesn't collapse).
+        `ground_y` is in the requested energy unit.
 
     """
     from tanabesugano.mcp._compute import sweep_dq
@@ -115,19 +147,21 @@ def _sweep_payload(
 
     for i, dq in enumerate(dq_values):
         row: dict[str, float] = {
-            # Round x to 3 significant figures so tooltips show "0.72" not "0.7161613750298401".
+            # Round x to 3 dp — shows "0.716" not "0.7161613750298401".
             x_key: round(float(dq * 10.0 / b_val), 3) if normalize else round(float(dq * 10.0), 1),
         }
         for term, energies in points[i].items():
             if not energies:
                 continue
             key = f"{term}_0"
-            # Guard b_val==0 consistently (matches ts_diagram_app line 296).
-            row[key] = (
-                round(float(energies[0] / b_val), 3)
-                if (normalize and b_val)
-                else round(float(energies[0]), 1)
-            )
+            e_raw = float(energies[0]) if energies else 0.0
+            if normalize and b_val:
+                y_val = round(e_raw / b_val, 3)
+            elif energy_unit == "cm1":
+                y_val = round(e_raw, 1)
+            else:
+                y_val = round(_convert_energy(e_raw, energy_unit), 4)
+            row[key] = y_val
             if term not in seen_terms:
                 seen_terms.add(term)
                 series_specs.append((key, term_to_unicode(term)))
@@ -141,9 +175,44 @@ def _sweep_payload(
 
     title = f"Tanabe-Sugano d{d_count} (B={b_val:g}, C={c_val:g} cm⁻¹)"
     x_label = "10Dq/B" if normalize else "10Dq (cm⁻¹)"
-    y_label = "E/B" if normalize else "E (cm⁻¹)"
+    y_label = "E/B" if normalize else _Y_LABEL.get(energy_unit, "E (cm⁻¹)")
     ground_y = min(row.get(f"{ground_term}_0", float("inf")) for row in rows)
     return rows, series, title, x_key, x_label, y_label, ground_y
+
+
+def _chartjs_series_payload(
+    rows: list[dict],
+    series: list[ChartSeries],
+    x_key: str,
+    *,
+    title: str,
+    x_label: str,
+    y_label: str,
+) -> str:
+    """Build the JSON payload for the Chart.js diagram / overlay HTML views.
+
+    Args:
+        rows: list of dicts (x + per-term y values).
+        series: list of ChartSeries with data_key, label, color.
+        x_key: the dict key for x values.
+        title, x_label, y_label: display strings.
+
+    Returns:
+        JSON string with ``{title, x_label, y_label, series}`` where each
+        series entry is ``{label, color, data: [{x, y}]}``.
+
+    """
+    import json as _json
+
+    chart_series = []
+    for s in series:
+        data = [{"x": row[x_key], "y": row.get(s.data_key)} for row in rows]
+        chart_series.append(
+            {"label": s.label or s.data_key, "color": s.color or "#888", "data": data}
+        )
+    return _json.dumps(
+        {"title": title, "x_label": x_label, "y_label": y_label, "series": chart_series}
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -190,7 +259,7 @@ def _register_explore(mcp: FastMCP) -> None:
 
 
 def _register_plot_view(mcp: FastMCP) -> None:
-    """Register the 'chart in the chat' tool (single LineChart of the sweep)."""
+    """Register ts_plot_view with Chart.js rendering for proper axis labels."""
 
     @mcp.tool(
         name="ts_plot_view",
@@ -199,7 +268,7 @@ def _register_plot_view(mcp: FastMCP) -> None:
         tags={"tanabesugano", "plot", "interactive"},
         annotations=_READONLY_ANNOTATIONS,
         meta=_TS_META,
-        app=True,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
     )
     def ts_plot_view(
         d_count: int,
@@ -209,12 +278,14 @@ def _register_plot_view(mcp: FastMCP) -> None:
         B: float | None = None,
         C: float | None = None,
         normalize: bool = True,
-    ) -> PrefabApp:
-        """Render a single Prefab LineChart of the Tanabe-Sugano sweep in the chat.
+        energy_unit: str = "cm1",
+    ) -> ToolResult:
+        """Render a Tanabe-Sugano sweep as an interactive Chart.js chart with proper axis labels.
 
-        Lighter than `ts_diagram_app` — just the curve, no table. Use this
-        when the user has already settled on parameters and just wants the
-        visual update.
+        Lighter than `ts_diagram_app` — just the curve, no table. The Chart.js
+        view at ui://tanabesugano/diagram.html renders with labelled x/y axes.
+        Supports energy_unit = "cm1" | "eV" | "nm" for the y-axis.
+        Note: "nm" inverts the energy axis (shorter wavelength = higher energy).
         """
         from tanabesugano.mcp.tools._shared import resolve_bc
 
@@ -227,22 +298,24 @@ def _register_plot_view(mcp: FastMCP) -> None:
             b_val,
             c_val,
             normalize=normalize,
+            energy_unit=energy_unit,
         )
+        payload = _chartjs_series_payload(
+            rows, series, x_key, title=title, x_label=x_label, y_label=y_label
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
-        with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
-            pf.Heading(content=title, level=3)
-            LineChart(
-                data=rows,
-                series=series,
-                x_axis=x_key,
-                show_legend=True,
-                show_tooltip=True,
-                show_grid=True,
-                show_dots=False,
-                height=420,
-            )
-            pf.Muted(content=f"{x_label}  /  {y_label}")
-        return app
+    @mcp.resource(
+        DIAGRAM_URI,
+        mime_type="text/html",
+        title="Tanabe-Sugano Chart.js line chart",
+        app=AppConfig(
+            csp=ResourceCSP(resource_domains=["https://cdn.jsdelivr.net", "https://unpkg.com"]),
+        ),
+    )
+    def diagram_view() -> str:
+        """Chart.js line chart with proper x/y axis titles for ts_plot_view et al."""
+        return _DIAGRAM_HTML
 
 
 def _register_diagram_app(mcp: FastMCP) -> None:
@@ -265,6 +338,7 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         B: float | None = None,
         C: float | None = None,
         normalize: bool = True,
+        energy_unit: str = "cm1",
     ) -> PrefabApp:
         """Render the LineChart plus a sorted DataTable of term energies at dq_max.
 
@@ -286,6 +360,7 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             b_val,
             c_val,
             normalize=normalize,
+            energy_unit=energy_unit,
         )
 
         # Build table rows for terms at the end of the sweep (Dq = dq_max).
@@ -323,6 +398,7 @@ def _register_diagram_app(mcp: FastMCP) -> None:
                     label="Racah B / C",
                     value=f"{b_val:g} / {c_val:g} cm⁻¹",
                 )
+            pf.Text(content=f"↑ {y_label}", css_class="text-xs text-muted-foreground font-mono")
             LineChart(
                 data=rows,
                 series=series,
@@ -333,7 +409,10 @@ def _register_diagram_app(mcp: FastMCP) -> None:
                 show_dots=False,
                 height=380,
             )
-            pf.Muted(content=f"{x_label}  /  {y_label}")
+            pf.Text(
+                content=f"→ {x_label}",
+                css_class="text-xs text-muted-foreground font-mono text-right",
+            )
             pf.Separator()
             pf.Heading(content=f"Term energies at Dq = {dq_max:g} cm⁻¹", level=4)
             pf.DataTable(
@@ -437,6 +516,7 @@ def _register_compare(mcp: FastMCP) -> None:
         dq_max: float = 1500.0,
         steps: int = 40,
         normalize: bool = True,
+        energy_unit: str = "cm1",
     ) -> PrefabApp:
         """Render a Grid of LineCharts (small multiples) for the given d_counts.
 
@@ -456,7 +536,7 @@ def _register_compare(mcp: FastMCP) -> None:
                 content=f"Compare: {', '.join(f'd{d}' for d in valid)}",
                 level=3,
             )
-            cols = 2 if len(valid) <= 4 else 3  # noqa: PLR2004
+            cols = 2 if len(valid) <= 4 else 3
             with pf.Grid(columns=cols, gap=4):
                 for d in valid:
                     cfg = DEFAULTS[d]
@@ -469,6 +549,7 @@ def _register_compare(mcp: FastMCP) -> None:
                         b_val,
                         c_val,
                         normalize=normalize,
+                        energy_unit=energy_unit,
                     )
                     with pf.Card(css_class="p-3"):
                         pf.Heading(
@@ -533,7 +614,7 @@ def _register_heatmap(mcp: FastMCP) -> None:
                     terms = compute_point(d_count, Dq, b, c)
                     energies = terms.get(term, [])
                     v = float(energies[level]) if level < len(energies) else float("nan")
-                except (ValueError, RuntimeError):
+                except Exception:
                     v = float("nan")
                 cells.append({"x": round(b, 1), "y": round(c, 1), "v": round(v, 1)})
                 table_rows.append({"B": round(b, 1), "C": round(c, 1), "energy_cm": round(v, 1)})
@@ -591,6 +672,529 @@ def _register_heatmap(mcp: FastMCP) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# New innovative tools
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def _register_overlay(mcp: FastMCP) -> None:
+    """Overlay multiple d-configurations on one Chart.js chart."""
+
+    @mcp.tool(
+        name="ts_overlay_app",
+        title="Overlay Tanabe-Sugano diagrams",
+        version=_pkg_version,
+        tags={"tanabesugano", "plot", "overlay", "compare"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_overlay_app(
+        d_counts: list[int],
+        dq_min: float = 0.0,
+        dq_max: float = 1500.0,
+        steps: int = 60,
+        normalize: bool = True,
+        energy_unit: str = "cm1",
+    ) -> ToolResult:
+        """Overlay multiple d-configurations on one Chart.js chart with proper axis labels.
+
+        Shows partially-overlapping Tanabe-Sugano diagrams on shared axes, making
+        the hole-particle symmetry pairs (d2/d8, d3/d7, d4/d6) directly comparable.
+        Each d-count gets a distinct color tint; terms are distinguishable by line style.
+        Use `energy_unit` to switch between cm1 / eV / nm on the y-axis.
+        """
+        import json as _json
+
+        from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
+        from tanabesugano.mcp.tools._shared import resolve_bc
+        from tanabesugano.plot_style import color_for
+        from tanabesugano.plot_style import term_to_unicode
+
+        valid = [d for d in d_counts if d in SUPPORTED_D_COUNTS]
+        if not valid:
+            valid = [3, 7]
+
+        # Assign a distinct base tint per d-count, then use term color within.
+        # Each series label is prefixed by "d{N}" to disambiguate across overlaid configs.
+        all_series: list[dict] = []
+        x_label = y_label = title = ""
+
+        for d in valid:
+            b_val, c_val = resolve_bc(d, None, None)
+            rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
+                d,
+                dq_min,
+                dq_max,
+                steps,
+                b_val,
+                c_val,
+                normalize=normalize,
+                energy_unit=energy_unit,
+            )
+            for s in series:
+                data = [{"x": row[x_key], "y": row.get(s.data_key)} for row in rows]
+                all_series.append(
+                    {
+                        "label": f"d{d} {term_to_unicode(s.data_key.rsplit('_', 1)[0])}",
+                        "color": s.color or color_for(s.data_key.rsplit("_", 1)[0]),
+                        "data": data,
+                        "d_count": d,
+                    }
+                )
+
+        title_overlay = f"Overlay: {', '.join(f'd{d}' for d in valid)}"
+        payload = _json.dumps(
+            {
+                "title": title_overlay,
+                "x_label": x_label,
+                "y_label": y_label,
+                "series": all_series,
+            }
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+
+def _register_reverse_fit(mcp: FastMCP) -> None:
+    """Fit Dq/B from observed absorption peak positions."""
+
+    @mcp.tool(
+        name="ts_reverse_fit_app",
+        title="Fit Dq/B from observed peaks",
+        version=_pkg_version,
+        tags={"tanabesugano", "fitting", "reverse"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=True,
+    )
+    def ts_reverse_fit_app(
+        d_count: int,
+        observed_peaks: list[float],
+        energy_unit: str = "cm1",
+        dq_max_search: float = 2500.0,
+        b_min: float = 400.0,
+        b_max: float = 1600.0,
+        grid_steps: int = 25,
+    ) -> PrefabApp:
+        """Grid-search Dq and Racah B to best-fit observed absorption peak positions.
+
+        Performs a coarse grid search over (Dq, B) space, comparing computed
+        spin-allowed transitions (same ground-state multiplicity) against the
+        observed peak positions. Returns best-fit parameters plus a residuals table.
+
+        Args:
+            d_count: d-electron count (2–8).
+            observed_peaks: Measured absorption maxima in the chosen energy_unit.
+            energy_unit: Unit of observed_peaks: "cm1" (default), "eV", or "nm".
+            dq_max_search: Upper Dq search limit in cm^-1.
+            b_min, b_max: Racah B search range (cm^-1).
+            grid_steps: Grid resolution per axis (total grid_steps² evaluations).
+
+        """
+        import math
+
+        from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._defaults import DEFAULTS
+        from tanabesugano.mcp.tools._shared import resolve_bc
+
+        # Convert observed peaks to cm^-1.
+        def to_cm1(e: float) -> float:
+            if energy_unit == "eV":
+                return e / CM1_TO_EV
+            if energy_unit == "nm":
+                return 1e7 / e if e else float("nan")
+            return e
+
+        peaks_cm = sorted(to_cm1(p) for p in observed_peaks if p > 0)
+        if not peaks_cm:
+            with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
+                pf.Heading(content="No valid peaks provided", level=3)
+            return app
+
+        default_B = DEFAULTS[d_count]["default_B"]
+        default_C = DEFAULTS[d_count]["default_C"]
+        ground_mult = _multiplicity_of(DEFAULTS[d_count]["ground_term"])
+
+        best_dq = best_b = best_rms = float("inf")
+        results: list[dict] = []
+
+        dq_grid = [dq_max_search * i / max(grid_steps - 1, 1) for i in range(grid_steps)]
+        b_grid = [b_min + (b_max - b_min) * j / max(grid_steps - 1, 1) for j in range(grid_steps)]
+
+        for dq in dq_grid:
+            for b in b_grid:
+                try:
+                    terms = compute_point(d_count, dq, b, default_C)
+                except Exception:
+                    continue
+                # Collect spin-allowed transitions from the ground term.
+                allowed: list[float] = []
+                for term_key, energies in terms.items():
+                    if _multiplicity_of(term_key) == ground_mult:
+                        allowed.extend(float(e) for e in energies if e > 0)
+                if not allowed:
+                    continue
+                allowed.sort()
+                # Match each observed peak to the closest computed transition.
+                rms = 0.0
+                for pk in peaks_cm:
+                    closest = min(allowed, key=lambda e, pk=pk: abs(e - pk))
+                    rms += (closest - pk) ** 2
+                rms = math.sqrt(rms / len(peaks_cm))
+                results.append({"Dq": round(dq, 1), "B": round(b, 1), "RMS": round(rms, 1)})
+                if rms < best_rms:
+                    best_rms, best_dq, best_b = rms, dq, b
+
+        best_c = default_C
+        _, best_c = resolve_bc(d_count, best_b, None)
+
+        # Build best-fit terms table.
+        try:
+            best_terms = compute_point(d_count, best_dq, best_b, best_c)
+        except (ValueError, RuntimeError):
+            best_terms = {}
+        table_rows: list[dict] = []
+        for term_key, energies in best_terms.items():
+            for n, e in enumerate(energies):
+                table_rows.append(
+                    {
+                        "term": term_key,
+                        "level": n,
+                        "energy_cm": round(float(e), 1),
+                        "spin_allowed": _multiplicity_of(term_key) == ground_mult,
+                    }
+                )
+        table_rows.sort(key=lambda r: r["energy_cm"])
+
+        results.sort(key=lambda r: r["RMS"])
+        top_results = results[:20]
+
+        with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
+            pf.Heading(content=f"Reverse fit: d{d_count}", level=3)
+            with pf.Grid(columns=3, gap=4):
+                pf.Metric(label="Best Dq", value=f"{best_dq:.1f} cm⁻¹")
+                pf.Metric(label="Best B", value=f"{best_b:.1f} cm⁻¹")
+                pf.Metric(label="RMS residual", value=f"{best_rms:.1f} cm⁻¹")
+            pf.Text(
+                content=f"Observed peaks ({energy_unit}): {', '.join(str(p) for p in observed_peaks)}",
+                css_class="text-sm text-muted-foreground",
+            )
+            pf.Separator()
+            pf.Heading(content="Top 20 grid candidates", level=4)
+            pf.DataTable(
+                columns=[
+                    pf.DataTableColumn(key="Dq", header="Dq (cm⁻¹)", sortable=True),
+                    pf.DataTableColumn(key="B", header="B (cm⁻¹)", sortable=True),
+                    pf.DataTableColumn(key="RMS", header="RMS (cm⁻¹)", sortable=True),
+                ],
+                rows=top_results,
+                search=False,
+            )
+            pf.Separator()
+            pf.Heading(content="Term energies at best-fit Dq", level=4)
+            pf.DataTable(
+                columns=[
+                    pf.DataTableColumn(key="term", header="Term", sortable=True),
+                    pf.DataTableColumn(key="level", header="Level", sortable=True),
+                    pf.DataTableColumn(key="energy_cm", header="E (cm⁻¹)", sortable=True),
+                    pf.DataTableColumn(key="spin_allowed", header="Spin-allowed"),
+                ],
+                rows=table_rows,
+                search=True,
+            )
+        return app
+
+
+def _register_ratio_fit(mcp: FastMCP) -> None:
+    """Custom TS diagram derived from two/three measured absorption bands."""
+
+    @mcp.tool(
+        name="ts_ratio_fit_app",
+        title="Custom TS diagram from band positions",
+        version=_pkg_version,
+        tags={"tanabesugano", "fitting", "ratios"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_ratio_fit_app(
+        d_count: int,
+        v1: float,
+        v2: float,
+        v3: float | None = None,
+        energy_unit: str = "cm1",
+        b_min: float = 400.0,
+        b_max: float = 1600.0,
+        grid_steps: int = 30,
+    ) -> ToolResult:
+        """Derive Dq and Racah B from two or three measured band positions.
+
+        Uses the two-ratio method: finds the (Dq, B) grid point where the
+        computed spin-allowed transitions best reproduce the observed band ratios
+        nu2/nu1 (and nu3/nu1 when v3 is provided). Returns a Chart.js TS diagram
+        with the fitted Dq/B region highlighted.
+
+        Args:
+            d_count: d-electron count (2–8).
+            v1, v2: First and second spin-allowed band positions.
+            v3: Optional third band position.
+            energy_unit: Unit of v1/v2/v3 (cm1, eV, nm).
+            b_min, b_max: Racah B search range (cm^-1).
+            grid_steps: Grid resolution.
+
+        """
+        import json as _json
+        import math
+
+        from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._defaults import DEFAULTS
+        from tanabesugano.mcp.tools._shared import resolve_bc
+
+        def to_cm1(e: float) -> float:
+            if energy_unit == "eV":
+                return e / CM1_TO_EV
+            if energy_unit == "nm":
+                return 1e7 / e if e else float("nan")
+            return e
+
+        obs = sorted(to_cm1(x) for x in ([v1, v2] + ([v3] if v3 else [])) if x > 0)
+        if len(obs) < 2:
+            return ToolResult(
+                content=[
+                    _mcp_types.TextContent(
+                        type="text",
+                        text='{"title":"Error","x_label":"","y_label":"","series":[],"error":"Need at least 2 peaks."}',
+                    )
+                ]
+            )
+
+        obs_ratios = [obs[i] / obs[0] for i in range(1, len(obs))]
+        ground_mult = _multiplicity_of(DEFAULTS[d_count]["ground_term"])
+        default_C = DEFAULTS[d_count]["default_C"]
+        dq_max_search = obs[0] * 2.0  # sensible upper bound
+
+        best_dq = best_b = float("inf")
+        best_score = float("inf")
+
+        dq_grid = [dq_max_search * i / max(grid_steps - 1, 1) for i in range(grid_steps)]
+        b_grid = [b_min + (b_max - b_min) * j / max(grid_steps - 1, 1) for j in range(grid_steps)]
+
+        for dq in dq_grid:
+            for b in b_grid:
+                try:
+                    terms = compute_point(d_count, dq, b, default_C)
+                except Exception:
+                    continue
+                allowed = sorted(
+                    float(e)
+                    for term_key, energies in terms.items()
+                    if _multiplicity_of(term_key) == ground_mult
+                    for e in energies
+                    if e > 0
+                )
+                if len(allowed) < 2:
+                    continue
+                comp_ratios = [
+                    allowed[i] / allowed[0] for i in range(1, min(len(obs), len(allowed)))
+                ]
+                if not comp_ratios:
+                    continue
+                # Score: RMS of ratio differences + magnitude match of v1.
+                ratio_err = math.sqrt(
+                    sum((cr - or_) ** 2 for cr, or_ in zip(comp_ratios, obs_ratios))
+                    / len(comp_ratios)
+                )
+                mag_err = abs(allowed[0] - obs[0]) / obs[0]
+                score = ratio_err + 0.3 * mag_err
+                if score < best_score:
+                    best_score, best_dq, best_b = score, dq, b
+
+        if not (0 < best_dq < 1e7) or not (0 < best_b < 1e7):
+            # Grid search found nothing valid; return an error payload.
+            import json as _json
+
+            return ToolResult(
+                content=[
+                    _mcp_types.TextContent(
+                        type="text",
+                        text=_json.dumps(
+                            {
+                                "title": f"No fit found for d{d_count}",
+                                "x_label": "",
+                                "y_label": "",
+                                "series": [],
+                                "error": "Could not converge: try different peak values or a wider B range.",
+                            }
+                        ),
+                    )
+                ]
+            )
+
+        b_fit, c_fit = resolve_bc(d_count, best_b, None)
+        dq_lo = max(0.0, best_dq * 0.6)
+        dq_hi = best_dq * 1.6
+
+        try:
+            rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
+                d_count,
+                dq_lo,
+                dq_hi,
+                grid_steps,
+                b_fit,
+                c_fit,
+                normalize=True,
+            )
+        except Exception:
+            rows, series, title, x_key, x_label, y_label = (
+                [],
+                [],
+                f"d{d_count} fit",
+                "x",
+                "10Dq/B",
+                "E/B",
+            )
+
+        # Mark the fitted Dq/B location as a vertical annotation dataset.
+        x_fit_norm = round(best_dq * 10.0 / b_fit, 3) if b_fit else 0.0
+        all_series: list[dict] = []
+        for s in series:
+            data = [{"x": row[x_key], "y": row.get(s.data_key)} for row in rows]
+            all_series.append(
+                {"label": s.label or s.data_key, "color": s.color or "#888", "data": data}
+            )
+        # Add vertical marker series at the fitted Dq.
+        all_series.append(
+            {
+                "label": f"Fitted 10Dq/B = {x_fit_norm:g}",
+                "color": "#FF0000",
+                "data": [{"x": x_fit_norm, "y": 0}, {"x": x_fit_norm, "y": 150}],
+                "borderDash": [6, 3],
+            }
+        )
+
+        title_custom = f"Custom TS d{d_count}: Dq={best_dq:.1f}, B={b_fit:.1f} cm⁻¹"
+        payload = _json.dumps(
+            {"title": title_custom, "x_label": x_label, "y_label": y_label, "series": all_series}
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+
+def _register_spectrum(mcp: FastMCP) -> None:
+    """Simulated UV-Vis absorption spectrum with Lorentzian broadening."""
+
+    @mcp.tool(
+        name="ts_spectrum_app",
+        title="Simulated UV-Vis absorption spectrum",
+        version=_pkg_version,
+        tags={"tanabesugano", "spectrum", "simulation"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=SPECTRUM_URI),
+    )
+    def ts_spectrum_app(
+        d_count: int,
+        Dq: float = 900.0,
+        B: float | None = None,
+        C: float | None = None,
+        energy_unit: str = "cm1",
+        broadening: float = 500.0,
+        n_points: int = 500,
+    ) -> ToolResult:
+        """Simulate a Lorentzian-broadened UV-Vis absorption spectrum.
+
+        Computes all term energies from the ground state; spin-allowed transitions
+        (same 2S+1 as the ground term) appear at full height while spin-forbidden
+        ones appear at 5% height. Returns a Chart.js line chart with the energy
+        axis in the requested unit (cm1 / eV / nm).
+
+        Args:
+            d_count: d-electron count (2–8).
+            Dq: Crystal-field strength (cm^-1).
+            B, C: Racah parameters (cm^-1); defaults to per-configuration values.
+            energy_unit: x-axis unit (cm1, eV, nm). Note nm inverts the axis.
+            broadening: Lorentzian FWHM in cm^-1.
+            n_points: Number of points in the spectrum curve.
+
+        """
+        import json as _json
+        import math
+
+        from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._defaults import DEFAULTS
+        from tanabesugano.mcp.tools._shared import resolve_bc
+
+        b_val, c_val = resolve_bc(d_count, B, C)
+        terms = compute_point(d_count, Dq, b_val, c_val)
+        ground_mult = _multiplicity_of(DEFAULTS[d_count]["ground_term"])
+
+        # Collect stick transitions (energy_cm, relative_intensity).
+        sticks: list[tuple[float, float]] = []
+        for term_key, energies in terms.items():
+            mult = _multiplicity_of(term_key)
+            intensity = 1.0 if mult == ground_mult else 0.05
+            for e in energies:
+                e_f = float(e)
+                if e_f > 1e-3:  # skip ground state (≈ 0)
+                    sticks.append((e_f, intensity))
+
+        if not sticks:
+            payload = _json.dumps(
+                {
+                    "title": f"d{d_count} spectrum — no transitions",
+                    "x_label": "",
+                    "y_label": "Abs.",
+                    "series": [],
+                }
+            )
+            return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+        e_min_cm = max(0.0, min(e for e, _ in sticks) - 3 * broadening)
+        e_max_cm = max(e for e, _ in sticks) + 3 * broadening
+        gamma = broadening / 2.0  # half-width
+
+        e_axis_cm = [
+            e_min_cm + (e_max_cm - e_min_cm) * i / max(n_points - 1, 1) for i in range(n_points)
+        ]
+
+        # Lorentzian broadening: sum of I * (γ/π) / ((ε - ε₀)² + γ²)
+        spectrum = [
+            sum(inten * (gamma / math.pi) / ((e_axis - e0) ** 2 + gamma**2) for e0, inten in sticks)
+            for e_axis in e_axis_cm
+        ]
+        # Normalise to max = 1.
+        s_max = max(spectrum) if spectrum else 1.0
+        spectrum = [round(s / s_max, 4) if s_max else 0.0 for s in spectrum]
+
+        # Convert x-axis to requested unit.
+        x_axis = [round(_convert_energy(e, energy_unit), 4) for e in e_axis_cm]
+        x_label_map = {"cm1": "E (cm⁻¹)", "eV": "E (eV)", "nm": "λ (nm)"}
+        x_label = x_label_map.get(energy_unit, "E (cm⁻¹)")
+
+        data = [{"x": x, "y": y} for x, y in zip(x_axis, spectrum)]
+        title_spectrum = f"Simulated spectrum d{d_count} (Dq={Dq:g}, B={b_val:g} cm⁻¹)"
+        payload = _json.dumps(
+            {
+                "title": title_spectrum,
+                "x_label": x_label,
+                "y_label": "Absorbance (arb. units)",
+                "series": [{"label": "Simulated spectrum", "color": "#0072B2", "data": data}],
+            }
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+    @mcp.resource(
+        SPECTRUM_URI,
+        mime_type="text/html",
+        title="TanabeSugano simulated spectrum (Chart.js)",
+        app=AppConfig(
+            csp=ResourceCSP(resource_domains=["https://cdn.jsdelivr.net", "https://unpkg.com"]),
+        ),
+    )
+    def spectrum_view() -> str:
+        """Chart.js line chart renderer for ts_spectrum_app — same schema as diagram.html."""
+        return _DIAGRAM_HTML  # spectrum uses same Chart.js view as line diagrams
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # Internals
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -616,6 +1220,84 @@ def _multiplicity_of(term: str) -> int:
 
 def _badge_variant(term: str) -> str:
     return _BADGE_VARIANT_BY_MULT.get(_multiplicity_of(term), "secondary")
+
+
+# Chart.js line chart with proper axis titles. Used by ts_plot_view, ts_overlay_app,
+# ts_ratio_fit_app, and ts_spectrum_app. Payload schema:
+#   { title, x_label, y_label, series: [{label, color, data: [{x, y}], borderDash?}] }
+_DIAGRAM_HTML = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <title>Tanabe-Sugano diagram</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; background: transparent; }
+    #wrap { padding: 8px; }
+    canvas { max-height: 460px; }
+    .hint { font-family: -apple-system, system-ui, sans-serif; color: #888; padding: 12px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div id="wrap"><canvas id="chart"></canvas></div>
+  <div id="hint" class="hint">Waiting for result…</div>
+  <script type="module">
+    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.0/app-with-deps";
+    const app = new App({ name: "TS Chart", version: "1.0.0" });
+    let chart = null;
+    app.ontoolresult = ({ content }) => {
+      const txt = (content || []).find(c => c.type === 'text');
+      if (!txt) return;
+      let p;
+      try { p = JSON.parse(txt.text); } catch(e) {
+        document.getElementById('hint').textContent = 'Parse error: ' + e.message;
+        return;
+      }
+      document.getElementById('hint').style.display = 'none';
+      if (chart) chart.destroy();
+      const ctx = document.getElementById('chart').getContext('2d');
+      const datasets = (p.series || []).map(s => ({
+        label: s.label || '',
+        data: s.data || [],
+        borderColor: s.color || '#888',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        borderDash: s.borderDash || [],
+        tension: 0.3,
+      }));
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          animation: false,
+          parsing: false,
+          plugins: {
+            title: { display: !!p.title, text: p.title || '', font: { size: 14 } },
+            legend: { display: true, labels: { boxWidth: 18, font: { size: 10 } } },
+            tooltip: { mode: 'index', intersect: false },
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              title: { display: true, text: p.x_label || '', font: { size: 12 } },
+              ticks: { maxTicksLimit: 10 },
+            },
+            y: {
+              title: { display: true, text: p.y_label || '', font: { size: 12 } },
+              ticks: { maxTicksLimit: 8 },
+            },
+          },
+        },
+      });
+    };
+    await app.connect();
+  </script>
+</body>
+</html>
+"""
 
 
 # Chart.js + chartjs-chart-matrix heatmap renderer.  No Plotly anywhere.
