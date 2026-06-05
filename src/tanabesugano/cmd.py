@@ -87,8 +87,7 @@ class CMDmain:
             {"Energy": energy, "delta_B": energy / self.B, "10Dq": energy * 10.0},
         )
         self.title_TS = (
-            f"TS-diagram_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_"
-            f"B_{int(self.B)}_C_{int(self.C)}"
+            f"TS-diagram_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_B_{int(self.B)}_C_{int(self.C)}"
         )
         self.title_DD = (
             f"DD-energies_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_"
@@ -171,9 +170,7 @@ class CMDmain:
             result.append(self.subsplit_states(states))
 
         # Transform list of dictionaries to dictionary of arrays
-        result = {
-            key: np.array([d[key] for d in result]).flatten() for key in result[0]
-        }
+        result = {key: np.array([d[key] for d in result]).flatten() for key in result[0]}
         self.df = pd.concat([self.df, pd.DataFrame(result)], axis=1)
 
     @staticmethod
@@ -234,10 +231,7 @@ class CMDmain:
         x.align["state"] = "l"
         x.align["cm"] = "r"
         x.align["eV"] = "r"
-        title = (
-            f"TS_Cut_d{self.d_count}_10Dq_{int(dq_ci)}_B_{int(self.B)}"
-            f"_C_{int(self.C)}.csv"
-        )
+        title = f"TS_Cut_d{self.d_count}_10Dq_{int(dq_ci)}_B_{int(self.B)}_C_{int(self.C)}.csv"
 
         np.savetxt(
             title,
@@ -252,10 +246,7 @@ class CMDmain:
     def interactive_plot(self) -> None:
         """Interactive plot for the tanabe-sugano-diagram."""
         if px is None:
-            msg = (
-                "Plotly is not installed. "
-                "Install with: pip install tanabesugano[plotly]"
-            )
+            msg = "Plotly is not installed. Install with: pip install tanabesugano[plotly]"
             raise ImportError(msg)
 
         _col = self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).columns
@@ -266,9 +257,7 @@ class CMDmain:
             "width": 800,
             "height": 800,
         }
-        color_discrete_sequence = [
-            px.colors.qualitative.Light24[int(i[0]) - 1] for i in _col
-        ]
+        color_discrete_sequence = [px.colors.qualitative.Light24[int(i[0]) - 1] for i in _col]
 
         _df = self.df.copy()
 
@@ -356,17 +345,14 @@ def cmd_line() -> None:
         type=float,
         nargs=2,
         default=[1080.0, 1.0],
-        help="Racah Parameter B and the corresponding "
-        "reduction (default B = 860 cm- * 1.)",
+        help="Racah Parameter B and the corresponding reduction (default B = 860 cm- * 1.)",
     )
     parser.add_argument(
         "-C",
         type=float,
         nargs=2,
         default=[4773.0, 1.0],
-        help="Racah Parameter C and the corresponding "
-        "reduction (default C = 4.477*860 cm- * "
-        "1.)",
+        help="Racah Parameter C and the corresponding reduction (default C = 4.477*860 cm- * 1.)",
     )
     parser.add_argument(
         "-n",
@@ -390,8 +376,7 @@ def cmd_line() -> None:
         "-slater",
         action="store_true",
         default=False,
-        help="Using Slater-Condon F2,F4 parameter "
-        "instead Racah-Parameter B,C (default = off)",
+        help="Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)",
     )
     parser.add_argument(
         "-v",

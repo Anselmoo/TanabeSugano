@@ -2,47 +2,41 @@
 name = "tanabesugano"
 version = "1.6.1"
 description = "A python-solver for Tanabe-Sugano and Energy-Correlation diagrams"
-authors = [
-    {name = "Anselm Hahn", email = "anselm.hahn@gmail.com"}
-]
-maintainers = [
-    {name = "Anselm Hahn", email = "anselm.hahn@gmail.com"}
-]
+authors = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
+maintainers = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = [
-        "terminal",
-        "data-visualization",
-        "tanabe-sugano",
-        "energy-correlation",
-        "complex-ions",
+    "terminal",
+    "data-visualization",
+    "tanabe-sugano",
+    "energy-correlation",
+    "complex-ions",
 ]
 classifiers = [
-        "Development Status :: 5 - Production/Stable",
-        "Environment :: Console",
-        "Intended Audience :: Education",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: MacOS",
-        "Operating System :: Unix",
-        "Operating System :: Microsoft :: Windows",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Programming Language :: Python :: 3.13",
-        "Programming Language :: Python :: 3.14",
-        "Topic :: System :: Shells",
-        "Topic :: Scientific/Engineering :: Visualization",
-        "Topic :: Scientific/Engineering :: Chemistry",
-        "Topic :: Scientific/Engineering :: Physics",
-        "Topic :: Utilities",
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: Unix",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Shells",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Utilities",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "pandas>=1.2.4,<4.0.0",
-    "numpy>=1.26.4,<2.0; python_version == '3.10'",
-    "numpy>=2.0.2; python_version >= '3.11'",
+    "numpy>=2.0.2",
     "matplotlib>=3.4.2",
     "prettytable>=2.1,<4.0",
     "update>=0.0.1,<1.0.0",
@@ -50,65 +44,64 @@ dependencies = [
 
 [project.optional-dependencies]
 plotly = ["plotly>=5.13.1,<7.0.0"]
+mcp = ["fastmcp[apps]>=3.3.0"]
 
 [project.scripts]
 tanabesugano = "tanabesugano.cmd:cmd_line"
+tanabesugano-mcp = "tanabesugano.mcp.server:main"
 
 [project.urls]
 Homepage = "https://pypi.org/project/TanabeSugano"
 Repository = "https://github.com/Anselmoo/TanabeSugano"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.9.26,<0.12.0"]
+build-backend = "uv_build"
 
-[tool.hatch.build.targets.wheel]
-packages = ["tanabesugano"]
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "/tanabesugano",
-    "/LICENSE",
-    "/README.md",
-]
-exclude = [
-    "/test",
-    "/example",
-    "/ts-diagrams",
-]
+[tool.uv.build-backend]
+module-root = "src"
 
 [dependency-groups]
 dev = [
     "pytest>=7.2,<9.0",
     "pytest-clarity>=1.0.1",
     "pytest-cov>=4,<6",
-    "flake8>=6,<8",
-    "black>=22.12,<25.0",
-    "isort>=5.11.4",
     "pytest-console-scripts>=1.3.1",
     "ruff>=0.7.0",
 ]
 
 [tool.ruff]
-lint.select = ["ALL"]
-lint.ignore = [
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
     "N801",    # Class name should use CapWords convention (d2, d3, etc. are scientific notation)
     "N802",    # Function name should be lowercase (A_1_1_states, etc. are scientific notation)
     "N803",    # Argument name should be lowercase (Dq, B, C are standard scientific notation)
     "N806",    # Variable in function should be lowercase (Dq, B, C are standard scientific notation)
+    "N815",    # mixedCase variable in class scope (Dq, B, C are scientific notation in models)
+    "N816",    # mixedCase variable in global scope (Dq, B, C are scientific notation)
     "PLR0913", # Too many arguments in function definition (CLI design choice)
     "FBT001",  # Boolean-typed positional argument in function (intentional design)
     "FBT002",  # Boolean default positional argument in function (intentional design)
     "A005",    # Module shadows Python standard library (cmd.py is intentional)
 ]
-target-version = "py310"
-src = ["tanabesugano"]
 
 [tool.ruff.lint.per-file-ignores]
-"tanabesugano/test/*" = ["PT006", "ANN001", "ANN201", "D103", "S101", "PLR2004"]
+"src/tanabesugano/test/*" = [
+    "PT006", "ANN001", "ANN201", "D103", "S101", "PLR2004", "PLC0415",
+]
+"src/tanabesugano/mcp/*" = [
+    "PLC0415", # lazy / soft imports are intentional for optional [mcp] extra
+    "C901",    # register_tools dispatches the whole ts_* tool family
+]
+"scripts/*" = ["INP001", "T201"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["umf"]
+known-first-party = ["tanabesugano"]
 force-single-line = true
 lines-between-types = 1
 lines-after-imports = 2
@@ -118,5 +111,6 @@ required-imports = ["from __future__ import annotations"]
 markers = """
     xfail: mark test as expecting to fail
     skip: mark test as skipped
+    mcp: tests requiring the [mcp] optional extra (fastmcp)
 """
-addopts = "-v --cov=tanabesugano"
+addopts = "-v --cov=src/tanabesugano"

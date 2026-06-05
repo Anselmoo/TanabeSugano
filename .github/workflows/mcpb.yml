@@ -1,0 +1,59 @@
+name: Build .mcpb package
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "scripts/build_mcpb.py"
+      - "pyproject.toml"
+      - ".github/workflows/mcpb.yml"
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  build-mcpb:
+    name: Build .mcpb bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build .mcpb bundle
+        run: python scripts/build_mcpb.py
+
+      - name: Validate .mcpb archive
+        run: |
+          python - <<'PY'
+          import glob, json, sys, zipfile
+          paths = glob.glob("dist/*.mcpb")
+          if not paths:
+              sys.exit("No .mcpb file found in dist/")
+          path = paths[0]
+          with zipfile.ZipFile(path) as zf:
+              names = zf.namelist()
+              for required in ("manifest.json", "server/main.py"):
+                  if required not in names:
+                      sys.exit(f"Missing required archive member: {required}")
+              manifest = json.loads(zf.read("manifest.json"))
+          assert manifest["name"] == "tanabesugano", manifest
+          assert manifest["server"]["type"] == "uv", manifest
+          assert manifest["server"]["mcp_config"]["command"] == "uv", manifest
+          print(f"OK: {path}")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload .mcpb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcpb-package
+          path: dist/*.mcpb
+          if-no-files-found: error
