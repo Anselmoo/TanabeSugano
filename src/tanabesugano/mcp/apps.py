@@ -287,8 +287,18 @@ def _register_plot_view(mcp: FastMCP) -> None:
         Supports energy_unit = "cm1" | "eV" | "nm" for the y-axis.
         Note: "nm" inverts the energy axis (shorter wavelength = higher energy).
         """
+        from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
 
+        if d_count not in DEFAULTS:
+            return ToolResult(
+                content=[
+                    _mcp_types.TextContent(
+                        type="text",
+                        text=f"d_count must be 2..8, got {d_count}",
+                    ),
+                ],
+            )
         b_val, c_val = resolve_bc(d_count, B, C)
         rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
             d_count,
@@ -386,7 +396,7 @@ def _register_diagram_app(mcp: FastMCP) -> None:
                             "energy_cm": round(float(e), 1),
                             "energy_over_B": round(float(e / b_val), 3) if b_val else 0.0,
                             "mult": str(_multiplicity_of(term)),
-                        }
+                        },
                     )
             tbl.sort(key=lambda r: r["energy_cm"])
             all_dq_tables.append(tbl)
@@ -872,6 +882,15 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 results.append({"Dq": round(dq, 1), "B": round(b, 1), "RMS": round(rms, 1)})
                 if rms < best_rms:
                     best_rms, best_dq, best_b = rms, dq, b
+
+        if not results:
+            with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
+                pf.Heading(content="No fit found", level=3)
+                pf.Text(
+                    content="The grid search produced no candidates. Try relaxing the search bounds.",
+                    css_class="text-sm text-muted-foreground",
+                )
+            return app
 
         best_c = default_C
         _, best_c = resolve_bc(d_count, best_b, None)

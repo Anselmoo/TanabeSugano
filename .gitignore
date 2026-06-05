@@ -14,3 +14,4 @@ htmlcov/
 .pytest_cache/
 .venv/
 .serena/
+test-screenshots/

@@ -65,6 +65,8 @@ def register(mcp: FastMCP) -> None:
         Drives the DataTable surfaces in `ts_diagram_app` and friends.
         """
         b_val, c_val = resolve_bc(d_count, B, C)
+        if b_val <= 0:
+            return ComputeError(error=f"Racah B must be positive, got {b_val}")
         try:
             terms = compute_point(d_count, Dq, b_val, c_val)
         except (ValueError, RuntimeError) as exc:

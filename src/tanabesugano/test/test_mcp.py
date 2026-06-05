@@ -10,7 +10,7 @@ import asyncio
 import pytest
 
 
-fastmcp = pytest.importorskip("fastmcp", reason="install with `pip install tanabesugano[mcp]`")
+pytest.importorskip("fastmcp", reason="install with `pip install tanabesugano[mcp]`")
 
 pytestmark = pytest.mark.mcp
 

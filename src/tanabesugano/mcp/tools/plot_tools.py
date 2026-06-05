@@ -49,16 +49,29 @@ def register(mcp: FastMCP) -> None:
         render an in-chat Prefab LineChart with per-term legend toggling.
         """
         b_val, c_val = resolve_bc(d_count, B, C)
-        png = render_diagram_png(
-            d_count=d_count,
-            dq_min=dq_min,
-            dq_max=dq_max,
-            steps=steps,
-            B=b_val,
-            C=c_val,
-            normalize=normalize,
-            dpi=dpi,
-        )
+        if b_val <= 0:
+            return ToolResult(
+                content=[
+                    types.TextContent(type="text", text=f"Racah B must be positive, got {b_val}")
+                ],
+            )
+        if steps < 2:
+            return ToolResult(
+                content=[types.TextContent(type="text", text=f"steps must be >= 2, got {steps}")],
+            )
+        try:
+            png = render_diagram_png(
+                d_count=d_count,
+                dq_min=dq_min,
+                dq_max=dq_max,
+                steps=steps,
+                B=b_val,
+                C=c_val,
+                normalize=normalize,
+                dpi=dpi,
+            )
+        except (ValueError, RuntimeError) as exc:
+            return ToolResult(content=[types.TextContent(type="text", text=str(exc))])
         b64 = base64.b64encode(png).decode()
         return ToolResult(
             content=[types.ImageContent(type="image", data=b64, mimeType="image/png")],
