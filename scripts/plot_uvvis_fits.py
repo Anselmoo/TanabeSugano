@@ -37,10 +37,16 @@ BAND_COLOR = "#D55E00"  # vermilion — assigned band maxima
 PARAM_COLOR = "#009E73"  # green — parameter annotation box
 
 # The three spin-allowed octahedral d8 transitions, low energy -> high energy.
+# Mathtext for figures; plain ASCII for the exported txt headers.
 D8_ASSIGNMENTS = (
     r"$^{3}A_{2g}\!\rightarrow\!^{3}T_{2g}$",
     r"$^{3}A_{2g}\!\rightarrow\!^{3}T_{1g}(F)$",
     r"$^{3}A_{2g}\!\rightarrow\!^{3}T_{1g}(P)$",
+)
+D8_ASSIGNMENTS_ASCII = (
+    "3A2g->3T2g",
+    "3A2g->3T1g(F)",
+    "3A2g->3T1g(P)",
 )
 
 
@@ -50,6 +56,7 @@ class Complex:
     def __init__(
         self,
         label: str,
+        plain_label: str,
         slug: str,
         d_count: int,
         ion: str,
@@ -60,6 +67,7 @@ class Complex:
         color_hint: str,
     ) -> None:
         self.label = label
+        self.plain_label = plain_label
         self.slug = slug
         self.d_count = d_count
         self.ion = ion
@@ -82,6 +90,7 @@ class Complex:
 COMPLEXES: list[Complex] = [
     Complex(
         label=r"[Ni(H$_2$O)$_6$]$^{2+}$",
+        plain_label="[Ni(H2O)6]2+",
         slug="ni_aqua",
         d_count=8,
         ion="Ni2+",
@@ -93,6 +102,7 @@ COMPLEXES: list[Complex] = [
     ),
     Complex(
         label=r"[Ni(NH$_3$)$_6$]$^{2+}$",
+        plain_label="[Ni(NH3)6]2+",
         slug="ni_ammine",
         d_count=8,
         ion="Ni2+",
@@ -116,6 +126,46 @@ def _gaussian_envelope(
     for center, amp in zip(centers_cm1, intensities, strict=True):
         envelope += amp * np.exp(-0.5 * ((grid_cm1 - center) / width_cm1) ** 2)
     return envelope
+
+
+def export_ascii(cx: Complex, out_dir: Path) -> Path:
+    """Write the reference spectrum as a documented ASCII txt file.
+
+    Columns are tab-separated (matching the examples/*.txt convention):
+    wavenumber (cm^-1), wavelength (nm), absorbance (a.u.). A commented header
+    records provenance, reference parameters, and the assigned band maxima so
+    the file is self-describing and directly consumable by ts_fit_spectrum.
+    """
+    observed_cm1 = cx.bands_cm1
+    neph = nephelauxetic_analysis(cx.d_count, cx.ref_b, cx.ion)
+
+    grid = np.linspace(4000.0, 33000.0, 1500)
+    envelope = _gaussian_envelope(grid, observed_cm1, cx.intensities)
+    wavelengths = 1.0e7 / grid
+
+    bands_str = ", ".join(f"{b:.0f}" for b in observed_cm1)
+    assign_str = "; ".join(D8_ASSIGNMENTS_ASCII)
+
+    header = (
+        f"# UV-Vis reference spectrum — {cx.plain_label} "
+        f"({cx.ion}, d{cx.d_count}, {cx.color_hint})\n"
+        "# Reconstructed absorption envelope from literature band maxima "
+        "(sum of Gaussians).\n"
+        "# Sources: Chemistry LibreTexts; Doc Brown's chemistry notes; "
+        "Lever, Inorganic Electronic Spectroscopy (1984).\n"
+        f"# Reference parameters: Dq={cx.ref_dq:.0f} cm^-1  B={cx.ref_b:.0f} cm^-1  "
+        f"beta={neph['beta']:.3f} ({neph['covalency']})\n"
+        f"# Observed band maxima (cm^-1): {bands_str}\n"
+        f"# Assignments (low->high energy): {assign_str}\n"
+        "# columns: wavenumber_cm-1\twavelength_nm\tabsorbance_au\n"
+    )
+
+    out_path = out_dir / f"uvvis_fit_{cx.slug}.txt"
+    with out_path.open("w", encoding="utf-8") as fh:
+        fh.write(header)
+        for wn, wl, ab in zip(grid, wavelengths, envelope, strict=True):
+            fh.write(f"{wn:.6f}\t{wl:.6f}\t{ab:.6f}\n")
+    return out_path
 
 
 def render(cx: Complex, out_dir: Path) -> Path:
@@ -226,8 +276,10 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     for cx in COMPLEXES:
-        path = render(cx, out_dir)
-        print(f"wrote {path.relative_to(repo_root)}")
+        png_path = render(cx, out_dir)
+        print(f"wrote {png_path.relative_to(repo_root)}")
+        txt_path = export_ascii(cx, out_dir)
+        print(f"wrote {txt_path.relative_to(repo_root)}")
 
 
 if __name__ == "__main__":
