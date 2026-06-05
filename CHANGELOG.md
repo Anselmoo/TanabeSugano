@@ -1,4 +1,10 @@
 # Changelog
+
+## [Unreleased]
+
+### Added
+- add rrt pre-commit hooks and unified cicd workflow
+
 ---
 
 ## Before v1.2.0
