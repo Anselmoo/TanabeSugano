@@ -2,12 +2,22 @@ name: CI/CD
 
 on:
   push:
-    branches: [master, "*"]
-    tags: ["v*", "*"]
+    branches:
+      - main
+      - feat/**
+      - fix/**
+      - chore/**
+      - docs/**
+      - refactor/**
+      - test/**
+      - ci/**
+      - perf/**
+      - style/**
+      - build/**
+      - copilot/**
+    tags: ["v*.*.*"]
   pull_request:
-    branches: [master, "*"]
-  release:
-    types: [published]
+    branches: [main]
   workflow_dispatch:
 
 # Cancel superseded runs on PR / non-master pushes. Tag and master runs are
