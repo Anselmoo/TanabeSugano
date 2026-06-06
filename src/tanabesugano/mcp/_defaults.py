@@ -26,6 +26,22 @@ DEFAULTS: dict[int, _DConfig] = {
     8: {"ground_term": "3F", "matrix_size": 10, "default_B": 1030.0, "default_C": 4850.0},
 }
 
+# Free-ion → octahedral ground-term key mapping. DEFAULTS["ground_term"] stores
+# free-ion spectroscopic notation (3F, 6S, …) for human display, but the
+# matrices.py solvers use octahedral keys (3_T_1, 6_A_1, …) under crystal-field
+# splitting. Tools that take a `term` argument let the user pass either form;
+# this table normalises to the solver key. See resolve_term_key() in
+# tanabesugano.mcp.tools._shared.
+GROUND_TERM_OCTAHEDRAL: dict[int, str] = {
+    2: "3_T_1",  # 3F → 3T1g
+    3: "4_A_2",  # 4F → 4A2g
+    4: "3_T_1",  # 5D → 5Eg high-spin / 3T1g low-spin; pick high-spin term
+    5: "6_A_1",  # 6S → 6A1g (only one octahedral term)
+    6: "1_A_1",  # 5D → 5T2g high-spin / 1A1g low-spin; pick low-spin term
+    7: "4_T_1",  # 4F → 4T1g
+    8: "3_A_2",  # 3F → 3A2g
+}
+
 
 FREE_ION_RACAH_B: dict[str, float] = {
     # Free-ion Racah B parameters in cm^-1. Source: A.B.P. Lever,
