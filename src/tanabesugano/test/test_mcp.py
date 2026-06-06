@@ -165,6 +165,117 @@ def test_app_tools_return_non_empty_payload(tool: str, args: dict) -> None:
     assert result.content, f"{tool} returned empty content"  # type: ignore[attr-defined]
 
 
+def test_heatmap_emits_finite_numbers_no_nan_no_textbook_placeholder() -> None:
+    """Pins three regressions reported by the user against ts_parameter_heatmap_app:
+
+    1. The tool used to return ``PrefabApp`` whose ``content[0].text`` is the
+       literal string ``"[Rendered Prefab UI]"``. The Chart.js HTML at
+       ui://tanabesugano/heatmap.html does ``JSON.parse(content[0].text)`` and
+       failed with "Unexpected token R". content[0].text must be valid JSON.
+    2. With the free-ion ground term passed verbatim ("6S" surfaced by the
+       dashboard for d5), the solver lookup returned [] and every cell got
+       ``round(NaN, 1) == NaN``. NaN is not valid JSON. Cells now contain
+       either a finite number or ``null``.
+    3. An unknown term used to give a silent all-NaN heatmap; it now returns
+       a structured error naming the available octahedral keys.
+    """
+    import json
+    import math
+
+    # 1. Free-ion alias → octahedral key
+    r = _call(
+        "ts_parameter_heatmap_app",
+        {
+            "d_count": 5,
+            "term": "6S",
+            "Dq": 900.0,
+            "level": 0,
+            "b_min": 600.0,
+            "b_max": 1200.0,
+            "c_min": 3000.0,
+            "c_max": 5500.0,
+            "steps": 6,
+        },
+    )
+    assert not r.is_error, "free-ion ground term '6S' must resolve to 6_A_1"  # type: ignore[attr-defined]
+    text = r.content[0].text  # type: ignore[attr-defined]
+    assert text != "[Rendered Prefab UI]", (
+        "heatmap must return ToolResult with JSON text, not a PrefabApp placeholder"
+    )
+    payload = json.loads(text)  # must not raise — JSON spec disallows NaN
+    cells = payload["cells"]
+    assert cells, "heatmap must produce cells"
+    for c in cells:
+        v = c["v"]
+        # JSON does not allow NaN — values must be either finite or null.
+        assert v is None or (isinstance(v, (int, float)) and math.isfinite(v)), (
+            f"non-finite cell value {v!r} would crash strict JSON parsers"
+        )
+    assert "6_A_1" in payload["title"], "free-ion '6S' must be resolved to '6_A_1' in title"
+
+    # 2. Excited term should have varying finite energies
+    r = _call(
+        "ts_parameter_heatmap_app",
+        {"d_count": 5, "term": "4_T_1", "Dq": 900.0, "steps": 6},
+    )
+    cells = json.loads(r.content[0].text)["cells"]  # type: ignore[attr-defined]
+    vs = [c["v"] for c in cells if c["v"] is not None]
+    assert len(vs) == len(cells), "all cells finite for excited term"
+    assert max(vs) - min(vs) > 100, (
+        f"excited-state heatmap should vary across (B, C), got range {max(vs) - min(vs):.0f}"
+    )
+
+    # 3. Unknown term must produce a structured error, not a silent NaN grid
+    with pytest.raises(Exception) as exc_info:  # noqa: PT011, BLE001
+        _call("ts_parameter_heatmap_app", {"d_count": 5, "term": "XYZ", "Dq": 900.0, "steps": 4})
+    err_msg = str(exc_info.value)
+    assert "XYZ" in err_msg and "Available" in err_msg, (
+        f"invalid term must name itself and list valid alternatives, got {err_msg!r}"
+    )
+
+
+def test_diagram_app_chart_carries_varying_data() -> None:
+    """Pins the diagram_app payload: the LineChart series must contain enough
+    structure that a renderer can draw lines, not collapse to a single value.
+    Catches the regression class where the chart "appears black" because every
+    series is constant or all coordinates collapse to the origin.
+    """
+    r = _call("ts_diagram_app", {"d_count": 5, "dq_max": 1500.0, "steps": 8, "normalize": True})
+    view = (r.structured_content or {}).get("view")  # type: ignore[attr-defined]
+
+    def find_linechart(node: object) -> dict | None:
+        if isinstance(node, dict):
+            if node.get("type") == "LineChart":
+                return node
+            for ch in node.get("children") or []:
+                found = find_linechart(ch)
+                if found:
+                    return found
+        return None
+
+    lc = find_linechart(view)
+    assert lc, "ts_diagram_app must render a LineChart"
+    rows = lc.get("data") or []
+    series = lc.get("series") or []
+    assert len(rows) >= 4, f"chart needs enough rows to draw lines, got {len(rows)}"
+    assert len(series) >= 2, f"d5 has multiple term symbols, got {len(series)} series"
+    # xAxis must be set (camelCase) — Pydantic would silently drop snake_case.
+    assert lc.get("xAxis") == "x", f"xAxis must be 'x', got {lc.get('xAxis')!r}"
+    # At least one series must vary across the sweep — otherwise the chart
+    # is just horizontal lines which is what triggered the "black screen"
+    # impression originally.
+    varying_series = 0
+    for s in series:
+        key = s.get("dataKey") or s.get("data_key")
+        ys = [row.get(key) for row in rows if row.get(key) is not None]
+        if ys and max(ys) - min(ys) > 0.1:
+            varying_series += 1
+    assert varying_series >= 1, (
+        f"no series varies across Dq for d5 — chart would be flat. "
+        f"series={[s.get('dataKey') for s in series]}"
+    )
+
+
 def test_app_tools_accept_stringified_arguments() -> None:
     """Claude Desktop sends numeric/bool args as JSON strings; FastMCP+Pydantic
     must coerce them transparently. Pinning this prevents silent regressions.

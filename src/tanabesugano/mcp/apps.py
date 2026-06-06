@@ -497,10 +497,16 @@ def _register_dashboard(mcp: FastMCP) -> None:
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp._defaults import GROUND_STATE_NOTES
         from tanabesugano.mcp._defaults import ION_BY_D_COUNT
+        from tanabesugano.plot_style import term_to_unicode
 
         # Energy threshold above which an eigenvalue counts as a real excited
         # state — solvers zero the ground manifold so anything ≤ this is noise.
         ground_eps = 1.0
+        # Representative octahedral Dq for displaying a single absorption-band
+        # number alongside the sparkline. 1000 cm⁻¹ is mid-range for the
+        # transition metals we cover (Dq sits between 600 and 1800 for the
+        # ions listed in ION_BY_D_COUNT).
+        ref_dq = 1000.0
 
         cards: list[dict] = []
         for d in SUPPORTED_D_COUNTS:
@@ -517,7 +523,29 @@ def _register_dashboard(mcp: FastMCP) -> None:
                 all_e = sorted(float(e) for term in p.values() for e in term)
                 first_excited = next((e for e in all_e if e > ground_eps), 0.0)
                 spark.append(round(first_excited, 1))
-            cards.append({"d": d, "cfg": cfg, "spark": spark})
+
+            # At a fixed reference Dq, name the lowest excited term so the
+            # card reports a concrete assignable transition, not just an
+            # energy number floating in space.
+            from tanabesugano.mcp._compute import compute_point
+
+            ref_terms = compute_point(d, ref_dq, b, c)
+            ref_pairs: list[tuple[float, str]] = []
+            for term_name, eigs in ref_terms.items():
+                for e in eigs:
+                    if e > ground_eps:
+                        ref_pairs.append((float(e), term_name))
+            ref_pairs.sort(key=lambda t: t[0])
+            if ref_pairs:
+                first_e, first_term = ref_pairs[0]
+                ref_label = (
+                    f"→ {term_to_unicode(first_term)}: {first_e:,.0f} cm⁻¹"
+                    f"  @ 10Dq = {ref_dq * 10:.0f}"
+                )
+            else:
+                ref_label = ""
+
+            cards.append({"d": d, "cfg": cfg, "spark": spark, "ref_label": ref_label})
 
         with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content="Tanabe-Sugano: d² – d⁸ overview", level=2)
@@ -575,6 +603,11 @@ def _register_dashboard(mcp: FastMCP) -> None:
                             content=(f"{e_min:.0f} → {e_max:.0f} cm⁻¹ at 10Dq = 0 → 15 000 cm⁻¹"),
                             css_class="text-xs",
                         )
+                        if c_data.get("ref_label"):
+                            pf.Text(
+                                content=c_data["ref_label"],
+                                css_class="text-xs font-mono text-primary",
+                            )
                         if note_short:
                             pf.Muted(content=note_short, css_class="text-xs")
         return app
@@ -674,66 +707,82 @@ def _register_heatmap(mcp: FastMCP) -> None:
         c_min: float = 3000.0,
         c_max: float = 5500.0,
         steps: int = 12,
-    ) -> PrefabApp:
+    ) -> ToolResult:
         """Sweep Racah B × C at fixed Dq and render a Chart.js heatmap of energies.
 
-        Picks `level`-th eigenvalue of *term* at every (B, C) grid cell. The
-        Chart.js + chartjs-chart-matrix view is hosted as the HTML resource
-        at `ui://tanabesugano/heatmap.html`; non-app clients see the raw data
-        table inside a Card.
+        Picks the `level`-th eigenvalue of *term* at every (B, C) grid cell.
+        Accepts either octahedral keys (``"6_A_1"``, ``"3_T_1"``) or the
+        free-ion notation surfaced by the dashboard (``"6S"``, ``"3F"``):
+        ``resolve_term_key`` normalises both. Returns a JSON payload that the
+        Chart.js + chartjs-chart-matrix view at ``ui://tanabesugano/heatmap.html``
+        consumes via ``content[0].text``.
         """
         import json as _json
 
         from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp.tools._shared import resolve_term_key
+
+        solver_term = resolve_term_key(d_count, term)
+
+        # Quick existence probe so an unsupported term fails LOUDLY with a
+        # useful error message instead of silently filling the heatmap with
+        # NaN (which then corrupts the JSON payload — NaN is not valid JSON).
+        probe = compute_point(d_count, Dq, b_min, c_min)
+        if solver_term not in probe:
+            available = sorted(probe.keys())
+            return ToolResult(
+                content=[
+                    _mcp_types.TextContent(
+                        type="text",
+                        text=_json.dumps(
+                            {
+                                "title": "Error",
+                                "x_label": "",
+                                "y_label": "",
+                                "cells": [],
+                                "x_values": [],
+                                "y_values": [],
+                                "error": (
+                                    f"Unknown term {term!r} for d{d_count}. "
+                                    f"Available octahedral terms: {available}. "
+                                    f"You may also pass the free-ion ground-term "
+                                    f"alias from ts_dashboard_app."
+                                ),
+                            },
+                        ),
+                    ),
+                ],
+                is_error=True,
+            )
 
         b_vals = [b_min + (b_max - b_min) * i / max(steps - 1, 1) for i in range(steps)]
         c_vals = [c_min + (c_max - c_min) * j / max(steps - 1, 1) for j in range(steps)]
         cells: list[dict] = []
-        table_rows: list[dict] = []
         for b in b_vals:
             for c in c_vals:
                 try:
                     terms = compute_point(d_count, Dq, b, c)
-                    energies = terms.get(term, [])
-                    v = float(energies[level]) if level < len(energies) else float("nan")
-                except Exception:
-                    v = float("nan")
-                cells.append({"x": round(b, 1), "y": round(c, 1), "v": round(v, 1)})
-                table_rows.append({"B": round(b, 1), "C": round(c, 1), "energy_cm": round(v, 1)})
+                    energies = terms.get(solver_term, [])
+                    # JSON does not allow NaN — emit null so clients (Chart.js
+                    # included) parse cleanly and skip non-finite cells.
+                    v: float | None = (
+                        round(float(energies[level]), 1) if level < len(energies) else None
+                    )
+                except Exception:  # noqa: BLE001 — solver may LinAlgError
+                    v = None
+                cells.append({"x": round(b, 1), "y": round(c, 1), "v": v})
 
         payload = {
-            "title": f"d{d_count} {term} (level {level}) at Dq={Dq:g}",
+            "title": f"d{d_count} {solver_term} (level {level}) at Dq={Dq:g}",
             "cells": cells,
             "x_label": "Racah B (cm⁻¹)",
             "y_label": "Racah C (cm⁻¹)",
             "x_values": [round(b, 1) for b in b_vals],
             "y_values": [round(c, 1) for c in c_vals],
         }
-        meta_json = _json.dumps(payload)
-
-        with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
-            pf.Heading(content=payload["title"], level=3)
-            pf.Muted(
-                content=(
-                    "Chart.js heatmap (chartjs-chart-matrix) renders in app-capable "
-                    "clients via the linked resource. The fallback table below "
-                    "always works."
-                ),
-            )
-            # Stash the heatmap payload in a hidden Text so a client iframe
-            # consuming ui://tanabesugano/heatmap.html can read it via the
-            # MCP resource. Falls back to the DataTable for non-app clients.
-            pf.Text(content=meta_json, css_class="hidden")
-            pf.DataTable(
-                columns=[
-                    pf.DataTableColumn(key="B", header="B (cm⁻¹)", sortable=True),
-                    pf.DataTableColumn(key="C", header="C (cm⁻¹)", sortable=True),
-                    pf.DataTableColumn(key="energy_cm", header="Energy (cm⁻¹)", sortable=True),
-                ],
-                rows=table_rows,
-                search=True,
-            )
-        return app
+        return ToolResult(
+            content=[_mcp_types.TextContent(type="text", text=_json.dumps(payload))],
+        )
 
     @mcp.resource(
         HEATMAP_URI,
