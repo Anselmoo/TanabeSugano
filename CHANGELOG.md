@@ -18,6 +18,7 @@
 - update `cicd.yml` to use the correct version of `repo-release-tools` for validating release policies
 - add initial `tree.lock.toml` for dependency management and add screenshot tests to CI/CD pipeline and exclude them from coverage
 - add step to resolve wheel path before generating SPDX SBOM
+- fix update branch references from master to main in CI/CD configuration
 
 ---
 
