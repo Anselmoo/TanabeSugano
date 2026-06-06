@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- `ts_oxidation_landscape_app`: scatter chart showing every eigenvalue of d²–d⁸ on one Chart.js plot at fixed (Dq, B, C), grouped by spin multiplicity — lets the user see how the term-energy spread evolves across the d-block at a single crystal-field setting
+- `ts_compute_app`: sortable DataTable + spin-multiplicity strip plot of every eigenvalue at one (Dq, B, C); replaces the raw `ts_compute` whose nested-dict output was unusable
+
+### Removed
+- `ts_compute` and `ts_diagram`: their flat ``{term: [eigvals]}`` and full-sweep JSON payloads were unreadable; Claude consistently suggested "save to CSV / render PNG" follow-ups the client cannot execute. Replacements: `ts_compute_app`, `ts_diagram_app`, `ts_plot_view`, `ts_plot_png` (visualisation) and `ts_terms_table_data` (machine-readable rows)
+
 ### Fixed
 - `ts_parameter_heatmap_app` three bugs in one tool: (1) free-ion ground term (`6S` from the dashboard) silently returned NaN at every cell because the solver uses octahedral keys like `6_A_1` — added `resolve_term_key` helper that accepts both forms and a `GROUND_TERM_OCTAHEDRAL` mapping in `_defaults.py`; (2) NaN values are not valid JSON so strict parsers (Chart.js included) crashed with "Unexpected token N" — empty/failed cells now emit `null`; (3) the tool returned `PrefabApp` but the consuming HTML at `ui://tanabesugano/heatmap.html` did `JSON.parse(content[0].text)` which got the literal placeholder `"[Rendered Prefab UI]"` — switched to `ToolResult(content=[TextContent(text=json)])` matching the other Chart.js-backed tools (ts_plot_view / ts_overlay_app / ts_ratio_fit_app); also added a structured error listing valid term keys when an unknown term is passed
 - enrich `ts_dashboard_app` cards with a concrete assignable transition: each card now shows the lowest excited term + energy at a reference 10Dq = 10 000 cm⁻¹ (e.g. `→ ³T₂g: 8,812 cm⁻¹ @ 10Dq = 10000`) so chemists see the actual absorption-band data, not just static textbook-style metadata

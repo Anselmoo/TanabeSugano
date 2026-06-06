@@ -59,8 +59,6 @@ def test_create_server_registers_expected_tools() -> None:
     expected = {
         # numeric
         "ts_supported_configs",
-        "ts_compute",
-        "ts_diagram",
         "ts_terms_table_data",
         # plotting
         "ts_plot_png",
@@ -113,13 +111,33 @@ def _call(tool: str, args: dict) -> object:
     return asyncio.run(go())
 
 
-def test_ts_compute_returns_typed_payload() -> None:
-    result = _call("ts_compute", {"d_count": 3, "Dq": 900.0})
-    data = result.data  # type: ignore[attr-defined]
-    assert data is not None
-    assert data.d_count == 3
-    assert data.Dq == 900.0
-    assert data.terms
+def test_ts_compute_app_returns_sorted_table_and_chart() -> None:
+    """ts_compute was removed because its raw nested dict was unusable.
+    ts_compute_app replaces it with a sortable table + strip plot."""
+    result = _call("ts_compute_app", {"d_count": 5, "Dq": 980.0, "B": 1350.0, "C": 4000.0})
+    assert not result.is_error  # type: ignore[attr-defined]
+    view = (result.structured_content or {}).get("view")  # type: ignore[attr-defined]
+
+    # Find the DataTable rows
+    def find_first(node: object, type_name: str) -> dict | None:
+        if isinstance(node, dict):
+            if node.get("type") == type_name:
+                return node
+            for ch in node.get("children") or []:
+                found = find_first(ch, type_name)
+                if found:
+                    return found
+        return None
+
+    table = find_first(view, "DataTable")
+    assert table, "ts_compute_app must render a DataTable"
+    rows = table.get("rows") or []
+    assert len(rows) >= 5, f"d5 at Dq=980 should produce many levels, got {len(rows)}"
+    energies = [r["energy_cm"] for r in rows]
+    assert energies == sorted(energies), "rows must be sorted ascending by energy"
+    # Multiplicity column populated
+    mults = {r.get("mult") for r in rows}
+    assert mults & {"2", "4", "6"}, f"d5 should produce mixed multiplicities, got {mults}"
 
 
 def test_ts_terms_table_returns_sorted_rows() -> None:
@@ -157,6 +175,7 @@ def test_ts_plot_png_returns_image() -> None:
             {"d_count": 7, "observed_peaks": [8500.0, 15400.0], "grid_steps": 6},
         ),
         ("ts_ratio_fit_app", {"d_count": 3, "v1": 17000.0, "v2": 24000.0, "grid_steps": 6}),
+        ("ts_oxidation_landscape_app", {"Dq": 1000.0, "B": 900.0, "C": 4000.0}),
     ],
 )
 def test_app_tools_return_non_empty_payload(tool: str, args: dict) -> None:
