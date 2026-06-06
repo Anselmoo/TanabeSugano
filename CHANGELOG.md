@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Fixed
+- validate `d_count` centrally in `resolve_bc` — invalid values now raise a clear `ValueError` listing supported configurations instead of bubbling up as `KeyError: 99`; fixes `ts_diagram_app`, `ts_spectrum_app`, `ts_reverse_fit_app`, `ts_ratio_fit_app`, and any future tool sharing the helper
+- expand MCP smoke tests to cover all 10 app tools (added `ts_overlay_app`, `ts_spectrum_app`, `ts_reverse_fit_app`, `ts_ratio_fit_app`) plus a regression test pinning Claude Desktop's stringified-args coercion (`{"d_count": "5", "normalize": "true"}` must produce identical output to typed args) — `apps.py` coverage from 53% → 79%
 - fix `ts_dashboard_app` and `ts_compare_app` crash: NumPy 2.4.x made 1-D array assignment to scalar slot a hard `ValueError`; `d7.solver()` used `T_4_1[0] = np.array([0.0])` instead of the scalar `T_4_1[0] = 0.0`
 - fix style inconsistency in `d8.solver()`: `A_3_2 = np.array([0], dtype=float)` now uses `dtype=np.float64` consistent with d3, d4, d6
 - fix mcpb tool environment numpy version drift: `build_mcpb.py` now reads the numpy version from `uv.lock` and pins it in the manifest args (`--with numpy=={version}`) so the installed mcpb never resolves a newer breaking numpy
