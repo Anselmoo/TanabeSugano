@@ -280,14 +280,37 @@ Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the [`
 
 ### Exposed tools
 
+#### Compute & analysis tools
+
 | Tool | Description |
 |---|---|
-| `ts_supported_configs` | List supported d-configurations (d² – d⁸). |
+| `ts_supported_configs` | List supported d-configurations (d²–d⁸). |
 | `ts_compute` | Eigenvalues at one (Dq, B, C) point. |
 | `ts_diagram` | Swept Tanabe-Sugano diagram (JSON). |
+| `ts_terms_table_data` | All eigenvalues at one Dq, sorted ascending with multiplicity. |
+| `ts_fit_spectrum` | Fit observed UV-Vis absorption peaks → Dq and Racah B. |
+| `ts_nephelauxetic` | Interpret a fitted B as metal-ligand covalency (nephelauxetic β). |
 | `ts_plot_png` | Matplotlib PNG plot (cheap default). |
 | `ts_plot_view` | Interactive Prefab `LinePlot` (capable clients only). |
 | `ts_explain` | One-paragraph ground-state description. |
+
+#### Interactive app tools (Prefab UI — capable clients only)
+
+| App | Description |
+|---|---|
+| `ts_explore_app` | Discovery form: entry point that dispatches into the diagram app. |
+| `ts_dashboard_app` | One-call overview of all d-configurations with ground terms. |
+| `ts_diagram_app` | Full diagram with LineChart + DataTable + live Dq slider. |
+| `ts_compare_app` | Small-multiple grid comparing chosen d-configurations. |
+| `ts_overlay_app` | Overlay multiple d-configurations on one shared chart. |
+| `ts_parameter_heatmap_app` | Heatmap sweeping Racah B × C at fixed Dq for a chosen term. |
+| `ts_spectrum_app` | Simulated Lorentzian UV-Vis spectrum (spin-allowed + spin-forbidden). |
+| `ts_reverse_fit_app` | Grid-search Dq and B to best-fit observed peak positions. |
+| `ts_ratio_fit_app` | Derive Dq and B from 2–3 measured bands via the ratio method. |
+
+#### Prompts & resources
+
+Prompts: `tanabesugano_why` (discovery context) and `tanabesugano_explain_complex` (guided spectrum interpretation from measured absorption peaks).
 
 Resources at `tanabesugano://version`, `tanabesugano://configs`, `tanabesugano://config/{d}` provide static metadata.
 

@@ -22,7 +22,7 @@ repos:
         - id: ruff-format
           types_or: [python, pyi]
   -   repo: https://github.com/Anselmoo/repo-release-tools
-      rev: v1.8.1
+      rev: v1.8.3
       hooks:
         - id: rrt-branch-name
         - id: rrt-commit-subject

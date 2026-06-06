@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- document all MCP server tools, interactive app tools, and prompts in README (ts_fit_spectrum, ts_nephelauxetic, ts_terms_table_data, and all nine Prefab-UI app tools were previously undocumented)
 - add rrt pre-commit hooks and unified cicd workflow
 - add spectrum fitting tool (`ts_fit_spectrum`) to extract Dq and B parameters from observed UV-Vis absorption peaks
 - add scipy dependency for least-squares optimization in spectrum fitting
@@ -17,6 +18,7 @@
 - update `cicd.yml` to use the correct version of `repo-release-tools` for validating release policies
 - add initial `tree.lock.toml` for dependency management and add screenshot tests to CI/CD pipeline and exclude them from coverage
 - add step to resolve wheel path before generating SPDX SBOM
+- fix update branch references from master to main in CI/CD configuration
 
 ---
 
