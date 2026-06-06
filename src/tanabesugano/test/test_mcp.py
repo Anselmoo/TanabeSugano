@@ -185,6 +185,54 @@ def test_app_tools_accept_stringified_arguments() -> None:
     assert typed_len == string_len, f"stringified output diverged: {typed_len} vs {string_len}"
 
 
+def test_wrapped_data_args_are_unwrapped() -> None:
+    """Some clients (a recent Claude Desktop build was observed doing this) wrap
+    flat tool args in a ``{"data": {...}}`` envelope. The unwrap middleware in
+    create_server() normalises that back to flat so Pydantic does not reject
+    the call with the confusing dual "missing d_count" + "unexpected data" error.
+    """
+    flat = _call(
+        "ts_diagram_app",
+        {"d_count": 5, "dq_max": 1500.0, "steps": 6, "normalize": True},
+    )
+    wrapped = _call(
+        "ts_diagram_app",
+        {"data": {"d_count": 5, "dq_max": 1500.0, "steps": 6, "normalize": True}},
+    )
+    assert not wrapped.is_error, "wrapped {data: ...} must be unwrapped"  # type: ignore[attr-defined]
+    assert wrapped.content  # type: ignore[attr-defined]
+    # Output sizes match → unwrap produces identical computation.
+    flat_len = len(str(flat.structured_content))  # type: ignore[attr-defined]
+    wrap_len = len(str(wrapped.structured_content))  # type: ignore[attr-defined]
+    assert flat_len == wrap_len, f"unwrapped output diverged: {flat_len} vs {wrap_len}"
+
+
+def test_dashboard_sparklines_show_meaningful_data() -> None:
+    """Pins the dashboard fix: each d-card's Sparkline must vary (not flat zero)
+    because it now plots the first excited state energy across the Dq sweep,
+    not the ground-term energy (which is always 0 by construction).
+    """
+    result = _call("ts_dashboard_app", {})
+    assert not result.is_error  # type: ignore[attr-defined]
+
+    sparks: list[list[float]] = []
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "Sparkline":
+                sparks.append(node.get("data") or [])
+            for child in node.get("children") or []:
+                walk(child)
+
+    view = (result.structured_content or {}).get("view")  # type: ignore[attr-defined]
+    walk(view)
+
+    assert len(sparks) == 7, f"expected one sparkline per d-config, got {len(sparks)}"
+    for d, spark in zip(range(2, 9), sparks, strict=True):
+        assert spark, f"d{d} sparkline is empty"
+        assert max(spark) > 100, f"d{d} sparkline never rises above 100 cm⁻¹ — still flat zero?"
+
+
 def test_invalid_d_count_surfaces_clear_error() -> None:
     """Invalid d_count must surface as a clear ToolError, not a raw KeyError.
 
