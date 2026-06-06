@@ -428,11 +428,11 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             LineChart(
                 data=rows,
                 series=series,
-                x_axis=x_key,
-                show_legend=True,
-                show_tooltip=True,
-                show_grid=True,
-                show_dots=False,
+                xAxis=x_key,
+                showLegend=True,
+                showTooltip=True,
+                showGrid=True,
+                showDots=False,
                 height=380,
             )
             pf.Text(
@@ -598,11 +598,11 @@ def _register_compare(mcp: FastMCP) -> None:
                         LineChart(
                             data=rows,
                             series=series,
-                            x_axis=x_key,
-                            show_legend=False,
-                            show_tooltip=True,
-                            show_grid=True,
-                            show_dots=False,
+                            xAxis=x_key,
+                            showLegend=False,
+                            showTooltip=True,
+                            showGrid=True,
+                            showDots=False,
                             height=240,
                         )
                         pf.Muted(content=f"{x_label}  /  {y_label}")

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- fix `ts_diagram_app` and `ts_compare_app` black chart: `LineChart` from `prefab_ui` uses camelCase params (`xAxis`, `showLegend`, `showTooltip`, `showGrid`, `showDots`); the snake_case names were silently dropped by Pydantic, leaving the chart with no x-axis key and no configuration → black canvas
+
 ### Added
 - add `--dev` mode to `build_mcpb.py` and `poe build-mcpb-dev` task for building a .mcpb that points to the local source tree before PyPI publication; both modes now pin the fastmcp version from `uv.lock` via `--with fastmcp[apps]=={version}` to prevent Claude Desktop cycling caused by version drift
 - add poethepoet task runner with `build-mcpb`, `build-mcpb-dev`, `lint`, `format`, `test`, and `test-mcp` tasks; `uv run poe build-mcpb-dev` produces a local-source Claude Desktop bundle
