@@ -48,10 +48,7 @@ def _validate_parameter_range(
 
     """
     if len(param) != PARAMETER_RANGE_LENGTH:
-        msg = (
-            f"The range of `{param_name}` is based on the three values: "
-            f"start, stop, steps!"
-        )
+        msg = f"The range of `{param_name}` is based on the three values: start, stop, steps!"
         raise KeyError(msg)
 
 

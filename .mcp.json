@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tanabesugano": {
+      "command": "uv",
+      "args": ["run", "tanabesugano-mcp"]
+    }
+  }
+}

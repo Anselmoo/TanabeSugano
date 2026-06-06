@@ -1,0 +1,23 @@
+[meta]
+generated_at = "2026-06-05T14:04:56+00:00"
+rrt_version = "1.8.1"
+
+[checks.pre_commit]
+status = "ok"
+message = ".pre-commit-config.yaml includes repo-release-tools hooks"
+updated_at = "2026-06-05T14:04:56+00:00"
+
+[checks.lefthook]
+status = "warning"
+message = "lefthook.yml not configured"
+updated_at = "2026-06-05T14:04:56+00:00"
+
+[checks.husky]
+status = "warning"
+message = ".husky not configured"
+updated_at = "2026-06-05T14:04:56+00:00"
+
+[checks.workflows]
+status = "ok"
+message = ".github/workflows includes repo-release-tools policy checks (cicd.yml)"
+updated_at = "2026-06-05T14:04:56+00:00"

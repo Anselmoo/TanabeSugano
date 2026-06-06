@@ -29,10 +29,10 @@
 
 ---
 
-[**🚀 Quick Start**](#-quick-start) • 
-[**✨ Features**](#-features) • 
-[**📖 Documentation**](#-scientific-background) • 
-[**🎨 Examples**](#-examples) • 
+[**🚀 Quick Start**](#-quick-start) •
+[**✨ Features**](#-features) •
+[**📖 Documentation**](#-scientific-background) •
+[**🎨 Examples**](#-examples) •
 [**🤝 Contributing**](CONTRIBUTING.md)
 
 </div>
@@ -80,9 +80,14 @@ pip install TanabeSugano
 # 🔧 Install with interactive plotting support
 pip install TanabeSugano[plotly]
 
+# 🤖 Install with MCP server support (Claude Desktop, Cursor, VS Code, …)
+pip install TanabeSugano[mcp]
+
 # 🌐 Install from GitHub (latest development version)
 pip install git+https://github.com/Anselmoo/TanabeSugano.git
 ```
+
+> **Note:** TanabeSugano now uses the [`uv_build`](https://docs.astral.sh/uv/concepts/build-backend/) backend and requires Python ≥ 3.12.
 
 ### Basic Usage
 
@@ -242,6 +247,52 @@ All diagrams (d² through d⁸) are now available on our interactive GitHub Page
 
 ---
 
+## 🤖 MCP Server (Claude Desktop, Cursor, …)
+
+TanabeSugano ships an optional [Model Context Protocol](https://modelcontextprotocol.io/) server so AI assistants can compute diagrams, evaluate term symbols, and render plots as first-class tools.
+
+### Install
+
+```bash
+pip install "TanabeSugano[mcp]"
+# or with uv:
+uv add "TanabeSugano[mcp]"
+```
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "tanabesugano": {
+      "command": "uvx",
+      "args": ["--from", "tanabesugano[mcp]", "tanabesugano-mcp"]
+    }
+  }
+}
+```
+
+### One-click via `.mcpb` bundle
+
+Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the [`Build .mcpb package`](.github/workflows/mcpb.yml) workflow) that Claude Desktop can install in one step — drag the file onto the Claude Desktop window.
+
+### Exposed tools
+
+| Tool | Description |
+|---|---|
+| `ts_supported_configs` | List supported d-configurations (d² – d⁸). |
+| `ts_compute` | Eigenvalues at one (Dq, B, C) point. |
+| `ts_diagram` | Swept Tanabe-Sugano diagram (JSON). |
+| `ts_plot_png` | Matplotlib PNG plot (cheap default). |
+| `ts_plot_view` | Interactive Prefab `LinePlot` (capable clients only). |
+| `ts_explain` | One-paragraph ground-state description. |
+
+Resources at `tanabesugano://version`, `tanabesugano://configs`, `tanabesugano://config/{d}` provide static metadata.
+
+---
+
 ## 📚 Scientific Background
 
 This implementation is based on the seminal work of Yukito Tanabe and Satoru Sugano:
@@ -251,9 +302,9 @@ This implementation is based on the seminal work of Yukito Tanabe and Satoru Sug
 <details>
 <summary><strong>📖 Paper I: Absorption Spectra of Complex Ions</strong></summary>
 
-**Authors:** Yukito Tanabe, Satoru Sugano  
-**Journal:** Journal of the Physical Society of Japan, Vol. 9, pp. 753-766 (1954)  
-**DOI:** [10.1143/JPSJ.9.753](https://doi.org/10.1143/JPSJ.9.753)  
+**Authors:** Yukito Tanabe, Satoru Sugano
+**Journal:** Journal of the Physical Society of Japan, Vol. 9, pp. 753-766 (1954)
+**DOI:** [10.1143/JPSJ.9.753](https://doi.org/10.1143/JPSJ.9.753)
 **Link:** https://journals.jps.jp/doi/10.1143/JPSJ.9.753
 
 </details>
@@ -261,9 +312,9 @@ This implementation is based on the seminal work of Yukito Tanabe and Satoru Sug
 <details>
 <summary><strong>📖 Paper II: Absorption Spectra of Complex Ions</strong></summary>
 
-**Authors:** Yukito Tanabe, Satoru Sugano  
-**Journal:** Journal of the Physical Society of Japan, Vol. 9, pp. 766-779 (1954)  
-**DOI:** [10.1143/JPSJ.9.766](https://doi.org/10.1143/JPSJ.9.766)  
+**Authors:** Yukito Tanabe, Satoru Sugano
+**Journal:** Journal of the Physical Society of Japan, Vol. 9, pp. 766-779 (1954)
+**DOI:** [10.1143/JPSJ.9.766](https://doi.org/10.1143/JPSJ.9.766)
 **Link:** https://journals.jps.jp/doi/10.1143/JPSJ.9.766
 
 </details>
@@ -271,9 +322,9 @@ This implementation is based on the seminal work of Yukito Tanabe and Satoru Sug
 <details>
 <summary><strong>📖 Paper III: Calculation of Crystalline Field Strength</strong></summary>
 
-**Authors:** Yukito Tanabe, Satoru Sugano  
-**Journal:** Journal of the Physical Society of Japan, Vol. 11, pp. 864-877 (1956)  
-**DOI:** [10.1143/JPSJ.11.864](https://doi.org/10.1143/JPSJ.11.864)  
+**Authors:** Yukito Tanabe, Satoru Sugano
+**Journal:** Journal of the Physical Society of Japan, Vol. 11, pp. 864-877 (1956)
+**DOI:** [10.1143/JPSJ.11.864](https://doi.org/10.1143/JPSJ.11.864)
 **Link:** https://journals.jps.jp/doi/10.1143/JPSJ.11.864
 
 </details>
@@ -322,8 +373,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ⭐ Star us on GitHub — it helps!
 
-[Report Bug](https://github.com/Anselmoo/TanabeSugano/issues) · 
-[Request Feature](https://github.com/Anselmoo/TanabeSugano/issues) · 
+[Report Bug](https://github.com/Anselmoo/TanabeSugano/issues) ·
+[Request Feature](https://github.com/Anselmoo/TanabeSugano/issues) ·
 [Discussions](https://github.com/Anselmoo/TanabeSugano/discussions)
 
 </div>

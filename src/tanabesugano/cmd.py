@@ -25,6 +25,8 @@ from tanabesugano import tools
 # Import the solver mapping from batch module
 from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
 from tanabesugano.constants import ElectronConfiguration
+from tanabesugano.plot_style import line_style_for
+from tanabesugano.plot_style import style_axes
 
 
 class CMDmain:
@@ -87,8 +89,7 @@ class CMDmain:
             {"Energy": energy, "delta_B": energy / self.B, "10Dq": energy * 10.0},
         )
         self.title_TS = (
-            f"TS-diagram_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_"
-            f"B_{int(self.B)}_C_{int(self.C)}"
+            f"TS-diagram_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_B_{int(self.B)}_C_{int(self.C)}"
         )
         self.title_DD = (
             f"DD-energies_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_"
@@ -102,32 +103,48 @@ class CMDmain:
         1. Tanabe-Sugano diagram with E/B vs Delta/B
         2. DD excitations diagram with dd-state-energy vs 10Dq
 
+        Curves are coloured by spin multiplicity (Okabe-Ito palette,
+        colour-blind safe) and the ground-state term is emphasised. See
+        tanabesugano.plot_style for the shared palette used by the MCP layer.
         """
-        # Figure one for classical Tanabe-Sugano-Diagram with B-dependency
-        plt.figure(1)
+        data_cols = [c for c in self.df.columns if c not in ("Energy", "delta_B", "10Dq")]
+        if not data_cols:
+            return
 
-        # Set Window Title
+        def _split(col: str) -> tuple[str, int]:
+            term, _, tail = col.rpartition("_")
+            if term and tail.isdigit():
+                return term, int(tail)
+            return col, 0
 
-        plt.plot(
-            self.df["delta_B"],
-            # get the states from self.df
-            self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).to_numpy() / self.B,
-            ls="--",
-        )
-        self.label_plot("Tanabe-Sugano-Diagram", "$E/B$", r"$\Delta/B$")
-        # Figure one for Energy-Correlation-Diagram Dq-Energy versus State-Energy
-        plt.figure(2)
+        ground_col = self.df[data_cols].iloc[0].idxmin()
+        ground_term, _ = _split(str(ground_col))
 
-        plt.plot(
-            self.df["10Dq"],
-            self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).to_numpy(),
-            ls="--",
-        )
-        self.label_plot(
-            "DD excitations -Diagram",
-            r"$dd-state-energy\,(1/cm)$",
-            r"$10Dq\,(1/cm)$",
-        )
+        def _draw(
+            ax: plt.Axes,
+            x_col: str,
+            y_scale: float,
+            title: str,
+            x_label: str,
+            y_label: str,
+        ) -> None:
+            seen: set[str] = set()
+            for col in data_cols:
+                term, level = _split(col)
+                style = line_style_for(term, level=level, is_ground=(term == ground_term))
+                label = term if term not in seen else None
+                seen.add(term)
+                ax.plot(self.df[x_col], self.df[col] / y_scale, label=label, **style)
+            style_axes(ax, title=title, x_label=x_label, y_label=y_label)
+
+        fig1, ax1 = plt.subplots(num=1, figsize=(7.0, 4.6))
+        _draw(ax1, "delta_B", self.B, "Tanabe-Sugano diagram", r"$\Delta/B$", r"$E/B$")
+        fig1.tight_layout()
+
+        fig2, ax2 = plt.subplots(num=2, figsize=(7.0, 4.6))
+        _draw(ax2, "10Dq", 1.0, "DD-excitation diagram", r"$10Dq$ (cm$^{-1}$)", r"$E$ (cm$^{-1}$)")
+        fig2.tight_layout()
+
         plt.show()
 
     def label_plot(self, arg0: str, arg1: str, arg2: str) -> None:
@@ -171,9 +188,7 @@ class CMDmain:
             result.append(self.subsplit_states(states))
 
         # Transform list of dictionaries to dictionary of arrays
-        result = {
-            key: np.array([d[key] for d in result]).flatten() for key in result[0]
-        }
+        result = {key: np.array([d[key] for d in result]).flatten() for key in result[0]}
         self.df = pd.concat([self.df, pd.DataFrame(result)], axis=1)
 
     @staticmethod
@@ -234,10 +249,7 @@ class CMDmain:
         x.align["state"] = "l"
         x.align["cm"] = "r"
         x.align["eV"] = "r"
-        title = (
-            f"TS_Cut_d{self.d_count}_10Dq_{int(dq_ci)}_B_{int(self.B)}"
-            f"_C_{int(self.C)}.csv"
-        )
+        title = f"TS_Cut_d{self.d_count}_10Dq_{int(dq_ci)}_B_{int(self.B)}_C_{int(self.C)}.csv"
 
         np.savetxt(
             title,
@@ -252,10 +264,7 @@ class CMDmain:
     def interactive_plot(self) -> None:
         """Interactive plot for the tanabe-sugano-diagram."""
         if px is None:
-            msg = (
-                "Plotly is not installed. "
-                "Install with: pip install tanabesugano[plotly]"
-            )
+            msg = "Plotly is not installed. Install with: pip install tanabesugano[plotly]"
             raise ImportError(msg)
 
         _col = self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).columns
@@ -266,9 +275,7 @@ class CMDmain:
             "width": 800,
             "height": 800,
         }
-        color_discrete_sequence = [
-            px.colors.qualitative.Light24[int(i[0]) - 1] for i in _col
-        ]
+        color_discrete_sequence = [px.colors.qualitative.Light24[int(i[0]) - 1] for i in _col]
 
         _df = self.df.copy()
 
@@ -356,17 +363,14 @@ def cmd_line() -> None:
         type=float,
         nargs=2,
         default=[1080.0, 1.0],
-        help="Racah Parameter B and the corresponding "
-        "reduction (default B = 860 cm- * 1.)",
+        help="Racah Parameter B and the corresponding reduction (default B = 860 cm- * 1.)",
     )
     parser.add_argument(
         "-C",
         type=float,
         nargs=2,
         default=[4773.0, 1.0],
-        help="Racah Parameter C and the corresponding "
-        "reduction (default C = 4.477*860 cm- * "
-        "1.)",
+        help="Racah Parameter C and the corresponding reduction (default C = 4.477*860 cm- * 1.)",
     )
     parser.add_argument(
         "-n",
@@ -390,8 +394,7 @@ def cmd_line() -> None:
         "-slater",
         action="store_true",
         default=False,
-        help="Using Slater-Condon F2,F4 parameter "
-        "instead Racah-Parameter B,C (default = off)",
+        help="Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)",
     )
     parser.add_argument(
         "-v",

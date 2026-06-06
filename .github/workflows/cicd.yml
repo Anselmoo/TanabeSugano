@@ -1,0 +1,384 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [master, develop]
+    tags: ["v*", "*"]
+  pull_request:
+    branches: [master, develop]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# Cancel superseded runs on PR / non-master pushes. Tag and master runs are
+# allowed to complete (publishes must not be cancelled mid-flight).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ──────────────────────────── 0. Verification ─────────────────────────────
+  verify:
+    name: ✅ Snapshot drift checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: uv sync --all-groups --extra mcp
+      - name: Check health regressions
+        run: uv run rrt doctor --check --strict
+      - name: Generate tree manifest (for diagnostics)
+        run: uv run rrt tree --manifest --compress
+      - name: Upload tree manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tree-manifest
+          path: .rrt/tree.manifest.json.gz
+          retention-days: 7
+      - name: Check tree structure drift
+        run: uv run rrt tree --check --strict --strict-empty-dirs
+      - name: Check artifact integrity
+        run: uv run rrt artifacts --check --strict
+
+  # ──────────────────────────── 1. Static checks ────────────────────────────
+  lint:
+    name: Lint & Policy
+    runs-on: ubuntu-latest
+    needs: [verify]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --all-groups --extra mcp
+
+      - name: Run pre-commit
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+      - name: Validate release policy (rrt)
+        if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
+        uses: Anselmoo/repo-release-tools@v1.8.3
+        with:
+          check-branch-name: "true"
+          check-commit-subject: "true"
+          check-changelog: "true"
+          changelog-strategy: "auto"
+
+  # ─────────────────────────────── 2. Tests ─────────────────────────────────
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --all-groups --extra mcp
+
+      - name: Run pytest
+        run: uv run pytest -vv --cov=src/tanabesugano --cov-report=xml --cov-report=term-missing -m "not screenshot"
+
+      - name: Upload coverage (3.12 only)
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: warn
+
+  # ──────────────────────── 3. Screenshot tests ─────────────────────────────
+  screenshots:
+    name: Screenshot tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: uv sync --all-groups --extra mcp
+      - name: Install Playwright browsers
+        run: uv run playwright install --with-deps chromium
+      - name: Run screenshot tests
+        run: uv run pytest -vv -m screenshot --browser chromium
+
+  # ───────────────────────── 4. Build wheel + sdist ─────────────────────────
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+
+  # ────────────────────────── 5. .mcpb bundle ───────────────────────────────
+  mcpb:
+    name: Build .mcpb bundle
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python scripts/build_mcpb.py
+      - name: Validate .mcpb archive
+        run: |
+          python - <<'PY'
+          import glob, json, sys, zipfile
+          paths = glob.glob("dist/*.mcpb")
+          if not paths:
+              sys.exit("No .mcpb file found in dist/")
+          path = paths[0]
+          with zipfile.ZipFile(path) as zf:
+              names = zf.namelist()
+              for required in ("manifest.json", "server/main.py"):
+                  if required not in names:
+                      sys.exit(f"Missing required archive member: {required}")
+              manifest = json.loads(zf.read("manifest.json"))
+          assert manifest["name"] == "tanabesugano", manifest
+          assert manifest["server"]["type"] == "uv", manifest
+          assert manifest["server"]["mcp_config"]["command"] == "uv", manifest
+          print(f"OK: {path}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpb-package
+          path: dist/*.mcpb
+          if-no-files-found: error
+
+  # ─────────────────────────── 5. Docker sanity ─────────────────────────────
+  docker:
+    name: Docker image build (sanity)
+    runs-on: ubuntu-latest
+    needs: lint
+    # if: hashFiles('Dockerfile') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: tanabesugano:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ──────────────────────── 6. SBOM (Syft → SPDX) ───────────────────────────
+  sbom:
+    name: SBOM
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Generate SPDX SBOM for the source tree
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom-source.spdx.json
+          artifact-name: sbom-source.spdx.json
+      - name: Resolve wheel path
+        id: wheel
+        run: echo "path=$(ls dist/*.whl | head -1)" >> "$GITHUB_OUTPUT"
+      - name: Generate SPDX SBOM for the built wheel
+        uses: anchore/sbom-action@v0
+        with:
+          file: ${{ steps.wheel.outputs.path }}
+          format: spdx-json
+          output-file: sbom-wheel.spdx.json
+          artifact-name: sbom-wheel.spdx.json
+
+  # ────────────────────── 7. Dependency review (PR only) ────────────────────
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+
+  # ───────────────────── 8. Build & deploy GitHub Pages ─────────────────────
+  pages-build:
+    name: Build docs site
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: docs/package-lock.json
+      - run: cd docs && npm ci && npm run build
+      - name: Copy diagram CSVs into build output
+        run: |
+          mkdir -p docs/dist/ts-diagrams
+          cp -r docs/ts-diagrams/* docs/dist/ts-diagrams/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs/dist
+
+  pages-deploy:
+    name: Deploy docs site
+    runs-on: ubuntu-latest
+    needs: pages-build
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    # Job-level concurrency overrides workflow-level so Pages deploys serialize cleanly.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ───────────────────────── 9. Publish to TestPyPI ─────────────────────────
+  publish-testpypi:
+    name: Publish to TestPyPI
+    runs-on: ubuntu-latest
+    needs: [build, sbom]
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/tanabesugano/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          print-hash: true
+
+  # ─────────────────────────── 10. Publish to PyPI ──────────────────────────
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [build, sbom, mcpb]
+    if: startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: pypi
+      url: https://pypi.org/project/tanabesugano/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ──────────────────────────── 11. Create Release ──────────────────────────
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [publish-pypi]
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: uv sync --all-groups --extra mcp
+      - name: Generate Changelog
+        run: |
+          uv run repo-release-tools changelog --strategy auto --output RELEASE_CHANGELOG.md
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_CHANGELOG.md
+          draft: false
+          prerelease: false
+
+  # ──────────────────── 12. Attach .mcpb + SBOM to release ──────────────────
+  release-assets:
+    name: Attach release assets
+    runs-on: ubuntu-latest
+    needs: [build, mcpb, sbom, release]
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcpb-package
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom-wheel.spdx.json
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom-source.spdx.json
+          path: dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/*.mcpb
+            dist/sbom-*.spdx.json
+          fail_on_unmatched_files: false
