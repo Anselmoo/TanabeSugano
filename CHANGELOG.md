@@ -3,7 +3,8 @@
 ## [Unreleased]
 
 ### Added
-- add poethepoet task runner with `build-mcpb`, `lint`, `format`, `test`, and `test-mcp` tasks; `uv run poe build-mcpb` produces the Claude Desktop bundle locally
+- add `--dev` mode to `build_mcpb.py` and `poe build-mcpb-dev` task for building a .mcpb that points to the local source tree before PyPI publication; both modes now pin the fastmcp version from `uv.lock` via `--with fastmcp[apps]=={version}` to prevent Claude Desktop cycling caused by version drift
+- add poethepoet task runner with `build-mcpb`, `build-mcpb-dev`, `lint`, `format`, `test`, and `test-mcp` tasks; `uv run poe build-mcpb-dev` produces a local-source Claude Desktop bundle
 - document all MCP server tools, interactive app tools, and prompts in README (ts_fit_spectrum, ts_nephelauxetic, ts_terms_table_data, and all nine Prefab-UI app tools were previously undocumented)
 - add rrt pre-commit hooks and unified cicd workflow
 - add spectrum fitting tool (`ts_fit_spectrum`) to extract Dq and B parameters from observed UV-Vis absorption peaks
