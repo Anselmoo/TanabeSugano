@@ -890,13 +890,20 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
                 },
             )
 
+        # ``crossing_dq`` is the value on the x-axis (Δ = 10·Dq in cm⁻¹).
+        # Emit both: ``critical_delta_cm1`` matches the axis label and is
+        # what a viewer reads off the chart; ``critical_Dq_cm1`` is the
+        # raw Dq parameter, which is what spectrum-fit clients want when
+        # they compute Dq/B ratios. Previously this field carried Δ
+        # under the Dq name, which was 10× the textbook value.
         payload = _json.dumps(
             {
                 "title": title,
                 "x_label": "Δ = 10·Dq  (cm⁻¹)",
                 "y_label": "Ground-term energy  (cm⁻¹)",
                 "series": series,
-                "critical_Dq_cm1": crossing_dq,
+                "critical_delta_cm1": crossing_dq,
+                "critical_Dq_cm1": (crossing_dq / 10.0) if crossing_dq is not None else None,
             },
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
@@ -983,11 +990,13 @@ def _register_correlation_diagram(mcp: FastMCP) -> None:
                 {"x": 1, "y": lowest(weak_terms)},
                 {"x": 2, "y": lowest(strong_terms)},
             ]
-            # Skip degenerate series whose three points all collapse to 0
-            # (these correspond to the unchanged ground manifold of a
-            # spin-crossover-free configuration).
+            # Only drop terms the solver couldn't evaluate at all — the
+            # ground manifold's flat near-zero line *is* the pedagogical
+            # point of a correlation diagram (ground-term continuity from
+            # free-ion through weak field to strong field), so we no
+            # longer filter on a span threshold.
             ys = [pt["y"] for pt in data if pt["y"] is not None]
-            if not ys or max(ys) - min(ys) < 1.0:
+            if not ys:
                 continue
             series.append(
                 {
@@ -1147,7 +1156,6 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 pf.Heading(content="No valid peaks provided", level=3)
             return app
 
-        default_B = DEFAULTS[d_count]["default_B"]
         default_C = DEFAULTS[d_count]["default_C"]
         ground_mult = _multiplicity_of(DEFAULTS[d_count]["ground_term"])
 
