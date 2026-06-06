@@ -72,7 +72,34 @@ def _build_manifest(
     numpy_version: str,
     dev_path: str | None = None,
 ) -> dict:
-    from_spec = f"{dev_path}[mcp]" if dev_path else f"{_PACKAGE_NAME}[mcp]=={version}"
+    # Release mode launches the PyPI-published package via `uv tool run`:
+    # immutable version pin → cached install is always correct.
+    # Dev mode launches via `uv run --project <local-source>`: that uses
+    # the project's editable venv, so source edits propagate without a
+    # cache-invalidation dance (`uv tool run --from <local-path>` installs
+    # to a hashed cache that silently keeps the stale build between edits;
+    # `--reinstall-package` is documented-ignored by `uv tool run`).
+    if dev_path:
+        mcp_args = [
+            "run",
+            "--project",
+            dev_path,
+            "--extra",
+            "mcp",
+            _ENTRYPOINT,
+        ]
+    else:
+        mcp_args = [
+            "tool",
+            "run",
+            "--from",
+            f"{_PACKAGE_NAME}[mcp]=={version}",
+            "--with",
+            f"fastmcp[apps]=={fastmcp_version}",
+            "--with",
+            f"numpy=={numpy_version}",
+            _ENTRYPOINT,
+        ]
 
     return {
         "manifest_version": "0.4",
@@ -106,17 +133,7 @@ def _build_manifest(
             "entry_point": "server/main.py",
             "mcp_config": {
                 "command": "uv",
-                "args": [
-                    "tool",
-                    "run",
-                    "--from",
-                    from_spec,
-                    "--with",
-                    f"fastmcp[apps]=={fastmcp_version}",
-                    "--with",
-                    f"numpy=={numpy_version}",
-                    _ENTRYPOINT,
-                ],
+                "args": mcp_args,
             },
         },
         "tools_generated": True,
@@ -135,37 +152,39 @@ def _build_shim(
     dev_path: str | None = None,
 ) -> str:
     """Return a stdlib-only launcher shim with the version and dependency pins baked in."""
-    package_spec = f"{dev_path}[mcp]" if dev_path else f"{_PACKAGE_NAME}[mcp]=={version}"
+    if dev_path:
+        # Dev mode runs the local source through the project's editable venv
+        # so source edits always propagate. No fastmcp/numpy --with pins —
+        # pyproject.toml declares them with the same constraints.
+        exec_args = f'["uv", "run", "--project", "{dev_path}", "--extra", "mcp", "{_ENTRYPOINT}"]'
+    else:
+        # Release mode runs the immutable PyPI version with explicit pins.
+        exec_args = (
+            "["
+            '"uv", "tool", "run", '
+            f'"--from", "{_PACKAGE_NAME}[mcp]=={version}", '
+            f'"--with", "fastmcp[apps]=={fastmcp_version}", '
+            f'"--with", "numpy=={numpy_version}", '
+            f'"{_ENTRYPOINT}"'
+            "]"
+        )
 
     return textwrap.dedent(f"""\
         \"\"\"TanabeSugano — uvx launcher shim.
 
         Serves as the DXT entry_point. The preferred launch path is
-        mcp_config.command (uv tool run) declared in manifest.json; this file
-        acts as a direct fallback when run via ``uv run server/main.py``.
+        mcp_config.command (uv tool run / uv run) declared in manifest.json;
+        this file acts as a direct fallback when run via
+        ``uv run server/main.py``.
         \"\"\"
 
         from __future__ import annotations
 
         import os
 
-        _PACKAGE = "{package_spec}"
-        _FASTMCP = "fastmcp[apps]=={fastmcp_version}"
-        _NUMPY = "numpy=={numpy_version}"
-        _ENTRYPOINT = "{_ENTRYPOINT}"
-
 
         def main() -> None:
-            os.execvp(
-                "uv",
-                [
-                    "uv", "tool", "run",
-                    "--from", _PACKAGE,
-                    "--with", _FASTMCP,
-                    "--with", _NUMPY,
-                    _ENTRYPOINT,
-                ],
-            )
+            os.execvp("uv", {exec_args})
 
 
         if __name__ == "__main__":
