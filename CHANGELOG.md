@@ -4,6 +4,7 @@
 
 ### Fixed
 - fix `ts_dashboard_app` and `ts_compare_app` crash: NumPy 2.4.x made 1-D array assignment to scalar slot a hard `ValueError`; `d7.solver()` used `T_4_1[0] = np.array([0.0])` instead of the scalar `T_4_1[0] = 0.0`
+- fix style inconsistency in `d8.solver()`: `A_3_2 = np.array([0], dtype=float)` now uses `dtype=np.float64` consistent with d3, d4, d6
 - fix mcpb tool environment numpy version drift: `build_mcpb.py` now reads the numpy version from `uv.lock` and pins it in the manifest args (`--with numpy=={version}`) so the installed mcpb never resolves a newer breaking numpy
 - fix division by zero in `_sweep_payload` when `B=0` and `normalize=True` (x-axis row was unguarded; y-axis guard already existed)
 - fix `min()` on empty iterator in `_sweep_payload` when solver returns no data (`default=0.0` added)
