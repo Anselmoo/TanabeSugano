@@ -1,8 +1,14 @@
-"""Typed input schemas shared by tools, apps, and the Form entry point.
+"""Typed input schemas + shared scalar constants for the MCP layer.
 
-Centralising the d-count Literal and the Pydantic input model means every
-tool advertises the same enum / range constraints in its JSON schema, and
-the `ts_explore_app` Form can drive any of them via `Form.from_model`.
+Centralising the d-count ``Literal``, energy-unit enum, and Racah-bound
+``Annotated`` types means every tool advertises the same enum / range
+constraints in its JSON schema. Also exposes the cm⁻¹ → eV conversion
+factor used by every energy-unit aware tool.
+
+``TSInput`` (the Pydantic ``BaseModel`` at the bottom of the file) was
+originally consumed by the now-removed ``ts_explore_app`` Form. It is
+kept as a public schema that future form/explore surfaces can reuse, but
+no tool currently dispatches against it.
 """
 
 from __future__ import annotations
@@ -41,10 +47,12 @@ Steps = Annotated[int, Field(ge=2, le=500, description="Number of sweep points."
 
 
 class TSInput(BaseModel):
-    """User-facing parameter set for the Tanabe-Sugano explore form.
+    """User-facing parameter set for a Tanabe-Sugano sweep.
 
-    Drives both `ts_explore_app` (via Form.from_model) and is reused as the
-    shape that submit-callbacks pass to `ts_diagram_app`.
+    Public schema kept available for future form/explore surfaces; the
+    original ``ts_explore_app`` consumer was removed (its Prefab
+    ``Form.from_model`` rendered as a frozen panel in Claude Desktop).
+    Defaults match the typical first-row-transition-metal regime.
     """
 
     d_count: D_COUNT_LITERAL = Field(  # type: ignore[valid-type]

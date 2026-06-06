@@ -1,14 +1,22 @@
-"""FastMCP `app=True` tools for the TanabeSugano server.
+"""FastMCP tools for the TanabeSugano server (Prefab + Chart.js).
 
-Each tool here renders as an in-chat Prefab UI (Card, LineChart, DataTable,
-Form, ...) in app-capable MCP clients (Claude Desktop, VS Code Copilot,
-Cursor). All tools also work as plain JSON for non-app clients because
-PrefabApp serialises to a structured representation.
+Two rendering pipelines coexist:
+
+* **Chart.js iframes**: ts_diagram_app, ts_plot_view, ts_overlay_app,
+  ts_compare_app, ts_spectrum_app, ts_oxidation_landscape_app,
+  ts_parameter_heatmap_app, ts_reverse_fit_app, ts_ratio_fit_app. Each
+  declares ``app=AppConfig(resource_uri=...)`` pointing at one of three
+  hand-registered ``ui://tanabesugano/{diagram,heatmap,spectrum}.html``
+  resources (MIME ``text/html;profile=mcp-app`` per the MCP Apps spec)
+  and returns a ``ToolResult`` carrying a JSON Chart.js payload.
+* **Prefab-native**: ts_compute_app and ts_dashboard_app declare ``app=True``
+  and return a ``PrefabApp`` rendered via FastMCP's auto-generated
+  ``ui://prefab/tool/<hash>/renderer.html`` resource.
 
 Imports happen at module level so Pydantic's TypeAdapter can resolve the
-PrefabApp / Form forward refs against this module's globalns when FastMCP
-builds its tool schemas. When the [mcp] extra is missing the whole module
-no-ops via the _HAVE_APPS guard.
+PrefabApp forward refs against this module's globalns when FastMCP builds
+its tool schemas. When the ``[mcp]`` extra is missing the whole module
+no-ops via the ``_HAVE_APPS`` guard.
 """
 
 from __future__ import annotations
@@ -32,11 +40,9 @@ try:
     from mcp import types as _mcp_types
     from mcp.types import ToolAnnotations
     from prefab_ui import components as pf
-    from prefab_ui.actions import CallTool
     from prefab_ui.app import PrefabApp
-    from prefab_ui.components.charts import ChartSeries
-    from prefab_ui.components.charts import LineChart
-    from prefab_ui.components.charts import Sparkline
+    from prefab_ui.components.charts import ChartSeries  # used by _sweep_payload
+    from prefab_ui.components.charts import Sparkline  # used by ts_dashboard_app
 
     from tanabesugano import __version__ as _pkg_version
     from tanabesugano.mcp._inputs import CM1_TO_EV

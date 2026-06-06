@@ -136,11 +136,6 @@ def _take_screenshot(
             {},
             "ts_dashboard.png",
         ),
-        (
-            "ts_explore_app",
-            {},
-            "ts_explore.png",
-        ),
     ],
 )
 def test_prefab_app_screenshot(page: object, tool: str, args: dict, filename: str) -> None:

@@ -22,12 +22,15 @@ description: >-
 1. **Identify d_count** from the metal ion and oxidation state. If ambiguous, ask once.
 2. **Call `ts_supported_configs`** to confirm the configuration is supported.
 3. **Call `ts_explain`** to ground the discussion in the correct ground-state term.
-4. **Call `ts_diagram`** with the default sweep + per-config Racah defaults.
-5. **If absorption peaks were provided**, search the swept diagram for a Dq where the
-   spin-allowed excited-state energies match (cm^-1) within ~5%. Re-call `ts_diagram`
-   with a narrower `dq_min`/`dq_max` to refine.
-6. **Call `ts_plot_png`** once on the final fitted range. Avoid `ts_plot_view` unless
-   the user explicitly requested interactive output.
+4. **Call `ts_diagram_app`** (or `ts_plot_view`) with the default sweep + per-config
+   Racah defaults to surface the Tanabe-Sugano landscape.
+5. **If absorption peaks were provided**, prefer `ts_fit_spectrum` to back out
+   (Dq, B) in one call; otherwise scan the swept diagram for a Dq where the
+   spin-allowed excited-state energies match the peaks (cm^-1) within ~5%, then
+   re-call `ts_diagram_app` with a narrower `dq_min`/`dq_max` to refine.
+6. **Call `ts_plot_png`** once on the final fitted range when a static image is
+   wanted; otherwise leave the interactive `ts_diagram_app` panel as the final
+   visual.
 7. **Report**: fitted Dq, Racah B, assigned transitions (ground -> excited terms), and
    any deviations that hint at distortion, low-spin behavior, or charge-transfer
    contamination of the spectrum.
