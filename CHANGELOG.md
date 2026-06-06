@@ -15,6 +15,7 @@
 - add Playwright screenshot tests (`test_screenshots.py`, `screenshot` mark) and gitignore the generated `test-screenshots/` output
 - update `.gitignore` to exclude python and node modules in the correct fashion
 - update `cicd.yml` to use the correct version of `repo-release-tools` for validating release policies
+- add initial `tree.lock.toml` for dependency management
 
 ---
 
