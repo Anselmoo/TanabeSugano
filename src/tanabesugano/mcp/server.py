@@ -21,6 +21,31 @@ _INSTALL_HINT = (
 )
 
 
+def _make_unwrap_data_middleware():  # noqa: ANN202 — fastmcp types not importable when extra missing
+    """Build a middleware that defensively unwraps ``{"data": {...}}`` tool args.
+
+    Our published inputSchemas are flat (``{d_count, dq_min, ...}``), but some
+    MCP clients (a recent Claude Desktop build was observed doing this) wrap
+    the args once in a ``data`` envelope. Pydantic then rejects the call with
+    a confusing dual error — both *"Unexpected keyword argument: data"* and
+    *"Missing required argument: d_count"*. Detecting the envelope here keeps
+    the user-visible behaviour identical regardless of the client's quirk.
+    """
+    from fastmcp.server.middleware import Middleware
+
+    class UnwrapDataMiddleware(Middleware):  # type: ignore[misc]
+        async def on_call_tool(self, context, call_next):  # type: ignore[override]
+            params = context.message
+            args = getattr(params, "arguments", None) or {}
+            # Only unwrap when the args are exactly ``{"data": <dict>}`` —
+            # never touch tools that legitimately take a ``data`` argument.
+            if isinstance(args, dict) and len(args) == 1 and isinstance(args.get("data"), dict):
+                params.arguments = args["data"]  # type: ignore[attr-defined]
+            return await call_next(context)
+
+    return UnwrapDataMiddleware()
+
+
 def create_server() -> FastMCP[Any]:
     """Build and configure the TanabeSugano FastMCP server."""
     try:
@@ -45,6 +70,8 @@ def create_server() -> FastMCP[Any]:
         ),
         version=__version__,
     )
+
+    mcp.add_middleware(_make_unwrap_data_middleware())
 
     register_tools(mcp)
     register_resources(mcp)

@@ -485,14 +485,22 @@ def _register_dashboard(mcp: FastMCP) -> None:
     def ts_dashboard_app() -> PrefabApp:
         """Single-call overview of every supported d-configuration.
 
-        For each d-count: shows the ground term, the matrix size, the default
-        Racah parameters, and a Sparkline of the lowest-eigenvalue energy
-        across the default Dq sweep. Useful as a 'home page' before drilling
-        into one configuration with `ts_diagram_app`.
+        For each d-count card: ground term symbol, matrix size, default Racah
+        parameters, representative free ions, a one-line chemical note, and a
+        Sparkline of the **first excited state energy** across a 0–1500 cm⁻¹
+        Dq sweep — the band that an absorption spectrum would actually show.
+        Useful as a 'home page' before drilling into one configuration with
+        `ts_diagram_app`.
         """
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
         from tanabesugano.mcp._compute import sweep_dq
         from tanabesugano.mcp._defaults import DEFAULTS
+        from tanabesugano.mcp._defaults import GROUND_STATE_NOTES
+        from tanabesugano.mcp._defaults import ION_BY_D_COUNT
+
+        # Energy threshold above which an eigenvalue counts as a real excited
+        # state — solvers zero the ground manifold so anything ≤ this is noise.
+        ground_eps = 1.0
 
         cards: list[dict] = []
         for d in SUPPORTED_D_COUNTS:
@@ -500,35 +508,62 @@ def _register_dashboard(mcp: FastMCP) -> None:
             b = cfg["default_B"]
             c = cfg["default_C"]
             _, points = sweep_dq(d, 0.0, 1500.0, 30, b, c)
-            ground = min(
-                points[0],
-                key=lambda t, p=points: min(p[0][t]) if p[0][t] else float("inf"),
-            )
-            spark = [float(min(p[ground])) if p[ground] else 0.0 for p in points]
-            cards.append({"d": d, "cfg": cfg, "spark": spark, "ground": ground})
+            # First excited state energy at each Dq step: the lowest eigenvalue
+            # above the ground manifold across all term symbols. This gives a
+            # curve that meaningfully tracks the lowest d-d absorption band as
+            # crystal-field strength grows.
+            spark: list[float] = []
+            for p in points:
+                all_e = sorted(float(e) for term in p.values() for e in term)
+                first_excited = next((e for e in all_e if e > ground_eps), 0.0)
+                spark.append(round(first_excited, 1))
+            cards.append({"d": d, "cfg": cfg, "spark": spark})
 
         with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content="Tanabe-Sugano: d² – d⁸ overview", level=2)
             pf.Muted(
                 content=(
-                    "Default Racah parameters and a sparkline of the ground-term "
-                    "energy across 0 – 1500 cm⁻¹ Dq. Click a configuration for "
-                    "the full diagram via ts_diagram_app."
+                    "Per configuration: ground term, matrix size, default Racah "
+                    "B/C, representative free ions, and a sparkline of the first "
+                    "excited state energy from Dq = 0 to 1500 cm⁻¹ — the lowest "
+                    "d-d band an absorption spectrum will show. Use "
+                    "`ts_diagram_app` with d_count = N for the full diagram."
                 ),
             )
             with pf.Grid(columns=4, gap=4):
                 for c_data in cards:
+                    d = c_data["d"]
+                    cfg = c_data["cfg"]
+                    ions = ION_BY_D_COUNT.get(d, ())
+                    note = GROUND_STATE_NOTES.get(d, "")
+                    # Strip the leading "dN (...):" prefix from the note so the
+                    # card subtitle doesn't repeat info already shown above.
+                    note_short = note.split(":", 1)[-1].strip() if ":" in note else note
+                    e_min = min(c_data["spark"]) if c_data["spark"] else 0.0
+                    e_max = max(c_data["spark"]) if c_data["spark"] else 0.0
                     with pf.Card(css_class="p-4"):
-                        pf.Heading(content=f"d{c_data['d']}", level=4)
-                        pf.Metric(
-                            label="Ground term",
-                            value=c_data["cfg"]["ground_term"],
+                        pf.Heading(content=f"d{d}", level=4)
+                        with pf.Grid(columns=2, gap=2):
+                            pf.Metric(
+                                label="Ground term",
+                                value=cfg["ground_term"],
+                            )
+                            pf.Metric(
+                                label="Matrix",
+                                value=str(cfg["matrix_size"]),
+                                description="terms",
+                            )
+                        pf.Muted(
+                            content=(f"Ions: {', '.join(ions) if ions else '—'}"),
                         )
                         pf.Muted(
                             content=(
-                                f"B = {c_data['cfg']['default_B']:g} cm⁻¹  "
-                                f"C = {c_data['cfg']['default_C']:g} cm⁻¹"
+                                f"B = {cfg['default_B']:g} cm⁻¹  C = {cfg['default_C']:g} cm⁻¹"
                             ),
+                        )
+                        pf.Text(
+                            content="First excited state (cm⁻¹) vs Dq:",
+                            css_class="text-xs text-muted-foreground",
                         )
                         Sparkline(
                             data=c_data["spark"],
@@ -536,6 +571,12 @@ def _register_dashboard(mcp: FastMCP) -> None:
                             variant="default",
                             fill=True,
                         )
+                        pf.Muted(
+                            content=(f"{e_min:.0f} → {e_max:.0f} cm⁻¹ at 10Dq = 0 → 15 000 cm⁻¹"),
+                            css_class="text-xs",
+                        )
+                        if note_short:
+                            pf.Muted(content=note_short, css_class="text-xs")
         return app
 
 

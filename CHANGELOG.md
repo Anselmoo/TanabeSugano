@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Fixed
+- defensively unwrap `{"data": {...}}` tool-call args in a FastMCP middleware so calls from clients that wrap flat args in a `data` envelope (a recent Claude Desktop build was observed doing this) no longer fail with Pydantic's confusing dual error (`Unexpected keyword argument: data` + `Missing required argument: d_count`); our advertised inputSchemas remain flat
+- rework `ts_dashboard_app` so cards actually convey useful information: each card now shows the matrix size, representative free ions (Fe²⁺, Co³⁺, …) from `ION_BY_D_COUNT`, a one-line chemical note from `GROUND_STATE_NOTES`, and a Sparkline of the **first excited state energy** across the Dq sweep (the lowest d-d band an absorption spectrum would show) — previously every sparkline was a flat zero line because it tracked the self-zeroed ground-term energy
 - validate `d_count` centrally in `resolve_bc` — invalid values now raise a clear `ValueError` listing supported configurations instead of bubbling up as `KeyError: 99`; fixes `ts_diagram_app`, `ts_spectrum_app`, `ts_reverse_fit_app`, `ts_ratio_fit_app`, and any future tool sharing the helper
 - expand MCP smoke tests to cover all 10 app tools (added `ts_overlay_app`, `ts_spectrum_app`, `ts_reverse_fit_app`, `ts_ratio_fit_app`) plus a regression test pinning Claude Desktop's stringified-args coercion (`{"d_count": "5", "normalize": "true"}` must produce identical output to typed args) — `apps.py` coverage from 53% → 79%
 - fix `ts_dashboard_app` and `ts_compare_app` crash: NumPy 2.4.x made 1-D array assignment to scalar slot a hard `ValueError`; `d7.solver()` used `T_4_1[0] = np.array([0.0])` instead of the scalar `T_4_1[0] = 0.0`
