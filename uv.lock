@@ -2239,7 +2239,7 @@ screenshot = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fastmcp", extras = ["apps"], marker = "extra == 'mcp'", specifier = ">=3.3.0" },
+    { name = "fastmcp", extras = ["apps"], marker = "extra == 'mcp'", specifier = ">=3.4.0,<4.0.0" },
     { name = "matplotlib", specifier = ">=3.4.2" },
     { name = "numpy", specifier = ">=2.0.2" },
     { name = "pandas", specifier = ">=1.2.4,<4.0.0" },

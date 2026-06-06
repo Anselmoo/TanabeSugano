@@ -1,17 +1,31 @@
 """Build the .mcpb release bundle for tanabesugano.
 
-Creates dist/tanabesugano-{version}.mcpb — a ZIP archive containing:
+Creates dist/tanabesugano-{version}.mcpb (release) or
+dist/tanabesugano-{version}-dev.mcpb (dev) — a ZIP archive containing:
   manifest.json     DXT spec v0.4 manifest
   server/main.py    stdlib-only uvx launcher shim (DXT entry_point)
+
+Modes
+-----
+Release (default)  Uses the PyPI-published package.  Run after `uv publish`.
+  python scripts/build_mcpb.py
+
+Dev (--dev)        Uses the local source tree.  Use when the package has not
+  python scripts/build_mcpb.py --dev   been published yet or for local testing.
 
 Deliberately does NOT bundle pyproject.toml: including it at archive root
 triggers Claude Desktop's build_editable path, which fails because the full
 source tree is absent. The shim + mcp_config.command=uv tool run is the
 correct pattern for PyPI-distributed uv servers.
+
+Both modes pin the fastmcp version resolved in uv.lock to prevent version-drift
+crashes in Claude Desktop when a new fastmcp release is published after the
+.mcpb is built.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import textwrap
 import tomllib
@@ -30,7 +44,22 @@ def _read_version(root: Path) -> str:
     return data["project"]["version"]
 
 
-def _build_manifest(version: str) -> dict:
+def _read_fastmcp_version(root: Path) -> str:
+    """Return the fastmcp version pinned in uv.lock."""
+    with (root / "uv.lock").open("rb") as fh:
+        data = tomllib.load(fh)
+    for pkg in data.get("package", []):
+        if pkg.get("name") == "fastmcp":
+            return pkg["version"]
+    raise RuntimeError("fastmcp not found in uv.lock — run `uv sync --extra mcp` first")
+
+
+def _build_manifest(version: str, fastmcp_version: str, dev_path: str | None = None) -> dict:
+    if dev_path:
+        from_spec = f"{dev_path}[mcp]"
+    else:
+        from_spec = f"{_PACKAGE_NAME}[mcp]=={version}"
+
     return {
         "manifest_version": "0.4",
         "name": _PACKAGE_NAME,
@@ -67,7 +96,9 @@ def _build_manifest(version: str) -> dict:
                     "tool",
                     "run",
                     "--from",
-                    f"{_PACKAGE_NAME}[mcp]=={version}",
+                    from_spec,
+                    "--with",
+                    f"fastmcp[apps]=={fastmcp_version}",
                     _ENTRYPOINT,
                 ],
             },
@@ -81,8 +112,13 @@ def _build_manifest(version: str) -> dict:
     }
 
 
-def _build_shim(version: str) -> str:
-    """Return a stdlib-only launcher shim with the version baked in."""
+def _build_shim(version: str, fastmcp_version: str, dev_path: str | None = None) -> str:
+    """Return a stdlib-only launcher shim with the version and fastmcp pin baked in."""
+    if dev_path:
+        package_spec = f"{dev_path}[mcp]"
+    else:
+        package_spec = f"{_PACKAGE_NAME}[mcp]=={version}"
+
     return textwrap.dedent(f"""\
         \"\"\"TanabeSugano — uvx launcher shim.
 
@@ -95,14 +131,16 @@ def _build_shim(version: str) -> str:
 
         import os
 
-        _PACKAGE = "{_PACKAGE_NAME}[mcp]"
-        _VERSION = "{version}"
+        _PACKAGE = "{package_spec}"
+        _FASTMCP = "fastmcp[apps]=={fastmcp_version}"
         _ENTRYPOINT = "{_ENTRYPOINT}"
 
 
         def main() -> None:
-            spec = f"{{_PACKAGE}}=={{_VERSION}}"
-            os.execvp("uv", ["uv", "tool", "run", "--from", spec, _ENTRYPOINT])
+            os.execvp(
+                "uv",
+                ["uv", "tool", "run", "--from", _PACKAGE, "--with", _FASTMCP, _ENTRYPOINT],
+            )
 
 
         if __name__ == "__main__":
@@ -111,21 +149,36 @@ def _build_shim(version: str) -> str:
 
 
 def main() -> None:
-    """Write dist/tanabesugano-{version}.mcpb."""
+    """Write dist/tanabesugano-{{version}}[-dev].mcpb."""
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Build a dev bundle pointing to the local source tree (for pre-publish testing).",
+    )
+    args = parser.parse_args()
+
     root = Path(__file__).parent.parent
     version = _read_version(root)
-    manifest = _build_manifest(version)
-    shim = _build_shim(version)
+    fastmcp_version = _read_fastmcp_version(root)
+    dev_path = str(root) if args.dev else None
+
+    manifest = _build_manifest(version, fastmcp_version, dev_path)
+    shim = _build_shim(version, fastmcp_version, dev_path)
 
     dist = root / "dist"
     dist.mkdir(exist_ok=True)
 
-    mcpb_path = dist / f"{_PACKAGE_NAME}-{version}.mcpb"
+    suffix = "-dev" if args.dev else ""
+    mcpb_path = dist / f"{_PACKAGE_NAME}-{version}{suffix}.mcpb"
     with zipfile.ZipFile(mcpb_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("manifest.json", json.dumps(manifest, indent=2))
         zf.writestr("server/main.py", shim)
 
-    print(f"Built {mcpb_path}")
+    mode = "dev (local source)" if args.dev else "release (PyPI)"
+    print(f"Built {mcpb_path}  [{mode}, fastmcp=={fastmcp_version}]")
 
 
 if __name__ == "__main__":

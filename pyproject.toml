@@ -45,7 +45,7 @@ dependencies = [
 
 [project.optional-dependencies]
 plotly = ["plotly>=5.13.1,<7.0.0"]
-mcp = ["fastmcp[apps]>=3.3.0"]
+mcp = ["fastmcp[apps]>=3.4.0,<4.0.0"]
 
 [project.scripts]
 tanabesugano = "tanabesugano.cmd:cmd_line"
@@ -157,7 +157,11 @@ kind = "python_version"
 
   [tool.poe.tasks.build-mcpb]
   cmd  = "python scripts/build_mcpb.py"
-  help = "Build the .mcpb Claude Desktop bundle into dist/"
+  help = "Build the release .mcpb bundle (uses PyPI-published package — run after uv publish)"
+
+  [tool.poe.tasks.build-mcpb-dev]
+  cmd  = "python scripts/build_mcpb.py --dev"
+  help = "Build a dev .mcpb bundle pointing to local source (use before publishing to PyPI)"
 
   [tool.poe.tasks.lint]
   cmd  = "ruff check src/"
