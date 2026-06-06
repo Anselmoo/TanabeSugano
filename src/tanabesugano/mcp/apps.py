@@ -66,6 +66,8 @@ def register_apps(mcp: FastMCP) -> None:
     _register_reverse_fit(mcp)
     _register_ratio_fit(mcp)
     _register_spectrum(mcp)
+    _register_oxidation_landscape(mcp)
+    _register_compute_table(mcp)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1337,6 +1339,272 @@ def _register_spectrum(mcp: FastMCP) -> None:
 # ─────────────────────────────────────────────────────────────────────────
 # Internals
 # ─────────────────────────────────────────────────────────────────────────
+
+
+def _register_oxidation_landscape(mcp: FastMCP) -> None:
+    """Energy-state landscape across all supported d-configurations.
+
+    For a fixed (Dq, B, C), plot every eigenvalue of every d^n (d²–d⁸) on a
+    single Chart.js chart — x = d-electron count, y = energy. One series per
+    spin multiplicity (singlet, triplet, …). Lets the user see at a glance
+    how the term-energy spread evolves across the d-block at fixed
+    crystal-field strength.
+    """
+    # Colour-blind-safe palette keyed by spin multiplicity (2S+1).
+    _MULT_COLOR: dict[int, str] = {
+        1: "#888888",  # singlet
+        2: "#0072B2",  # doublet
+        3: "#009E73",  # triplet
+        4: "#D55E00",  # quartet
+        5: "#CC79A7",  # quintet
+        6: "#E69F00",  # sextet
+    }
+
+    @mcp.tool(
+        name="ts_oxidation_landscape_app",
+        title="Energies across d² – d⁸ at fixed Racah (Dq, B, C)",
+        version=_pkg_version,
+        tags={"tanabesugano", "compare", "interactive", "oxidation"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_oxidation_landscape_app(
+        Dq: float = 1000.0,
+        B: float = 900.0,
+        C: float = 4000.0,
+        max_energy_cm: float = 40000.0,
+    ) -> ToolResult:
+        """Plot every eigenvalue of d² – d⁸ at the same (Dq, B, C) on one chart.
+
+        Each point is one term-symbol level. X is the d-electron count (the
+        bottom axis), Y is energy (the left axis). Series are grouped by spin
+        multiplicity so the user can read off how spin-allowed vs forbidden
+        bands shift across the periodic d-block.
+
+        Args:
+            Dq: Octahedral crystal-field parameter (cm⁻¹). Default 1000 is
+                mid-range for first-row transition metals.
+            B, C: Racah parameters (cm⁻¹). Defaults give an "average" 3d
+                metal; pick values from `_defaults.py` for specific ions.
+            max_energy_cm: Clip points above this energy so the visible
+                window stays within typical UV-Vis range (default 40 000
+                cm⁻¹, just past the UV cutoff).
+
+        """
+        import json as _json
+
+        from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
+        from tanabesugano.mcp._compute import compute_point
+
+        # Bucket {multiplicity: list[{x, y}]} so each spin manifold becomes
+        # one Chart.js series. Skip the zero-energy ground state of each
+        # d-count — that's the reference, not a transition.
+        buckets: dict[int, list[dict[str, float]]] = {}
+        for d in SUPPORTED_D_COUNTS:
+            terms = compute_point(d, Dq, B, C)
+            for term_name, eigs in terms.items():
+                mult = _multiplicity_of(term_name)
+                if mult <= 0:
+                    continue
+                for e in eigs:
+                    e_f = float(e)
+                    if e_f <= 1.0:
+                        continue  # ground manifold
+                    if e_f > max_energy_cm:
+                        continue
+                    buckets.setdefault(mult, []).append(
+                        {"x": float(d), "y": round(e_f, 1)},
+                    )
+
+        series = [
+            {
+                "label": f"{mult}·(2S+1)",
+                "color": _MULT_COLOR.get(mult, "#888"),
+                "data": sorted(pts, key=lambda p: (p["x"], p["y"])),
+            }
+            for mult, pts in sorted(buckets.items())
+        ]
+
+        payload = {
+            "title": f"d²–d⁸ energy landscape at Dq={Dq:g}, B={B:g}, C={C:g} cm⁻¹",
+            "x_label": "d-electron count",
+            "y_label": "Energy E (cm⁻¹)",
+            "series": series,
+        }
+        return ToolResult(
+            content=[_mcp_types.TextContent(type="text", text=_json.dumps(payload))],
+        )
+
+
+def _register_compute_table(mcp: FastMCP) -> None:
+    """Sorted DataTable + scatter strip-plot view of every eigenvalue at one (Dq, B, C).
+
+    Solves the readability problem of raw ``ts_compute`` output: a flat dict
+    keyed by term symbol with nested lists is impossible to scan. The table
+    sorts ascending by energy and adds spin-multiplicity / E/B columns; the
+    accompanying Chart.js scatter shows the level structure as a strip plot.
+    """
+
+    @mcp.tool(
+        name="ts_compute_app",
+        title="Term-energy table + strip plot at one (Dq, B, C)",
+        version=_pkg_version,
+        tags={"tanabesugano", "compute", "table", "interactive"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=True,
+    )
+    def ts_compute_app(
+        d_count: int,
+        Dq: float,
+        B: float | None = None,
+        C: float | None = None,
+        max_energy_cm: float = 60000.0,
+    ) -> PrefabApp:
+        """Compute term energies and render them as a sortable table + strip plot.
+
+        The raw ``ts_compute`` payload is a nested dict that's unreadable
+        without further processing. This app produces the same numbers but
+        sorted ascending by energy with multiplicity and E/B columns, plus a
+        Chart.js strip plot that lets the user see the level distribution at
+        a glance.
+
+        Args:
+            d_count: d-electron count (2–8).
+            Dq: Crystal-field parameter (cm⁻¹).
+            B, C: Racah parameters (cm⁻¹); per-configuration defaults if omitted.
+            max_energy_cm: Clip table + chart above this energy (default
+                60 000 cm⁻¹; raise it to see deep-UV high-multiplicity levels).
+
+        """
+        from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._defaults import DEFAULTS
+        from tanabesugano.mcp.tools._shared import resolve_bc
+        from tanabesugano.plot_style import color_for
+        from tanabesugano.plot_style import term_to_unicode
+
+        if d_count not in DEFAULTS:
+            with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
+                pf.Heading(content="Invalid d_count", level=3)
+                pf.Muted(content=f"d_count must be 2..8, got {d_count}")
+            return app
+
+        b_val, c_val = resolve_bc(d_count, B, C)
+        terms = compute_point(d_count, Dq, b_val, c_val)
+
+        # Flatten to rows {term, level, energy_cm, energy_over_B, mult, color}.
+        rows: list[dict] = []
+        for term_name, eigs in terms.items():
+            mult = _multiplicity_of(term_name)
+            for level, e in enumerate(eigs):
+                e_f = float(e)
+                if e_f > max_energy_cm:
+                    continue
+                rows.append(
+                    {
+                        "term": term_to_unicode(term_name),
+                        "term_raw": term_name,
+                        "level": level,
+                        "energy_cm": round(e_f, 1),
+                        "energy_over_B": round(e_f / b_val, 3) if b_val else 0.0,
+                        "mult": str(mult),
+                        "color": color_for(term_name),
+                    },
+                )
+        rows.sort(key=lambda r: (r["energy_cm"], r["term_raw"], r["level"]))
+
+        # Strip plot: x = level multiplicity (jittered horizontally per term),
+        # y = energy. One series per spin manifold for legend filtering. Keep
+        # x distinct so points within one multiplicity don't overlap visually.
+        buckets: dict[int, list[dict]] = {}
+        for row in rows:
+            try:
+                m = int(row["mult"])
+            except ValueError:
+                continue
+            buckets.setdefault(m, []).append(
+                {"x": float(m), "y": row["energy_cm"], "term": row["term"]},
+            )
+        chart_series = [
+            {
+                "label": f"{m}·(2S+1)",
+                "color": {
+                    1: "#888888",
+                    2: "#0072B2",
+                    3: "#009E73",
+                    4: "#D55E00",
+                    5: "#CC79A7",
+                    6: "#E69F00",
+                }.get(m, "#666"),
+                "data": pts,
+            }
+            for m, pts in sorted(buckets.items())
+        ]
+
+        # Build the table headers explicitly so the column widths are stable.
+        ground_term_oct = next(
+            (r["term_raw"] for r in rows if r["energy_cm"] <= 1.0),
+            "—",
+        )
+
+        with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
+            pf.Heading(
+                content=f"d{d_count} levels at Dq={Dq:g}, B={b_val:g}, C={c_val:g} cm⁻¹",
+                level=3,
+            )
+            with pf.Grid(columns=3, gap=4):
+                pf.Metric(
+                    label="Ground term",
+                    value=term_to_unicode(ground_term_oct),
+                    description=f"{DEFAULTS[d_count]['ground_term']} (free-ion)",
+                )
+                pf.Metric(
+                    label="Levels",
+                    value=str(len(rows)),
+                    description=f"≤ {max_energy_cm:,.0f} cm⁻¹",
+                )
+                pf.Metric(
+                    label="Highest",
+                    value=f"{rows[-1]['energy_cm']:,.0f}" if rows else "—",
+                    description="cm⁻¹",
+                )
+            pf.Muted(
+                content=(
+                    "Strip plot (left): each point is one eigenvalue, grouped "
+                    "horizontally by spin multiplicity. Sortable table below "
+                    "lists every level."
+                ),
+            )
+            LineChart(
+                data=[{"x": p["x"], "y": p["y"]} for s in chart_series for p in s["data"]],
+                series=[
+                    ChartSeries(
+                        data_key="y",
+                        label=s["label"],
+                        color=s["color"],
+                    )
+                    for s in chart_series
+                ],
+                xAxis="x",
+                showLegend=True,
+                showTooltip=True,
+                showGrid=True,
+                showDots=True,
+                height=280,
+            )
+            pf.DataTable(
+                columns=[
+                    pf.DataTableColumn(key="term", header="Term", sortable=True),
+                    pf.DataTableColumn(key="level", header="Lvl", sortable=True),
+                    pf.DataTableColumn(key="energy_cm", header="E (cm⁻¹)", sortable=True),
+                    pf.DataTableColumn(key="energy_over_B", header="E/B", sortable=True),
+                    pf.DataTableColumn(key="mult", header="2S+1", sortable=True),
+                ],
+                rows=rows,
+                search=True,
+            )
+        return app
 
 
 _BADGE_VARIANT_BY_MULT: dict[int, str] = {
