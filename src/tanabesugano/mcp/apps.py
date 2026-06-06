@@ -1924,15 +1924,97 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
     #wrap { padding: 8px; }
     canvas { max-height: 460px; }
     .hint { font-family: -apple-system, system-ui, sans-serif; color: #888; padding: 12px; font-size: 13px; }
+    #toolbar {
+      display: none;
+      gap: 6px;
+      padding: 4px 4px 6px 4px;
+      font-family: -apple-system, system-ui, sans-serif;
+      font-size: 12px;
+      align-items: center;
+    }
+    #toolbar button {
+      background: rgba(127,127,127,0.10);
+      color: inherit;
+      border: 1px solid rgba(127,127,127,0.35);
+      border-radius: 4px;
+      padding: 3px 9px;
+      cursor: pointer;
+      font: inherit;
+      line-height: 1.4;
+    }
+    #toolbar button:hover { background: rgba(127,127,127,0.20); }
+    #toolbar button:active { background: rgba(127,127,127,0.30); }
+    #toolbar .flash { opacity: 0; transition: opacity .2s; margin-left: 4px; color: #4a8; }
+    #toolbar .flash.err { color: #c64; }
+    #toolbar .flash.show { opacity: 1; }
   </style>
 </head>
 <body>
-  <div id="wrap"><canvas id="chart"></canvas></div>
+  <div id="wrap">
+    <div id="toolbar">
+      <button id="btn-png" type="button" title="Download the rendered chart as a PNG file">Download PNG</button>
+      <button id="btn-clip" type="button" title="Copy the rendered chart to the clipboard as a PNG image">Copy to clipboard</button>
+      <span id="flash" class="flash"></span>
+    </div>
+    <canvas id="chart"></canvas>
+  </div>
   <div id="hint" class="hint">Waiting for result…</div>
   <script type="module">
     import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.0/app-with-deps";
     const app = new App({ name: "TS Chart", version: "1.0.0" });
     let chart = null;
+    let lastTitle = "tanabesugano-chart";
+
+    const toolbar = document.getElementById('toolbar');
+    const flash = document.getElementById('flash');
+    const slug = (s) => (s || 'chart')
+      .toString().trim().toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '').slice(0, 80) || 'chart';
+    const showFlash = (msg, isErr) => {
+      flash.textContent = msg;
+      flash.classList.toggle('err', !!isErr);
+      flash.classList.add('show');
+      setTimeout(() => flash.classList.remove('show'), 1800);
+    };
+    // Chart.js exposes ``toBase64Image()`` directly; for clipboard we need a
+    // ``Blob``, which canvas.toBlob() provides. The two-button pattern is the
+    // one recommended in chartjs/Chart.js#10090 and the web.dev clipboard
+    // patterns doc — no extra dependency.
+    document.getElementById('btn-png').addEventListener('click', () => {
+      if (!chart) return;
+      try {
+        const url = chart.toBase64Image('image/png', 1.0);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = slug(lastTitle) + '.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {
+        showFlash('Download failed', true);
+      }
+    });
+    document.getElementById('btn-clip').addEventListener('click', () => {
+      if (!chart) return;
+      const canvas = document.getElementById('chart');
+      if (!canvas || !canvas.toBlob) { showFlash('Copy unsupported', true); return; }
+      canvas.toBlob(async (blob) => {
+        if (!blob) { showFlash('Copy failed', true); return; }
+        try {
+          if (!navigator.clipboard || !window.ClipboardItem) {
+            showFlash('Clipboard unavailable', true);
+            return;
+          }
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          showFlash('Copied!');
+        } catch (e) {
+          // Firefox and some iframe sandboxes reject image/png writes silently.
+          showFlash('Copy denied', true);
+        }
+      }, 'image/png');
+    });
+
     app.ontoolresult = ({ content }) => {
       const txt = (content || []).find(c => c.type === 'text');
       if (!txt) return;
@@ -1942,6 +2024,8 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
         return;
       }
       document.getElementById('hint').style.display = 'none';
+      toolbar.style.display = 'flex';
+      if (p && p.title) lastTitle = p.title;
       if (chart) chart.destroy();
       const ctx = document.getElementById('chart').getContext('2d');
 
