@@ -224,18 +224,37 @@ def test_heatmap_tool_was_removed() -> None:
 def test_spin_crossover_app_detects_critical_dq_for_d4_through_d7() -> None:
     """For each of d⁴/d⁵/d⁶/d⁷ the tool should detect a HS↔LS crossing in the
     swept range. LibreTexts textbook values: Dq/B ≈ 2 for d⁶, ≈ 2.1 for d⁷,
-    ≈ 3 for d⁵, ≈ 2.7 for d⁴. We only assert that *some* finite crossing is
-    detected — exact values depend on the per-config Racah defaults.
+    ≈ 3 for d⁵, ≈ 2.7 for d⁴.
+
+    Pins the unit contract introduced in the bug-fix commit: the payload now
+    carries both ``critical_delta_cm1`` (what the x-axis shows, Δ in cm⁻¹)
+    and ``critical_Dq_cm1`` (the raw Dq parameter, exactly Δ/10). The pre-fix
+    code put Δ under the ``critical_Dq_cm1`` name, so values were 10× the
+    textbook number — this test fixes the regression in place.
     """
     import json
+
+    from tanabesugano.mcp._defaults import DEFAULTS
 
     for d in (4, 5, 6, 7):
         r = _call("ts_spin_crossover_app", {"d_count": d, "dq_max": 3000.0, "steps": 60})
         assert not r.is_error, f"d{d} must produce a payload"  # type: ignore[attr-defined]
         p = json.loads(r.content[0].text)  # type: ignore[attr-defined]
-        crit = p.get("critical_Dq_cm1")
-        assert crit is not None and crit > 0, (
-            f"d{d} spin-crossover must detect a finite critical Dq, got {crit!r}"
+        crit_dq = p.get("critical_Dq_cm1")
+        crit_delta = p.get("critical_delta_cm1")
+        assert crit_dq is not None and crit_dq > 0, (
+            f"d{d} must report a finite critical Dq, got {crit_dq!r}"
+        )
+        assert crit_delta is not None and crit_delta > 0, (
+            f"d{d} must report a finite critical Δ, got {crit_delta!r}"
+        )
+        assert abs(crit_delta - 10.0 * crit_dq) < 1.0, (
+            f"d{d}: critical_delta_cm1 ({crit_delta}) must equal 10·Dq ({10 * crit_dq})"
+        )
+        b_val = float(DEFAULTS[d]["default_B"])
+        ratio = crit_dq / b_val
+        assert 1.5 <= ratio <= 3.5, (
+            f"d{d} Dq/B = {ratio:.2f} is outside the textbook 1.5–3.5 band — unit bug regression?"
         )
 
 
@@ -270,6 +289,18 @@ def test_correlation_diagram_app_emits_three_panels() -> None:
     # X-axis label must call out the three regimes
     label = p["x_label"]
     assert "Free ion" in label and "Weak" in label and "Strong" in label
+    # Bug-fix regression pin: the ground term must appear in the diagram.
+    # d³'s ground term is ⁴A₂g (a quartet A-state) — without it the
+    # diagram is missing its pedagogical anchor (ground-term continuity
+    # across the three regimes is *the* reason the diagram exists). A
+    # pre-fix span-based filter (max-min < 1.0 cm⁻¹) silently dropped any
+    # series whose three points all sat at zero, which is exactly the
+    # ground manifold in normalised solver output.
+    labels_joined = " | ".join(s["label"] for s in p["series"])
+    assert "⁴A₂" in labels_joined, (
+        f"d³ correlation diagram must include the ⁴A₂ ground term in its series list; "
+        f"got: {labels_joined!r}"
+    )
 
 
 def test_orgel_diagram_app_returns_unnormalised_payload() -> None:
