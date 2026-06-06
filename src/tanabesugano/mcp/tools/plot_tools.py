@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 
 from typing import TYPE_CHECKING
 
@@ -76,3 +77,42 @@ def register(mcp: FastMCP) -> None:
         return ToolResult(
             content=[types.ImageContent(type="image", data=b64, mimeType="image/png")],
         )
+
+    @mcp.tool(
+        name="ts_emit_png",
+        title="Send a rendered chart PNG to the conversation",
+        version=__version__,
+        tags={"tanabesugano", "plot", "export"},
+        annotations=READONLY,
+        meta=TS_META,
+    )
+    def ts_emit_png(png_base64: str, title: str | None = None) -> ToolResult:
+        """Echo a base64-encoded PNG back as an MCP image attachment.
+
+        The Chart.js iframes (ts_diagram_app, ts_overlay_app, …) call this
+        from their toolbar "Send PNG to chat" button because the MCP Apps
+        sandbox does not permit a server-declared download permission —
+        the host strips ``allow-downloads`` from every UI iframe and offers
+        no programmatic way to push a file out of one. Routing the PNG
+        through the conversation surface is the spec-compliant path: the
+        chat renders the image and the user can save / copy / share from
+        there. Title becomes the image's alt text.
+        """
+        cleaned = (png_base64 or "").strip()
+        if cleaned.startswith("data:"):
+            cleaned = cleaned.split(",", 1)[-1]
+        if not cleaned:
+            return ToolResult(
+                content=[types.TextContent(type="text", text="png_base64 was empty")],
+            )
+        try:
+            base64.b64decode(cleaned, validate=True)
+        except (ValueError, binascii.Error):
+            return ToolResult(
+                content=[types.TextContent(type="text", text="png_base64 is not valid base64")],
+            )
+        parts: list[types.TextContent | types.ImageContent] = []
+        if title:
+            parts.append(types.TextContent(type="text", text=str(title)))
+        parts.append(types.ImageContent(type="image", data=cleaned, mimeType="image/png"))
+        return ToolResult(content=parts)

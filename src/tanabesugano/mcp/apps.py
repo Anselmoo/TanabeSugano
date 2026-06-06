@@ -36,6 +36,7 @@ SPECTRUM_URI = "ui://tanabesugano/spectrum.html"
 try:
     from fastmcp.apps import AppConfig
     from fastmcp.apps import ResourceCSP
+    from fastmcp.apps import ResourcePermissions
     from fastmcp.tools import ToolResult
     from mcp import types as _mcp_types
     from mcp.types import ToolAnnotations
@@ -314,6 +315,13 @@ def _register_plot_view(mcp: FastMCP) -> None:
         title="Tanabe-Sugano Chart.js line chart",
         app=AppConfig(
             csp=ResourceCSP(resource_domains=["https://cdn.jsdelivr.net", "https://unpkg.com"]),
+            # MCP Apps spec: the host sandboxes every UI iframe with no
+            # Permissions Policy by default — ``navigator.clipboard.write``
+            # is rejected unless the resource explicitly requests it via
+            # ``_meta.ui.permissions.clipboardWrite``. Required for the
+            # in-iframe "Copy to clipboard" button to succeed.
+            # https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx
+            permissions=ResourcePermissions(clipboard_write={}),
         ),
     )
     def diagram_view() -> str:
@@ -1547,6 +1555,13 @@ def _register_spectrum(mcp: FastMCP) -> None:
         title="TanabeSugano simulated spectrum (Chart.js)",
         app=AppConfig(
             csp=ResourceCSP(resource_domains=["https://cdn.jsdelivr.net", "https://unpkg.com"]),
+            # MCP Apps spec: the host sandboxes every UI iframe with no
+            # Permissions Policy by default — ``navigator.clipboard.write``
+            # is rejected unless the resource explicitly requests it via
+            # ``_meta.ui.permissions.clipboardWrite``. Required for the
+            # in-iframe "Copy to clipboard" button to succeed.
+            # https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx
+            permissions=ResourcePermissions(clipboard_write={}),
         ),
     )
     def spectrum_view() -> str:
@@ -1960,7 +1975,7 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
 <body>
   <div id="wrap">
     <div id="toolbar">
-      <button id="btn-png" type="button" title="Download the rendered chart as a PNG file">Download PNG</button>
+      <button id="btn-png" type="button" title="Send the rendered chart to the conversation as a PNG image (you can save it from there)">Send PNG to chat</button>
       <button id="btn-clip" type="button" title="Copy the rendered chart to the clipboard as a PNG image">Copy to clipboard</button>
       <span id="flash" class="flash"></span>
     </div>
@@ -1985,22 +2000,29 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
       flash.classList.add('show');
       setTimeout(() => flash.classList.remove('show'), 1800);
     };
-    // Chart.js exposes ``toBase64Image()`` directly; for clipboard we need a
-    // ``Blob``, which canvas.toBlob() provides. The two-button pattern is the
-    // one recommended in chartjs/Chart.js#10090 and the web.dev clipboard
-    // patterns doc — no extra dependency.
-    document.getElementById('btn-png').addEventListener('click', () => {
+    // Both buttons rely on Chart.js' built-in ``toBase64Image()`` to capture
+    // the current canvas, but they exit the sandbox in different ways:
+    //
+    //   * "Send PNG to chat" calls back via ``app.callTool('ts_emit_png')``
+    //     so the server echoes the PNG as ImageContent in the conversation.
+    //     This is the only spec-compliant way to get a file *out* of the
+    //     iframe: the MCP Apps spec deliberately omits a "downloads"
+    //     permission (supported set is camera, microphone, geolocation,
+    //     clipboardWrite — see
+    //     github.com/modelcontextprotocol/ext-apps specification/2026-01-26).
+    //   * "Copy to clipboard" uses canvas.toBlob() + ClipboardItem, which
+    //     works once the resource declares ``_meta.ui.permissions.clipboardWrite``
+    //     (we declare that via ResourcePermissions on the @mcp.resource).
+    document.getElementById('btn-png').addEventListener('click', async () => {
       if (!chart) return;
       try {
-        const url = chart.toBase64Image('image/png', 1.0);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = slug(lastTitle) + '.png';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        const dataUrl = chart.toBase64Image('image/png', 1.0);
+        const b64 = (dataUrl.split(',', 2)[1] || dataUrl);
+        showFlash('Sending…');
+        await app.callTool({ name: 'ts_emit_png', arguments: { png_base64: b64, title: lastTitle } });
+        showFlash('Sent to chat');
       } catch (e) {
-        showFlash('Download failed', true);
+        showFlash('Send failed', true);
       }
     });
     document.getElementById('btn-clip').addEventListener('click', () => {
@@ -2017,8 +2039,11 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
           await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
           showFlash('Copied!');
         } catch (e) {
-          // Firefox and some iframe sandboxes reject image/png writes silently.
-          showFlash('Copy denied', true);
+          // The resource declares ``_meta.ui.permissions.clipboardWrite``,
+          // so Claude Desktop adds ``allow="clipboard-write"`` to the
+          // iframe. Firefox still rejects image/png clipboard writes from
+          // any iframe — treat that as a graceful fallback path.
+          showFlash('Copy denied (use Send PNG to chat)', true);
         }
       }, 'image/png');
     });
