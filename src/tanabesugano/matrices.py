@@ -1223,7 +1223,7 @@ class d7(LigandFieldTheory):
 
         GS = T_4_1[0]
 
-        T_4_1[0] = np.array([0.0], dtype=float)
+        T_4_1[0] = 0.0
         A_4_2 = np.array([12 * self.Dq - 15 * self.B]) - GS
         T_4_2 = np.array([2 * self.Dq - 15 * self.B]) - GS
 
