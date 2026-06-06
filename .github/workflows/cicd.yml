@@ -73,7 +73,7 @@ jobs:
 
       - name: Validate release policy (rrt)
         if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
-        uses: Anselmoo/repo-release-tools@v1.8.1
+        uses: Anselmoo/repo-release-tools@v1.8.3
         with:
           check-branch-name: "true"
           check-commit-subject: "true"
