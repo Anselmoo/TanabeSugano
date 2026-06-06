@@ -66,12 +66,12 @@ def register_apps(mcp: FastMCP) -> None:
     _register_diagram_app(mcp)
     _register_dashboard(mcp)
     _register_compare(mcp)
-    _register_heatmap(mcp)
     _register_overlay(mcp)
     _register_reverse_fit(mcp)
     _register_ratio_fit(mcp)
     _register_spectrum(mcp)
     _register_oxidation_landscape(mcp)
+    _register_orgel(mcp)
     _register_compute_table(mcp)
 
 
@@ -619,127 +619,95 @@ def _register_compare(mcp: FastMCP) -> None:
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
-def _register_heatmap(mcp: FastMCP) -> None:
-    """Energy-vs-(B,C) heatmap for one term at fixed Dq, via Chart.js iframe."""
+# ts_parameter_heatmap_app was removed: a fixed-Dq sweep of Racah (B, C) for
+# a single eigenvalue is not a standard coordination-chemistry visualisation
+# (no entry in Cotton, Figgis & Hitchman, Bertini, or Lever), and the
+# user-facing default trivially returns zero whenever the chosen term is the
+# ground term (level 0 of the ground term is 0 by construction). Replaced
+# with three literature-canonical Tanabe-Sugano companions:
+#   * ts_orgel_diagram_app    — Orgel diagram (E vs Δ, unnormalised)
+#   * ts_spin_crossover_app   — HS↔LS critical-Dq map for d⁴–d⁷
+#   * ts_correlation_diagram_app — free-ion → weak field → strong field
+# The HEATMAP_URI / _HEATMAP_HTML resource is left in the module as
+# dead-but-harmless code so external clients that may still reference the
+# URI receive a clean "not found" rather than an import error; it is no
+# longer registered with the FastMCP server.
+
+
+def _register_orgel(mcp: FastMCP) -> None:
+    """Orgel diagram (E vs Δ, *un-normalised*) — the canonical companion to ts_diagram_app.
+
+    Wikipedia: "The Tanabe-Sugano diagram is an adaptation of an Orgel
+    diagram which takes better account of electron-electron repulsion …".
+    Cotton, Figgis & Hitchman, and the LibreTexts Crystal-Field-Theory
+    module all introduce the Orgel diagram before the TS form because the
+    physical (cm⁻¹) axes are easier to read against measured spectra.
+    """
 
     @mcp.tool(
-        name="ts_parameter_heatmap_app",
-        title="Energy heatmap over Racah (B, C)",
+        name="ts_orgel_diagram_app",
+        title="Orgel diagram (E vs Δ)",
         version=_pkg_version,
-        tags={"tanabesugano", "heatmap", "interactive"},
+        tags={"tanabesugano", "plot", "orgel", "pedagogy"},
         annotations=_READONLY_ANNOTATIONS,
         meta=_TS_META,
-        app=AppConfig(resource_uri=HEATMAP_URI),
+        app=AppConfig(resource_uri=DIAGRAM_URI),
     )
-    def ts_parameter_heatmap_app(
+    def ts_orgel_diagram_app(
         d_count: int,
-        term: str,
-        Dq: float = 900.0,
-        level: int = 0,
-        b_min: float = 600.0,
-        b_max: float = 1200.0,
-        c_min: float = 3000.0,
-        c_max: float = 5500.0,
-        steps: int = 12,
+        dq_min: float = 0.0,
+        dq_max: float = 1500.0,
+        steps: int = 80,
+        B: float | None = None,
+        C: float | None = None,
     ) -> ToolResult:
-        """Sweep Racah B × C at fixed Dq and render a Chart.js heatmap of energies.
+        """Render an Orgel diagram: term energies (cm⁻¹) vs Δ = 10·Dq (cm⁻¹).
 
-        Picks the `level`-th eigenvalue of *term* at every (B, C) grid cell.
-        Accepts either octahedral keys (``"6_A_1"``, ``"3_T_1"``) or the
-        free-ion notation surfaced by the dashboard (``"6S"``, ``"3F"``):
-        ``resolve_term_key`` normalises both. Returns a JSON payload that the
-        Chart.js + chartjs-chart-matrix view at ``ui://tanabesugano/heatmap.html``
-        consumes via ``content[0].text``.
+        Identical compute path as ``ts_diagram_app`` but with both axes in
+        absolute cm⁻¹ instead of normalised by Racah B. For d²/d³/d⁸ the
+        diagram is smooth (no spin crossover); for d⁴–d⁷ the ground term
+        flips spin at the critical Δ and the diagram shows a downward
+        kink — see ``ts_spin_crossover_app`` for a focussed view of that
+        crossing.
+
+        Args:
+            d_count: d-electron count (2–8).
+            dq_min, dq_max: Dq sweep bounds in cm⁻¹.
+            steps: Number of Dq grid points.
+            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+                omitted.
+
         """
-        import json as _json
+        from tanabesugano.mcp.tools._shared import resolve_bc
 
-        from tanabesugano.mcp._compute import compute_point
-        from tanabesugano.mcp.tools._shared import resolve_term_key
-
-        solver_term = resolve_term_key(d_count, term)
-
-        # Quick existence probe so an unsupported term fails LOUDLY with a
-        # useful error message instead of silently filling the heatmap with
-        # NaN (which then corrupts the JSON payload — NaN is not valid JSON).
-        probe = compute_point(d_count, Dq, b_min, c_min)
-        if solver_term not in probe:
-            available = sorted(probe.keys())
-            return ToolResult(
-                content=[
-                    _mcp_types.TextContent(
-                        type="text",
-                        text=_json.dumps(
-                            {
-                                "title": "Error",
-                                "x_label": "",
-                                "y_label": "",
-                                "cells": [],
-                                "x_values": [],
-                                "y_values": [],
-                                "error": (
-                                    f"Unknown term {term!r} for d{d_count}. "
-                                    f"Available octahedral terms: {available}. "
-                                    f"You may also pass the free-ion ground-term "
-                                    f"alias from ts_dashboard_app."
-                                ),
-                            },
-                        ),
-                    ),
-                ],
-                is_error=True,
-            )
-
-        b_vals = [b_min + (b_max - b_min) * i / max(steps - 1, 1) for i in range(steps)]
-        c_vals = [c_min + (c_max - c_min) * j / max(steps - 1, 1) for j in range(steps)]
-        cells: list[dict] = []
-        for b in b_vals:
-            for c in c_vals:
-                try:
-                    terms = compute_point(d_count, Dq, b, c)
-                    energies = terms.get(solver_term, [])
-                    # JSON does not allow NaN — emit null so clients (Chart.js
-                    # included) parse cleanly and skip non-finite cells.
-                    v: float | None = (
-                        round(float(energies[level]), 1) if level < len(energies) else None
-                    )
-                except Exception:  # noqa: BLE001 — solver may LinAlgError
-                    v = None
-                cells.append({"x": round(b, 1), "y": round(c, 1), "v": v})
-
-        payload = {
-            "title": f"d{d_count} {solver_term} (level {level}) at Dq={Dq:g}",
-            "cells": cells,
-            "x_label": "Racah B (cm⁻¹)",
-            "y_label": "Racah C (cm⁻¹)",
-            "x_values": [round(b, 1) for b in b_vals],
-            "y_values": [round(c, 1) for c in c_vals],
-        }
-        return ToolResult(
-            content=[_mcp_types.TextContent(type="text", text=_json.dumps(payload))],
+        b_val, c_val = resolve_bc(d_count, B, C)
+        rows, series, _title, x_key, _x_label, _y_label, _ = _sweep_payload(
+            d_count,
+            dq_min,
+            dq_max,
+            steps,
+            b_val,
+            c_val,
+            normalize=False,
+            energy_unit="cm1",
         )
 
-    @mcp.resource(
-        HEATMAP_URI,
-        # MCP Apps spec — UI resources must use the profiled MIME type.
-        # Claude Desktop advertises ``extensions.io.modelcontextprotocol/ui``
-        # with ``mimeTypes: ["text/html;profile=mcp-app"]`` in initialize;
-        # plain ``text/html`` is rejected with "Unsupported UI resource
-        # content format". Reference:
-        # https://modelcontextprotocol.io/extensions/apps/overview
-        mime_type="text/html;profile=mcp-app",
-        title="Tanabe-Sugano parameter heatmap (Chart.js)",
-        app=AppConfig(
-            csp=ResourceCSP(
-                resource_domains=[
-                    "https://cdn.jsdelivr.net",
-                    "https://unpkg.com",
-                ],
-            ),
-        ),
-    )
-    def heatmap_view() -> str:
-        """Chart.js + chartjs-chart-matrix renderer for ts_parameter_heatmap_app."""
-        return _HEATMAP_HTML
+        has_crossover = d_count in (4, 5, 6, 7)
+        note = (
+            "Orgel-like (kink at the HS↔LS crossover)"
+            if has_crossover
+            else "Orgel diagram (no spin crossover)"
+        )
+        title = f"d{d_count} {note} — B={b_val:g}, C={c_val:g} cm⁻¹"
+        payload = _chartjs_series_payload(
+            rows,
+            series,
+            x_key,
+            title=title,
+            x_label="Δ = 10·Dq  (cm⁻¹)",
+            y_label="E  (cm⁻¹)",
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
 # ─────────────────────────────────────────────────────────────────────────

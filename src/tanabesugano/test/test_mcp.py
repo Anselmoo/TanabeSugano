@@ -66,7 +66,7 @@ def test_create_server_registers_expected_tools() -> None:
         "ts_diagram_app",
         "ts_dashboard_app",
         "ts_compare_app",
-        "ts_parameter_heatmap_app",
+        "ts_orgel_diagram_app",
         # docs
         "ts_explain",
     }
@@ -91,8 +91,10 @@ def test_interactive_resources_present() -> None:
     server = create_server()
     resources = asyncio.run(server.list_resources())
     uris = {str(r.uri) for r in resources}
-    # Heatmap HTML resource for the Chart.js view.
-    assert "ui://tanabesugano/heatmap.html" in uris
+    # Chart.js diagram resource serves every Chart.js-backed app tool
+    # (ts_diagram_app, ts_plot_view, ts_overlay_app, ts_compare_app,
+    # ts_oxidation_landscape_app, ts_orgel_diagram_app, …).
+    assert "ui://tanabesugano/diagram.html" in uris
 
 
 def test_ui_resources_advertise_mcp_app_profile_mime() -> None:
@@ -190,7 +192,7 @@ def test_ts_plot_png_returns_image() -> None:
         ("ts_diagram_app", {"d_count": 5, "steps": 8}),
         ("ts_dashboard_app", {}),
         ("ts_compare_app", {"d_counts": [3, 5, 8]}),
-        ("ts_parameter_heatmap_app", {"d_count": 5, "term": "6_A_1", "steps": 4}),
+        ("ts_orgel_diagram_app", {"d_count": 5, "steps": 8}),
         ("ts_overlay_app", {"d_counts": [4, 6], "steps": 8}),
         ("ts_spectrum_app", {"d_count": 6, "Dq": 800.0, "n_points": 50}),
         (
@@ -207,73 +209,38 @@ def test_app_tools_return_non_empty_payload(tool: str, args: dict) -> None:
     assert result.content, f"{tool} returned empty content"  # type: ignore[attr-defined]
 
 
-def test_heatmap_emits_finite_numbers_no_nan_no_textbook_placeholder() -> None:
-    """Pins three regressions reported by the user against ts_parameter_heatmap_app:
+def test_heatmap_tool_was_removed() -> None:
+    """ts_parameter_heatmap_app was removed: a fixed-Dq sweep of Racah (B, C)
+    of a single eigenvalue is not a literature visualisation, and the default
+    user call against a ground term level returned 0 cm⁻¹ everywhere. Replaced
+    with ts_orgel_diagram_app, ts_spin_crossover_app, ts_correlation_diagram_app.
+    """
+    server = create_server()
+    tools = asyncio.run(server.list_tools())
+    names = {t.name for t in tools}
+    assert "ts_parameter_heatmap_app" not in names
 
-    1. The tool used to return ``PrefabApp`` whose ``content[0].text`` is the
-       literal string ``"[Rendered Prefab UI]"``. The Chart.js HTML at
-       ui://tanabesugano/heatmap.html does ``JSON.parse(content[0].text)`` and
-       failed with "Unexpected token R". content[0].text must be valid JSON.
-    2. With the free-ion ground term passed verbatim ("6S" surfaced by the
-       dashboard for d5), the solver lookup returned [] and every cell got
-       ``round(NaN, 1) == NaN``. NaN is not valid JSON. Cells now contain
-       either a finite number or ``null``.
-    3. An unknown term used to give a silent all-NaN heatmap; it now returns
-       a structured error naming the available octahedral keys.
+
+def test_orgel_diagram_app_returns_unnormalised_payload() -> None:
+    """Orgel diagram must use absolute cm⁻¹ axes (no E/B normalisation) — that
+    is the entire point of the Orgel-vs-TS distinction in the literature.
     """
     import json
-    import math
 
-    # 1. Free-ion alias → octahedral key
-    r = _call(
-        "ts_parameter_heatmap_app",
-        {
-            "d_count": 5,
-            "term": "6S",
-            "Dq": 900.0,
-            "level": 0,
-            "b_min": 600.0,
-            "b_max": 1200.0,
-            "c_min": 3000.0,
-            "c_max": 5500.0,
-            "steps": 6,
-        },
+    r = _call("ts_orgel_diagram_app", {"d_count": 3, "steps": 12})
+    assert not r.is_error  # type: ignore[attr-defined]
+    payload = json.loads(r.content[0].text)  # type: ignore[attr-defined]
+    assert "cm⁻¹" in payload["x_label"] and "cm⁻¹" in payload["y_label"], (
+        f"Orgel axes must be in absolute cm⁻¹, got x={payload['x_label']!r} y={payload['y_label']!r}"
     )
-    assert not r.is_error, "free-ion ground term '6S' must resolve to 6_A_1"  # type: ignore[attr-defined]
-    text = r.content[0].text  # type: ignore[attr-defined]
-    assert text != "[Rendered Prefab UI]", (
-        "heatmap must return ToolResult with JSON text, not a PrefabApp placeholder"
-    )
-    payload = json.loads(text)  # must not raise — JSON spec disallows NaN
-    cells = payload["cells"]
-    assert cells, "heatmap must produce cells"
-    for c in cells:
-        v = c["v"]
-        # JSON does not allow NaN — values must be either finite or null.
-        assert v is None or (isinstance(v, (int, float)) and math.isfinite(v)), (
-            f"non-finite cell value {v!r} would crash strict JSON parsers"
-        )
-    assert "6_A_1" in payload["title"], "free-ion '6S' must be resolved to '6_A_1' in title"
-
-    # 2. Excited term should have varying finite energies
-    r = _call(
-        "ts_parameter_heatmap_app",
-        {"d_count": 5, "term": "4_T_1", "Dq": 900.0, "steps": 6},
-    )
-    cells = json.loads(r.content[0].text)["cells"]  # type: ignore[attr-defined]
-    vs = [c["v"] for c in cells if c["v"] is not None]
-    assert len(vs) == len(cells), "all cells finite for excited term"
-    assert max(vs) - min(vs) > 100, (
-        f"excited-state heatmap should vary across (B, C), got range {max(vs) - min(vs):.0f}"
-    )
-
-    # 3. Unknown term must produce a structured error, not a silent NaN grid
-    with pytest.raises(Exception) as exc_info:  # noqa: PT011, BLE001
-        _call("ts_parameter_heatmap_app", {"d_count": 5, "term": "XYZ", "Dq": 900.0, "steps": 4})
-    err_msg = str(exc_info.value)
-    assert "XYZ" in err_msg and "Available" in err_msg, (
-        f"invalid term must name itself and list valid alternatives, got {err_msg!r}"
-    )
+    assert payload["series"], "Orgel must produce at least one term series"
+    # Highest energy must be in the cm⁻¹ regime, not the E/B regime (~1-100)
+    for s in payload["series"]:
+        ys = [pt["y"] for pt in s["data"]]
+        if ys and max(ys) > 1000:
+            break
+    else:
+        raise AssertionError("no series reaches >1000 — chart is normalised, not Orgel")
 
 
 def test_diagram_app_returns_chartjs_payload_with_varying_series() -> None:

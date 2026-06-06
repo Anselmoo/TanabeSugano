@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Removed
+- `ts_parameter_heatmap_app`: a fixed-Dq sweep of Racah (B, C) of a single eigenvalue is not a standard coordination-chemistry visualisation (absent from Cotton, Figgis & Hitchman, Bertini, Lever) and the default user call against a ground-term level trivially returned 0 cm⁻¹ everywhere (user-reported uniformly dark heatmap for `d8 3_A_2 level 0 at Dq=900`). Replaced by three TS-companion tools (`ts_orgel_diagram_app` shipped now; `ts_spin_crossover_app` and `ts_correlation_diagram_app` follow)
 - `ts_explore_app`: the Prefab `Form.from_model` rendered as a frozen panel in Claude Desktop, and its `on_submit=CallTool(tool="ts_diagram_app")` wiring went stale after `ts_diagram_app` migrated to the Chart.js `ToolResult` path (the form's submit no longer matched a Prefab-state consumer). Discovery now goes through the `tanabesugano_why` / `tanabesugano_explain_complex` prompts or `ts_supported_configs` → `ts_diagram_app`
 
 ### Fixed
@@ -15,6 +16,7 @@
 - `_DIAGRAM_HTML` (`ui://tanabesugano/diagram.html`) now also imports `chartjs-chart-matrix` and routes to the matrix renderer when the payload carries `chart_type: "heatmap"`; default behaviour for every existing caller (line plot, no `chart_type` field) is unchanged
 
 ### Added
+- `ts_orgel_diagram_app`: Orgel diagram (E (cm⁻¹) vs Δ (cm⁻¹), unnormalised) — the canonical companion to `ts_diagram_app` taught in every undergraduate inorganic textbook (Cotton, Figgis & Hitchman, Bertini, Lever) and explicitly referenced as the parent of the TS form ([Wikipedia](https://en.wikipedia.org/wiki/Tanabe%E2%80%93Sugano_diagram)). Reuses the existing `sweep_dq` solver path; renders as a Chart.js line plot through `ui://tanabesugano/diagram.html`
 - `ts_oxidation_landscape_app`: scatter chart showing every eigenvalue of d²–d⁸ on one Chart.js plot at fixed (Dq, B, C), grouped by spin multiplicity — lets the user see how the term-energy spread evolves across the d-block at a single crystal-field setting
 - `ts_compute_app`: sortable DataTable + spin-multiplicity strip plot of every eigenvalue at one (Dq, B, C); replaces the raw `ts_compute` whose nested-dict output was unusable
 
