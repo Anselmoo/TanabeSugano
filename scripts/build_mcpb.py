@@ -51,14 +51,28 @@ def _read_fastmcp_version(root: Path) -> str:
     for pkg in data.get("package", []):
         if pkg.get("name") == "fastmcp":
             return pkg["version"]
-    raise RuntimeError("fastmcp not found in uv.lock — run `uv sync --extra mcp` first")
+    msg = "fastmcp not found in uv.lock — run `uv sync --extra mcp` first"
+    raise RuntimeError(msg)
 
 
-def _build_manifest(version: str, fastmcp_version: str, dev_path: str | None = None) -> dict:
-    if dev_path:
-        from_spec = f"{dev_path}[mcp]"
-    else:
-        from_spec = f"{_PACKAGE_NAME}[mcp]=={version}"
+def _read_numpy_version(root: Path) -> str:
+    """Return the numpy version pinned in uv.lock."""
+    with (root / "uv.lock").open("rb") as fh:
+        data = tomllib.load(fh)
+    for pkg in data.get("package", []):
+        if pkg.get("name") == "numpy":
+            return pkg["version"]
+    msg = "numpy not found in uv.lock — run `uv sync` first"
+    raise RuntimeError(msg)
+
+
+def _build_manifest(
+    version: str,
+    fastmcp_version: str,
+    numpy_version: str,
+    dev_path: str | None = None,
+) -> dict:
+    from_spec = f"{dev_path}[mcp]" if dev_path else f"{_PACKAGE_NAME}[mcp]=={version}"
 
     return {
         "manifest_version": "0.4",
@@ -99,6 +113,8 @@ def _build_manifest(version: str, fastmcp_version: str, dev_path: str | None = N
                     from_spec,
                     "--with",
                     f"fastmcp[apps]=={fastmcp_version}",
+                    "--with",
+                    f"numpy=={numpy_version}",
                     _ENTRYPOINT,
                 ],
             },
@@ -112,12 +128,14 @@ def _build_manifest(version: str, fastmcp_version: str, dev_path: str | None = N
     }
 
 
-def _build_shim(version: str, fastmcp_version: str, dev_path: str | None = None) -> str:
-    """Return a stdlib-only launcher shim with the version and fastmcp pin baked in."""
-    if dev_path:
-        package_spec = f"{dev_path}[mcp]"
-    else:
-        package_spec = f"{_PACKAGE_NAME}[mcp]=={version}"
+def _build_shim(
+    version: str,
+    fastmcp_version: str,
+    numpy_version: str,
+    dev_path: str | None = None,
+) -> str:
+    """Return a stdlib-only launcher shim with the version and dependency pins baked in."""
+    package_spec = f"{dev_path}[mcp]" if dev_path else f"{_PACKAGE_NAME}[mcp]=={version}"
 
     return textwrap.dedent(f"""\
         \"\"\"TanabeSugano — uvx launcher shim.
@@ -133,13 +151,20 @@ def _build_shim(version: str, fastmcp_version: str, dev_path: str | None = None)
 
         _PACKAGE = "{package_spec}"
         _FASTMCP = "fastmcp[apps]=={fastmcp_version}"
+        _NUMPY = "numpy=={numpy_version}"
         _ENTRYPOINT = "{_ENTRYPOINT}"
 
 
         def main() -> None:
             os.execvp(
                 "uv",
-                ["uv", "tool", "run", "--from", _PACKAGE, "--with", _FASTMCP, _ENTRYPOINT],
+                [
+                    "uv", "tool", "run",
+                    "--from", _PACKAGE,
+                    "--with", _FASTMCP,
+                    "--with", _NUMPY,
+                    _ENTRYPOINT,
+                ],
             )
 
 
@@ -151,7 +176,8 @@ def _build_shim(version: str, fastmcp_version: str, dev_path: str | None = None)
 def main() -> None:
     """Write dist/tanabesugano-{{version}}[-dev].mcpb."""
     parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--dev",
@@ -163,10 +189,11 @@ def main() -> None:
     root = Path(__file__).parent.parent
     version = _read_version(root)
     fastmcp_version = _read_fastmcp_version(root)
+    numpy_version = _read_numpy_version(root)
     dev_path = str(root) if args.dev else None
 
-    manifest = _build_manifest(version, fastmcp_version, dev_path)
-    shim = _build_shim(version, fastmcp_version, dev_path)
+    manifest = _build_manifest(version, fastmcp_version, numpy_version, dev_path)
+    shim = _build_shim(version, fastmcp_version, numpy_version, dev_path)
 
     dist = root / "dist"
     dist.mkdir(exist_ok=True)
@@ -178,7 +205,7 @@ def main() -> None:
         zf.writestr("server/main.py", shim)
 
     mode = "dev (local source)" if args.dev else "release (PyPI)"
-    print(f"Built {mcpb_path}  [{mode}, fastmcp=={fastmcp_version}]")
+    print(f"Built {mcpb_path}  [{mode}, fastmcp=={fastmcp_version}, numpy=={numpy_version}]")
 
 
 if __name__ == "__main__":

@@ -148,7 +148,9 @@ def _sweep_payload(
     for i, dq in enumerate(dq_values):
         row: dict[str, float] = {
             # Round x to 3 dp — shows "0.716" not "0.7161613750298401".
-            x_key: round(float(dq * 10.0 / b_val), 3) if normalize else round(float(dq * 10.0), 1),
+            x_key: (round(float(dq * 10.0 / b_val), 3) if b_val else 0.0)
+            if normalize
+            else round(float(dq * 10.0), 1),
         }
         for term, energies in points[i].items():
             if not energies:
@@ -176,7 +178,7 @@ def _sweep_payload(
     title = f"Tanabe-Sugano d{d_count} (B={b_val:g}, C={c_val:g} cm⁻¹)"
     x_label = "10Dq/B" if normalize else "10Dq (cm⁻¹)"
     y_label = "E/B" if normalize else _Y_LABEL.get(energy_unit, "E (cm⁻¹)")
-    ground_y = min(row.get(f"{ground_term}_0", float("inf")) for row in rows)
+    ground_y = min((row.get(f"{ground_term}_0", float("inf")) for row in rows), default=0.0)
     return rows, series, title, x_key, x_label, y_label, ground_y
 
 
