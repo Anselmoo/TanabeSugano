@@ -1437,17 +1437,17 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
 
 
 def _register_compute_table(mcp: FastMCP) -> None:
-    """Sorted DataTable + scatter strip-plot view of every eigenvalue at one (Dq, B, C).
+    """Sortable DataTable of every eigenvalue at one (Dq, B, C).
 
-    Solves the readability problem of raw ``ts_compute`` output: a flat dict
+    Solves the readability problem of raw eigenvalue dicts: a flat dict
     keyed by term symbol with nested lists is impossible to scan. The table
-    sorts ascending by energy and adds spin-multiplicity / E/B columns; the
-    accompanying Chart.js scatter shows the level structure as a strip plot.
+    sorts ascending by energy and adds spin-multiplicity / E/B columns. For
+    a visual scatter across d² – d⁸ see ``ts_oxidation_landscape_app``.
     """
 
     @mcp.tool(
         name="ts_compute_app",
-        title="Term-energy table + strip plot at one (Dq, B, C)",
+        title="Term-energy table at one (Dq, B, C)",
         version=_pkg_version,
         tags={"tanabesugano", "compute", "table", "interactive"},
         annotations=_READONLY_ANNOTATIONS,
@@ -1461,19 +1461,18 @@ def _register_compute_table(mcp: FastMCP) -> None:
         C: float | None = None,
         max_energy_cm: float = 60000.0,
     ) -> PrefabApp:
-        """Compute term energies and render them as a sortable table + strip plot.
+        """Compute term energies and render them as a sortable, multiplicity-labelled table.
 
-        The raw ``ts_compute`` payload is a nested dict that's unreadable
-        without further processing. This app produces the same numbers but
-        sorted ascending by energy with multiplicity and E/B columns, plus a
-        Chart.js strip plot that lets the user see the level distribution at
-        a glance.
+        Produces the eigenvalues of the d^n ligand-field Hamiltonian at one
+        ``(Dq, B, C)`` point, sorted ascending by energy with multiplicity
+        and E/B columns. See ``ts_oxidation_landscape_app`` for a visual
+        scatter across d² – d⁸.
 
         Args:
             d_count: d-electron count (2–8).
             Dq: Crystal-field parameter (cm⁻¹).
             B, C: Racah parameters (cm⁻¹); per-configuration defaults if omitted.
-            max_energy_cm: Clip table + chart above this energy (default
+            max_energy_cm: Clip table above this energy (default
                 60 000 cm⁻¹; raise it to see deep-UV high-multiplicity levels).
 
         """
@@ -1571,7 +1570,7 @@ def _register_compute_table(mcp: FastMCP) -> None:
             pf.Muted(
                 content=(
                     "Sortable table of every level at this (Dq, B, C). For a "
-                    "visual strip plot across spin multiplicities use "
+                    "visual scatter across d² – d⁸ use "
                     "ts_oxidation_landscape_app; for the full Tanabe-Sugano "
                     "diagram use ts_diagram_app."
                 ),

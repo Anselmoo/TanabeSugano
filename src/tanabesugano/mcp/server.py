@@ -63,14 +63,18 @@ def create_server() -> FastMCP[Any]:
         instructions=(
             "MCP server for TanabeSugano. Exposes d2-d8 Tanabe-Sugano and "
             "energy-correlation diagram computation, term-symbol eigenvalues, "
-            "and matplotlib plots. Use ts_supported_configs to discover what "
-            "is available. For numeric data use ts_terms_table_data (sorted "
-            "rows at one point) or ts_fit_spectrum (back-out Dq and B from "
-            "observed peaks). For visualisation use ts_compute_app / "
-            "ts_diagram_app / ts_oxidation_landscape_app (in-chat Prefab UI), "
-            "ts_plot_view (interactive Chart.js line plot), or ts_plot_png "
-            "(matplotlib PNG fallback). Do NOT call ts_compute or ts_diagram "
-            "— they were removed in favour of the app and table tools above."
+            "and interactive in-chat charts. Use ts_supported_configs to "
+            "discover what is available. For numeric data use "
+            "ts_terms_table_data (sorted rows at one point) or "
+            "ts_fit_spectrum (back-out Dq and B from observed peaks). For "
+            "visualisation: ts_diagram_app, ts_plot_view, ts_overlay_app, "
+            "ts_compare_app, ts_spectrum_app, ts_oxidation_landscape_app, "
+            "ts_parameter_heatmap_app, ts_reverse_fit_app, and ts_ratio_fit_app "
+            "all render as in-chat Chart.js; ts_compute_app and "
+            "ts_dashboard_app render as Prefab-native cards + tables; "
+            "ts_plot_png is a matplotlib PNG fallback for non-capable "
+            "clients. Do NOT call ts_compute or ts_diagram — they were "
+            "removed in favour of the app and table tools above."
         ),
         version=__version__,
     )
