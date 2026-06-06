@@ -305,6 +305,8 @@ Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the [`
 | `ts_overlay_app` | Overlay multiple d-configurations on one shared chart. |
 | `ts_oxidation_landscape_app` | Every eigenvalue of d²–d⁸ at fixed (Dq, B, C): `style="scatter"` (default) renders discrete dots per d-count, `style="density"` renders a Gaussian-broadened 2D heatmap (control σ via `broadening_cm`). |
 | `ts_orgel_diagram_app` | Orgel diagram — E (cm⁻¹) vs Δ (cm⁻¹), the classic unnormalised companion to `ts_diagram_app`. d²/d³/d⁸ render smoothly; d⁴–d⁷ show the HS↔LS kink. |
+| `ts_spin_crossover_app` | For d⁴/d⁵/d⁶/d⁷ only: ground-term energy of the candidate HS and LS curves vs Δ with the critical Dq annotated. Returns the numeric `critical_Dq_cm1`. |
+| `ts_correlation_diagram_app` | Three-axis correlation diagram (free ion ↔ weak field ↔ strong field) — the classical Tsuchida/Cotton pedagogical bridge between free-ion term symbols and strong-field t₂g^x e_g^y configurations. |
 | `ts_spectrum_app` | Simulated Lorentzian UV-Vis spectrum (spin-allowed + spin-forbidden). |
 | `ts_reverse_fit_app` | Grid-search Dq and B to best-fit observed peak positions. |
 | `ts_ratio_fit_app` | Derive Dq and B from 2–3 measured bands via the ratio method. |

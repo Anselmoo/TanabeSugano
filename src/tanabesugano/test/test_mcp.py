@@ -221,6 +221,57 @@ def test_heatmap_tool_was_removed() -> None:
     assert "ts_parameter_heatmap_app" not in names
 
 
+def test_spin_crossover_app_detects_critical_dq_for_d4_through_d7() -> None:
+    """For each of d⁴/d⁵/d⁶/d⁷ the tool should detect a HS↔LS crossing in the
+    swept range. LibreTexts textbook values: Dq/B ≈ 2 for d⁶, ≈ 2.1 for d⁷,
+    ≈ 3 for d⁵, ≈ 2.7 for d⁴. We only assert that *some* finite crossing is
+    detected — exact values depend on the per-config Racah defaults.
+    """
+    import json
+
+    for d in (4, 5, 6, 7):
+        r = _call("ts_spin_crossover_app", {"d_count": d, "dq_max": 3000.0, "steps": 60})
+        assert not r.is_error, f"d{d} must produce a payload"  # type: ignore[attr-defined]
+        p = json.loads(r.content[0].text)  # type: ignore[attr-defined]
+        crit = p.get("critical_Dq_cm1")
+        assert crit is not None and crit > 0, (
+            f"d{d} spin-crossover must detect a finite critical Dq, got {crit!r}"
+        )
+
+
+def test_spin_crossover_app_rejects_non_sco_d_counts() -> None:
+    """d²/d³/d⁸ have no spin-crossover discontinuity — tool must return a
+    structured error pointing at ts_diagram_app / ts_orgel_diagram_app.
+    """
+    from fastmcp.exceptions import ToolError
+
+    for d in (2, 3, 8):
+        with pytest.raises(ToolError) as exc_info:
+            _call("ts_spin_crossover_app", {"d_count": d})
+        msg = str(exc_info.value)
+        assert "no spin crossover" in msg.lower() or "only meaningful" in msg.lower(), (
+            f"d{d} error must explain why; got {msg!r}"
+        )
+
+
+def test_correlation_diagram_app_emits_three_panels() -> None:
+    """Three-axis correlation diagram must produce series with exactly three
+    x-positions per series (x=0 free ion, x=1 weak field, x=2 strong field).
+    """
+    import json
+
+    r = _call("ts_correlation_diagram_app", {"d_count": 3})
+    assert not r.is_error  # type: ignore[attr-defined]
+    p = json.loads(r.content[0].text)  # type: ignore[attr-defined]
+    assert p["series"], "correlation diagram must produce at least one series"
+    for s in p["series"]:
+        xs = {pt["x"] for pt in s["data"]}
+        assert xs == {0, 1, 2}, f"series {s['label']!r} has x-positions {xs}, must be {{0, 1, 2}}"
+    # X-axis label must call out the three regimes
+    label = p["x_label"]
+    assert "Free ion" in label and "Weak" in label and "Strong" in label
+
+
 def test_orgel_diagram_app_returns_unnormalised_payload() -> None:
     """Orgel diagram must use absolute cm⁻¹ axes (no E/B normalisation) — that
     is the entire point of the Orgel-vs-TS distinction in the literature.

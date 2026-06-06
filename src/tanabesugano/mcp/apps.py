@@ -72,6 +72,8 @@ def register_apps(mcp: FastMCP) -> None:
     _register_spectrum(mcp)
     _register_oxidation_landscape(mcp)
     _register_orgel(mcp)
+    _register_spin_crossover(mcp)
+    _register_correlation_diagram(mcp)
     _register_compute_table(mcp)
 
 
@@ -710,9 +712,305 @@ def _register_orgel(mcp: FastMCP) -> None:
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# New innovative tools
-# ─────────────────────────────────────────────────────────────────────────
+def _register_spin_crossover(mcp: FastMCP) -> None:
+    """High-spin ↔ low-spin critical-Δ map for d⁴ – d⁷.
+
+    Wikipedia (Tanabe-Sugano): "diagrams for d4, d5, d6, and d7 metal ions
+    have a discontinuity in energies as the ligand field is varied …
+    represented by a vertical line." LibreTexts gives the textbook
+    critical values: Dq/B ≈ 2 for d⁶, ≈ 2.1 for d⁷, ≈ 3 for d⁵, and
+    ≈ 2.7 for d⁴. We compute the actual crossing for the user's chosen
+    (B, C) instead of citing the table values, so the answer is exact
+    for their complex.
+    """
+
+    @mcp.tool(
+        name="ts_spin_crossover_app",
+        title="High-spin ↔ low-spin critical Dq (d⁴ – d⁷)",
+        version=_pkg_version,
+        tags={"tanabesugano", "spin-crossover", "sco", "ground-term"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_spin_crossover_app(
+        d_count: int,
+        B: float | None = None,
+        C: float | None = None,
+        dq_max: float = 2500.0,
+        steps: int = 100,
+    ) -> ToolResult:
+        """Plot the ground-term energies of the two candidate spin states vs Δ.
+
+        Sweeps Dq from 0 to ``dq_max`` (default 2500 cm⁻¹ — well past the
+        crossing for all four configurations), computes the ground-term
+        energy of every term at each Dq, and tags each term by spin
+        multiplicity. The two relevant curves are: lowest *high-spin*
+        term (the ground term at small Dq) and lowest *low-spin* term
+        (the ground term at large Dq). Their crossing is the critical
+        Δ for this complex. The chart also draws a vertical dashed
+        marker at the crossing.
+
+        Only valid for d⁴, d⁵, d⁶, d⁷. Other d-counts return a
+        structured error.
+
+        Args:
+            d_count: must be 4, 5, 6, or 7.
+            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+                omitted.
+            dq_max: Upper Dq bound for the sweep (cm⁻¹). The crossing
+                typically sits between 1500 and 2200 cm⁻¹; 2500 leaves
+                margin on both sides.
+            steps: Sweep resolution.
+
+        """
+        import json as _json
+
+        from tanabesugano.mcp._compute import sweep_dq
+        from tanabesugano.mcp.tools._shared import resolve_bc
+
+        if d_count not in (4, 5, 6, 7):
+            return ToolResult(
+                content=[
+                    _mcp_types.TextContent(
+                        type="text",
+                        text=_json.dumps(
+                            {
+                                "title": "No spin crossover",
+                                "x_label": "",
+                                "y_label": "",
+                                "series": [],
+                                "error": (
+                                    f"ts_spin_crossover_app is only meaningful for d⁴, "
+                                    f"d⁵, d⁶, d⁷ (configurations with a HS↔LS ground-term "
+                                    f"discontinuity), got d{d_count}. For d{d_count} the "
+                                    f"ground term is fixed; use ts_diagram_app or "
+                                    f"ts_orgel_diagram_app instead."
+                                ),
+                            },
+                        ),
+                    ),
+                ],
+                is_error=True,
+            )
+
+        b_val, c_val = resolve_bc(d_count, B, C)
+        dq_values, points = sweep_dq(d_count, 0.0, dq_max, steps, b_val, c_val)
+
+        # For each Dq step, find the lowest eigenvalue grouped by spin
+        # multiplicity. The HS curve = lowest eigenvalue with the highest
+        # multiplicity present at Dq=0; the LS curve = lowest eigenvalue
+        # with the lowest multiplicity that becomes ground at large Dq.
+        # Solver pre-subtracts the ground term so the absolute lowest is
+        # always 0 — work with the *un-zeroed* per-multiplicity minima
+        # instead by reading each term's actual eigenvalue array.
+        per_step_mult_min: list[dict[int, float]] = []
+        for point in points:
+            mult_to_min: dict[int, float] = {}
+            for term_name, eigs in point.items():
+                if not eigs:
+                    continue
+                mult = _multiplicity_of(term_name)
+                e = float(min(eigs))
+                if mult not in mult_to_min or e < mult_to_min[mult]:
+                    mult_to_min[mult] = e
+            per_step_mult_min.append(mult_to_min)
+
+        all_mults = sorted({m for d in per_step_mult_min for m in d})
+        # The HS candidate is the multiplicity that is the ground at Dq=0;
+        # the LS candidate is the multiplicity that becomes ground at the
+        # final Dq step. Per textbook physics these are the two extremes
+        # in `all_mults` for d⁴–d⁷.
+        hs_mult = max(per_step_mult_min[0], key=lambda m: -per_step_mult_min[0][m])
+        ls_mult = max(per_step_mult_min[-1], key=lambda m: -per_step_mult_min[-1][m])
+        # If both ends agree, fall back to (highest, lowest) of the
+        # multiplicities present anywhere.
+        if hs_mult == ls_mult and len(all_mults) >= 2:
+            hs_mult, ls_mult = all_mults[-1], all_mults[0]
+
+        hs_curve = []
+        ls_curve = []
+        for i, dq in enumerate(dq_values):
+            x = float(dq) * 10.0
+            mm = per_step_mult_min[i]
+            if hs_mult in mm:
+                hs_curve.append({"x": round(x, 1), "y": round(mm[hs_mult], 1)})
+            if ls_mult in mm:
+                ls_curve.append({"x": round(x, 1), "y": round(mm[ls_mult], 1)})
+
+        # Detect crossing: the first Dq step where the LS minimum dips
+        # below the HS minimum (i.e. the ground term flips).
+        crossing_dq: float | None = None
+        for i in range(1, len(per_step_mult_min)):
+            prev = per_step_mult_min[i - 1]
+            cur = per_step_mult_min[i]
+            if (
+                hs_mult in prev
+                and ls_mult in prev
+                and hs_mult in cur
+                and ls_mult in cur
+                and (prev[hs_mult] < prev[ls_mult])
+                and (cur[hs_mult] >= cur[ls_mult])
+            ):
+                crossing_dq = float(dq_values[i]) * 10.0
+                break
+
+        crossing_label = (
+            f"critical Δ ≈ {crossing_dq:,.0f} cm⁻¹ (Dq/B ≈ {(crossing_dq / 10.0) / b_val:.2f})"
+            if crossing_dq is not None
+            else "no crossing detected in this Dq range"
+        )
+        title = f"d{d_count} HS↔LS crossover — {crossing_label} — B={b_val:g} cm⁻¹"
+
+        series: list[dict] = [
+            {
+                "label": f"HS ground ({hs_mult}·(2S+1))",
+                "color": "#D55E00",
+                "data": hs_curve,
+            },
+            {
+                "label": f"LS ground ({ls_mult}·(2S+1))",
+                "color": "#0072B2",
+                "data": ls_curve,
+            },
+        ]
+        if crossing_dq is not None:
+            # Vertical dashed marker at the crossing — Chart.js renders this
+            # as a two-point dataset with borderDash.
+            y_top = max(pt["y"] for s in series for pt in s["data"] if pt["y"] is not None)
+            series.append(
+                {
+                    "label": "critical Δ",
+                    "color": "#666",
+                    "borderDash": [4, 4],
+                    "data": [
+                        {"x": round(crossing_dq, 1), "y": 0.0},
+                        {"x": round(crossing_dq, 1), "y": float(y_top)},
+                    ],
+                },
+            )
+
+        payload = _json.dumps(
+            {
+                "title": title,
+                "x_label": "Δ = 10·Dq  (cm⁻¹)",
+                "y_label": "Ground-term energy  (cm⁻¹)",
+                "series": series,
+                "critical_Dq_cm1": crossing_dq,
+            },
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+
+def _register_correlation_diagram(mcp: FastMCP) -> None:
+    """Three-axis correlation diagram (free ion / weak field / strong field).
+
+    The Tsuchida-style correlation diagram is the classical pedagogical
+    bridge between free-ion term symbols (left axis) and strong-field
+    configurations like t₂g^x e_g^y (right axis), with the intermediate
+    weak-field crystal-field-split terms in the middle. Featured in
+    Cotton's *Chemical Applications of Group Theory* and Figgis &
+    Hitchman's *Ligand Field Theory and Its Applications* §4.
+    """
+
+    @mcp.tool(
+        name="ts_correlation_diagram_app",
+        title="Correlation diagram (free ion / weak field / strong field)",
+        version=_pkg_version,
+        tags={"tanabesugano", "correlation", "pedagogy", "term-symbols"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_correlation_diagram_app(
+        d_count: int,
+        B: float | None = None,
+        C: float | None = None,
+        strong_field_Dq: float = 2000.0,
+    ) -> ToolResult:
+        """Render a three-axis correlation diagram.
+
+        - **Left (x = 0)**: free-ion term energies at Δ = 0.
+        - **Middle (x = 1)**: terms at a moderate Δ (Dq = 800 cm⁻¹) —
+          the weak-field region.
+        - **Right (x = 2)**: terms at strong Δ (Dq = ``strong_field_Dq``) —
+          the strong-field region where t₂g^x e_g^y configurations
+          dominate.
+
+        Each term symbol becomes one Chart.js series with three points
+        at (0, E_free), (1, E_weak), (2, E_strong), so the renderer
+        draws lines connecting equivalent terms across the three
+        regimes. Term colours follow the existing `plot_style.color_for`
+        palette; labels use ``term_to_unicode``.
+
+        Args:
+            d_count: d-electron count (2–8).
+            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+                omitted.
+            strong_field_Dq: Dq value (cm⁻¹) defining the strong-field
+                column (default 2000 — well into the strong-field limit
+                for any first-row transition metal).
+
+        """
+        import json as _json
+
+        from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp.tools._shared import resolve_bc
+        from tanabesugano.plot_style import color_for
+        from tanabesugano.plot_style import term_to_unicode
+
+        b_val, c_val = resolve_bc(d_count, B, C)
+        free_terms = compute_point(d_count, 0.0, b_val, c_val)
+        weak_terms = compute_point(d_count, 800.0, b_val, c_val)
+        strong_terms = compute_point(d_count, strong_field_Dq, b_val, c_val)
+
+        # All three points share the same key set (solver always emits
+        # the full term list per d_count); collect by term name then
+        # take the lowest eigenvalue per term to keep the chart readable.
+        all_term_names = sorted(
+            set(free_terms) | set(weak_terms) | set(strong_terms),
+            key=lambda n: (_multiplicity_of(n), n),
+        )
+        series: list[dict] = []
+        for term_name in all_term_names:
+
+            def lowest(d: dict[str, list[float]], k: str = term_name) -> float | None:
+                eigs = d.get(k) or []
+                return round(float(min(eigs)), 1) if eigs else None
+
+            data = [
+                {"x": 0, "y": lowest(free_terms)},
+                {"x": 1, "y": lowest(weak_terms)},
+                {"x": 2, "y": lowest(strong_terms)},
+            ]
+            # Skip degenerate series whose three points all collapse to 0
+            # (these correspond to the unchanged ground manifold of a
+            # spin-crossover-free configuration).
+            ys = [pt["y"] for pt in data if pt["y"] is not None]
+            if not ys or max(ys) - min(ys) < 1.0:
+                continue
+            series.append(
+                {
+                    "label": term_to_unicode(term_name),
+                    "color": color_for(term_name),
+                    "data": data,
+                },
+            )
+
+        title = (
+            f"d{d_count} correlation diagram — "
+            f"free ion / weak field (Dq=800) / strong field (Dq={strong_field_Dq:g}) — "
+            f"B={b_val:g}, C={c_val:g} cm⁻¹"
+        )
+        payload = _json.dumps(
+            {
+                "title": title,
+                "x_label": "Free ion  →  Weak field  →  Strong field",
+                "y_label": "E  (cm⁻¹)",
+                "series": series,
+            },
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
 def _register_overlay(mcp: FastMCP) -> None:
