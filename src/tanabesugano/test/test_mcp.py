@@ -67,7 +67,6 @@ def test_create_server_registers_expected_tools() -> None:
         "ts_dashboard_app",
         "ts_compare_app",
         "ts_parameter_heatmap_app",
-        "ts_explore_app",
         # docs
         "ts_explain",
     }
@@ -167,7 +166,6 @@ def test_ts_plot_png_returns_image() -> None:
         ("ts_dashboard_app", {}),
         ("ts_compare_app", {"d_counts": [3, 5, 8]}),
         ("ts_parameter_heatmap_app", {"d_count": 5, "term": "6_A_1", "steps": 4}),
-        ("ts_explore_app", {}),
         ("ts_overlay_app", {"d_counts": [4, 6], "steps": 8}),
         ("ts_spectrum_app", {"d_count": 6, "Dq": 800.0, "n_points": 50}),
         (
@@ -353,6 +351,84 @@ def test_dashboard_sparklines_show_meaningful_data() -> None:
     for d, spark in zip(range(2, 9), sparks, strict=True):
         assert spark, f"d{d} sparkline is empty"
         assert max(spark) > 100, f"d{d} sparkline never rises above 100 cm⁻¹ — still flat zero?"
+
+
+def test_oxidation_landscape_scatter_does_not_connect_d_counts() -> None:
+    """Scatter mode flags every series with ``style: "scatter"`` so the renderer
+    disables line interpolation. Without it, Chart.js zig-zags between d=2, 3,
+    4 … points, suggesting physically meaningless continuity across
+    independent d-configurations (the user reported the sawtooth artefact).
+    """
+    import json
+
+    r = _call(
+        "ts_oxidation_landscape_app",
+        {"Dq": 1000.0, "B": 860.0, "C": 1300.0, "style": "scatter"},
+    )
+    assert not r.is_error  # type: ignore[attr-defined]
+    payload = json.loads(r.content[0].text)  # type: ignore[attr-defined]
+    assert payload.get("series"), "scatter mode must populate series"
+    for s in payload["series"]:
+        assert s.get("style") == "scatter", (
+            f"series {s.get('label')!r} missing style=scatter — chart would draw lines"
+        )
+    # Multiple d-counts represented inside each series (otherwise the series
+    # is degenerate and the bug wouldn't surface).
+    for s in payload["series"]:
+        d_counts = {pt["x"] for pt in s.get("data") or []}
+        assert len(d_counts) >= 2, (
+            f"series {s.get('label')!r} only has data at one d-count: {d_counts}"
+        )
+
+
+def test_oxidation_landscape_density_returns_varying_heatmap() -> None:
+    """Density mode reuses the chartjs-chart-matrix renderer via
+    ``chart_type: "heatmap"`` and populates a ``cells`` grid with the Gaussian
+    sum at each (d, E). The grid must contain finite, varying values across
+    both axes — a uniform grid means the broadening swallowed all features.
+    """
+    import json
+    import math
+
+    r = _call(
+        "ts_oxidation_landscape_app",
+        {
+            "Dq": 1000.0,
+            "B": 860.0,
+            "C": 1300.0,
+            "style": "density",
+            "broadening_cm": 800.0,
+            "n_energy_points": 50,
+        },
+    )
+    assert not r.is_error  # type: ignore[attr-defined]
+    payload = json.loads(r.content[0].text)  # type: ignore[attr-defined]
+    assert payload.get("chart_type") == "heatmap", (
+        "density mode must declare chart_type=heatmap so the HTML routes to the matrix renderer"
+    )
+    cells = payload.get("cells") or []
+    assert len(cells) >= 7 * 50, (
+        f"expected ~7×50 cells (d² – d⁸ × n_energy_points), got {len(cells)}"
+    )
+    vs = [c["v"] for c in cells]
+    assert all(isinstance(v, (int, float)) and math.isfinite(v) for v in vs), (
+        "density values must all be finite (no NaN — JSON would be invalid)"
+    )
+    assert max(vs) - min(vs) > 0.1, (
+        f"density grid is flat (range={max(vs) - min(vs):.3f}) — Gaussian sum produced no contrast"
+    )
+
+
+def test_explore_app_is_removed() -> None:
+    """ts_explore_app's Prefab Form rendered as a frozen panel in Claude
+    Desktop and its on_submit=CallTool wiring became stale after the
+    diagram_app migration. The tool was deleted; this pins that it does
+    not come back via an accidental re-registration.
+    """
+    server = create_server()
+    tools = asyncio.run(server.list_tools())
+    names = {t.name for t in tools}
+    assert "ts_explore_app" not in names
 
 
 def test_invalid_d_count_surfaces_clear_error() -> None:
