@@ -219,10 +219,13 @@ jobs:
           format: spdx-json
           output-file: sbom-source.spdx.json
           artifact-name: sbom-source.spdx.json
+      - name: Resolve wheel path
+        id: wheel
+        run: echo "path=$(ls dist/*.whl | head -1)" >> "$GITHUB_OUTPUT"
       - name: Generate SPDX SBOM for the built wheel
         uses: anchore/sbom-action@v0
         with:
-          file: dist/*.whl
+          file: ${{ steps.wheel.outputs.path }}
           format: spdx-json
           output-file: sbom-wheel.spdx.json
           artifact-name: sbom-wheel.spdx.json

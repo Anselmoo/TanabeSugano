@@ -16,6 +16,7 @@
 - update `.gitignore` to exclude python and node modules in the correct fashion
 - update `cicd.yml` to use the correct version of `repo-release-tools` for validating release policies
 - add initial `tree.lock.toml` for dependency management and add screenshot tests to CI/CD pipeline and exclude them from coverage
+- add step to resolve wheel path before generating SPDX SBOM
 
 ---
 
