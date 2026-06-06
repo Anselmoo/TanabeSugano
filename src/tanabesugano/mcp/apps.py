@@ -296,7 +296,13 @@ def _register_plot_view(mcp: FastMCP) -> None:
 
     @mcp.resource(
         DIAGRAM_URI,
-        mime_type="text/html",
+        # MCP Apps spec — UI resources must use the profiled MIME type.
+        # Claude Desktop advertises ``extensions.io.modelcontextprotocol/ui``
+        # with ``mimeTypes: ["text/html;profile=mcp-app"]`` in initialize;
+        # plain ``text/html`` is rejected with "Unsupported UI resource
+        # content format". Reference:
+        # https://modelcontextprotocol.io/extensions/apps/overview
+        mime_type="text/html;profile=mcp-app",
         title="Tanabe-Sugano Chart.js line chart",
         app=AppConfig(
             csp=ResourceCSP(resource_domains=["https://cdn.jsdelivr.net", "https://unpkg.com"]),
@@ -708,7 +714,13 @@ def _register_heatmap(mcp: FastMCP) -> None:
 
     @mcp.resource(
         HEATMAP_URI,
-        mime_type="text/html",
+        # MCP Apps spec — UI resources must use the profiled MIME type.
+        # Claude Desktop advertises ``extensions.io.modelcontextprotocol/ui``
+        # with ``mimeTypes: ["text/html;profile=mcp-app"]`` in initialize;
+        # plain ``text/html`` is rejected with "Unsupported UI resource
+        # content format". Reference:
+        # https://modelcontextprotocol.io/extensions/apps/overview
+        mime_type="text/html;profile=mcp-app",
         title="Tanabe-Sugano parameter heatmap (Chart.js)",
         app=AppConfig(
             csp=ResourceCSP(
@@ -1245,7 +1257,13 @@ def _register_spectrum(mcp: FastMCP) -> None:
 
     @mcp.resource(
         SPECTRUM_URI,
-        mime_type="text/html",
+        # MCP Apps spec — UI resources must use the profiled MIME type.
+        # Claude Desktop advertises ``extensions.io.modelcontextprotocol/ui``
+        # with ``mimeTypes: ["text/html;profile=mcp-app"]`` in initialize;
+        # plain ``text/html`` is rejected with "Unsupported UI resource
+        # content format". Reference:
+        # https://modelcontextprotocol.io/extensions/apps/overview
+        mime_type="text/html;profile=mcp-app",
         title="TanabeSugano simulated spectrum (Chart.js)",
         app=AppConfig(
             csp=ResourceCSP(resource_domains=["https://cdn.jsdelivr.net", "https://unpkg.com"]),
