@@ -338,16 +338,27 @@ def _register_plot_view(mcp: FastMCP) -> None:
 
 
 def _register_diagram_app(mcp: FastMCP) -> None:
-    """Full diagram: LineChart + DataTable + Metric cards."""
+    """Full diagram rendered via Chart.js (DIAGRAM_URI).
+
+    Previously this tool returned a Prefab native ``PrefabApp`` with a
+    ``LineChart`` + slider + ``DataTable``. The Prefab ``LineChart`` renders
+    as a black canvas in current Claude Desktop builds even when the data is
+    valid (verified: 12 series with varying y-values still produced a blank
+    panel). Switched to the same Chart.js HTML resource path used by
+    ``ts_plot_view`` / ``ts_overlay_app`` / ``ts_spectrum_app``, which all
+    render reliably. The slider+table view is now available via
+    ``ts_compute_app`` (table at one Dq) and ``ts_terms_table_data`` (raw
+    rows for any agent).
+    """
 
     @mcp.tool(
         name="ts_diagram_app",
-        title="Tanabe-Sugano diagram (chart + table)",
+        title="Tanabe-Sugano diagram (Chart.js)",
         version=_pkg_version,
-        tags={"tanabesugano", "plot", "interactive", "table"},
+        tags={"tanabesugano", "plot", "interactive"},
         annotations=_READONLY_ANNOTATIONS,
         meta=_TS_META,
-        app=True,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
     )
     def ts_diagram_app(
         d_count: int,
@@ -358,22 +369,29 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         C: float | None = None,
         normalize: bool = True,
         energy_unit: str = "cm1",
-    ) -> PrefabApp:
-        """Render the LineChart plus a sorted DataTable of term energies at dq_max.
+    ) -> ToolResult:
+        """Render a Tanabe-Sugano diagram as a Chart.js line plot.
 
-        This is the richer companion to `ts_plot_view`: same chart but the
-        bottom half is a sortable / searchable table of every eigenvalue at
-        the high end of the Dq sweep, plus Metric cards summarising the run.
+        Returns the same JSON payload as ``ts_plot_view`` but with the
+        ground term and reference 10Dq highlighted in the title so the
+        chart is immediately interpretable. For the sortable level table
+        at one (Dq, B, C) point, use ``ts_compute_app``; for the
+        machine-readable rows use ``ts_terms_table_data``.
+
+        Args:
+            d_count: d-electron count (2–8).
+            dq_min, dq_max: Dq sweep bounds in cm⁻¹.
+            steps: Number of Dq grid points.
+            B, C: Racah parameters in cm⁻¹; defaults per d_count.
+            normalize: Plot E/B on y, 10Dq/B on x (standard Tanabe-Sugano).
+            energy_unit: Used only when ``normalize=False`` (cm1 / eV / nm).
+
         """
-        from prefab_ui.rx import Rx
-
-        from tanabesugano.mcp._compute import sweep_dq
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
-        from tanabesugano.plot_style import term_to_unicode
 
         b_val, c_val = resolve_bc(d_count, B, C)
-        rows, series, title, x_key, x_label, y_label, _ground_y = _sweep_payload(
+        rows, series, _title, x_key, x_label, y_label, _ground_y = _sweep_payload(
             d_count,
             dq_min,
             dq_max,
@@ -383,93 +401,20 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             normalize=normalize,
             energy_unit=energy_unit,
         )
-
-        # Build a per-Dq table for every sweep point so the slider can pick any.
-        dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
-        all_dq_tables: list[list[dict]] = []
-        dq_labels: list[str] = [f"{dq * 10.0:.1f}" for dq in dq_values]
-        for i, _dq in enumerate(dq_values):
-            tbl: list[dict] = []
-            for term, energies in points[i].items():
-                unicode_label = term_to_unicode(term)
-                for n, e in enumerate(energies):
-                    tbl.append(
-                        {
-                            "term": unicode_label,
-                            "level": n,
-                            "energy_cm": round(float(e), 1),
-                            "energy_over_B": round(float(e / b_val), 3) if b_val else 0.0,
-                            "mult": str(_multiplicity_of(term)),
-                        },
-                    )
-            tbl.sort(key=lambda r: r["energy_cm"])
-            all_dq_tables.append(tbl)
-
         ground_term = DEFAULTS[d_count]["ground_term"]
-        last_idx = max(len(dq_values) - 1, 0)
-
-        app = PrefabApp(
-            state={
-                "dq_idx": last_idx,
-                "tables": all_dq_tables,
-                "dq_labels": dq_labels,
-            },
+        title_with_context = (
+            f"d{d_count} ({ground_term}) — B={b_val:g}, C={c_val:g} cm⁻¹  "
+            f"[Dq {dq_min:g}–{dq_max:g}, {steps} pts]"
         )
-        with app, pf.Column(gap=4, css_class="p-6"):
-            pf.Heading(content=title, level=3)
-            with pf.Grid(columns=3, gap=4):
-                pf.Metric(label="Ground term", value=ground_term)
-                pf.Metric(
-                    label="Dq range",
-                    value=f"{dq_min:g} – {dq_max:g} cm⁻¹",
-                    description=f"{steps} points",
-                )
-                pf.Metric(
-                    label="Racah B / C",
-                    value=f"{b_val:g} / {c_val:g} cm⁻¹",
-                )
-            pf.Text(content=f"↑ {y_label}", css_class="text-xs text-muted-foreground font-mono")
-            LineChart(
-                data=rows,
-                series=series,
-                xAxis=x_key,
-                showLegend=True,
-                showTooltip=True,
-                showGrid=True,
-                showDots=False,
-                height=380,
-            )
-            pf.Text(
-                content=f"→ {x_label}",
-                css_class="text-xs text-muted-foreground font-mono text-right",
-            )
-            pf.Separator()
-            # Slider: drag to select which Dq step the table shows.
-            with pf.Row(align="center", gap=4):
-                pf.Heading(content="Term energies at", level=4)
-                pf.Text(
-                    content=Rx("'10Dq = ' + dq_labels[dq_idx] + ' cm⁻¹'"),
-                    css_class="text-sm font-mono text-primary",
-                )
-            pf.Slider(
-                name="dq_idx",
-                min=0,
-                max=last_idx,
-                step=1,
-                value=last_idx,
-            )
-            pf.DataTable(
-                columns=[
-                    pf.DataTableColumn(key="term", header="Term", sortable=True),
-                    pf.DataTableColumn(key="level", header="Level", sortable=True),
-                    pf.DataTableColumn(key="energy_cm", header="E (cm⁻¹)", sortable=True),
-                    pf.DataTableColumn(key="energy_over_B", header="E/B", sortable=True),
-                    pf.DataTableColumn(key="mult", header="2S+1", sortable=True),
-                ],
-                rows=Rx("tables[dq_idx]"),
-                search=True,
-            )
-        return app
+        payload = _chartjs_series_payload(
+            rows,
+            series,
+            x_key,
+            title=title_with_context,
+            x_label=x_label,
+            y_label=y_label,
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
 def _register_dashboard(mcp: FastMCP) -> None:
@@ -616,7 +561,9 @@ def _register_dashboard(mcp: FastMCP) -> None:
 
 
 def _register_compare(mcp: FastMCP) -> None:
-    """Small-multiples grid of LineCharts for chosen d_counts."""
+    """Compare diagrams via Chart.js: each d-count's terms drawn as its own
+    series on one shared (10Dq/B, E/B) axis set. Replaces the previous
+    Prefab small-multiples grid that did not render in Claude Desktop."""
 
     @mcp.tool(
         name="ts_compare_app",
@@ -625,7 +572,7 @@ def _register_compare(mcp: FastMCP) -> None:
         tags={"tanabesugano", "compare", "interactive"},
         annotations=_READONLY_ANNOTATIONS,
         meta=_TS_META,
-        app=True,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
     )
     def ts_compare_app(
         d_counts: list[int],
@@ -634,57 +581,60 @@ def _register_compare(mcp: FastMCP) -> None:
         steps: int = 40,
         normalize: bool = True,
         energy_unit: str = "cm1",
-    ) -> PrefabApp:
-        """Render a Grid of LineCharts (small multiples) for the given d_counts.
+    ) -> ToolResult:
+        """Overlay the diagrams of multiple d-configurations on one Chart.js panel.
 
-        Defaults to comparing the configurations the user picks. Use this to
-        teach the d²/d⁸, d³/d⁷, d⁴/d⁶ "hole-particle" symmetries on one screen.
+        Each term gets a series prefixed by its d-count (e.g. ``d3 ⁴T₁g``) so the
+        user can read off hole-particle symmetry pairs (d²/d⁸, d³/d⁷, d⁴/d⁶)
+        directly. For the side-by-side small-multiples view that the previous
+        implementation attempted, use multiple separate ``ts_diagram_app``
+        calls — both render correctly now they share the Chart.js path.
         """
+        import json as _json
+
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
-        from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
+        from tanabesugano.plot_style import color_for
+        from tanabesugano.plot_style import term_to_unicode
 
         valid = [d for d in d_counts if d in SUPPORTED_D_COUNTS]
         if not valid:
             valid = [3, 5, 8]
 
-        with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
-            pf.Heading(
-                content=f"Compare: {', '.join(f'd{d}' for d in valid)}",
-                level=3,
+        all_series: list[dict] = []
+        x_label = y_label = ""
+        for d in valid:
+            b_val, c_val = resolve_bc(d, None, None)
+            rows, series, _title, x_key, x_label, y_label, _ = _sweep_payload(
+                d,
+                dq_min,
+                dq_max,
+                steps,
+                b_val,
+                c_val,
+                normalize=normalize,
+                energy_unit=energy_unit,
             )
-            cols = 2 if len(valid) <= 4 else 3
-            with pf.Grid(columns=cols, gap=4):
-                for d in valid:
-                    cfg = DEFAULTS[d]
-                    b_val, c_val = resolve_bc(d, None, None)
-                    rows, series, _title, x_key, x_label, y_label, _ = _sweep_payload(
-                        d,
-                        dq_min,
-                        dq_max,
-                        steps,
-                        b_val,
-                        c_val,
-                        normalize=normalize,
-                        energy_unit=energy_unit,
-                    )
-                    with pf.Card(css_class="p-3"):
-                        pf.Heading(
-                            content=f"d{d}  ({cfg['ground_term']})",
-                            level=4,
-                        )
-                        LineChart(
-                            data=rows,
-                            series=series,
-                            xAxis=x_key,
-                            showLegend=False,
-                            showTooltip=True,
-                            showGrid=True,
-                            showDots=False,
-                            height=240,
-                        )
-                        pf.Muted(content=f"{x_label}  /  {y_label}")
-        return app
+            for s in series:
+                data = [{"x": row[x_key], "y": row.get(s.data_key)} for row in rows]
+                all_series.append(
+                    {
+                        "label": f"d{d} {term_to_unicode(s.data_key.rsplit('_', 1)[0])}",
+                        "color": s.color or color_for(s.data_key.rsplit("_", 1)[0]),
+                        "data": data,
+                    },
+                )
+
+        title = f"Compare: {', '.join(f'd{d}' for d in valid)}"
+        payload = _json.dumps(
+            {
+                "title": title,
+                "x_label": x_label,
+                "y_label": y_label,
+                "series": all_series,
+            },
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
 def _register_heatmap(mcp: FastMCP) -> None:
@@ -1571,28 +1521,18 @@ def _register_compute_table(mcp: FastMCP) -> None:
                 )
             pf.Muted(
                 content=(
-                    "Strip plot (left): each point is one eigenvalue, grouped "
-                    "horizontally by spin multiplicity. Sortable table below "
-                    "lists every level."
+                    "Sortable table of every level at this (Dq, B, C). For a "
+                    "visual strip plot across spin multiplicities use "
+                    "ts_oxidation_landscape_app; for the full Tanabe-Sugano "
+                    "diagram use ts_diagram_app."
                 ),
             )
-            LineChart(
-                data=[{"x": p["x"], "y": p["y"]} for s in chart_series for p in s["data"]],
-                series=[
-                    ChartSeries(
-                        data_key="y",
-                        label=s["label"],
-                        color=s["color"],
-                    )
-                    for s in chart_series
-                ],
-                xAxis="x",
-                showLegend=True,
-                showTooltip=True,
-                showGrid=True,
-                showDots=True,
-                height=280,
-            )
+            # Note: Prefab LineChart renders as a black canvas in current
+            # Claude Desktop builds (verified empirically), so the strip plot
+            # is delivered through ts_oxidation_landscape_app (Chart.js)
+            # instead. This tool stays Prefab-native because the Metric +
+            # DataTable components render correctly.
+            _ = chart_series  # noqa: F841 — kept for future Chart.js variant
             pf.DataTable(
                 columns=[
                     pf.DataTableColumn(key="term", header="Term", sortable=True),
