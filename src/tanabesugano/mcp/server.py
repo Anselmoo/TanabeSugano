@@ -74,8 +74,12 @@ def create_server() -> FastMCP[Any]:
             "all render as in-chat Chart.js; ts_compute_app and "
             "ts_dashboard_app render as Prefab-native cards + tables; "
             "ts_plot_png is a matplotlib PNG fallback for non-capable "
-            "clients. Do NOT call ts_compute or ts_diagram — they were "
-            "removed in favour of the app and table tools above."
+            "clients. ts_emit_png is an internal export sink: every "
+            "Chart.js iframe's 'Send PNG to chat' button calls back to it "
+            "with the rendered canvas as base64, and the chat then carries "
+            "the image — there is no need to call ts_emit_png directly. "
+            "Do NOT call ts_compute or ts_diagram — they were removed in "
+            "favour of the app and table tools above."
         ),
         version=__version__,
     )

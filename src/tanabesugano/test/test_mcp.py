@@ -122,6 +122,87 @@ def test_ui_resources_advertise_mcp_app_profile_mime() -> None:
         )
 
 
+def test_ui_resources_request_clipboard_write_permission() -> None:
+    """The MCP Apps host sandboxes every UI iframe with no Permissions
+    Policy by default, so ``navigator.clipboard.write`` is rejected unless
+    the resource explicitly declares ``_meta.ui.permissions.clipboardWrite``.
+    Without it the in-iframe "Copy to clipboard" button fails for every
+    user. Pin the declaration so the permission can't be silently dropped.
+
+    Reference: github.com/modelcontextprotocol/ext-apps
+    specification/2026-01-26/apps.mdx — supported permission set is
+    ``{camera, microphone, geolocation, clipboardWrite}``.
+    """
+    from fastmcp import Client
+
+    server = create_server()
+
+    async def read_each() -> dict[str, list]:
+        async with Client(server) as client:
+            resources = await client.list_resources()
+            out: dict[str, list] = {}
+            for r in resources:
+                if not str(r.uri).startswith("ui://tanabesugano/"):
+                    continue
+                read = await client.read_resource(r.uri)
+                out[str(r.uri)] = list(read)
+            return out
+
+    contents_by_uri = asyncio.run(read_each())
+    assert contents_by_uri, "no ui://tanabesugano/* resources registered"
+    for uri, contents in contents_by_uri.items():
+        # FastMCP exposes the resource _meta on each ResourceContents entry.
+        metas = [getattr(c, "meta", None) for c in contents]
+        assert any(metas), f"{uri} declares no _meta — clipboardWrite not requested"
+        for meta in metas:
+            if meta is None:
+                continue
+            ui_meta = meta.get("ui") or {}
+            perms = ui_meta.get("permissions") or {}
+            assert "clipboardWrite" in perms, (
+                f"{uri} _meta.ui.permissions = {perms!r}; must request "
+                f"'clipboardWrite' for the in-iframe Copy button to work"
+            )
+
+
+def test_ts_emit_png_echoes_image_content() -> None:
+    """The in-iframe "Send PNG to chat" button calls back via
+    ``app.callTool('ts_emit_png', {png_base64})`` to push the rendered
+    chart back into the conversation as an MCP image attachment — this
+    is the only spec-compliant export path (the MCP Apps sandbox has no
+    "downloads" permission, so ``<a download>`` is suppressed). Pin the
+    contract.
+    """
+    import base64 as _b64
+
+    # Minimal valid PNG bytes (a 1×1 transparent pixel).
+    png_bytes = _b64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+    )
+    b64 = _b64.b64encode(png_bytes).decode()
+    result = _call("ts_emit_png", {"png_base64": b64, "title": "d6 Dq=900"})
+    assert not result.is_error  # type: ignore[attr-defined]
+    images = [
+        c
+        for c in result.content  # type: ignore[attr-defined]
+        if getattr(c, "type", None) == "image"
+    ]
+    assert len(images) == 1, "ts_emit_png must return exactly one ImageContent"
+    assert getattr(images[0], "mimeType", "") == "image/png"
+    assert getattr(images[0], "data", "") == b64
+
+    # Reject malformed input — must be a clean error, not a crash.
+    bad = _call("ts_emit_png", {"png_base64": "not base64 !!!"})
+    msgs = [
+        getattr(c, "text", "")
+        for c in bad.content  # type: ignore[attr-defined]
+        if getattr(c, "type", None) == "text"
+    ]
+    assert any("base64" in m.lower() for m in msgs), (
+        f"ts_emit_png must reject invalid input with a clear message; got {msgs!r}"
+    )
+
+
 # ─────────────────────────── tool invocations ────────────────────────────
 
 
