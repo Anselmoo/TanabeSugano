@@ -150,12 +150,56 @@ def test_ts_plot_png_returns_image() -> None:
         ("ts_compare_app", {"d_counts": [3, 5, 8]}),
         ("ts_parameter_heatmap_app", {"d_count": 5, "term": "6_A_1", "steps": 4}),
         ("ts_explore_app", {}),
+        ("ts_overlay_app", {"d_counts": [4, 6], "steps": 8}),
+        ("ts_spectrum_app", {"d_count": 6, "Dq": 800.0, "n_points": 50}),
+        (
+            "ts_reverse_fit_app",
+            {"d_count": 7, "observed_peaks": [8500.0, 15400.0], "grid_steps": 6},
+        ),
+        ("ts_ratio_fit_app", {"d_count": 3, "v1": 17000.0, "v2": 24000.0, "grid_steps": 6}),
     ],
 )
 def test_app_tools_return_non_empty_payload(tool: str, args: dict) -> None:
     result = _call(tool, args)
     assert not result.is_error, f"{tool} returned is_error=True"  # type: ignore[attr-defined]
     assert result.content, f"{tool} returned empty content"  # type: ignore[attr-defined]
+
+
+def test_app_tools_accept_stringified_arguments() -> None:
+    """Claude Desktop sends numeric/bool args as JSON strings; FastMCP+Pydantic
+    must coerce them transparently. Pinning this prevents silent regressions.
+    """
+    typed = _call(
+        "ts_diagram_app",
+        {"d_count": 5, "dq_min": 0.0, "dq_max": 1500.0, "steps": 8, "normalize": True},
+    )
+    stringified = _call(
+        "ts_diagram_app",
+        {"d_count": "5", "dq_min": "0.0", "dq_max": "1500.0", "steps": "8", "normalize": "true"},
+    )
+    assert not stringified.is_error, "stringified args must coerce, not error"  # type: ignore[attr-defined]
+    assert stringified.content  # type: ignore[attr-defined]
+    # Output sizes match → coercion produces identical computation.
+    typed_len = len(str(typed.structured_content))  # type: ignore[attr-defined]
+    string_len = len(str(stringified.structured_content))  # type: ignore[attr-defined]
+    assert typed_len == string_len, f"stringified output diverged: {typed_len} vs {string_len}"
+
+
+def test_invalid_d_count_surfaces_clear_error() -> None:
+    """Invalid d_count must surface as a clear ToolError, not a raw KeyError.
+
+    resolve_bc validates d_count centrally; this pins the user-visible behavior
+    for every ts_*_app that funnels through resolve_bc. Before the validation
+    was added, the error was an opaque ``KeyError: 99``.
+    """
+    from fastmcp.exceptions import ToolError
+
+    with pytest.raises(ToolError) as exc_info:
+        _call("ts_diagram_app", {"d_count": 99, "steps": 4})
+    msg = str(exc_info.value)
+    assert "d_count" in msg and "99" in msg, (
+        f"invalid d_count must produce a clear error message, got: {msg!r}"
+    )
 
 
 # ─────────────────────────── chemistry sanity ────────────────────────────
