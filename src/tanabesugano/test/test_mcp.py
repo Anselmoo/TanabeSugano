@@ -95,6 +95,31 @@ def test_interactive_resources_present() -> None:
     assert "ui://tanabesugano/heatmap.html" in uris
 
 
+def test_ui_resources_advertise_mcp_app_profile_mime() -> None:
+    """MCP Apps spec requires UI HTML resources to use
+    ``text/html;profile=mcp-app``; Claude Desktop announces exactly this
+    MIME during ``initialize`` (``extensions.io.modelcontextprotocol/ui``)
+    and rejects plain ``text/html`` with "Unsupported UI resource content
+    format". Pinning this so the profile suffix can't be dropped again.
+    """
+    from fastmcp import Client
+
+    server = create_server()
+
+    async def go() -> list:
+        async with Client(server) as client:
+            return await client.list_resources()
+
+    resources = asyncio.run(go())
+    ui_resources = [r for r in resources if str(r.uri).startswith("ui://tanabesugano/")]
+    assert ui_resources, "no ui://tanabesugano/* resources registered"
+    for r in ui_resources:
+        assert r.mimeType == "text/html;profile=mcp-app", (
+            f"{r.uri} declares mimeType={r.mimeType!r}, "
+            f"needs 'text/html;profile=mcp-app' for Claude Desktop to render the iframe"
+        )
+
+
 # ─────────────────────────── tool invocations ────────────────────────────
 
 
