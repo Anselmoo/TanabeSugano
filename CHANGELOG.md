@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Removed
+- `ts_explore_app`: the Prefab `Form.from_model` rendered as a frozen panel in Claude Desktop, and its `on_submit=CallTool(tool="ts_diagram_app")` wiring went stale after `ts_diagram_app` migrated to the Chart.js `ToolResult` path (the form's submit no longer matched a Prefab-state consumer). Discovery now goes through the `tanabesugano_why` / `tanabesugano_explain_complex` prompts or `ts_supported_configs` → `ts_diagram_app`
+
+### Changed
+- `ts_oxidation_landscape_app` no longer connects independent d-counts with lines: scatter is now the default `style` and every series carries `style: "scatter"` so the Chart.js renderer disables interpolation between d=2, 3, 4 … (previously it drew a misleading sawtooth across physically unrelated configurations). Added a `style="density"` mode that emits a Gaussian-broadened 2D heatmap via the existing `chartjs-chart-matrix` renderer — for each (d, E) cell, value = Σᵢ exp(-(E−Eᵢ)²/(2σ²)) over that d-count's eigenvalues. New `broadening_cm` (σ, default 800 cm⁻¹) and `n_energy_points` (vertical resolution, default 200) parameters control the density grid
+- `_DIAGRAM_HTML` (`ui://tanabesugano/diagram.html`) now also imports `chartjs-chart-matrix` and routes to the matrix renderer when the payload carries `chart_type: "heatmap"`; default behaviour for every existing caller (line plot, no `chart_type` field) is unchanged
+
 ### Added
 - `ts_oxidation_landscape_app`: scatter chart showing every eigenvalue of d²–d⁸ on one Chart.js plot at fixed (Dq, B, C), grouped by spin multiplicity — lets the user see how the term-energy spread evolves across the d-block at a single crystal-field setting
 - `ts_compute_app`: sortable DataTable + spin-multiplicity strip plot of every eigenvalue at one (Dq, B, C); replaces the raw `ts_compute` whose nested-dict output was unusable

@@ -298,13 +298,12 @@ Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the [`
 
 | App | Description |
 |---|---|
-| `ts_explore_app` | Discovery form: entry point that dispatches into the diagram app. |
 | `ts_dashboard_app` | Overview of all d²–d⁸ with ground terms, example ions, matrix sizes, and a concrete absorption-band number per configuration. |
 | `ts_compute_app` | Sorted DataTable + spin-multiplicity strip plot of every eigenvalue at one (Dq, B, C). Replaces the raw `ts_compute`. |
 | `ts_diagram_app` | Full Tanabe-Sugano diagram: LineChart + DataTable + live Dq slider. |
 | `ts_compare_app` | Small-multiple grid comparing chosen d-configurations. |
 | `ts_overlay_app` | Overlay multiple d-configurations on one shared chart. |
-| `ts_oxidation_landscape_app` | Every eigenvalue of d²–d⁸ on one chart at fixed (Dq, B, C); series grouped by spin multiplicity. |
+| `ts_oxidation_landscape_app` | Every eigenvalue of d²–d⁸ at fixed (Dq, B, C): `style="scatter"` (default) renders discrete dots per d-count, `style="density"` renders a Gaussian-broadened 2D heatmap (control σ via `broadening_cm`). |
 | `ts_parameter_heatmap_app` | Heatmap sweeping Racah B × C at fixed Dq for a chosen term (accepts free-ion ground-term aliases like `"6S"`). |
 | `ts_spectrum_app` | Simulated Lorentzian UV-Vis spectrum (spin-allowed + spin-forbidden). |
 | `ts_reverse_fit_app` | Grid-search Dq and B to best-fit observed peak positions. |

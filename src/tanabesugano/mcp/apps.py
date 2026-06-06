@@ -56,7 +56,6 @@ def register_apps(mcp: FastMCP) -> None:
         log.debug("prefab_ui / fastmcp.apps not available; skipping all *_app tools.")
         return
 
-    _register_explore(mcp)
     _register_plot_view(mcp)
     _register_diagram_app(mcp)
     _register_dashboard(mcp)
@@ -224,42 +223,13 @@ def _chartjs_series_payload(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def _register_explore(mcp: FastMCP) -> None:
-    """Primary discovery surface: a form that dispatches into ts_diagram_app."""
-
-    @mcp.tool(
-        name="ts_explore_app",
-        title="Explore Tanabe-Sugano diagrams",
-        version=_pkg_version,
-        tags={"tanabesugano", "form", "discovery"},
-        annotations=_READONLY_ANNOTATIONS,
-        meta=_TS_META,
-        app=True,
-    )
-    def ts_explore_app() -> PrefabApp:
-        """Open an interactive form to pick d_count, Dq range, B, C, and render a diagram.
-
-        Submitting the form calls `ts_diagram_app` with the chosen parameters,
-        which renders the in-chat LineChart + DataTable. Use this as the
-        entry point for non-expert users — they don't need to know tool names.
-        """
-        from tanabesugano.mcp._inputs import TSInput
-
-        with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
-            pf.Heading(content="Tanabe-Sugano explorer", level=2)
-            pf.Muted(
-                content=(
-                    "Pick a d-electron count (d² – d⁸), set the crystal-field "
-                    "and Racah parameters, then submit to render an interactive "
-                    "Tanabe-Sugano diagram in this chat."
-                ),
-            )
-            pf.Form.from_model(
-                TSInput,
-                submit_label="Render diagram",
-                on_submit=CallTool(tool="ts_diagram_app"),
-            )
-        return app
+# ts_explore_app was removed: the Prefab Form.from_model component renders
+# as a frozen / unresponsive panel in current Claude Desktop builds, and
+# its on_submit=CallTool(tool="ts_diagram_app") wiring became stale after
+# ts_diagram_app moved to the Chart.js ToolResult path (it no longer
+# consumes Prefab state). Discovery now goes through tanabesugano_why and
+# tanabesugano_explain_complex prompts, or directly through
+# ts_supported_configs + ts_diagram_app.
 
 
 def _register_plot_view(mcp: FastMCP) -> None:
@@ -1324,6 +1294,9 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
         B: float = 900.0,
         C: float = 4000.0,
         max_energy_cm: float = 40000.0,
+        style: str = "scatter",
+        broadening_cm: float = 800.0,
+        n_energy_points: int = 200,
     ) -> ToolResult:
         """Plot every eigenvalue of d² – d⁸ at the same (Dq, B, C) on one chart.
 
@@ -1340,48 +1313,124 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
             max_energy_cm: Clip points above this energy so the visible
                 window stays within typical UV-Vis range (default 40 000
                 cm⁻¹, just past the UV cutoff).
+            style: "scatter" (default) draws each eigenvalue as a discrete
+                dot — independent d-counts are *not* joined by lines. Use
+                "density" to render a Gaussian-broadened 2D heatmap where
+                each (d, E) cell intensity = Σᵢ exp(-(E − Eᵢ)² / 2σ²) over
+                that d-count's eigenvalues, σ = broadening_cm.
+            broadening_cm: Gaussian σ for the density mode (cm⁻¹, default
+                800 — a typical d-d band FWHM is roughly 2.355σ ≈ 1900 cm⁻¹).
+                Ignored when style="scatter".
+            n_energy_points: Vertical resolution of the density grid
+                (default 200 cells per d-count). Ignored when style="scatter".
 
         """
         import json as _json
+        import math
 
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
         from tanabesugano.mcp._compute import compute_point
 
-        # Bucket {multiplicity: list[{x, y}]} so each spin manifold becomes
-        # one Chart.js series. Skip the zero-energy ground state of each
-        # d-count — that's the reference, not a transition.
-        buckets: dict[int, list[dict[str, float]]] = {}
+        if style not in ("scatter", "density"):
+            return ToolResult(
+                content=[
+                    _mcp_types.TextContent(
+                        type="text",
+                        text=_json.dumps(
+                            {
+                                "title": "Error",
+                                "x_label": "",
+                                "y_label": "",
+                                "series": [],
+                                "error": f"style must be 'scatter' or 'density', got {style!r}",
+                            },
+                        ),
+                    ),
+                ],
+                is_error=True,
+            )
+
+        # Per-d-count list of (raw) eigenvalues above the ground manifold,
+        # within the visible energy window. Used by both modes.
+        per_d_energies: dict[int, list[float]] = {}
         for d in SUPPORTED_D_COUNTS:
             terms = compute_point(d, Dq, B, C)
-            for term_name, eigs in terms.items():
-                mult = _multiplicity_of(term_name)
-                if mult <= 0:
-                    continue
+            es: list[float] = []
+            for eigs in terms.values():
                 for e in eigs:
                     e_f = float(e)
-                    if e_f <= 1.0:
-                        continue  # ground manifold
-                    if e_f > max_energy_cm:
+                    if e_f <= 1.0 or e_f > max_energy_cm:
                         continue
-                    buckets.setdefault(mult, []).append(
-                        {"x": float(d), "y": round(e_f, 1)},
+                    es.append(e_f)
+            per_d_energies[d] = es
+
+        title = f"d²–d⁸ energy landscape at Dq={Dq:g}, B={B:g}, C={C:g} cm⁻¹" + (
+            f"  [density σ={broadening_cm:g}]" if style == "density" else ""
+        )
+
+        if style == "density":
+            # Build a regular (d, E) grid and sum a Gaussian over every
+            # eigenvalue for that d-count. The cell value is unitless
+            # density; the consumer (heatmap.html) colour-maps it.
+            sigma = max(broadening_cm, 1.0)
+            two_sigma_sq = 2.0 * sigma * sigma
+            n_y = max(n_energy_points, 2)
+            energies_grid = [max_energy_cm * i / (n_y - 1) for i in range(n_y)]
+            cells: list[dict[str, float]] = []
+            for d in SUPPORTED_D_COUNTS:
+                eigs = per_d_energies[d]
+                for e_grid in energies_grid:
+                    if eigs:
+                        density = sum(
+                            math.exp(-((e_grid - e_i) ** 2) / two_sigma_sq) for e_i in eigs
+                        )
+                    else:
+                        density = 0.0
+                    cells.append(
+                        {"x": float(d), "y": round(e_grid, 1), "v": round(density, 4)},
                     )
-
-        series = [
-            {
-                "label": f"{mult}·(2S+1)",
-                "color": _MULT_COLOR.get(mult, "#888"),
-                "data": sorted(pts, key=lambda p: (p["x"], p["y"])),
+            payload: dict[str, object] = {
+                "title": title,
+                "x_label": "d-electron count",
+                "y_label": "Energy E (cm⁻¹)",
+                "chart_type": "heatmap",
+                "cells": cells,
             }
-            for mult, pts in sorted(buckets.items())
-        ]
+        else:
+            # Scatter: one Chart.js series per spin multiplicity, each
+            # series tagged style="scatter" so the renderer disables line
+            # interpolation between independent d-counts.
+            buckets: dict[int, list[dict[str, float]]] = {}
+            for d in SUPPORTED_D_COUNTS:
+                terms = compute_point(d, Dq, B, C)
+                for term_name, eigs in terms.items():
+                    mult = _multiplicity_of(term_name)
+                    if mult <= 0:
+                        continue
+                    for e in eigs:
+                        e_f = float(e)
+                        if e_f <= 1.0 or e_f > max_energy_cm:
+                            continue
+                        buckets.setdefault(mult, []).append(
+                            {"x": float(d), "y": round(e_f, 1)},
+                        )
 
-        payload = {
-            "title": f"d²–d⁸ energy landscape at Dq={Dq:g}, B={B:g}, C={C:g} cm⁻¹",
-            "x_label": "d-electron count",
-            "y_label": "Energy E (cm⁻¹)",
-            "series": series,
-        }
+            series = [
+                {
+                    "label": f"{mult}·(2S+1)",
+                    "color": _MULT_COLOR.get(mult, "#888"),
+                    "style": "scatter",
+                    "data": sorted(pts, key=lambda p: (p["x"], p["y"])),
+                }
+                for mult, pts in sorted(buckets.items())
+            ]
+            payload = {
+                "title": title,
+                "x_label": "d-electron count",
+                "y_label": "Energy E (cm⁻¹)",
+                "series": series,
+            }
+
         return ToolResult(
             content=[_mcp_types.TextContent(type="text", text=_json.dumps(payload))],
         )
@@ -1580,6 +1629,7 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
   <meta name="color-scheme" content="light dark">
   <title>Tanabe-Sugano diagram</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
   <style>
     html, body { margin: 0; padding: 0; background: transparent; }
     #wrap { padding: 8px; }
@@ -1605,16 +1655,75 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
       document.getElementById('hint').style.display = 'none';
       if (chart) chart.destroy();
       const ctx = document.getElementById('chart').getContext('2d');
-      const datasets = (p.series || []).map(s => ({
-        label: s.label || '',
-        data: s.data || [],
-        borderColor: s.color || '#888',
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        pointRadius: 0,
-        borderDash: s.borderDash || [],
-        tension: 0.3,
-      }));
+
+      // Heatmap mode: payload carries `chart_type: "heatmap"` + `cells: [{x,y,v}]`.
+      // Used by ts_oxidation_landscape_app(style="density") to render a
+      // Gaussian-broadened density per d-count via chartjs-chart-matrix.
+      if (p.chart_type === 'heatmap') {
+        const cells = p.cells || [];
+        const vs = cells.map(c => c.v).filter(v => Number.isFinite(v));
+        const vmin = vs.length ? Math.min(...vs) : 0;
+        const vmax = vs.length ? Math.max(...vs) : 1;
+        const xVals = Array.from(new Set(cells.map(c => c.x))).sort((a, b) => a - b);
+        const yVals = Array.from(new Set(cells.map(c => c.y))).sort((a, b) => a - b);
+        const colorAt = (v) => {
+          if (!Number.isFinite(v)) return 'rgba(0,0,0,0)';
+          const t = (v - vmin) / (vmax - vmin || 1);
+          // viridis-ish: dark purple → teal → yellow.
+          const r = Math.round(68 + (253 - 68) * t);
+          const g = Math.round(1  + (231 - 1)  * t);
+          const b = Math.round(84 + (37  - 84) * t);
+          return `rgb(${r},${g},${b})`;
+        };
+        chart = new Chart(ctx, {
+          type: 'matrix',
+          data: {
+            datasets: [{
+              label: p.title || 'density',
+              data: cells,
+              backgroundColor: (cx) => colorAt(cx.raw.v),
+              width: ({chart}) =>
+                (chart.chartArea?.width  || 1) / Math.max(xVals.length, 1) - 1,
+              height: ({chart}) =>
+                (chart.chartArea?.height || 1) / Math.max(yVals.length, 1) - 1,
+            }],
+          },
+          options: {
+            responsive: true,
+            animation: false,
+            plugins: {
+              legend: { display: false },
+              title: { display: !!p.title, text: p.title || '', font: { size: 14 } },
+              tooltip: { callbacks: { label: (i) =>
+                `${p.x_label || 'x'}=${i.raw.x}  ${p.y_label || 'y'}=${i.raw.y}: ${i.raw.v.toFixed?.(3) ?? i.raw.v}` } },
+            },
+            scales: {
+              x: { type: 'linear', title: { display: true, text: p.x_label || '', font: { size: 12 } } },
+              y: { type: 'linear', title: { display: true, text: p.y_label || '', font: { size: 12 } } },
+            },
+          },
+        });
+        return;
+      }
+
+      // Default line/scatter mode. Per-series `style: "scatter"` disables
+      // the line interpolation and shows filled dots — used by
+      // ts_oxidation_landscape_app(style="scatter") so independent
+      // d-counts don't get joined by misleading sawtooth segments.
+      const datasets = (p.series || []).map(s => {
+        const isScatter = s.style === 'scatter';
+        return {
+          label: s.label || '',
+          data: s.data || [],
+          borderColor: s.color || '#888',
+          backgroundColor: isScatter ? (s.color || '#888') : 'transparent',
+          borderWidth: 1.5,
+          pointRadius: isScatter ? 4 : 0,
+          showLine: !isScatter,
+          borderDash: s.borderDash || [],
+          tension: 0.3,
+        };
+      });
       chart = new Chart(ctx, {
         type: 'line',
         data: { datasets },
