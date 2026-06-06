@@ -253,45 +253,37 @@ def test_heatmap_emits_finite_numbers_no_nan_no_textbook_placeholder() -> None:
     )
 
 
-def test_diagram_app_chart_carries_varying_data() -> None:
-    """Pins the diagram_app payload: the LineChart series must contain enough
-    structure that a renderer can draw lines, not collapse to a single value.
-    Catches the regression class where the chart "appears black" because every
-    series is constant or all coordinates collapse to the origin.
+def test_diagram_app_returns_chartjs_payload_with_varying_series() -> None:
+    """Pins ts_diagram_app's payload after the migration off Prefab LineChart.
+
+    The previous implementation returned a Prefab ``PrefabApp`` containing a
+    ``LineChart``; that component renders as a black canvas in current Claude
+    Desktop builds even with valid data. ts_diagram_app now returns a
+    ``ToolResult`` carrying the same JSON shape as ts_plot_view / ts_overlay_app
+    (Chart.js), consumed by ui://tanabesugano/diagram.html.
     """
+    import json
+
     r = _call("ts_diagram_app", {"d_count": 5, "dq_max": 1500.0, "steps": 8, "normalize": True})
-    view = (r.structured_content or {}).get("view")  # type: ignore[attr-defined]
-
-    def find_linechart(node: object) -> dict | None:
-        if isinstance(node, dict):
-            if node.get("type") == "LineChart":
-                return node
-            for ch in node.get("children") or []:
-                found = find_linechart(ch)
-                if found:
-                    return found
-        return None
-
-    lc = find_linechart(view)
-    assert lc, "ts_diagram_app must render a LineChart"
-    rows = lc.get("data") or []
-    series = lc.get("series") or []
-    assert len(rows) >= 4, f"chart needs enough rows to draw lines, got {len(rows)}"
+    assert not r.is_error, "ts_diagram_app must not error on a normal d5 sweep"  # type: ignore[attr-defined]
+    text = r.content[0].text  # type: ignore[attr-defined]
+    assert text != "[Rendered Prefab UI]", (
+        "ts_diagram_app must return a Chart.js JSON payload, not the Prefab placeholder"
+    )
+    payload = json.loads(text)
+    assert "series" in payload and "x_label" in payload and "y_label" in payload
+    series = payload["series"]
     assert len(series) >= 2, f"d5 has multiple term symbols, got {len(series)} series"
-    # xAxis must be set (camelCase) — Pydantic would silently drop snake_case.
-    assert lc.get("xAxis") == "x", f"xAxis must be 'x', got {lc.get('xAxis')!r}"
-    # At least one series must vary across the sweep — otherwise the chart
-    # is just horizontal lines which is what triggered the "black screen"
-    # impression originally.
-    varying_series = 0
+    # At least one series must vary across the sweep — flat lines are what
+    # the user originally perceived as a "black" chart.
+    varying = 0
     for s in series:
-        key = s.get("dataKey") or s.get("data_key")
-        ys = [row.get(key) for row in rows if row.get(key) is not None]
+        ys = [pt["y"] for pt in s.get("data") or [] if pt.get("y") is not None]
         if ys and max(ys) - min(ys) > 0.1:
-            varying_series += 1
-    assert varying_series >= 1, (
+            varying += 1
+    assert varying >= 1, (
         f"no series varies across Dq for d5 — chart would be flat. "
-        f"series={[s.get('dataKey') for s in series]}"
+        f"series labels: {[s.get('label') for s in series]}"
     )
 
 
