@@ -202,6 +202,30 @@ def test_ts_emit_png_echoes_image_content() -> None:
         f"ts_emit_png must reject invalid input with a clear message; got {msgs!r}"
     )
 
+    # Empty-string input — must return a text message, not raise.
+    empty_result = _call("ts_emit_png", {"png_base64": ""})
+    empty_texts = [
+        getattr(c, "text", "")
+        for c in empty_result.content  # type: ignore[attr-defined]
+        if getattr(c, "type", None) == "text"
+    ]
+    assert any("empty" in t.lower() for t in empty_texts), (
+        f"ts_emit_png must describe empty input; got {empty_texts!r}"
+    )
+
+    # data-URI input — header must be stripped; payload must equal raw base64.
+    data_uri = f"data:image/png;base64,{b64}"
+    uri_result = _call("ts_emit_png", {"png_base64": data_uri})
+    uri_images = [
+        c
+        for c in uri_result.content  # type: ignore[attr-defined]
+        if getattr(c, "type", None) == "image"
+    ]
+    assert len(uri_images) == 1, "data-URI input must produce one ImageContent"
+    assert getattr(uri_images[0], "data", "") == b64, (
+        "data-URI header must be stripped; payload must equal raw base64"
+    )
+
 
 # ─────────────────────────── tool invocations ────────────────────────────
 
@@ -220,7 +244,7 @@ def _call(tool: str, args: dict) -> object:
 
 def test_ts_compute_app_returns_sorted_table_and_chart() -> None:
     """ts_compute was removed because its raw nested dict was unusable.
-    ts_compute_app replaces it with a sortable table + strip plot."""
+    ts_compute_app replaces it with a sortable DataTable of eigenvalues."""
     result = _call("ts_compute_app", {"d_count": 5, "Dq": 980.0, "B": 1350.0, "C": 4000.0})
     assert not result.is_error  # type: ignore[attr-defined]
     view = (result.structured_content or {}).get("view")  # type: ignore[attr-defined]
@@ -282,6 +306,8 @@ def test_ts_plot_png_returns_image() -> None:
         ),
         ("ts_ratio_fit_app", {"d_count": 3, "v1": 17000.0, "v2": 24000.0, "grid_steps": 6}),
         ("ts_oxidation_landscape_app", {"Dq": 1000.0, "B": 900.0, "C": 4000.0}),
+        ("ts_correlation_diagram_app", {"d_count": 3}),
+        ("ts_spin_crossover_app", {"d_count": 5, "steps": 6}),
     ],
 )
 def test_app_tools_return_non_empty_payload(tool: str, args: dict) -> None:

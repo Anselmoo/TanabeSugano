@@ -7,6 +7,14 @@
 - `ts_explore_app`: the Prefab `Form.from_model` rendered as a frozen panel in Claude Desktop, and its `on_submit=CallTool(tool="ts_diagram_app")` wiring went stale after `ts_diagram_app` migrated to the Chart.js `ToolResult` path (the form's submit no longer matched a Prefab-state consumer). Discovery now goes through the `tanabesugano_why` / `tanabesugano_explain_complex` prompts or `ts_supported_configs` → `ts_diagram_app`
 
 ### Fixed
+- `_sweep_payload` in `apps.py` now returns a `ValueError` when `normalize=True` and `B ≤ 0`, instead of silently collapsing the entire x-axis to `0.0` and producing a misleading chart
+- remove dead `resolve_term_key` helper from `tools/_shared.py` and its `GROUND_TERM_OCTAHEDRAL` comment from `_defaults.py`; the only consumer (`ts_parameter_heatmap_app`) was removed in a prior commit
+- fix stale docstring/comments that still referenced the removed strip-plot in `ts_compute_app` and the removed `ts_parameter_heatmap_app` in the `apps.py` module docstring and `compute_tools.py` replacement comment
+- expand `test_ts_emit_png_echoes_image_content` with empty-string and data-URI input branches to lock in those error and normalisation behaviours
+- add `ts_correlation_diagram_app` and `ts_spin_crossover_app` to the generic app-tool smoke-test parametrisation so registration regressions are caught immediately
+- fix README.md interactive-app-tools heading from "Prefab UI" to "Prefab / Chart.js UI" and correct `ts_compute_app` (no strip plot), `ts_diagram_app` (Chart.js only), and `ts_compare_app` (overlaid chart) descriptions
+- fix CI/CD: tags trigger narrowed from `["v*", "*"]` to `["v*"]` — the catch-all `"*"` glob caused `publish-testpypi` to fire on every scratch tag push; `pages-build`/`pages-deploy` no longer allow `workflow_dispatch` from arbitrary branches (feature-branch docs were overwriting production GitHub Pages); `publish-testpypi` condition narrowed to `main`-only during the master→main migration
+
 - the in-iframe **Copy to clipboard** button now actually works. The MCP Apps host sandboxes every UI iframe with no Permissions Policy by default, so `navigator.clipboard.write` was rejected silently — the toolbar always landed in the "Copy denied" branch. Fixed by declaring `_meta.ui.permissions.clipboardWrite` on both `ui://tanabesugano/diagram.html` and `ui://tanabesugano/spectrum.html` via FastMCP's `ResourcePermissions(clipboard_write={})`. The host now adds `allow="clipboard-write"` to the iframe element and the call succeeds. Reference: [MCP Apps stable spec 2026-01-26](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx). Pinned by `test_ui_resources_request_clipboard_write_permission`
 - update CI/CD pipeline to include master branch and refine conditions for pages build and deploy
 

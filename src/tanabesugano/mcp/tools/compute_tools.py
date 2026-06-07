@@ -54,7 +54,7 @@ def register(mcp: FastMCP) -> None:
     # processing — Claude's "next steps" almost always devolved into
     # "save to CSV / render PNG" suggestions that the client cannot execute.
     # Replacements:
-    #   * ts_compute_app      → sortable DataTable + strip plot at one point
+    #   * ts_compute_app      → sortable DataTable of eigenvalues at one point
     #   * ts_diagram_app      → full diagram with LineChart + Dq slider
     #   * ts_plot_view        → interactive Chart.js line plot
     #   * ts_plot_png         → matplotlib PNG fallback

@@ -4,11 +4,12 @@ Two rendering pipelines coexist:
 
 * **Chart.js iframes**: ts_diagram_app, ts_plot_view, ts_overlay_app,
   ts_compare_app, ts_spectrum_app, ts_oxidation_landscape_app,
-  ts_parameter_heatmap_app, ts_reverse_fit_app, ts_ratio_fit_app. Each
-  declares ``app=AppConfig(resource_uri=...)`` pointing at one of three
-  hand-registered ``ui://tanabesugano/{diagram,heatmap,spectrum}.html``
-  resources (MIME ``text/html;profile=mcp-app`` per the MCP Apps spec)
-  and returns a ``ToolResult`` carrying a JSON Chart.js payload.
+  ts_orgel_diagram_app, ts_spin_crossover_app, ts_correlation_diagram_app,
+  ts_reverse_fit_app, ts_ratio_fit_app. Each declares
+  ``app=AppConfig(resource_uri=...)`` pointing at one of two hand-registered
+  ``ui://tanabesugano/{diagram,spectrum}.html`` resources (MIME
+  ``text/html;profile=mcp-app`` per the MCP Apps spec) and returns a
+  ``ToolResult`` carrying a JSON Chart.js payload.
 * **Prefab-native**: ts_compute_app and ts_dashboard_app declare ``app=True``
   and return a ``PrefabApp`` rendered via FastMCP's auto-generated
   ``ui://prefab/tool/<hash>/renderer.html`` resource.
@@ -140,6 +141,8 @@ def _sweep_payload(
     dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
     if not points:
         return [], [], "", "x", "x", "y", 0.0
+    if normalize and b_val <= 0:
+        raise ValueError(f"normalize=True requires positive Racah B, got B={b_val!r}")
 
     ground_term = min(
         points[0],

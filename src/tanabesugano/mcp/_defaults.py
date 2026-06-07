@@ -29,9 +29,7 @@ DEFAULTS: dict[int, _DConfig] = {
 # Free-ion → octahedral ground-term key mapping. DEFAULTS["ground_term"] stores
 # free-ion spectroscopic notation (3F, 6S, …) for human display, but the
 # matrices.py solvers use octahedral keys (3_T_1, 6_A_1, …) under crystal-field
-# splitting. Tools that take a `term` argument let the user pass either form;
-# this table normalises to the solver key. See resolve_term_key() in
-# tanabesugano.mcp.tools._shared.
+# splitting.
 GROUND_TERM_OCTAHEDRAL: dict[int, str] = {
     2: "3_T_1",  # 3F → 3T1g
     3: "4_A_2",  # 4F → 4A2g

@@ -294,14 +294,14 @@ Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the [`
 
 > **Note.** `ts_compute` and `ts_diagram` (raw nested-dict eigenvalue payloads) were removed because the output was unusable without further rendering — Claude's "next steps" devolved into "save to CSV / render PNG" suggestions the client cannot execute. Use `ts_compute_app` / `ts_diagram_app` for in-chat tables and charts, or `ts_terms_table_data` for machine-readable rows.
 
-#### Interactive app tools (Prefab UI — capable clients only)
+#### Interactive app tools (Prefab / Chart.js UI — capable clients only)
 
 | App | Description |
 |---|---|
 | `ts_dashboard_app` | Overview of all d²–d⁸ with ground terms, example ions, matrix sizes, and a concrete absorption-band number per configuration. |
-| `ts_compute_app` | Sorted DataTable + spin-multiplicity strip plot of every eigenvalue at one (Dq, B, C). Replaces the raw `ts_compute`. |
-| `ts_diagram_app` | Full Tanabe-Sugano diagram: LineChart + DataTable + live Dq slider. |
-| `ts_compare_app` | Small-multiple grid comparing chosen d-configurations. |
+| `ts_compute_app` | Sorted DataTable of every eigenvalue at one (Dq, B, C). Replaces the raw `ts_compute`. |
+| `ts_diagram_app` | Full Tanabe-Sugano diagram as an interactive Chart.js line plot. |
+| `ts_compare_app` | Multiple d-configurations overlaid on one shared Chart.js plot. |
 | `ts_overlay_app` | Overlay multiple d-configurations on one shared chart. |
 | `ts_oxidation_landscape_app` | Every eigenvalue of d²–d⁸ at fixed (Dq, B, C): `style="scatter"` (default) renders discrete dots per d-count, `style="density"` renders a Gaussian-broadened 2D heatmap (control σ via `broadening_cm`). |
 | `ts_orgel_diagram_app` | Orgel diagram — E (cm⁻¹) vs Δ (cm⁻¹), the classic unnormalised companion to `ts_diagram_app`. d²/d³/d⁸ render smoothly; d⁴–d⁷ show the HS↔LS kink. |
