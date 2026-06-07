@@ -21,6 +21,31 @@ _INSTALL_HINT = (
 )
 
 
+def _make_unwrap_data_middleware():  # noqa: ANN202 — fastmcp types not importable when extra missing
+    """Build a middleware that defensively unwraps ``{"data": {...}}`` tool args.
+
+    Our published inputSchemas are flat (``{d_count, dq_min, ...}``), but some
+    MCP clients (a recent Claude Desktop build was observed doing this) wrap
+    the args once in a ``data`` envelope. Pydantic then rejects the call with
+    a confusing dual error — both *"Unexpected keyword argument: data"* and
+    *"Missing required argument: d_count"*. Detecting the envelope here keeps
+    the user-visible behaviour identical regardless of the client's quirk.
+    """
+    from fastmcp.server.middleware import Middleware
+
+    class UnwrapDataMiddleware(Middleware):  # type: ignore[misc]
+        async def on_call_tool(self, context, call_next):  # type: ignore[override]
+            params = context.message
+            args = getattr(params, "arguments", None) or {}
+            # Only unwrap when the args are exactly ``{"data": <dict>}`` —
+            # never touch tools that legitimately take a ``data`` argument.
+            if isinstance(args, dict) and len(args) == 1 and isinstance(args.get("data"), dict):
+                params.arguments = args["data"]  # type: ignore[attr-defined]
+            return await call_next(context)
+
+    return UnwrapDataMiddleware()
+
+
 def create_server() -> FastMCP[Any]:
     """Build and configure the TanabeSugano FastMCP server."""
     try:
@@ -38,13 +63,28 @@ def create_server() -> FastMCP[Any]:
         instructions=(
             "MCP server for TanabeSugano. Exposes d2-d8 Tanabe-Sugano and "
             "energy-correlation diagram computation, term-symbol eigenvalues, "
-            "and matplotlib plots. Use ts_supported_configs to discover what "
-            "is available; ts_compute / ts_diagram for numbers; ts_plot_png "
-            "for a cheap visualization or ts_plot_view for an interactive "
-            "line plot in capable clients."
+            "and interactive in-chat charts. Use ts_supported_configs to "
+            "discover what is available. For numeric data use "
+            "ts_terms_table_data (sorted rows at one point) or "
+            "ts_fit_spectrum (back-out Dq and B from observed peaks). For "
+            "visualisation: ts_diagram_app, ts_plot_view, ts_overlay_app, "
+            "ts_compare_app, ts_spectrum_app, ts_oxidation_landscape_app, "
+            "ts_orgel_diagram_app, ts_spin_crossover_app, "
+            "ts_correlation_diagram_app, ts_reverse_fit_app, and ts_ratio_fit_app "
+            "all render as in-chat Chart.js; ts_compute_app and "
+            "ts_dashboard_app render as Prefab-native cards + tables; "
+            "ts_plot_png is a matplotlib PNG fallback for non-capable "
+            "clients. ts_emit_png is an internal export sink: every "
+            "Chart.js iframe's 'Send PNG to chat' button calls back to it "
+            "with the rendered canvas as base64, and the chat then carries "
+            "the image — there is no need to call ts_emit_png directly. "
+            "Do NOT call ts_compute or ts_diagram — they were removed in "
+            "favour of the app and table tools above."
         ),
         version=__version__,
     )
+
+    mcp.add_middleware(_make_unwrap_data_middleware())
 
     register_tools(mcp)
     register_resources(mcp)

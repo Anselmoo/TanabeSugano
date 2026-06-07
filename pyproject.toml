@@ -45,7 +45,7 @@ dependencies = [
 
 [project.optional-dependencies]
 plotly = ["plotly>=5.13.1,<7.0.0"]
-mcp = ["fastmcp[apps]>=3.3.0"]
+mcp = ["fastmcp[apps]>=3.4.0,<4.0.0"]
 
 [project.scripts]
 tanabesugano = "tanabesugano.cmd:cmd_line"
@@ -68,6 +68,7 @@ screenshot = [
     "pytest-playwright>=0.6",
 ]
 dev = [
+    "poethepoet>=0.29,<1.0",
     "pytest>=7.2,<9.0",
     "pytest-clarity>=1.0.1",
     "pytest-cov>=4,<6",
@@ -151,6 +152,32 @@ kind = "pep621"
 [[tool.rrt.version_targets]]
 path = "src/tanabesugano/__init__.py"
 kind = "python_version"
+
+[tool.poe.tasks]
+
+  [tool.poe.tasks.build-mcpb]
+  cmd  = "python scripts/build_mcpb.py"
+  help = "Build the release .mcpb bundle (uses PyPI-published package — run after uv publish)"
+
+  [tool.poe.tasks.build-mcpb-dev]
+  cmd  = "python scripts/build_mcpb.py --dev"
+  help = "Build a dev .mcpb bundle pointing to local source (use before publishing to PyPI)"
+
+  [tool.poe.tasks.lint]
+  cmd  = "ruff check src/"
+  help = "Run ruff linter"
+
+  [tool.poe.tasks.format]
+  cmd  = "ruff format --check src/"
+  help = "Check code formatting with ruff"
+
+  [tool.poe.tasks.test]
+  cmd  = "pytest -vv"
+  help = "Run full test suite"
+
+  [tool.poe.tasks.test-mcp]
+  cmd  = "pytest -vv -m mcp"
+  help = "Run MCP-only tests (requires [mcp] extra)"
 
 [tool.pytest.ini_options]
 markers = """

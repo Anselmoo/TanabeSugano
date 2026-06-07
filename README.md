@@ -285,25 +285,28 @@ Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the [`
 | Tool | Description |
 |---|---|
 | `ts_supported_configs` | List supported d-configurations (d²–d⁸). |
-| `ts_compute` | Eigenvalues at one (Dq, B, C) point. |
-| `ts_diagram` | Swept Tanabe-Sugano diagram (JSON). |
-| `ts_terms_table_data` | All eigenvalues at one Dq, sorted ascending with multiplicity. |
+| `ts_terms_table_data` | All eigenvalues at one (Dq, B, C), sorted ascending with multiplicity (machine-readable rows). |
 | `ts_fit_spectrum` | Fit observed UV-Vis absorption peaks → Dq and Racah B. |
 | `ts_nephelauxetic` | Interpret a fitted B as metal-ligand covalency (nephelauxetic β). |
-| `ts_plot_png` | Matplotlib PNG plot (cheap default). |
-| `ts_plot_view` | Interactive Prefab `LinePlot` (capable clients only). |
+| `ts_plot_png` | Matplotlib PNG plot (cheap default for any client). |
+| `ts_plot_view` | Interactive Chart.js line plot (capable clients only). |
 | `ts_explain` | One-paragraph ground-state description. |
 
-#### Interactive app tools (Prefab UI — capable clients only)
+> **Note.** `ts_compute` and `ts_diagram` (raw nested-dict eigenvalue payloads) were removed because the output was unusable without further rendering — Claude's "next steps" devolved into "save to CSV / render PNG" suggestions the client cannot execute. Use `ts_compute_app` / `ts_diagram_app` for in-chat tables and charts, or `ts_terms_table_data` for machine-readable rows.
+
+#### Interactive app tools (Prefab / Chart.js UI — capable clients only)
 
 | App | Description |
 |---|---|
-| `ts_explore_app` | Discovery form: entry point that dispatches into the diagram app. |
-| `ts_dashboard_app` | One-call overview of all d-configurations with ground terms. |
-| `ts_diagram_app` | Full diagram with LineChart + DataTable + live Dq slider. |
-| `ts_compare_app` | Small-multiple grid comparing chosen d-configurations. |
+| `ts_dashboard_app` | Overview of all d²–d⁸ with ground terms, example ions, matrix sizes, and a concrete absorption-band number per configuration. |
+| `ts_compute_app` | Sorted DataTable of every eigenvalue at one (Dq, B, C). Replaces the raw `ts_compute`. |
+| `ts_diagram_app` | Full Tanabe-Sugano diagram as an interactive Chart.js line plot. |
+| `ts_compare_app` | Multiple d-configurations overlaid on one shared Chart.js plot. |
 | `ts_overlay_app` | Overlay multiple d-configurations on one shared chart. |
-| `ts_parameter_heatmap_app` | Heatmap sweeping Racah B × C at fixed Dq for a chosen term. |
+| `ts_oxidation_landscape_app` | Every eigenvalue of d²–d⁸ at fixed (Dq, B, C): `style="scatter"` (default) renders discrete dots per d-count, `style="density"` renders a Gaussian-broadened 2D heatmap (control σ via `broadening_cm`). |
+| `ts_orgel_diagram_app` | Orgel diagram — E (cm⁻¹) vs Δ (cm⁻¹), the classic unnormalised companion to `ts_diagram_app`. d²/d³/d⁸ render smoothly; d⁴–d⁷ show the HS↔LS kink. |
+| `ts_spin_crossover_app` | For d⁴/d⁵/d⁶/d⁷ only: ground-term energy of the candidate HS and LS curves vs Δ with the critical Dq annotated. Returns the numeric `critical_Dq_cm1`. |
+| `ts_correlation_diagram_app` | Three-axis correlation diagram (free ion ↔ weak field ↔ strong field) — the classical Tsuchida/Cotton pedagogical bridge between free-ion term symbols and strong-field t₂g^x e_g^y configurations. |
 | `ts_spectrum_app` | Simulated Lorentzian UV-Vis spectrum (spin-allowed + spin-forbidden). |
 | `ts_reverse_fit_app` | Grid-search Dq and B to best-fit observed peak positions. |
 | `ts_ratio_fit_app` | Derive Dq and B from 2–3 measured bands via the ratio method. |

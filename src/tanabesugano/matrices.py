@@ -1223,7 +1223,7 @@ class d7(LigandFieldTheory):
 
         GS = T_4_1[0]
 
-        T_4_1[0] = np.array([0.0], dtype=float)
+        T_4_1[0] = 0.0
         A_4_2 = np.array([12 * self.Dq - 15 * self.B]) - GS
         T_4_2 = np.array([2 * self.Dq - 15 * self.B]) - GS
 
@@ -1319,7 +1319,7 @@ class d8(LigandFieldTheory):
 
         T_1_1 = np.array([-2 * self.Dq + 4 * self.B + 2 * self.C]) - GS
         T_3_2 = np.array([-2 * self.Dq - 8 * self.B]) - GS
-        A_3_2 = np.array([0], dtype=float)
+        A_3_2 = np.array([0], dtype=np.float64)
         # Ligandfield dependent
         A_1_1 = self.A_1_1_states() - GS
         E_1 = self.E_1_states() - GS

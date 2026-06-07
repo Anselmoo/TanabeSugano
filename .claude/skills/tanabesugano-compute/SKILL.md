@@ -21,19 +21,22 @@ want the AI to drive the computation instead of asking me to run a Python script
 |---|---|
 | `ts_supported_configs` | First call. Confirms d_count is supported and surfaces default Racah B, C. |
 | `ts_explain` | Get a one-paragraph orientation on a configuration (ground term, typical spectrum). |
-| `ts_compute` | Need eigenvalues for a single (Dq, B, C) point. Cheap. |
-| `ts_diagram` | Need a swept diagram (numeric series). Returns JSON-like points. |
-| `ts_plot_png` | Need a visual. Returns a matplotlib PNG. Default visualization — low token cost. |
-| `ts_plot_view` | Interactive line plot for capable clients (Claude Desktop). Only when the user explicitly wants to interact with the curves. |
+| `ts_terms_table_data` | Need eigenvalues for a single (Dq, B, C) point as sorted machine-readable rows (replaces the removed `ts_compute`). |
+| `ts_compute_app` | Same data as `ts_terms_table_data` but as an in-chat sortable DataTable for the user. |
+| `ts_fit_spectrum` | Back out Dq and Racah B from observed UV-Vis absorption peaks. |
+| `ts_diagram_app` | Need a swept Tanabe-Sugano diagram as an in-chat Chart.js plot. |
+| `ts_plot_png` | Need a static visual. Returns a matplotlib PNG. Default visualisation — low token cost. |
+| `ts_plot_view` | Same data as `ts_diagram_app` but plain Chart.js without the title/metric header — slightly cheaper payload. |
 
 ## Workflow
 
 1. Call `ts_supported_configs` if d_count is uncertain.
 2. Call `ts_explain` to ground the discussion in the correct ground term.
-3. For a fit-to-spectrum task: start with `ts_diagram` at default Racah B/C and the
-   default Dq sweep, then narrow `dq_min`/`dq_max` once a candidate region is found.
-4. Render the final fitted region with `ts_plot_png` for the user (avoid `ts_plot_view`
-   unless the client is interactive — it ships heavy payloads).
+3. For a fit-to-spectrum task: feed measured peaks to `ts_fit_spectrum` to get
+   `(Dq, B)` directly; if a coarse sweep is needed instead, use `ts_diagram_app`
+   (or `ts_plot_view`) at default Racah B/C and read off the candidate region.
+4. Render the final fitted region with `ts_plot_png` for static delivery, or
+   `ts_diagram_app` for an interactive in-chat panel.
 
 ## Tips
 

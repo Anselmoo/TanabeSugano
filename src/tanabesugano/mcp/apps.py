@@ -1,14 +1,23 @@
-"""FastMCP `app=True` tools for the TanabeSugano server.
+"""FastMCP tools for the TanabeSugano server (Prefab + Chart.js).
 
-Each tool here renders as an in-chat Prefab UI (Card, LineChart, DataTable,
-Form, ...) in app-capable MCP clients (Claude Desktop, VS Code Copilot,
-Cursor). All tools also work as plain JSON for non-app clients because
-PrefabApp serialises to a structured representation.
+Two rendering pipelines coexist:
+
+* **Chart.js iframes**: ts_diagram_app, ts_plot_view, ts_overlay_app,
+  ts_compare_app, ts_spectrum_app, ts_oxidation_landscape_app,
+  ts_orgel_diagram_app, ts_spin_crossover_app, ts_correlation_diagram_app,
+  ts_reverse_fit_app, ts_ratio_fit_app. Each declares
+  ``app=AppConfig(resource_uri=...)`` pointing at one of two hand-registered
+  ``ui://tanabesugano/{diagram,spectrum}.html`` resources (MIME
+  ``text/html;profile=mcp-app`` per the MCP Apps spec) and returns a
+  ``ToolResult`` carrying a JSON Chart.js payload.
+* **Prefab-native**: ts_compute_app and ts_dashboard_app declare ``app=True``
+  and return a ``PrefabApp`` rendered via FastMCP's auto-generated
+  ``ui://prefab/tool/<hash>/renderer.html`` resource.
 
 Imports happen at module level so Pydantic's TypeAdapter can resolve the
-PrefabApp / Form forward refs against this module's globalns when FastMCP
-builds its tool schemas. When the [mcp] extra is missing the whole module
-no-ops via the _HAVE_APPS guard.
+PrefabApp forward refs against this module's globalns when FastMCP builds
+its tool schemas. When the ``[mcp]`` extra is missing the whole module
+no-ops via the ``_HAVE_APPS`` guard.
 """
 
 from __future__ import annotations
@@ -28,15 +37,14 @@ SPECTRUM_URI = "ui://tanabesugano/spectrum.html"
 try:
     from fastmcp.apps import AppConfig
     from fastmcp.apps import ResourceCSP
+    from fastmcp.apps import ResourcePermissions
     from fastmcp.tools import ToolResult
     from mcp import types as _mcp_types
     from mcp.types import ToolAnnotations
     from prefab_ui import components as pf
-    from prefab_ui.actions import CallTool
     from prefab_ui.app import PrefabApp
-    from prefab_ui.components.charts import ChartSeries
-    from prefab_ui.components.charts import LineChart
-    from prefab_ui.components.charts import Sparkline
+    from prefab_ui.components.charts import ChartSeries  # used by _sweep_payload
+    from prefab_ui.components.charts import Sparkline  # used by ts_dashboard_app
 
     from tanabesugano import __version__ as _pkg_version
     from tanabesugano.mcp._inputs import CM1_TO_EV
@@ -56,16 +64,19 @@ def register_apps(mcp: FastMCP) -> None:
         log.debug("prefab_ui / fastmcp.apps not available; skipping all *_app tools.")
         return
 
-    _register_explore(mcp)
     _register_plot_view(mcp)
     _register_diagram_app(mcp)
     _register_dashboard(mcp)
     _register_compare(mcp)
-    _register_heatmap(mcp)
     _register_overlay(mcp)
     _register_reverse_fit(mcp)
     _register_ratio_fit(mcp)
     _register_spectrum(mcp)
+    _register_oxidation_landscape(mcp)
+    _register_orgel(mcp)
+    _register_spin_crossover(mcp)
+    _register_correlation_diagram(mcp)
+    _register_compute_table(mcp)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -130,6 +141,8 @@ def _sweep_payload(
     dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
     if not points:
         return [], [], "", "x", "x", "y", 0.0
+    if normalize and b_val <= 0:
+        raise ValueError(f"normalize=True requires positive Racah B, got B={b_val!r}")
 
     ground_term = min(
         points[0],
@@ -148,7 +161,9 @@ def _sweep_payload(
     for i, dq in enumerate(dq_values):
         row: dict[str, float] = {
             # Round x to 3 dp — shows "0.716" not "0.7161613750298401".
-            x_key: round(float(dq * 10.0 / b_val), 3) if normalize else round(float(dq * 10.0), 1),
+            x_key: (round(float(dq * 10.0 / b_val), 3) if b_val else 0.0)
+            if normalize
+            else round(float(dq * 10.0), 1),
         }
         for term, energies in points[i].items():
             if not energies:
@@ -176,7 +191,7 @@ def _sweep_payload(
     title = f"Tanabe-Sugano d{d_count} (B={b_val:g}, C={c_val:g} cm⁻¹)"
     x_label = "10Dq/B" if normalize else "10Dq (cm⁻¹)"
     y_label = "E/B" if normalize else _Y_LABEL.get(energy_unit, "E (cm⁻¹)")
-    ground_y = min(row.get(f"{ground_term}_0", float("inf")) for row in rows)
+    ground_y = min((row.get(f"{ground_term}_0", float("inf")) for row in rows), default=0.0)
     return rows, series, title, x_key, x_label, y_label, ground_y
 
 
@@ -220,42 +235,13 @@ def _chartjs_series_payload(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def _register_explore(mcp: FastMCP) -> None:
-    """Primary discovery surface: a form that dispatches into ts_diagram_app."""
-
-    @mcp.tool(
-        name="ts_explore_app",
-        title="Explore Tanabe-Sugano diagrams",
-        version=_pkg_version,
-        tags={"tanabesugano", "form", "discovery"},
-        annotations=_READONLY_ANNOTATIONS,
-        meta=_TS_META,
-        app=True,
-    )
-    def ts_explore_app() -> PrefabApp:
-        """Open an interactive form to pick d_count, Dq range, B, C, and render a diagram.
-
-        Submitting the form calls `ts_diagram_app` with the chosen parameters,
-        which renders the in-chat LineChart + DataTable. Use this as the
-        entry point for non-expert users — they don't need to know tool names.
-        """
-        from tanabesugano.mcp._inputs import TSInput
-
-        with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
-            pf.Heading(content="Tanabe-Sugano explorer", level=2)
-            pf.Muted(
-                content=(
-                    "Pick a d-electron count (d² – d⁸), set the crystal-field "
-                    "and Racah parameters, then submit to render an interactive "
-                    "Tanabe-Sugano diagram in this chat."
-                ),
-            )
-            pf.Form.from_model(
-                TSInput,
-                submit_label="Render diagram",
-                on_submit=CallTool(tool="ts_diagram_app"),
-            )
-        return app
+# ts_explore_app was removed: the Prefab Form.from_model component renders
+# as a frozen / unresponsive panel in current Claude Desktop builds, and
+# its on_submit=CallTool(tool="ts_diagram_app") wiring became stale after
+# ts_diagram_app moved to the Chart.js ToolResult path (it no longer
+# consumes Prefab state). Discovery now goes through tanabesugano_why and
+# tanabesugano_explain_complex prompts, or directly through
+# ts_supported_configs + ts_diagram_app.
 
 
 def _register_plot_view(mcp: FastMCP) -> None:
@@ -322,10 +308,23 @@ def _register_plot_view(mcp: FastMCP) -> None:
 
     @mcp.resource(
         DIAGRAM_URI,
-        mime_type="text/html",
+        # MCP Apps spec — UI resources must use the profiled MIME type.
+        # Claude Desktop advertises ``extensions.io.modelcontextprotocol/ui``
+        # with ``mimeTypes: ["text/html;profile=mcp-app"]`` in initialize;
+        # plain ``text/html`` is rejected with "Unsupported UI resource
+        # content format". Reference:
+        # https://modelcontextprotocol.io/extensions/apps/overview
+        mime_type="text/html;profile=mcp-app",
         title="Tanabe-Sugano Chart.js line chart",
         app=AppConfig(
             csp=ResourceCSP(resource_domains=["https://cdn.jsdelivr.net", "https://unpkg.com"]),
+            # MCP Apps spec: the host sandboxes every UI iframe with no
+            # Permissions Policy by default — ``navigator.clipboard.write``
+            # is rejected unless the resource explicitly requests it via
+            # ``_meta.ui.permissions.clipboardWrite``. Required for the
+            # in-iframe "Copy to clipboard" button to succeed.
+            # https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx
+            permissions=ResourcePermissions(clipboard_write={}),
         ),
     )
     def diagram_view() -> str:
@@ -334,16 +333,27 @@ def _register_plot_view(mcp: FastMCP) -> None:
 
 
 def _register_diagram_app(mcp: FastMCP) -> None:
-    """Full diagram: LineChart + DataTable + Metric cards."""
+    """Full diagram rendered via Chart.js (DIAGRAM_URI).
+
+    Previously this tool returned a Prefab native ``PrefabApp`` with a
+    ``LineChart`` + slider + ``DataTable``. The Prefab ``LineChart`` renders
+    as a black canvas in current Claude Desktop builds even when the data is
+    valid (verified: 12 series with varying y-values still produced a blank
+    panel). Switched to the same Chart.js HTML resource path used by
+    ``ts_plot_view`` / ``ts_overlay_app`` / ``ts_spectrum_app``, which all
+    render reliably. The slider+table view is now available via
+    ``ts_compute_app`` (table at one Dq) and ``ts_terms_table_data`` (raw
+    rows for any agent).
+    """
 
     @mcp.tool(
         name="ts_diagram_app",
-        title="Tanabe-Sugano diagram (chart + table)",
+        title="Tanabe-Sugano diagram (Chart.js)",
         version=_pkg_version,
-        tags={"tanabesugano", "plot", "interactive", "table"},
+        tags={"tanabesugano", "plot", "interactive"},
         annotations=_READONLY_ANNOTATIONS,
         meta=_TS_META,
-        app=True,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
     )
     def ts_diagram_app(
         d_count: int,
@@ -354,22 +364,29 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         C: float | None = None,
         normalize: bool = True,
         energy_unit: str = "cm1",
-    ) -> PrefabApp:
-        """Render the LineChart plus a sorted DataTable of term energies at dq_max.
+    ) -> ToolResult:
+        """Render a Tanabe-Sugano diagram as a Chart.js line plot.
 
-        This is the richer companion to `ts_plot_view`: same chart but the
-        bottom half is a sortable / searchable table of every eigenvalue at
-        the high end of the Dq sweep, plus Metric cards summarising the run.
+        Returns the same JSON payload as ``ts_plot_view`` but with the
+        ground term and reference 10Dq highlighted in the title so the
+        chart is immediately interpretable. For the sortable level table
+        at one (Dq, B, C) point, use ``ts_compute_app``; for the
+        machine-readable rows use ``ts_terms_table_data``.
+
+        Args:
+            d_count: d-electron count (2–8).
+            dq_min, dq_max: Dq sweep bounds in cm⁻¹.
+            steps: Number of Dq grid points.
+            B, C: Racah parameters in cm⁻¹; defaults per d_count.
+            normalize: Plot E/B on y, 10Dq/B on x (standard Tanabe-Sugano).
+            energy_unit: Used only when ``normalize=False`` (cm1 / eV / nm).
+
         """
-        from prefab_ui.rx import Rx
-
-        from tanabesugano.mcp._compute import sweep_dq
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
-        from tanabesugano.plot_style import term_to_unicode
 
         b_val, c_val = resolve_bc(d_count, B, C)
-        rows, series, title, x_key, x_label, y_label, _ground_y = _sweep_payload(
+        rows, series, _title, x_key, x_label, y_label, _ground_y = _sweep_payload(
             d_count,
             dq_min,
             dq_max,
@@ -379,93 +396,20 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             normalize=normalize,
             energy_unit=energy_unit,
         )
-
-        # Build a per-Dq table for every sweep point so the slider can pick any.
-        dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
-        all_dq_tables: list[list[dict]] = []
-        dq_labels: list[str] = [f"{dq * 10.0:.1f}" for dq in dq_values]
-        for i, _dq in enumerate(dq_values):
-            tbl: list[dict] = []
-            for term, energies in points[i].items():
-                unicode_label = term_to_unicode(term)
-                for n, e in enumerate(energies):
-                    tbl.append(
-                        {
-                            "term": unicode_label,
-                            "level": n,
-                            "energy_cm": round(float(e), 1),
-                            "energy_over_B": round(float(e / b_val), 3) if b_val else 0.0,
-                            "mult": str(_multiplicity_of(term)),
-                        },
-                    )
-            tbl.sort(key=lambda r: r["energy_cm"])
-            all_dq_tables.append(tbl)
-
         ground_term = DEFAULTS[d_count]["ground_term"]
-        last_idx = max(len(dq_values) - 1, 0)
-
-        app = PrefabApp(
-            state={
-                "dq_idx": last_idx,
-                "tables": all_dq_tables,
-                "dq_labels": dq_labels,
-            },
+        title_with_context = (
+            f"d{d_count} ({ground_term}) — B={b_val:g}, C={c_val:g} cm⁻¹  "
+            f"[Dq {dq_min:g}–{dq_max:g}, {steps} pts]"
         )
-        with app, pf.Column(gap=4, css_class="p-6"):
-            pf.Heading(content=title, level=3)
-            with pf.Grid(columns=3, gap=4):
-                pf.Metric(label="Ground term", value=ground_term)
-                pf.Metric(
-                    label="Dq range",
-                    value=f"{dq_min:g} – {dq_max:g} cm⁻¹",
-                    description=f"{steps} points",
-                )
-                pf.Metric(
-                    label="Racah B / C",
-                    value=f"{b_val:g} / {c_val:g} cm⁻¹",
-                )
-            pf.Text(content=f"↑ {y_label}", css_class="text-xs text-muted-foreground font-mono")
-            LineChart(
-                data=rows,
-                series=series,
-                x_axis=x_key,
-                show_legend=True,
-                show_tooltip=True,
-                show_grid=True,
-                show_dots=False,
-                height=380,
-            )
-            pf.Text(
-                content=f"→ {x_label}",
-                css_class="text-xs text-muted-foreground font-mono text-right",
-            )
-            pf.Separator()
-            # Slider: drag to select which Dq step the table shows.
-            with pf.Row(align="center", gap=4):
-                pf.Heading(content="Term energies at", level=4)
-                pf.Text(
-                    content=Rx("'10Dq = ' + dq_labels[dq_idx] + ' cm⁻¹'"),
-                    css_class="text-sm font-mono text-primary",
-                )
-            pf.Slider(
-                name="dq_idx",
-                min=0,
-                max=last_idx,
-                step=1,
-                value=last_idx,
-            )
-            pf.DataTable(
-                columns=[
-                    pf.DataTableColumn(key="term", header="Term", sortable=True),
-                    pf.DataTableColumn(key="level", header="Level", sortable=True),
-                    pf.DataTableColumn(key="energy_cm", header="E (cm⁻¹)", sortable=True),
-                    pf.DataTableColumn(key="energy_over_B", header="E/B", sortable=True),
-                    pf.DataTableColumn(key="mult", header="2S+1", sortable=True),
-                ],
-                rows=Rx("tables[dq_idx]"),
-                search=True,
-            )
-        return app
+        payload = _chartjs_series_payload(
+            rows,
+            series,
+            x_key,
+            title=title_with_context,
+            x_label=x_label,
+            y_label=y_label,
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
 def _register_dashboard(mcp: FastMCP) -> None:
@@ -483,14 +427,28 @@ def _register_dashboard(mcp: FastMCP) -> None:
     def ts_dashboard_app() -> PrefabApp:
         """Single-call overview of every supported d-configuration.
 
-        For each d-count: shows the ground term, the matrix size, the default
-        Racah parameters, and a Sparkline of the lowest-eigenvalue energy
-        across the default Dq sweep. Useful as a 'home page' before drilling
-        into one configuration with `ts_diagram_app`.
+        For each d-count card: ground term symbol, matrix size, default Racah
+        parameters, representative free ions, a one-line chemical note, and a
+        Sparkline of the **first excited state energy** across a 0–1500 cm⁻¹
+        Dq sweep — the band that an absorption spectrum would actually show.
+        Useful as a 'home page' before drilling into one configuration with
+        `ts_diagram_app`.
         """
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
         from tanabesugano.mcp._compute import sweep_dq
         from tanabesugano.mcp._defaults import DEFAULTS
+        from tanabesugano.mcp._defaults import GROUND_STATE_NOTES
+        from tanabesugano.mcp._defaults import ION_BY_D_COUNT
+        from tanabesugano.plot_style import term_to_unicode
+
+        # Energy threshold above which an eigenvalue counts as a real excited
+        # state — solvers zero the ground manifold so anything ≤ this is noise.
+        ground_eps = 1.0
+        # Representative octahedral Dq for displaying a single absorption-band
+        # number alongside the sparkline. 1000 cm⁻¹ is mid-range for the
+        # transition metals we cover (Dq sits between 600 and 1800 for the
+        # ions listed in ION_BY_D_COUNT).
+        ref_dq = 1000.0
 
         cards: list[dict] = []
         for d in SUPPORTED_D_COUNTS:
@@ -498,35 +456,84 @@ def _register_dashboard(mcp: FastMCP) -> None:
             b = cfg["default_B"]
             c = cfg["default_C"]
             _, points = sweep_dq(d, 0.0, 1500.0, 30, b, c)
-            ground = min(
-                points[0],
-                key=lambda t, p=points: min(p[0][t]) if p[0][t] else float("inf"),
-            )
-            spark = [float(min(p[ground])) if p[ground] else 0.0 for p in points]
-            cards.append({"d": d, "cfg": cfg, "spark": spark, "ground": ground})
+            # First excited state energy at each Dq step: the lowest eigenvalue
+            # above the ground manifold across all term symbols. This gives a
+            # curve that meaningfully tracks the lowest d-d absorption band as
+            # crystal-field strength grows.
+            spark: list[float] = []
+            for p in points:
+                all_e = sorted(float(e) for term in p.values() for e in term)
+                first_excited = next((e for e in all_e if e > ground_eps), 0.0)
+                spark.append(round(first_excited, 1))
+
+            # At a fixed reference Dq, name the lowest excited term so the
+            # card reports a concrete assignable transition, not just an
+            # energy number floating in space.
+            from tanabesugano.mcp._compute import compute_point
+
+            ref_terms = compute_point(d, ref_dq, b, c)
+            ref_pairs: list[tuple[float, str]] = []
+            for term_name, eigs in ref_terms.items():
+                for e in eigs:
+                    if e > ground_eps:
+                        ref_pairs.append((float(e), term_name))
+            ref_pairs.sort(key=lambda t: t[0])
+            if ref_pairs:
+                first_e, first_term = ref_pairs[0]
+                ref_label = (
+                    f"→ {term_to_unicode(first_term)}: {first_e:,.0f} cm⁻¹"
+                    f"  @ 10Dq = {ref_dq * 10:.0f}"
+                )
+            else:
+                ref_label = ""
+
+            cards.append({"d": d, "cfg": cfg, "spark": spark, "ref_label": ref_label})
 
         with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content="Tanabe-Sugano: d² – d⁸ overview", level=2)
             pf.Muted(
                 content=(
-                    "Default Racah parameters and a sparkline of the ground-term "
-                    "energy across 0 – 1500 cm⁻¹ Dq. Click a configuration for "
-                    "the full diagram via ts_diagram_app."
+                    "Per configuration: ground term, matrix size, default Racah "
+                    "B/C, representative free ions, and a sparkline of the first "
+                    "excited state energy from Dq = 0 to 1500 cm⁻¹ — the lowest "
+                    "d-d band an absorption spectrum will show. Use "
+                    "`ts_diagram_app` with d_count = N for the full diagram."
                 ),
             )
             with pf.Grid(columns=4, gap=4):
                 for c_data in cards:
+                    d = c_data["d"]
+                    cfg = c_data["cfg"]
+                    ions = ION_BY_D_COUNT.get(d, ())
+                    note = GROUND_STATE_NOTES.get(d, "")
+                    # Strip the leading "dN (...):" prefix from the note so the
+                    # card subtitle doesn't repeat info already shown above.
+                    note_short = note.split(":", 1)[-1].strip() if ":" in note else note
+                    e_min = min(c_data["spark"]) if c_data["spark"] else 0.0
+                    e_max = max(c_data["spark"]) if c_data["spark"] else 0.0
                     with pf.Card(css_class="p-4"):
-                        pf.Heading(content=f"d{c_data['d']}", level=4)
-                        pf.Metric(
-                            label="Ground term",
-                            value=c_data["cfg"]["ground_term"],
+                        pf.Heading(content=f"d{d}", level=4)
+                        with pf.Grid(columns=2, gap=2):
+                            pf.Metric(
+                                label="Ground term",
+                                value=cfg["ground_term"],
+                            )
+                            pf.Metric(
+                                label="Matrix",
+                                value=str(cfg["matrix_size"]),
+                                description="terms",
+                            )
+                        pf.Muted(
+                            content=(f"Ions: {', '.join(ions) if ions else '—'}"),
                         )
                         pf.Muted(
                             content=(
-                                f"B = {c_data['cfg']['default_B']:g} cm⁻¹  "
-                                f"C = {c_data['cfg']['default_C']:g} cm⁻¹"
+                                f"B = {cfg['default_B']:g} cm⁻¹  C = {cfg['default_C']:g} cm⁻¹"
                             ),
+                        )
+                        pf.Text(
+                            content="First excited state (cm⁻¹) vs Dq:",
+                            css_class="text-xs text-muted-foreground",
                         )
                         Sparkline(
                             data=c_data["spark"],
@@ -534,11 +541,24 @@ def _register_dashboard(mcp: FastMCP) -> None:
                             variant="default",
                             fill=True,
                         )
+                        pf.Muted(
+                            content=(f"{e_min:.0f} → {e_max:.0f} cm⁻¹ at 10Dq = 0 → 15 000 cm⁻¹"),
+                            css_class="text-xs",
+                        )
+                        if c_data.get("ref_label"):
+                            pf.Text(
+                                content=c_data["ref_label"],
+                                css_class="text-xs font-mono text-primary",
+                            )
+                        if note_short:
+                            pf.Muted(content=note_short, css_class="text-xs")
         return app
 
 
 def _register_compare(mcp: FastMCP) -> None:
-    """Small-multiples grid of LineCharts for chosen d_counts."""
+    """Compare diagrams via Chart.js: each d-count's terms drawn as its own
+    series on one shared (10Dq/B, E/B) axis set. Replaces the previous
+    Prefab small-multiples grid that did not render in Claude Desktop."""
 
     @mcp.tool(
         name="ts_compare_app",
@@ -547,7 +567,7 @@ def _register_compare(mcp: FastMCP) -> None:
         tags={"tanabesugano", "compare", "interactive"},
         annotations=_READONLY_ANNOTATIONS,
         meta=_TS_META,
-        app=True,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
     )
     def ts_compare_app(
         d_counts: list[int],
@@ -556,163 +576,461 @@ def _register_compare(mcp: FastMCP) -> None:
         steps: int = 40,
         normalize: bool = True,
         energy_unit: str = "cm1",
-    ) -> PrefabApp:
-        """Render a Grid of LineCharts (small multiples) for the given d_counts.
+    ) -> ToolResult:
+        """Overlay the diagrams of multiple d-configurations on one Chart.js panel.
 
-        Defaults to comparing the configurations the user picks. Use this to
-        teach the d²/d⁸, d³/d⁷, d⁴/d⁶ "hole-particle" symmetries on one screen.
+        Each term gets a series prefixed by its d-count (e.g. ``d3 ⁴T₁g``) so the
+        user can read off hole-particle symmetry pairs (d²/d⁸, d³/d⁷, d⁴/d⁶)
+        directly. For the side-by-side small-multiples view that the previous
+        implementation attempted, use multiple separate ``ts_diagram_app``
+        calls — both render correctly now they share the Chart.js path.
         """
+        import json as _json
+
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
-        from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
+        from tanabesugano.plot_style import color_for
+        from tanabesugano.plot_style import term_to_unicode
 
         valid = [d for d in d_counts if d in SUPPORTED_D_COUNTS]
         if not valid:
             valid = [3, 5, 8]
 
-        with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
-            pf.Heading(
-                content=f"Compare: {', '.join(f'd{d}' for d in valid)}",
-                level=3,
+        all_series: list[dict] = []
+        x_label = y_label = ""
+        for d in valid:
+            b_val, c_val = resolve_bc(d, None, None)
+            rows, series, _title, x_key, x_label, y_label, _ = _sweep_payload(
+                d,
+                dq_min,
+                dq_max,
+                steps,
+                b_val,
+                c_val,
+                normalize=normalize,
+                energy_unit=energy_unit,
             )
-            cols = 2 if len(valid) <= 4 else 3
-            with pf.Grid(columns=cols, gap=4):
-                for d in valid:
-                    cfg = DEFAULTS[d]
-                    b_val, c_val = resolve_bc(d, None, None)
-                    rows, series, _title, x_key, x_label, y_label, _ = _sweep_payload(
-                        d,
-                        dq_min,
-                        dq_max,
-                        steps,
-                        b_val,
-                        c_val,
-                        normalize=normalize,
-                        energy_unit=energy_unit,
-                    )
-                    with pf.Card(css_class="p-3"):
-                        pf.Heading(
-                            content=f"d{d}  ({cfg['ground_term']})",
-                            level=4,
-                        )
-                        LineChart(
-                            data=rows,
-                            series=series,
-                            x_axis=x_key,
-                            show_legend=False,
-                            show_tooltip=True,
-                            show_grid=True,
-                            show_dots=False,
-                            height=240,
-                        )
-                        pf.Muted(content=f"{x_label}  /  {y_label}")
-        return app
+            for s in series:
+                data = [{"x": row[x_key], "y": row.get(s.data_key)} for row in rows]
+                all_series.append(
+                    {
+                        "label": f"d{d} {term_to_unicode(s.data_key.rsplit('_', 1)[0])}",
+                        "color": s.color or color_for(s.data_key.rsplit("_", 1)[0]),
+                        "data": data,
+                    },
+                )
+
+        title = f"Compare: {', '.join(f'd{d}' for d in valid)}"
+        payload = _json.dumps(
+            {
+                "title": title,
+                "x_label": x_label,
+                "y_label": y_label,
+                "series": all_series,
+            },
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
-def _register_heatmap(mcp: FastMCP) -> None:
-    """Energy-vs-(B,C) heatmap for one term at fixed Dq, via Chart.js iframe."""
+# ts_parameter_heatmap_app was removed: a fixed-Dq sweep of Racah (B, C) for
+# a single eigenvalue is not a standard coordination-chemistry visualisation
+# (no entry in Cotton, Figgis & Hitchman, Bertini, or Lever), and the
+# user-facing default trivially returns zero whenever the chosen term is the
+# ground term (level 0 of the ground term is 0 by construction). Replaced
+# with three literature-canonical Tanabe-Sugano companions:
+#   * ts_orgel_diagram_app    — Orgel diagram (E vs Δ, unnormalised)
+#   * ts_spin_crossover_app   — HS↔LS critical-Dq map for d⁴–d⁷
+#   * ts_correlation_diagram_app — free-ion → weak field → strong field
+# The HEATMAP_URI / _HEATMAP_HTML resource is left in the module as
+# dead-but-harmless code so external clients that may still reference the
+# URI receive a clean "not found" rather than an import error; it is no
+# longer registered with the FastMCP server.
+
+
+def _register_orgel(mcp: FastMCP) -> None:
+    """Orgel diagram (E vs Δ, *un-normalised*) — the canonical companion to ts_diagram_app.
+
+    Wikipedia: "The Tanabe-Sugano diagram is an adaptation of an Orgel
+    diagram which takes better account of electron-electron repulsion …".
+    Cotton, Figgis & Hitchman, and the LibreTexts Crystal-Field-Theory
+    module all introduce the Orgel diagram before the TS form because the
+    physical (cm⁻¹) axes are easier to read against measured spectra.
+    """
 
     @mcp.tool(
-        name="ts_parameter_heatmap_app",
-        title="Energy heatmap over Racah (B, C)",
+        name="ts_orgel_diagram_app",
+        title="Orgel diagram (E vs Δ)",
         version=_pkg_version,
-        tags={"tanabesugano", "heatmap", "interactive"},
+        tags={"tanabesugano", "plot", "orgel", "pedagogy"},
         annotations=_READONLY_ANNOTATIONS,
         meta=_TS_META,
-        app=AppConfig(resource_uri=HEATMAP_URI),
+        app=AppConfig(resource_uri=DIAGRAM_URI),
     )
-    def ts_parameter_heatmap_app(
+    def ts_orgel_diagram_app(
         d_count: int,
-        term: str,
-        Dq: float = 900.0,
-        level: int = 0,
-        b_min: float = 600.0,
-        b_max: float = 1200.0,
-        c_min: float = 3000.0,
-        c_max: float = 5500.0,
-        steps: int = 12,
-    ) -> PrefabApp:
-        """Sweep Racah B × C at fixed Dq and render a Chart.js heatmap of energies.
+        dq_min: float = 0.0,
+        dq_max: float = 1500.0,
+        steps: int = 80,
+        B: float | None = None,
+        C: float | None = None,
+    ) -> ToolResult:
+        """Render an Orgel diagram: term energies (cm⁻¹) vs Δ = 10·Dq (cm⁻¹).
 
-        Picks `level`-th eigenvalue of *term* at every (B, C) grid cell. The
-        Chart.js + chartjs-chart-matrix view is hosted as the HTML resource
-        at `ui://tanabesugano/heatmap.html`; non-app clients see the raw data
-        table inside a Card.
+        Identical compute path as ``ts_diagram_app`` but with both axes in
+        absolute cm⁻¹ instead of normalised by Racah B. For d²/d³/d⁸ the
+        diagram is smooth (no spin crossover); for d⁴–d⁷ the ground term
+        flips spin at the critical Δ and the diagram shows a downward
+        kink — see ``ts_spin_crossover_app`` for a focussed view of that
+        crossing.
+
+        Args:
+            d_count: d-electron count (2–8).
+            dq_min, dq_max: Dq sweep bounds in cm⁻¹.
+            steps: Number of Dq grid points.
+            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+                omitted.
+
+        """
+        from tanabesugano.mcp.tools._shared import resolve_bc
+
+        b_val, c_val = resolve_bc(d_count, B, C)
+        rows, series, _title, x_key, _x_label, _y_label, _ = _sweep_payload(
+            d_count,
+            dq_min,
+            dq_max,
+            steps,
+            b_val,
+            c_val,
+            normalize=False,
+            energy_unit="cm1",
+        )
+
+        has_crossover = d_count in (4, 5, 6, 7)
+        note = (
+            "Orgel-like (kink at the HS↔LS crossover)"
+            if has_crossover
+            else "Orgel diagram (no spin crossover)"
+        )
+        title = f"d{d_count} {note} — B={b_val:g}, C={c_val:g} cm⁻¹"
+        payload = _chartjs_series_payload(
+            rows,
+            series,
+            x_key,
+            title=title,
+            x_label="Δ = 10·Dq  (cm⁻¹)",
+            y_label="E  (cm⁻¹)",
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+
+def _register_spin_crossover(mcp: FastMCP) -> None:
+    """High-spin ↔ low-spin critical-Δ map for d⁴ – d⁷.
+
+    Wikipedia (Tanabe-Sugano): "diagrams for d4, d5, d6, and d7 metal ions
+    have a discontinuity in energies as the ligand field is varied …
+    represented by a vertical line." LibreTexts gives the textbook
+    critical values: Dq/B ≈ 2 for d⁶, ≈ 2.1 for d⁷, ≈ 3 for d⁵, and
+    ≈ 2.7 for d⁴. We compute the actual crossing for the user's chosen
+    (B, C) instead of citing the table values, so the answer is exact
+    for their complex.
+    """
+
+    @mcp.tool(
+        name="ts_spin_crossover_app",
+        title="High-spin ↔ low-spin critical Dq (d⁴ – d⁷)",
+        version=_pkg_version,
+        tags={"tanabesugano", "spin-crossover", "sco", "ground-term"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_spin_crossover_app(
+        d_count: int,
+        B: float | None = None,
+        C: float | None = None,
+        dq_max: float = 2500.0,
+        steps: int = 100,
+    ) -> ToolResult:
+        """Plot the ground-term energies of the two candidate spin states vs Δ.
+
+        Sweeps Dq from 0 to ``dq_max`` (default 2500 cm⁻¹ — well past the
+        crossing for all four configurations), computes the ground-term
+        energy of every term at each Dq, and tags each term by spin
+        multiplicity. The two relevant curves are: lowest *high-spin*
+        term (the ground term at small Dq) and lowest *low-spin* term
+        (the ground term at large Dq). Their crossing is the critical
+        Δ for this complex. The chart also draws a vertical dashed
+        marker at the crossing.
+
+        Only valid for d⁴, d⁵, d⁶, d⁷. Other d-counts return a
+        structured error.
+
+        Args:
+            d_count: must be 4, 5, 6, or 7.
+            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+                omitted.
+            dq_max: Upper Dq bound for the sweep (cm⁻¹). The crossing
+                typically sits between 1500 and 2200 cm⁻¹; 2500 leaves
+                margin on both sides.
+            steps: Sweep resolution.
+
+        """
+        import json as _json
+
+        from tanabesugano.mcp._compute import sweep_dq
+        from tanabesugano.mcp.tools._shared import resolve_bc
+
+        if d_count not in (4, 5, 6, 7):
+            return ToolResult(
+                content=[
+                    _mcp_types.TextContent(
+                        type="text",
+                        text=_json.dumps(
+                            {
+                                "title": "No spin crossover",
+                                "x_label": "",
+                                "y_label": "",
+                                "series": [],
+                                "error": (
+                                    f"ts_spin_crossover_app is only meaningful for d⁴, "
+                                    f"d⁵, d⁶, d⁷ (configurations with a HS↔LS ground-term "
+                                    f"discontinuity), got d{d_count}. For d{d_count} the "
+                                    f"ground term is fixed; use ts_diagram_app or "
+                                    f"ts_orgel_diagram_app instead."
+                                ),
+                            },
+                        ),
+                    ),
+                ],
+                is_error=True,
+            )
+
+        b_val, c_val = resolve_bc(d_count, B, C)
+        dq_values, points = sweep_dq(d_count, 0.0, dq_max, steps, b_val, c_val)
+
+        # For each Dq step, find the lowest eigenvalue grouped by spin
+        # multiplicity. The HS curve = lowest eigenvalue with the highest
+        # multiplicity present at Dq=0; the LS curve = lowest eigenvalue
+        # with the lowest multiplicity that becomes ground at large Dq.
+        # Solver pre-subtracts the ground term so the absolute lowest is
+        # always 0 — work with the *un-zeroed* per-multiplicity minima
+        # instead by reading each term's actual eigenvalue array.
+        per_step_mult_min: list[dict[int, float]] = []
+        for point in points:
+            mult_to_min: dict[int, float] = {}
+            for term_name, eigs in point.items():
+                if not eigs:
+                    continue
+                mult = _multiplicity_of(term_name)
+                e = float(min(eigs))
+                if mult not in mult_to_min or e < mult_to_min[mult]:
+                    mult_to_min[mult] = e
+            per_step_mult_min.append(mult_to_min)
+
+        all_mults = sorted({m for d in per_step_mult_min for m in d})
+        # The HS candidate is the multiplicity that is the ground at Dq=0;
+        # the LS candidate is the multiplicity that becomes ground at the
+        # final Dq step. Per textbook physics these are the two extremes
+        # in `all_mults` for d⁴–d⁷.
+        hs_mult = max(per_step_mult_min[0], key=lambda m: -per_step_mult_min[0][m])
+        ls_mult = max(per_step_mult_min[-1], key=lambda m: -per_step_mult_min[-1][m])
+        # If both ends agree, fall back to (highest, lowest) of the
+        # multiplicities present anywhere.
+        if hs_mult == ls_mult and len(all_mults) >= 2:
+            hs_mult, ls_mult = all_mults[-1], all_mults[0]
+
+        hs_curve = []
+        ls_curve = []
+        for i, dq in enumerate(dq_values):
+            x = float(dq) * 10.0
+            mm = per_step_mult_min[i]
+            if hs_mult in mm:
+                hs_curve.append({"x": round(x, 1), "y": round(mm[hs_mult], 1)})
+            if ls_mult in mm:
+                ls_curve.append({"x": round(x, 1), "y": round(mm[ls_mult], 1)})
+
+        # Detect crossing: the first Dq step where the LS minimum dips
+        # below the HS minimum (i.e. the ground term flips).
+        crossing_dq: float | None = None
+        for i in range(1, len(per_step_mult_min)):
+            prev = per_step_mult_min[i - 1]
+            cur = per_step_mult_min[i]
+            if (
+                hs_mult in prev
+                and ls_mult in prev
+                and hs_mult in cur
+                and ls_mult in cur
+                and (prev[hs_mult] < prev[ls_mult])
+                and (cur[hs_mult] >= cur[ls_mult])
+            ):
+                crossing_dq = float(dq_values[i]) * 10.0
+                break
+
+        crossing_label = (
+            f"critical Δ ≈ {crossing_dq:,.0f} cm⁻¹ (Dq/B ≈ {(crossing_dq / 10.0) / b_val:.2f})"
+            if crossing_dq is not None
+            else "no crossing detected in this Dq range"
+        )
+        title = f"d{d_count} HS↔LS crossover — {crossing_label} — B={b_val:g} cm⁻¹"
+
+        series: list[dict] = [
+            {
+                "label": f"HS ground ({hs_mult}·(2S+1))",
+                "color": "#D55E00",
+                "data": hs_curve,
+            },
+            {
+                "label": f"LS ground ({ls_mult}·(2S+1))",
+                "color": "#0072B2",
+                "data": ls_curve,
+            },
+        ]
+        if crossing_dq is not None:
+            # Vertical dashed marker at the crossing — Chart.js renders this
+            # as a two-point dataset with borderDash.
+            y_top = max(pt["y"] for s in series for pt in s["data"] if pt["y"] is not None)
+            series.append(
+                {
+                    "label": "critical Δ",
+                    "color": "#666",
+                    "borderDash": [4, 4],
+                    "data": [
+                        {"x": round(crossing_dq, 1), "y": 0.0},
+                        {"x": round(crossing_dq, 1), "y": float(y_top)},
+                    ],
+                },
+            )
+
+        # ``crossing_dq`` is the value on the x-axis (Δ = 10·Dq in cm⁻¹).
+        # Emit both: ``critical_delta_cm1`` matches the axis label and is
+        # what a viewer reads off the chart; ``critical_Dq_cm1`` is the
+        # raw Dq parameter, which is what spectrum-fit clients want when
+        # they compute Dq/B ratios. Previously this field carried Δ
+        # under the Dq name, which was 10× the textbook value.
+        payload = _json.dumps(
+            {
+                "title": title,
+                "x_label": "Δ = 10·Dq  (cm⁻¹)",
+                "y_label": "Ground-term energy  (cm⁻¹)",
+                "series": series,
+                "critical_delta_cm1": crossing_dq,
+                "critical_Dq_cm1": (crossing_dq / 10.0) if crossing_dq is not None else None,
+            },
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+
+def _register_correlation_diagram(mcp: FastMCP) -> None:
+    """Three-axis correlation diagram (free ion / weak field / strong field).
+
+    The Tsuchida-style correlation diagram is the classical pedagogical
+    bridge between free-ion term symbols (left axis) and strong-field
+    configurations like t₂g^x e_g^y (right axis), with the intermediate
+    weak-field crystal-field-split terms in the middle. Featured in
+    Cotton's *Chemical Applications of Group Theory* and Figgis &
+    Hitchman's *Ligand Field Theory and Its Applications* §4.
+    """
+
+    @mcp.tool(
+        name="ts_correlation_diagram_app",
+        title="Correlation diagram (free ion / weak field / strong field)",
+        version=_pkg_version,
+        tags={"tanabesugano", "correlation", "pedagogy", "term-symbols"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_correlation_diagram_app(
+        d_count: int,
+        B: float | None = None,
+        C: float | None = None,
+        strong_field_Dq: float = 2000.0,
+    ) -> ToolResult:
+        """Render a three-axis correlation diagram.
+
+        - **Left (x = 0)**: free-ion term energies at Δ = 0.
+        - **Middle (x = 1)**: terms at a moderate Δ (Dq = 800 cm⁻¹) —
+          the weak-field region.
+        - **Right (x = 2)**: terms at strong Δ (Dq = ``strong_field_Dq``) —
+          the strong-field region where t₂g^x e_g^y configurations
+          dominate.
+
+        Each term symbol becomes one Chart.js series with three points
+        at (0, E_free), (1, E_weak), (2, E_strong), so the renderer
+        draws lines connecting equivalent terms across the three
+        regimes. Term colours follow the existing `plot_style.color_for`
+        palette; labels use ``term_to_unicode``.
+
+        Args:
+            d_count: d-electron count (2–8).
+            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+                omitted.
+            strong_field_Dq: Dq value (cm⁻¹) defining the strong-field
+                column (default 2000 — well into the strong-field limit
+                for any first-row transition metal).
+
         """
         import json as _json
 
         from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp.tools._shared import resolve_bc
+        from tanabesugano.plot_style import color_for
+        from tanabesugano.plot_style import term_to_unicode
 
-        b_vals = [b_min + (b_max - b_min) * i / max(steps - 1, 1) for i in range(steps)]
-        c_vals = [c_min + (c_max - c_min) * j / max(steps - 1, 1) for j in range(steps)]
-        cells: list[dict] = []
-        table_rows: list[dict] = []
-        for b in b_vals:
-            for c in c_vals:
-                try:
-                    terms = compute_point(d_count, Dq, b, c)
-                    energies = terms.get(term, [])
-                    v = float(energies[level]) if level < len(energies) else float("nan")
-                except Exception:
-                    v = float("nan")
-                cells.append({"x": round(b, 1), "y": round(c, 1), "v": round(v, 1)})
-                table_rows.append({"B": round(b, 1), "C": round(c, 1), "energy_cm": round(v, 1)})
+        b_val, c_val = resolve_bc(d_count, B, C)
+        free_terms = compute_point(d_count, 0.0, b_val, c_val)
+        weak_terms = compute_point(d_count, 800.0, b_val, c_val)
+        strong_terms = compute_point(d_count, strong_field_Dq, b_val, c_val)
 
-        payload = {
-            "title": f"d{d_count} {term} (level {level}) at Dq={Dq:g}",
-            "cells": cells,
-            "x_label": "Racah B (cm⁻¹)",
-            "y_label": "Racah C (cm⁻¹)",
-            "x_values": [round(b, 1) for b in b_vals],
-            "y_values": [round(c, 1) for c in c_vals],
-        }
-        meta_json = _json.dumps(payload)
+        # All three points share the same key set (solver always emits
+        # the full term list per d_count); collect by term name then
+        # take the lowest eigenvalue per term to keep the chart readable.
+        all_term_names = sorted(
+            set(free_terms) | set(weak_terms) | set(strong_terms),
+            key=lambda n: (_multiplicity_of(n), n),
+        )
+        series: list[dict] = []
+        for term_name in all_term_names:
 
-        with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
-            pf.Heading(content=payload["title"], level=3)
-            pf.Muted(
-                content=(
-                    "Chart.js heatmap (chartjs-chart-matrix) renders in app-capable "
-                    "clients via the linked resource. The fallback table below "
-                    "always works."
-                ),
+            def lowest(d: dict[str, list[float]], k: str = term_name) -> float | None:
+                eigs = d.get(k) or []
+                return round(float(min(eigs)), 1) if eigs else None
+
+            data = [
+                {"x": 0, "y": lowest(free_terms)},
+                {"x": 1, "y": lowest(weak_terms)},
+                {"x": 2, "y": lowest(strong_terms)},
+            ]
+            # Only drop terms the solver couldn't evaluate at all — the
+            # ground manifold's flat near-zero line *is* the pedagogical
+            # point of a correlation diagram (ground-term continuity from
+            # free-ion through weak field to strong field), so we no
+            # longer filter on a span threshold.
+            ys = [pt["y"] for pt in data if pt["y"] is not None]
+            if not ys:
+                continue
+            series.append(
+                {
+                    "label": term_to_unicode(term_name),
+                    "color": color_for(term_name),
+                    "data": data,
+                },
             )
-            # Stash the heatmap payload in a hidden Text so a client iframe
-            # consuming ui://tanabesugano/heatmap.html can read it via the
-            # MCP resource. Falls back to the DataTable for non-app clients.
-            pf.Text(content=meta_json, css_class="hidden")
-            pf.DataTable(
-                columns=[
-                    pf.DataTableColumn(key="B", header="B (cm⁻¹)", sortable=True),
-                    pf.DataTableColumn(key="C", header="C (cm⁻¹)", sortable=True),
-                    pf.DataTableColumn(key="energy_cm", header="Energy (cm⁻¹)", sortable=True),
-                ],
-                rows=table_rows,
-                search=True,
-            )
-        return app
 
-    @mcp.resource(
-        HEATMAP_URI,
-        mime_type="text/html",
-        title="Tanabe-Sugano parameter heatmap (Chart.js)",
-        app=AppConfig(
-            csp=ResourceCSP(
-                resource_domains=[
-                    "https://cdn.jsdelivr.net",
-                    "https://unpkg.com",
-                ],
-            ),
-        ),
-    )
-    def heatmap_view() -> str:
-        """Chart.js + chartjs-chart-matrix renderer for ts_parameter_heatmap_app."""
-        return _HEATMAP_HTML
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# New innovative tools
-# ─────────────────────────────────────────────────────────────────────────
+        title = (
+            f"d{d_count} correlation diagram — "
+            f"free ion / weak field (Dq=800) / strong field (Dq={strong_field_Dq:g}) — "
+            f"B={b_val:g}, C={c_val:g} cm⁻¹"
+        )
+        payload = _json.dumps(
+            {
+                "title": title,
+                "x_label": "Free ion  →  Weak field  →  Strong field",
+                "y_label": "E  (cm⁻¹)",
+                "series": series,
+            },
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
 def _register_overlay(mcp: FastMCP) -> None:
@@ -849,7 +1167,6 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 pf.Heading(content="No valid peaks provided", level=3)
             return app
 
-        default_B = DEFAULTS[d_count]["default_B"]
         default_C = DEFAULTS[d_count]["default_C"]
         ground_mult = _multiplicity_of(DEFAULTS[d_count]["ground_term"])
 
@@ -1231,10 +1548,23 @@ def _register_spectrum(mcp: FastMCP) -> None:
 
     @mcp.resource(
         SPECTRUM_URI,
-        mime_type="text/html",
+        # MCP Apps spec — UI resources must use the profiled MIME type.
+        # Claude Desktop advertises ``extensions.io.modelcontextprotocol/ui``
+        # with ``mimeTypes: ["text/html;profile=mcp-app"]`` in initialize;
+        # plain ``text/html`` is rejected with "Unsupported UI resource
+        # content format". Reference:
+        # https://modelcontextprotocol.io/extensions/apps/overview
+        mime_type="text/html;profile=mcp-app",
         title="TanabeSugano simulated spectrum (Chart.js)",
         app=AppConfig(
             csp=ResourceCSP(resource_domains=["https://cdn.jsdelivr.net", "https://unpkg.com"]),
+            # MCP Apps spec: the host sandboxes every UI iframe with no
+            # Permissions Policy by default — ``navigator.clipboard.write``
+            # is rejected unless the resource explicitly requests it via
+            # ``_meta.ui.permissions.clipboardWrite``. Required for the
+            # in-iframe "Copy to clipboard" button to succeed.
+            # https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx
+            permissions=ResourcePermissions(clipboard_write={}),
         ),
     )
     def spectrum_view() -> str:
@@ -1245,6 +1575,340 @@ def _register_spectrum(mcp: FastMCP) -> None:
 # ─────────────────────────────────────────────────────────────────────────
 # Internals
 # ─────────────────────────────────────────────────────────────────────────
+
+
+def _register_oxidation_landscape(mcp: FastMCP) -> None:
+    """Energy-state landscape across all supported d-configurations.
+
+    For a fixed (Dq, B, C), plot every eigenvalue of every d^n (d²–d⁸) on a
+    single Chart.js chart — x = d-electron count, y = energy. One series per
+    spin multiplicity (singlet, triplet, …). Lets the user see at a glance
+    how the term-energy spread evolves across the d-block at fixed
+    crystal-field strength.
+    """
+    # Colour-blind-safe palette keyed by spin multiplicity (2S+1).
+    _MULT_COLOR: dict[int, str] = {
+        1: "#888888",  # singlet
+        2: "#0072B2",  # doublet
+        3: "#009E73",  # triplet
+        4: "#D55E00",  # quartet
+        5: "#CC79A7",  # quintet
+        6: "#E69F00",  # sextet
+    }
+
+    @mcp.tool(
+        name="ts_oxidation_landscape_app",
+        title="Energies across d² – d⁸ at fixed Racah (Dq, B, C)",
+        version=_pkg_version,
+        tags={"tanabesugano", "compare", "interactive", "oxidation"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_oxidation_landscape_app(
+        Dq: float = 1000.0,
+        B: float = 900.0,
+        C: float = 4000.0,
+        max_energy_cm: float = 40000.0,
+        style: str = "scatter",
+        broadening_cm: float = 800.0,
+        n_energy_points: int = 200,
+    ) -> ToolResult:
+        """Plot every eigenvalue of d² – d⁸ at the same (Dq, B, C) on one chart.
+
+        Each point is one term-symbol level. X is the d-electron count (the
+        bottom axis), Y is energy (the left axis). Series are grouped by spin
+        multiplicity so the user can read off how spin-allowed vs forbidden
+        bands shift across the periodic d-block.
+
+        Args:
+            Dq: Octahedral crystal-field parameter (cm⁻¹). Default 1000 is
+                mid-range for first-row transition metals.
+            B, C: Racah parameters (cm⁻¹). Defaults give an "average" 3d
+                metal; pick values from `_defaults.py` for specific ions.
+            max_energy_cm: Clip points above this energy so the visible
+                window stays within typical UV-Vis range (default 40 000
+                cm⁻¹, just past the UV cutoff).
+            style: "scatter" (default) draws each eigenvalue as a discrete
+                dot — independent d-counts are *not* joined by lines. Use
+                "density" to render a Gaussian-broadened 2D heatmap where
+                each (d, E) cell intensity = Σᵢ exp(-(E − Eᵢ)² / 2σ²) over
+                that d-count's eigenvalues, σ = broadening_cm.
+            broadening_cm: Gaussian σ for the density mode (cm⁻¹, default
+                800 — a typical d-d band FWHM is roughly 2.355σ ≈ 1900 cm⁻¹).
+                Ignored when style="scatter".
+            n_energy_points: Vertical resolution of the density grid
+                (default 200 cells per d-count). Ignored when style="scatter".
+
+        """
+        import json as _json
+        import math
+
+        from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
+        from tanabesugano.mcp._compute import compute_point
+
+        if style not in ("scatter", "density"):
+            return ToolResult(
+                content=[
+                    _mcp_types.TextContent(
+                        type="text",
+                        text=_json.dumps(
+                            {
+                                "title": "Error",
+                                "x_label": "",
+                                "y_label": "",
+                                "series": [],
+                                "error": f"style must be 'scatter' or 'density', got {style!r}",
+                            },
+                        ),
+                    ),
+                ],
+                is_error=True,
+            )
+
+        # Per-d-count list of (raw) eigenvalues above the ground manifold,
+        # within the visible energy window. Used by both modes.
+        per_d_energies: dict[int, list[float]] = {}
+        for d in SUPPORTED_D_COUNTS:
+            terms = compute_point(d, Dq, B, C)
+            es: list[float] = []
+            for eigs in terms.values():
+                for e in eigs:
+                    e_f = float(e)
+                    if e_f <= 1.0 or e_f > max_energy_cm:
+                        continue
+                    es.append(e_f)
+            per_d_energies[d] = es
+
+        title = f"d²–d⁸ energy landscape at Dq={Dq:g}, B={B:g}, C={C:g} cm⁻¹" + (
+            f"  [density σ={broadening_cm:g}]" if style == "density" else ""
+        )
+
+        if style == "density":
+            # Build a regular (d, E) grid and sum a Gaussian over every
+            # eigenvalue for that d-count. The cell value is unitless
+            # density; the consumer (heatmap.html) colour-maps it.
+            sigma = max(broadening_cm, 1.0)
+            two_sigma_sq = 2.0 * sigma * sigma
+            n_y = max(n_energy_points, 2)
+            energies_grid = [max_energy_cm * i / (n_y - 1) for i in range(n_y)]
+            cells: list[dict[str, float]] = []
+            for d in SUPPORTED_D_COUNTS:
+                eigs = per_d_energies[d]
+                for e_grid in energies_grid:
+                    if eigs:
+                        density = sum(
+                            math.exp(-((e_grid - e_i) ** 2) / two_sigma_sq) for e_i in eigs
+                        )
+                    else:
+                        density = 0.0
+                    cells.append(
+                        {"x": float(d), "y": round(e_grid, 1), "v": round(density, 4)},
+                    )
+            payload: dict[str, object] = {
+                "title": title,
+                "x_label": "d-electron count",
+                "y_label": "Energy E (cm⁻¹)",
+                "chart_type": "heatmap",
+                "cells": cells,
+            }
+        else:
+            # Scatter: one Chart.js series per spin multiplicity, each
+            # series tagged style="scatter" so the renderer disables line
+            # interpolation between independent d-counts.
+            buckets: dict[int, list[dict[str, float]]] = {}
+            for d in SUPPORTED_D_COUNTS:
+                terms = compute_point(d, Dq, B, C)
+                for term_name, eigs in terms.items():
+                    mult = _multiplicity_of(term_name)
+                    if mult <= 0:
+                        continue
+                    for e in eigs:
+                        e_f = float(e)
+                        if e_f <= 1.0 or e_f > max_energy_cm:
+                            continue
+                        buckets.setdefault(mult, []).append(
+                            {"x": float(d), "y": round(e_f, 1)},
+                        )
+
+            series = [
+                {
+                    "label": f"{mult}·(2S+1)",
+                    "color": _MULT_COLOR.get(mult, "#888"),
+                    "style": "scatter",
+                    "data": sorted(pts, key=lambda p: (p["x"], p["y"])),
+                }
+                for mult, pts in sorted(buckets.items())
+            ]
+            payload = {
+                "title": title,
+                "x_label": "d-electron count",
+                "y_label": "Energy E (cm⁻¹)",
+                "series": series,
+            }
+
+        return ToolResult(
+            content=[_mcp_types.TextContent(type="text", text=_json.dumps(payload))],
+        )
+
+
+def _register_compute_table(mcp: FastMCP) -> None:
+    """Sortable DataTable of every eigenvalue at one (Dq, B, C).
+
+    Solves the readability problem of raw eigenvalue dicts: a flat dict
+    keyed by term symbol with nested lists is impossible to scan. The table
+    sorts ascending by energy and adds spin-multiplicity / E/B columns. For
+    a visual scatter across d² – d⁸ see ``ts_oxidation_landscape_app``.
+    """
+
+    @mcp.tool(
+        name="ts_compute_app",
+        title="Term-energy table at one (Dq, B, C)",
+        version=_pkg_version,
+        tags={"tanabesugano", "compute", "table", "interactive"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=True,
+    )
+    def ts_compute_app(
+        d_count: int,
+        Dq: float,
+        B: float | None = None,
+        C: float | None = None,
+        max_energy_cm: float = 60000.0,
+    ) -> PrefabApp:
+        """Compute term energies and render them as a sortable, multiplicity-labelled table.
+
+        Produces the eigenvalues of the d^n ligand-field Hamiltonian at one
+        ``(Dq, B, C)`` point, sorted ascending by energy with multiplicity
+        and E/B columns. See ``ts_oxidation_landscape_app`` for a visual
+        scatter across d² – d⁸.
+
+        Args:
+            d_count: d-electron count (2–8).
+            Dq: Crystal-field parameter (cm⁻¹).
+            B, C: Racah parameters (cm⁻¹); per-configuration defaults if omitted.
+            max_energy_cm: Clip table above this energy (default
+                60 000 cm⁻¹; raise it to see deep-UV high-multiplicity levels).
+
+        """
+        from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._defaults import DEFAULTS
+        from tanabesugano.mcp.tools._shared import resolve_bc
+        from tanabesugano.plot_style import color_for
+        from tanabesugano.plot_style import term_to_unicode
+
+        if d_count not in DEFAULTS:
+            with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
+                pf.Heading(content="Invalid d_count", level=3)
+                pf.Muted(content=f"d_count must be 2..8, got {d_count}")
+            return app
+
+        b_val, c_val = resolve_bc(d_count, B, C)
+        terms = compute_point(d_count, Dq, b_val, c_val)
+
+        # Flatten to rows {term, level, energy_cm, energy_over_B, mult, color}.
+        rows: list[dict] = []
+        for term_name, eigs in terms.items():
+            mult = _multiplicity_of(term_name)
+            for level, e in enumerate(eigs):
+                e_f = float(e)
+                if e_f > max_energy_cm:
+                    continue
+                rows.append(
+                    {
+                        "term": term_to_unicode(term_name),
+                        "term_raw": term_name,
+                        "level": level,
+                        "energy_cm": round(e_f, 1),
+                        "energy_over_B": round(e_f / b_val, 3) if b_val else 0.0,
+                        "mult": str(mult),
+                        "color": color_for(term_name),
+                    },
+                )
+        rows.sort(key=lambda r: (r["energy_cm"], r["term_raw"], r["level"]))
+
+        # Strip plot: x = level multiplicity (jittered horizontally per term),
+        # y = energy. One series per spin manifold for legend filtering. Keep
+        # x distinct so points within one multiplicity don't overlap visually.
+        buckets: dict[int, list[dict]] = {}
+        for row in rows:
+            try:
+                m = int(row["mult"])
+            except ValueError:
+                continue
+            buckets.setdefault(m, []).append(
+                {"x": float(m), "y": row["energy_cm"], "term": row["term"]},
+            )
+        chart_series = [
+            {
+                "label": f"{m}·(2S+1)",
+                "color": {
+                    1: "#888888",
+                    2: "#0072B2",
+                    3: "#009E73",
+                    4: "#D55E00",
+                    5: "#CC79A7",
+                    6: "#E69F00",
+                }.get(m, "#666"),
+                "data": pts,
+            }
+            for m, pts in sorted(buckets.items())
+        ]
+
+        # Build the table headers explicitly so the column widths are stable.
+        ground_term_oct = next(
+            (r["term_raw"] for r in rows if r["energy_cm"] <= 1.0),
+            "—",
+        )
+
+        with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
+            pf.Heading(
+                content=f"d{d_count} levels at Dq={Dq:g}, B={b_val:g}, C={c_val:g} cm⁻¹",
+                level=3,
+            )
+            with pf.Grid(columns=3, gap=4):
+                pf.Metric(
+                    label="Ground term",
+                    value=term_to_unicode(ground_term_oct),
+                    description=f"{DEFAULTS[d_count]['ground_term']} (free-ion)",
+                )
+                pf.Metric(
+                    label="Levels",
+                    value=str(len(rows)),
+                    description=f"≤ {max_energy_cm:,.0f} cm⁻¹",
+                )
+                pf.Metric(
+                    label="Highest",
+                    value=f"{rows[-1]['energy_cm']:,.0f}" if rows else "—",
+                    description="cm⁻¹",
+                )
+            pf.Muted(
+                content=(
+                    "Sortable table of every level at this (Dq, B, C). For a "
+                    "visual scatter across d² – d⁸ use "
+                    "ts_oxidation_landscape_app; for the full Tanabe-Sugano "
+                    "diagram use ts_diagram_app."
+                ),
+            )
+            # Note: Prefab LineChart renders as a black canvas in current
+            # Claude Desktop builds (verified empirically), so the strip plot
+            # is delivered through ts_oxidation_landscape_app (Chart.js)
+            # instead. This tool stays Prefab-native because the Metric +
+            # DataTable components render correctly.
+            _ = chart_series  # noqa: F841 — kept for future Chart.js variant
+            pf.DataTable(
+                columns=[
+                    pf.DataTableColumn(key="term", header="Term", sortable=True),
+                    pf.DataTableColumn(key="level", header="Lvl", sortable=True),
+                    pf.DataTableColumn(key="energy_cm", header="E (cm⁻¹)", sortable=True),
+                    pf.DataTableColumn(key="energy_over_B", header="E/B", sortable=True),
+                    pf.DataTableColumn(key="mult", header="2S+1", sortable=True),
+                ],
+                rows=rows,
+                search=True,
+            )
+        return app
 
 
 _BADGE_VARIANT_BY_MULT: dict[int, str] = {
@@ -1280,20 +1944,113 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
   <meta name="color-scheme" content="light dark">
   <title>Tanabe-Sugano diagram</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
   <style>
     html, body { margin: 0; padding: 0; background: transparent; }
     #wrap { padding: 8px; }
     canvas { max-height: 460px; }
     .hint { font-family: -apple-system, system-ui, sans-serif; color: #888; padding: 12px; font-size: 13px; }
+    #toolbar {
+      display: none;
+      gap: 6px;
+      padding: 4px 4px 6px 4px;
+      font-family: -apple-system, system-ui, sans-serif;
+      font-size: 12px;
+      align-items: center;
+    }
+    #toolbar button {
+      background: rgba(127,127,127,0.10);
+      color: inherit;
+      border: 1px solid rgba(127,127,127,0.35);
+      border-radius: 4px;
+      padding: 3px 9px;
+      cursor: pointer;
+      font: inherit;
+      line-height: 1.4;
+    }
+    #toolbar button:hover { background: rgba(127,127,127,0.20); }
+    #toolbar button:active { background: rgba(127,127,127,0.30); }
+    #toolbar .flash { opacity: 0; transition: opacity .2s; margin-left: 4px; color: #4a8; }
+    #toolbar .flash.err { color: #c64; }
+    #toolbar .flash.show { opacity: 1; }
   </style>
 </head>
 <body>
-  <div id="wrap"><canvas id="chart"></canvas></div>
+  <div id="wrap">
+    <div id="toolbar">
+      <button id="btn-png" type="button" title="Send the rendered chart to the conversation as a PNG image (you can save it from there)">Send PNG to chat</button>
+      <button id="btn-clip" type="button" title="Copy the rendered chart to the clipboard as a PNG image">Copy to clipboard</button>
+      <span id="flash" class="flash"></span>
+    </div>
+    <canvas id="chart"></canvas>
+  </div>
   <div id="hint" class="hint">Waiting for result…</div>
   <script type="module">
     import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.0/app-with-deps";
     const app = new App({ name: "TS Chart", version: "1.0.0" });
     let chart = null;
+    let lastTitle = "tanabesugano-chart";
+
+    const toolbar = document.getElementById('toolbar');
+    const flash = document.getElementById('flash');
+    const slug = (s) => (s || 'chart')
+      .toString().trim().toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '').slice(0, 80) || 'chart';
+    const showFlash = (msg, isErr) => {
+      flash.textContent = msg;
+      flash.classList.toggle('err', !!isErr);
+      flash.classList.add('show');
+      setTimeout(() => flash.classList.remove('show'), 1800);
+    };
+    // Both buttons rely on Chart.js' built-in ``toBase64Image()`` to capture
+    // the current canvas, but they exit the sandbox in different ways:
+    //
+    //   * "Send PNG to chat" calls back via ``app.callTool('ts_emit_png')``
+    //     so the server echoes the PNG as ImageContent in the conversation.
+    //     This is the only spec-compliant way to get a file *out* of the
+    //     iframe: the MCP Apps spec deliberately omits a "downloads"
+    //     permission (supported set is camera, microphone, geolocation,
+    //     clipboardWrite — see
+    //     github.com/modelcontextprotocol/ext-apps specification/2026-01-26).
+    //   * "Copy to clipboard" uses canvas.toBlob() + ClipboardItem, which
+    //     works once the resource declares ``_meta.ui.permissions.clipboardWrite``
+    //     (we declare that via ResourcePermissions on the @mcp.resource).
+    document.getElementById('btn-png').addEventListener('click', async () => {
+      if (!chart) return;
+      try {
+        const dataUrl = chart.toBase64Image('image/png', 1.0);
+        const b64 = (dataUrl.split(',', 2)[1] || dataUrl);
+        showFlash('Sending…');
+        await app.callTool({ name: 'ts_emit_png', arguments: { png_base64: b64, title: lastTitle } });
+        showFlash('Sent to chat');
+      } catch (e) {
+        showFlash('Send failed', true);
+      }
+    });
+    document.getElementById('btn-clip').addEventListener('click', () => {
+      if (!chart) return;
+      const canvas = document.getElementById('chart');
+      if (!canvas || !canvas.toBlob) { showFlash('Copy unsupported', true); return; }
+      canvas.toBlob(async (blob) => {
+        if (!blob) { showFlash('Copy failed', true); return; }
+        try {
+          if (!navigator.clipboard || !window.ClipboardItem) {
+            showFlash('Clipboard unavailable', true);
+            return;
+          }
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          showFlash('Copied!');
+        } catch (e) {
+          // The resource declares ``_meta.ui.permissions.clipboardWrite``,
+          // so Claude Desktop adds ``allow="clipboard-write"`` to the
+          // iframe. Firefox still rejects image/png clipboard writes from
+          // any iframe — treat that as a graceful fallback path.
+          showFlash('Copy denied (use Send PNG to chat)', true);
+        }
+      }, 'image/png');
+    });
+
     app.ontoolresult = ({ content }) => {
       const txt = (content || []).find(c => c.type === 'text');
       if (!txt) return;
@@ -1303,18 +2060,79 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
         return;
       }
       document.getElementById('hint').style.display = 'none';
+      toolbar.style.display = 'flex';
+      if (p && p.title) lastTitle = p.title;
       if (chart) chart.destroy();
       const ctx = document.getElementById('chart').getContext('2d');
-      const datasets = (p.series || []).map(s => ({
-        label: s.label || '',
-        data: s.data || [],
-        borderColor: s.color || '#888',
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        pointRadius: 0,
-        borderDash: s.borderDash || [],
-        tension: 0.3,
-      }));
+
+      // Heatmap mode: payload carries `chart_type: "heatmap"` + `cells: [{x,y,v}]`.
+      // Used by ts_oxidation_landscape_app(style="density") to render a
+      // Gaussian-broadened density per d-count via chartjs-chart-matrix.
+      if (p.chart_type === 'heatmap') {
+        const cells = p.cells || [];
+        const vs = cells.map(c => c.v).filter(v => Number.isFinite(v));
+        const vmin = vs.length ? Math.min(...vs) : 0;
+        const vmax = vs.length ? Math.max(...vs) : 1;
+        const xVals = Array.from(new Set(cells.map(c => c.x))).sort((a, b) => a - b);
+        const yVals = Array.from(new Set(cells.map(c => c.y))).sort((a, b) => a - b);
+        const colorAt = (v) => {
+          if (!Number.isFinite(v)) return 'rgba(0,0,0,0)';
+          const t = (v - vmin) / (vmax - vmin || 1);
+          // viridis-ish: dark purple → teal → yellow.
+          const r = Math.round(68 + (253 - 68) * t);
+          const g = Math.round(1  + (231 - 1)  * t);
+          const b = Math.round(84 + (37  - 84) * t);
+          return `rgb(${r},${g},${b})`;
+        };
+        chart = new Chart(ctx, {
+          type: 'matrix',
+          data: {
+            datasets: [{
+              label: p.title || 'density',
+              data: cells,
+              backgroundColor: (cx) => colorAt(cx.raw.v),
+              width: ({chart}) =>
+                (chart.chartArea?.width  || 1) / Math.max(xVals.length, 1) - 1,
+              height: ({chart}) =>
+                (chart.chartArea?.height || 1) / Math.max(yVals.length, 1) - 1,
+            }],
+          },
+          options: {
+            responsive: true,
+            animation: false,
+            plugins: {
+              legend: { display: false },
+              title: { display: !!p.title, text: p.title || '', font: { size: 14 } },
+              tooltip: { callbacks: { label: (i) =>
+                `${p.x_label || 'x'}=${i.raw.x}  ${p.y_label || 'y'}=${i.raw.y}: ${i.raw.v.toFixed?.(3) ?? i.raw.v}` } },
+            },
+            scales: {
+              x: { type: 'linear', title: { display: true, text: p.x_label || '', font: { size: 12 } } },
+              y: { type: 'linear', title: { display: true, text: p.y_label || '', font: { size: 12 } } },
+            },
+          },
+        });
+        return;
+      }
+
+      // Default line/scatter mode. Per-series `style: "scatter"` disables
+      // the line interpolation and shows filled dots — used by
+      // ts_oxidation_landscape_app(style="scatter") so independent
+      // d-counts don't get joined by misleading sawtooth segments.
+      const datasets = (p.series || []).map(s => {
+        const isScatter = s.style === 'scatter';
+        return {
+          label: s.label || '',
+          data: s.data || [],
+          borderColor: s.color || '#888',
+          backgroundColor: isScatter ? (s.color || '#888') : 'transparent',
+          borderWidth: 1.5,
+          pointRadius: isScatter ? 4 : 0,
+          showLine: !isScatter,
+          borderDash: s.borderDash || [],
+          tension: 0.3,
+        };
+      });
       chart = new Chart(ctx, {
         type: 'line',
         data: { datasets },
