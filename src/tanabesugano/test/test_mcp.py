@@ -167,7 +167,7 @@ def test_ui_resources_request_clipboard_write_permission() -> None:
 
 def test_ts_emit_png_echoes_image_content() -> None:
     """The in-iframe "Send PNG to chat" button calls back via
-    ``app.callTool('ts_emit_png', {png_base64})`` to push the rendered
+    ``app.callServerTool('ts_emit_png', {png_base64})`` to push the rendered
     chart back into the conversation as an MCP image attachment — this
     is the only spec-compliant export path (the MCP Apps sandbox has no
     "downloads" permission, so ``<a download>`` is suppressed). Pin the

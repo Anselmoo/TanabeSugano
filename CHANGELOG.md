@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- PNG export ("Send PNG to chat" button) was silently failing with "Send failed": the iframe JavaScript called `app.callTool()` but the MCP Apps SDK exposes `app.callServerTool()` — renamed to the correct method
+
 ### Removed
 - `ts_parameter_heatmap_app`: a fixed-Dq sweep of Racah (B, C) of a single eigenvalue is not a standard coordination-chemistry visualisation (absent from Cotton, Figgis & Hitchman, Bertini, Lever) and the default user call against a ground-term level trivially returned 0 cm⁻¹ everywhere (user-reported uniformly dark heatmap for `d8 3_A_2 level 0 at Dq=900`). Replaced by three TS-companion tools (`ts_orgel_diagram_app` shipped now; `ts_spin_crossover_app` and `ts_correlation_diagram_app` follow)
 - `ts_explore_app`: the Prefab `Form.from_model` rendered as a frozen panel in Claude Desktop, and its `on_submit=CallTool(tool="ts_diagram_app")` wiring went stale after `ts_diagram_app` migrated to the Chart.js `ToolResult` path (the form's submit no longer matched a Prefab-state consumer). Discovery now goes through the `tanabesugano_why` / `tanabesugano_explain_complex` prompts or `ts_supported_configs` → `ts_diagram_app`
