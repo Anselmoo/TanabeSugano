@@ -2006,7 +2006,7 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
     // Both buttons rely on Chart.js' built-in ``toBase64Image()`` to capture
     // the current canvas, but they exit the sandbox in different ways:
     //
-    //   * "Send PNG to chat" calls back via ``app.callTool('ts_emit_png')``
+    //   * "Send PNG to chat" calls back via ``app.callServerTool('ts_emit_png')``
     //     so the server echoes the PNG as ImageContent in the conversation.
     //     This is the only spec-compliant way to get a file *out* of the
     //     iframe: the MCP Apps spec deliberately omits a "downloads"
@@ -2022,7 +2022,7 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
         const dataUrl = chart.toBase64Image('image/png', 1.0);
         const b64 = (dataUrl.split(',', 2)[1] || dataUrl);
         showFlash('Sending…');
-        await app.callTool({ name: 'ts_emit_png', arguments: { png_base64: b64, title: lastTitle } });
+        await app.callServerTool({ name: 'ts_emit_png', arguments: { png_base64: b64, title: lastTitle } });
         showFlash('Sent to chat');
       } catch (e) {
         showFlash('Send failed', true);
