@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-06-09
 ### Fixed
 - PNG export ("Send PNG to chat" button) was silently failing with "Send failed": the iframe JavaScript called `app.callTool()` but the MCP Apps SDK exposes `app.callServerTool()` — renamed to the correct method
 
