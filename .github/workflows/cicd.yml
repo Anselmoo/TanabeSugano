@@ -341,7 +341,7 @@ jobs:
         run: uv sync --all-groups --extra mcp
       - name: Generate Changelog
         run: |
-          uv run repo-release-tools changelog --strategy auto --output RELEASE_CHANGELOG.md
+          uv run repo-release-tools release notes --format md > RELEASE_CHANGELOG.md
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
