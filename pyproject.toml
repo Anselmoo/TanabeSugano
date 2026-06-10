@@ -1,6 +1,6 @@
 [project]
 name = "tanabesugano"
-version = "1.7.0"
+version = "1.7.1"
 description = "A python-solver for Tanabe-Sugano and Energy-Correlation diagrams"
 authors = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
 maintainers = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]

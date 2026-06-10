@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-06-10
 ### Fixed
 
 - correct workflow pipeline for release
