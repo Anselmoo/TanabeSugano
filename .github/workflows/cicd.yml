@@ -154,33 +154,19 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Build .mcpb bundle
         id: mcp2mcpb
         uses: Anselmoo/mcp2mcpb@5e2f399464203530cd84f3e8325fb648de3a6f05 # v0.4.0
         with:
           package: tanabesugano
-      - name: Validate .mcpb archive
-        run: |
-          python - <<'PY'
-          import glob, json, sys, zipfile
-          paths = glob.glob("dist/*.mcpb")
-          if not paths:
-              sys.exit("No .mcpb file found in dist/")
-          path = paths[0]
-          with zipfile.ZipFile(path) as zf:
-              names = zf.namelist()
-              for required in ("manifest.json", "server/main.py"):
-                  if required not in names:
-                      sys.exit(f"Missing required archive member: {required}")
-              manifest = json.loads(zf.read("manifest.json"))
-          assert manifest["name"] == "tanabesugano", manifest
-          assert manifest["server"]["type"] == "uv", manifest
-          assert manifest["server"]["mcp_config"]["command"] == "uv", manifest
-          print(f"OK: {path}")
-          PY
+          registry: pypi
+          mode: reference
+          entry-script: tanabesugano-mcp
+          extras: mcp
+          no-probe: "true"
+          attach-to-release: "false"
+
       - uses: actions/upload-artifact@v4
         with:
           name: mcpb-package
