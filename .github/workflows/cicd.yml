@@ -157,7 +157,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - run: python scripts/build_mcpb.py
+      - name: Build .mcpb bundle
+        id: mcp2mcpb
+        uses: Anselmoo/mcp2mcpb@5e2f399464203530cd84f3e8325fb648de3a6f05 # v0.4.0
+        with:
+          package: tanabesugano
       - name: Validate .mcpb archive
         run: |
           python - <<'PY'
