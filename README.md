@@ -276,7 +276,7 @@ Add to `claude_desktop_config.json`:
 
 ### One-click via `.mcpb` bundle
 
-Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the [`Build .mcpb package`](.github/workflows/mcpb.yml) workflow) that Claude Desktop can install in one step — drag the file onto the Claude Desktop window.
+Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the `Build .mcpb bundle` job in [`cicd.yml`](.github/workflows/cicd.yml)) that Claude Desktop can install in one step — drag the file onto the Claude Desktop window. The bundle pins the exact published version and launches the `tanabesugano-mcp` entry point with the `[mcp]` extra; both are asserted by `scripts/validate_mcpb.py` before the release is created.
 
 ### Exposed tools
 

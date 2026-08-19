@@ -1,6 +1,6 @@
 repos:
   -   repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v4.5.0
+      rev: v6.0.0
       hooks:
         - id: check-case-conflict
         - id: check-merge-conflict
@@ -8,13 +8,8 @@ repos:
         - id: check-yaml
         - id: end-of-file-fixer
         - id: trailing-whitespace
-  -   repo: https://github.com/asottile/pyupgrade
-      rev: v3.15.2
-      hooks:
-        - id: pyupgrade
-          args: [--py310-plus]
   -   repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.14.4
+      rev: v0.16.3
       hooks:
         - id: ruff
           types_or: [python, pyi]
@@ -22,7 +17,7 @@ repos:
         - id: ruff-format
           types_or: [python, pyi]
   -   repo: https://github.com/Anselmoo/repo-release-tools
-      rev: v1.8.3
+      rev: v1.15.0
       hooks:
         - id: rrt-branch-name
         - id: rrt-commit-subject
