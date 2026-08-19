@@ -5,6 +5,14 @@
 ## [1.8.0-alpha.1] - 2026-08-19
 ### Fixed
 
+- CI could not resolve `astral-sh/setup-uv@v10`: that project stopped publishing
+  floating major-version tags after v7, so `v8`/`v9`/`v10` do not exist as refs. Pinned
+  to the exact `v10.0.1` release tag, which Dependabot's new `github-actions` coverage
+  keeps current
+- 7 npm advisories in `docs/package-lock.json` (5 high — vite path traversal and
+  arbitrary file read, rollup path traversal, nanoid, postcss). Resolved within the
+  existing semver ranges; the docs site still builds
+
 - **the release pipeline never produced a GitHub Release.** `rrt release notes` was
   invoked with no target, so it read `[Unreleased]` — which `changelog_workflow =
   "incremental"` empties at bump time — and exited 1 on every tag. The job failed
