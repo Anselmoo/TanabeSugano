@@ -27,10 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # Exact tag, not a floating major: astral-sh/setup-uv stopped publishing
-      # major-version tags after v7 (v8/v9/v10 do not exist as refs). Dependabot's
-      # github-actions ecosystem keeps this current.
-      - uses: astral-sh/setup-uv@v10.0.1
+      # SHA-pinned with a version comment, which is how setup-uv documents its own
+      # usage: the project stopped publishing floating major tags after v7, so
+      # @v10 is not a resolvable ref. Dependabot's github-actions ecosystem bumps
+      # the SHA and the comment together.
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
@@ -61,7 +62,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
@@ -93,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -119,7 +120,7 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
@@ -137,7 +138,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
@@ -155,7 +156,7 @@ jobs:
     needs: [build]
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
@@ -354,7 +355,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
@@ -368,28 +369,18 @@ jobs:
         id: rel
         run: uv run --no-project --with packaging python scripts/release_version.py --ref-name "$GITHUB_REF_NAME"
 
-      # This project uses `changelog_workflow = "incremental"`, so the bump PR
-      # moves [Unreleased] into a versioned heading. A bare `rrt release notes`
-      # therefore reads an always-empty [Unreleased] and exits 1 — the exact
-      # failure that killed v1.7.0, v1.7.1 and v1.7.2. Target the tag's own
-      # section, and never let note generation fail a release whose artifacts
-      # are already on PyPI.
+      # The fallback chain lives in scripts/release_notes.py so each branch is
+      # testable outside CI. Summary: this project uses
+      # `changelog_workflow = "incremental"`, so the bump PR moves [Unreleased]
+      # into a versioned heading; a bare `rrt release notes` therefore reads an
+      # always-empty [Unreleased] and exits 1 — the exact failure that killed
+      # v1.7.0, v1.7.1 and v1.7.2.
       - name: Generate changelog body
         run: |
-          set -uo pipefail
-          VERSION="${{ steps.rel.outputs.version }}"
-          RAW_VERSION="${{ steps.rel.outputs.raw_version }}"
-          for candidate in "$RAW_VERSION" "$VERSION"; do
-            if uv run rrt release notes --version "$candidate" --format md --output RELEASE_CHANGELOG.md; then
-              exit 0
-            fi
-          done
-          echo "::warning::no [$RAW_VERSION] changelog section; falling back to --latest-released"
-          if uv run rrt release notes --latest-released --format md --output RELEASE_CHANGELOG.md; then
-            exit 0
-          fi
-          echo "::warning::no released changelog section found; emitting a minimal body"
-          printf '## %s\n\nSee [CHANGELOG.md](CHANGELOG.md) for details.\n' "$VERSION" > RELEASE_CHANGELOG.md
+          uv run python scripts/release_notes.py \
+            --version "${{ steps.rel.outputs.version }}" \
+            --raw-version "${{ steps.rel.outputs.raw_version }}" \
+            --output RELEASE_CHANGELOG.md
       - name: Show release body
         run: cat RELEASE_CHANGELOG.md
 
@@ -443,7 +434,7 @@ jobs:
     needs: [release]
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}

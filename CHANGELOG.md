@@ -48,7 +48,14 @@
 
 - `scripts/validate_mcpb.py` — asserts a built bundle's launch recipe (entry point,
   `[mcp]` extra, exact version pin) before it is attached to a Release. Verified to
-  reject the bundle the previous pipeline produced
+  reject the bundle the previous pipeline produced. Expectations are derived from
+  `pyproject.toml` (package name, the console script targeting the `mcp` package, and
+  the `mcp` extra) while the workflow passes them to the builder explicitly, so the
+  two sources cross-check each other
+- `scripts/release_notes.py` — owns the release-body fallback chain (tag spelling →
+  PEP 440 form → `--latest-released` → minimal body) outside the workflow YAML, so
+  every branch can be exercised locally. It cannot fail: by the time it runs the
+  artifacts are already on PyPI
 - `scripts/release_version.py` — single source of truth for resolving a tag to its
   PEP 440 version, detecting pre-releases, and refusing to build when a tag disagrees
   with the artifact actually built
