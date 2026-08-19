@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.8.0-alpha.1] - 2026-08-19
 ### Fixed
 
 - **the release pipeline never produced a GitHub Release.** `rrt release notes` was
