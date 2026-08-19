@@ -2,6 +2,89 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **the release pipeline never produced a GitHub Release.** `rrt release notes` was
+  invoked with no target, so it read `[Unreleased]` — which `changelog_workflow =
+  "incremental"` empties at bump time — and exited 1 on every tag. The job failed
+  after PyPI had already published, and `release-assets` was skipped, so v1.7.0,
+  v1.7.1 and v1.7.2 shipped to PyPI with no Release and no attached artifacts. The
+  release job now targets the tag's own changelog section, falls back to
+  `--latest-released` and then to a minimal body, and never fails a release whose
+  artifacts are already public
+- **the `.mcpb` bundle could not start.** Bundle generation relied on entry-script
+  auto-detection, which picks the console script matching the package name — so the
+  manifest launched the `tanabesugano` argparse CLI instead of `tanabesugano-mcp`.
+  Under Claude Desktop the process sat on stdin and never answered the JSON-RPC
+  `initialize` request (reproduced locally: `mcp2mcpb sandbox` times out). The entry
+  script is now passed explicitly and asserted before release
+- **`.mcpb` bundles were not version-pinned.** The runtime reference was
+  `tanabesugano[mcp]` with no `==`, so a bundle labelled 1.7.2 installed whatever was
+  newest on PyPI. Bundles now pin the exact published version
+- **a failed tag pipeline could never be re-run.** `publish-pypi` had no
+  `skip-existing`, so any re-run 400'd on the already-uploaded files and could never
+  reach the release job
+- pre-release tags were published as stable releases. `prerelease:` was hardcoded
+  `false`, and the obvious fix — pattern-matching the tag — is also wrong, because
+  `rrt bump alpha` writes SemVer-style `1.8.0-alpha.1` whose PEP 440 normalisation is
+  `1.8.0a1`; a `(a|b|rc)[0-9]*$` regex reads the raw string as stable. Tags are now
+  parsed with `packaging.version.Version`
+- creating a Release by hand re-triggered the whole pipeline via `on: release:
+  [published]`, and that path failed at SBOM with `Resource not accessible by
+  integration`. The trigger is removed; tags are the only release path
+- `test_front.py` used the `script_runner.run(a, b, c)` form deprecated by
+  pytest-console-scripts
+
+### Added
+
+- `scripts/validate_mcpb.py` — asserts a built bundle's launch recipe (entry point,
+  `[mcp]` extra, exact version pin) before it is attached to a Release. Verified to
+  reject the bundle the previous pipeline produced
+- `scripts/release_version.py` — single source of truth for resolving a tag to its
+  PEP 440 version, detecting pre-releases, and refusing to build when a tag disagrees
+  with the artifact actually built
+- `mcpb-smoke` job — runs `mcp2mcpb sandbox` against the real bundle after the Release
+  exists, so a broken bundle reports loudly without blocking a published release
+- release process documentation in `CONTRIBUTING.md`, including the two version
+  spellings and how to verify a release body before pushing a tag
+- `[tool.coverage]` configuration (branch coverage, test files omitted); the project
+  previously ran coverage with no configuration at all
+- `CITATION.cff` registered as an `rrt` version target — it had sat at 1.4.1 (2023)
+  through nine releases
+
+### Changed
+
+- `release` and `release-assets` merged into one atomic job, removing the state that
+  broke v1.7.x: a Release created with zero assets, or a PyPI publish with no Release.
+  `fail_on_unmatched_files` is now `true`, so a missing `.mcpb` is an error
+- the `.mcpb` bundle is built by invoking the pinned `mcp2mcpb==1.0.0` CLI directly
+  rather than through the composite action, whose input mapping treats `--from-dist`
+  and `--pin` as mutually exclusive — a release bundle needs both
+- all GitHub Actions updated (`checkout` v4→v7, `setup-uv` v5→v10, `upload-artifact`
+  v4→v7, `download-artifact` v4→v8, `action-gh-release` v2→v3, `repo-release-tools`
+  v1.8.3→v1.15.0, and others), clearing the Node-20-on-Node-24 runner warnings
+- dependency floors raised to versions that actually support `requires-python >=3.12`
+  (`pandas>=2.2`, `matplotlib>=3.9`, `prettytable>=3.11`) and ceilings added where a
+  major bump would be untested — notably `numpy<3`, whose version is baked into bundle
+  manifests
+- lifted the `pytest<9` and `pytest-cov<6` caps that were blocking upgrades; the suite
+  passes on pytest 9.1.1 / pytest-cov 7.1.0
+- `repo-release-tools` pinned consistently at 1.15.0 across `pyproject.toml`,
+  `.pre-commit-config.yaml` and the workflow, resolving a three-way version skew
+- Dependabot now covers `github-actions` and the previously ungoverned
+  `docs/package.json`, and tracks `uv` rather than bare `pip`
+- `uv_build` ceiling raised to `<0.14.0`; the previous `<0.12.0` already excluded the
+  uv in use
+
+### Removed
+
+- the `update` dependency — declared since the project's early history and never
+  imported anywhere in `src/` or `scripts/`
+- the `pyupgrade` pre-commit hook — redundant with ruff's `UP` rules under
+  `select = ["ALL"]`, and its `--py310-plus` target contradicted `requires-python >=3.12`
+- the stale `.github/workflows/mcpb.yml` references in `README.md` and `CLAUDE.md`;
+  that workflow was folded into `cicd.yml` and has not existed since
+
 ## [1.7.2] - 2026-06-22
 ### Changed
 - CI/CD: switch mcpb job to use `Anselmoo/mcp2mcpb` composite action with `--from-dist` to build bundles from locally-built wheel (pinned to SHA `b040bab` — pre-release v0.5)

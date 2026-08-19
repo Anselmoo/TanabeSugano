@@ -61,4 +61,17 @@ MCP layer (`src/tanabesugano/mcp/`):
 
 ## Release bundle (.mcpb)
 
-`scripts/build_mcpb.py` builds `dist/tanabesugano-<version>.mcpb` — a Claude Desktop / DXT bundle containing a manifest v0.4 and a stdlib-only `uv tool run` launcher shim. The `.github/workflows/mcpb.yml` workflow runs this on push, validates the archive, and uploads it as a build artifact.
+Two paths produce the bundle, and they are not interchangeable:
+
+- **CI / releases** — the `mcpb` job in `.github/workflows/cicd.yml` runs the pinned
+  `mcp2mcpb==1.0.0` CLI directly (not the composite action, whose input mapping treats
+  `--from-dist` and `--pin` as mutually exclusive; a release bundle needs both). It builds
+  offline from the freshly-built wheel and emits a version-pinned runtime reference.
+  `scripts/validate_mcpb.py` then asserts the launch recipe before the release is created,
+  and a post-release `mcpb-smoke` job runs `mcp2mcpb sandbox` against the real bundle.
+- **Local dev** — `poe build-mcpb-dev` runs `scripts/build_mcpb.py`, which points the
+  manifest at the local source tree. Use this to iterate without publishing.
+
+When changing either path, the launch recipe must end in `tanabesugano-mcp` and request
+`tanabesugano[mcp]==<version>`. Launching the `tanabesugano` CLI instead makes the bundle
+hang on stdin and never answer the MCP `initialize` handshake.

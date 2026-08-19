@@ -5,7 +5,29 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "uv"
+    directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      python-dev:
+        dependency-type: "development"
+
+  # Without this every action pin drifts unnoticed; that is how the workflow
+  # ended up several majors behind across the board.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # docs/package.json was previously ungoverned.
+  - package-ecosystem: "npm"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+    groups:
+      docs-npm:
+        patterns: ["*"]

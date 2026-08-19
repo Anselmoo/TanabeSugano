@@ -22,5 +22,5 @@ def test_frontapp():
 
 
 def test_cmd(script_runner: ScriptRunner) -> None:
-    ret = script_runner.run("tanabesugano", "--help")
+    ret = script_runner.run(["tanabesugano", "--help"])
     assert ret.success
