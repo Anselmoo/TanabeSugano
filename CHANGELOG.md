@@ -80,8 +80,10 @@
   passes on pytest 9.1.1 / pytest-cov 7.1.0
 - `repo-release-tools` pinned consistently at 1.15.0 across `pyproject.toml`,
   `.pre-commit-config.yaml` and the workflow, resolving a three-way version skew
-- Dependabot now covers `github-actions` and the previously ungoverned
-  `docs/package.json`, and tracks `uv` rather than bare `pip`
+- Dependabot now covers `github-actions`, `pre-commit` and the previously ungoverned
+  `docs/package.json`, and tracks `uv` (which understands `uv.lock`) rather than bare
+  `pip`. The `pre-commit` ecosystem exists precisely to stop the hook-rev drift found
+  here, where `repo-release-tools` was pinned at v1.8.3 while the lock resolved 1.9.0
 - `uv_build` ceiling raised to `<0.14.0`; the previous `<0.12.0` already excluded the
   uv in use
 
