@@ -2,6 +2,129 @@
 
 ## [Unreleased]
 
+## [2.0.0-alpha.1] - 2026-08-20
+### Changed
+
+- **Regenerated every committed artifact against the 2.0.0 CLI** — 42 CSVs, 28
+  interactive `.html` diagrams, both `manifest.json` indexes, the `examples/`
+  tables and figures, and the UV-Vis reference PNGs. The `.html` diagrams were
+  the worst of it: they still named `1_T_3`, an irrep that does not exist in
+  Oh, because nothing had regenerated them since the rename, and two carried
+  names from an older buggy scheme (`B_918.0_C_4132`, a truncated `C_413`).
+  `scripts/regenerate_ts_diagrams.py` now covers `.html` and `manifest.json`
+  as well as `.csv`, so all three are guarded by the existing CI drift gate
+  rather than only the CSVs
+- `examples/` moved from `.txt` to the `.csv` the CLI has actually emitted for
+  some time, and its two README figures were regenerated through the shared
+  renderer. They had been *screenshots of a matplotlib window* — macOS title
+  bar and toolbar included — in a palette predating `plot_style`. New
+  `scripts/regenerate_examples.py` makes them reproducible
+
+
+- **BREAKING** — `matrices.dN.solver()` now returns a `LevelSet` instead of
+  `dict[TermKey, Float64Array]`. `LevelSet` is **not** a Mapping: `states[key]`,
+  `states.items()` and `len(states)` all raise `TypeError`.
+  *Migration:* call `.as_dict()` to recover the old shape, or iterate
+  `.levels`, which is what the new code does. A bare dict cannot express a
+  multiplet — for d8 it mapped `3_T_1` to a two-element array, so `ν₂` and `ν₃`
+  both came back labelled `3_A_2→3_T_1` and were indistinguishable
+- **BREAKING** — term keys renamed: `1_T_3` → `1_T_2` (no T₃ irrep exists in
+  Oh) and `*_E_1` → `*_E` (Eg carries no subscript in Oh). Both were spelling
+  defects that survived for the life of the project because the term regex was
+  permissive. *Migration:* update any literal key match; `TermKey` now makes
+  both spellings unwritable. This also renames the corresponding **CSV
+  columns** in the shipped `ts-diagrams/**` artifacts
+- **BREAKING for downstream CSV consumers** — the committed
+  `ts-diagrams/**` artifacts changed in three ways: the `delta_B` column held
+  `Dq/B` while labelled `Δ/B` and is now **10× larger** (the old values were
+  wrong); the cm⁻¹→eV factor was `0.00012` and is now `1/8065.54`; and columns
+  are renamed as above and reordered (dict-insertion → sorted) as a
+  consequence of the `LevelSet` return shape. Values are otherwise unchanged —
+  verified cell-by-cell, matched by column name, across all 42 regenerated
+  files. A `--check` step in CI now guards these
+
+### Added
+
+- README examples are now **executed by the test suite**. The README documented
+  `from tanabesugano import TanabeSugano` for years; that class has never
+  existed and raised `ImportError` on every released version, because nothing
+  ever ran it. Replaced with the real `LevelSet` / `Batch` API, and every
+  ```python block is compiled and run — which immediately caught a second error
+  in the replacement itself
+- `tanabesugano.free_ion` — Racah's free-ion term energies for d2–d8 plus the
+  L → Oh reduction. Moved out of `test_matrices_invariants.py` (not copied:
+  the same closed form asserted in two places at two tolerances lets the
+  looser mask the tighter) because `Level` now needs the free-ion term symbol.
+  d2/d8 are new and joined the absolute oracle, which previously covered them
+  only through relative checks
+- free-ion parentage labels on `Level` — `parent_candidates`, `parent_symbol`,
+  `parent_suffix`, `parent_label_display`, `parent_latex`, `parent_unicode`.
+  d8's two ³T₁ levels now read `(F)` and `(P)` as the literature writes them
+  rather than the positional `(a)`/`(b)`. Matching is on energy AND
+  multiplicity AND irrep; where the answer is genuinely undecidable (d3/d7 put
+  ²H and ²P at the same 9B+3C for every B and C, so three ²T₁ levels are
+  indistinguishable by energy) both candidates are reported and the display
+  falls back to the ordinal — nothing guesses
+- `tanabesugano.script_export` and the `ts_fit_script` MCP tool — emit a
+  standalone matplotlib script for an observed-vs-computed fit figure. The
+  fitter's numbers are baked in as literals, and the script imports matplotlib
+  and nothing else, so a reviewer can reproduce a published figure without
+  installing this package
+- `ts_fit_plot_app` — the inline counterpart, plotting residuals rather than
+  raw band positions (a ~100 cm⁻¹ misfit is narrower than a marker on an
+  8,000–26,000 cm⁻¹ axis). Both surfaces read one `labelled_bands()` so they
+  cannot disagree about which computed line a band was assigned to
+- `format` parameter on `ts_plot_png` for PDF and SVG export. MIME types are
+  spelled out rather than derived: FastMCP's `File(format=...)` helper maps a
+  bare extension to `application/<ext>`, yielding the unregistered
+  `application/svg` and `application/png`
+
+### Fixed
+
+- `ts_plot_png`'s diagram emphasised and annotated the wrong curve. It chose
+  the ground term as "lowest eigenvalue at the **first** Dq point", then drew
+  the label at the **last** one. Two compounding errors: at Dq = 0 the ligand
+  field vanishes so every crystal-field component of the free-ion ground term
+  is exactly degenerate and the argmin is settled by a tie-break rather than by
+  physics (d6 returned `5_E`, where even the weak-field answer is `5_T_2`); and
+  d4–d7 cross over, so a correct weak-field answer still names the wrong term
+  at strong field. Now evaluated at the annotated edge, which makes the label
+  true where it is drawn — d6 reads `1_A_1`, d3 `4_A_2`, d8 `3_A_2`
+- `LevelSet.for_term("3_T_1")` returned an empty tuple and no error. It
+  compared with `is`, which is False for a plain string even though `TermKey`
+  is a `StrEnum` and compares equal — the whole point of that design. Silent
+  emptiness is the failure mode this package keeps re-learning; an unknown term
+  still returns `()`, a known one spelled as a string no longer does
+- `ts_spin_crossover_app` reported the critical Δ by scanning its drawing grid,
+  so the answer was quantised to the sweep spacing — it overshot the true
+  crossing by 167–450 cm⁻¹ and moved with `steps`, a parameter documented as
+  drawing resolution. Now bisected with `crossover_dq()` (renamed from
+  `_crossover_dq`, which gained a second consumer): d4 26,667 → 26,386,
+  d5 24,545 → 24,332, d6 21,515 → 21,348, d7 21,212 → 21,059 cm⁻¹
+- `ts_spin_crossover_app`'s default `dq_max` of 2500 put d⁴'s crossing (at
+  Dq = 2639) outside the swept range entirely, so it reported no crossing at
+  all at its own defaults; the docstring's claim that 2500 "leaves margin on
+  both sides" was false for two of the four supported configurations. Raised to
+  3500. This survived because every existing test passed `dq_max` explicitly,
+  so the shipped default was never exercised
+
+- `LigandFieldTheory.construct_matrix` was annotated `list[float]` /
+  `dict[..., float]` while every call site actually passes `np.float64`
+  values (coerced in `__init__`); switched to the covariant, read-only
+  `Sequence[float]` / `Mapping[..., float]` supertypes, which both match
+  runtime reality and clear ty's invariant-generics complaint
+- `tools.racah()` used `np.array` (a function) as a type instead of an array
+  type, and its single signature decorrelated the scalar/array-ness of the
+  return value from the inputs; split into `@overload`s so `Batch`'s
+  `self.B, self.C = racah(self.B, self.C)` keeps its arrays typed as arrays
+- `_compute.nephelauxetic_analysis` returned the uninformative
+  `dict[str, object]` (every value type technically satisfied, none of them
+  named) instead of a `TypedDict` describing the actual fields; the three
+  `# type: ignore[arg-type]` comments in `compute_tools.py` that leaned on
+  that looseness used mypy's code spelling and were never honored by ty (ty
+  only recognizes bare `# type: ignore` or its own `# ty: ignore[code]`), so
+  they are removed now that the underlying types check out for real
+
 ## [1.8.0-alpha.1] - 2026-08-19
 ### Fixed
 

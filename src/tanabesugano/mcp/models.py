@@ -63,11 +63,33 @@ class FitResult(BaseModel):
     fitted_Dq: float = Field(description="Optimized ligand field parameter (cm^-1).")
     fitted_B: float = Field(description="Optimized Racah B parameter (cm^-1).")
     fitted_C: float = Field(description="Racah C parameter used (typically fixed or default).")
-    r_squared: float = Field(description="Goodness of fit (R² metric, 0-1 is typical).")
+    r_squared: float | None = Field(
+        default=None,
+        description=(
+            "Coefficient of determination against the variance of the observed "
+            "peaks. None when it is undefined (a single peak, or zero variance)."
+        ),
+    )
     rmse_cm1: float = Field(description="Root-mean-square error in cm^-1.")
     observed_peaks_cm1: list[float] = Field(description="Input observed peak positions.")
     predicted_peaks_cm1: list[float] = Field(description="Predicted peaks from fitted model.")
     peak_assignments: list[SpectrumPeak] = Field(description="Detailed transition assignments.")
+    ground_term: str = Field(
+        default="",
+        description="Octahedral ground term the fit is referenced to, e.g. '3_A_2'.",
+    )
+    spin_state: str = Field(
+        default="high",
+        description="Spin regime the fit was pinned to: 'high', 'low' or 'auto'.",
+    )
+    residuals_cm1: list[float] = Field(
+        default_factory=list,
+        description="Signed predicted-minus-observed residual per input peak (cm^-1).",
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Non-fatal caveats, e.g. a parameter pinned at a search bound.",
+    )
 
 
 class NephelauxeticResult(BaseModel):

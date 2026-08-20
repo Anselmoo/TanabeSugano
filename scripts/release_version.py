@@ -86,7 +86,7 @@ def main() -> int:
     if tag_version is not None and dist_version is not None and tag_version != dist_version:
         print(
             f"::error::tag {args.ref_name} resolves to {tag_version} but the built "
-            f"artifact is {dist_version} — the version bump is missing from this commit"
+            f"artifact is {dist_version} — the version bump is missing from this commit",
         )
         return 1
 

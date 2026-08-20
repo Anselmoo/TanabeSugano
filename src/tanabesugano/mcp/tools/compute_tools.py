@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import Literal
 
 from tanabesugano import __version__
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
@@ -17,7 +18,6 @@ from tanabesugano.mcp.models import SpectrumPeak
 from tanabesugano.mcp.models import SupportedConfig
 from tanabesugano.mcp.tools._shared import READONLY
 from tanabesugano.mcp.tools._shared import TS_META
-from tanabesugano.mcp.tools._shared import resolve_bc
 
 
 if TYPE_CHECKING:
@@ -73,6 +73,13 @@ def register(mcp: FastMCP) -> None:
         d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
         observed_peaks_cm1: list[float],
         C: float | None = None,
+        # Deliberately narrower than fit_spectrum's SpinState. "auto"
+        # resolves the regime at a supplied Dq, and this tool has no Dq to
+        # supply -- fit_spectrum raises "spin_state='auto' requires an
+        # explicit Dq". Offering it here would advertise an option that
+        # always fails.
+        spin_state: Literal["high", "low"] = "high",
+        include_spin_forbidden: bool = False,
     ) -> FitResult | ComputeError:
         """Fit observed UV-Vis absorption bands to determine Dq and B parameters.
 
@@ -86,15 +93,23 @@ def register(mcp: FastMCP) -> None:
             observed_peaks_cm1: List of observed transition energies in cm^-1.
                 Typically in the range 10000-40000 cm^-1 for visible/near-UV regions.
             C: Optional Racah C parameter (cm^-1). If not provided, uses the
-                default value for the given d_count.
+                default value for the given d_count. Note the spin-allowed
+                manifold of d2 and d8 is independent of C.
+            spin_state: Which side of the spin crossover to fit on. The fit is
+                pinned to this regime and refuses solutions that cross it.
+            include_spin_forbidden: Also fit against spin-forbidden transitions.
+                Required for high-spin d5, whose d-d bands are all spin-forbidden.
 
         Returns:
-            FitResult containing the optimized Dq, B, quality metrics, and
-            predicted peak assignments.
+            FitResult with the optimized Dq and B, the ground term the fit is
+            referenced to, per-peak residuals and any non-fatal warnings; or a
+            ComputeError when the problem is ill-posed (for example high-spin d5,
+            which has no spin-allowed d-d transitions at all) or the optimizer
+            cannot reach a physically valid minimum.
 
         Example:
-            Fitting a d8 (Ni2+) complex with three observed bands:
-            ts_fit_spectrum(d_count=8, observed_peaks_cm1=[8000, 13000, 25000])
+            Fitting [Ni(H2O)6]2+ (d8) from its three spin-allowed bands:
+            ts_fit_spectrum(d_count=8, observed_peaks_cm1=[8500, 13800, 25300])
 
         """
         if not observed_peaks_cm1:
@@ -103,30 +118,48 @@ def register(mcp: FastMCP) -> None:
             return ComputeError(error="Too many peaks (max 50); filter or summarize")
 
         try:
-            fitted_dq, fitted_b, fitted_c, rmse, transitions = fit_spectrum(
+            fit = fit_spectrum(
                 d_count,
                 observed_peaks_cm1,
                 C=C,
+                spin_state=spin_state,
+                include_spin_forbidden=include_spin_forbidden,
             )
         except (ValueError, RuntimeError) as exc:
             return ComputeError(error=f"Fitting failed: {exc!s}")
 
-        predicted_energies = [t[0] for t in transitions]
         peak_assignments = [
-            SpectrumPeak(energy_cm1=t[0], assignment=t[1], intensity=1.0) for t in transitions
+            SpectrumPeak(
+                energy_cm1=energy,
+                assignment=assignment,
+                # Mirrors ts_spectrum_app: spin-forbidden bands are drawn faint.
+                intensity=1.0 if spin_allowed else 0.05,
+            )
+            for energy, assignment, spin_allowed in fit.transitions
         ]
 
-        r_squared = 1.0 - (rmse**2 / max(1.0, sum(e**2 for e in observed_peaks_cm1)))
+        # Proper R^2, against the variance of the observed peaks. The previous
+        # formula divided by an uncentred sum of squares, which returned >= 0.999
+        # for essentially any input and so could never signal a bad fit.
+        mean_observed = sum(observed_peaks_cm1) / len(observed_peaks_cm1)
+        total_ss = sum((p - mean_observed) ** 2 for p in observed_peaks_cm1)
+        residual_ss = sum(r**2 for r in fit.residuals_cm1)
+        r_squared = None if total_ss <= 0 else max(0.0, min(1.0, 1.0 - residual_ss / total_ss))
+
         return FitResult(
             d_count=d_count,
-            fitted_Dq=fitted_dq,
-            fitted_B=fitted_b,
-            fitted_C=fitted_c,
-            r_squared=max(0.0, r_squared),
-            rmse_cm1=rmse,
+            fitted_Dq=fit.Dq,
+            fitted_B=fit.B,
+            fitted_C=fit.C,
+            r_squared=r_squared,
+            rmse_cm1=fit.rmse_cm1,
             observed_peaks_cm1=observed_peaks_cm1,
-            predicted_peaks_cm1=predicted_energies,
+            predicted_peaks_cm1=[energy for energy, _a, _s in fit.transitions],
             peak_assignments=peak_assignments,
+            ground_term=fit.ground_term,
+            spin_state=fit.spin_state,
+            residuals_cm1=fit.residuals_cm1,
+            warnings=fit.warnings,
         )
 
     @mcp.tool(
@@ -179,10 +212,10 @@ def register(mcp: FastMCP) -> None:
 
         return NephelauxeticResult(
             ion=str(result["ion"]),
-            free_ion_B=float(result["free_ion_B"]),  # type: ignore[arg-type]
+            free_ion_B=float(result["free_ion_B"]),
             complex_B=fitted_B,
-            beta=float(result["beta"]),  # type: ignore[arg-type]
+            beta=float(result["beta"]),
             covalency=str(result["covalency"]),
-            suggested_ligands=list(result["suggested_ligands"]),  # type: ignore[arg-type]
+            suggested_ligands=list(result["suggested_ligands"]),
             interpretation=str(result["interpretation"]),
         )

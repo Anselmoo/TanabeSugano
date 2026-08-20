@@ -177,7 +177,7 @@ def test_ts_emit_png_echoes_image_content() -> None:
 
     # Minimal valid PNG bytes (a 1×1 transparent pixel).
     png_bytes = _b64.b64decode(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
     )
     b64 = _b64.b64encode(png_bytes).decode()
     result = _call("ts_emit_png", {"png_base64": b64, "title": "d6 Dq=900"})
@@ -235,7 +235,7 @@ def _call(tool: str, args: dict) -> object:
 
     server = create_server()
 
-    async def go():  # noqa: ANN202
+    async def go():
         async with Client(server) as client:
             return await client.call_tool(tool, args)
 
@@ -244,7 +244,8 @@ def _call(tool: str, args: dict) -> object:
 
 def test_ts_compute_app_returns_sorted_table_and_chart() -> None:
     """ts_compute was removed because its raw nested dict was unusable.
-    ts_compute_app replaces it with a sortable DataTable of eigenvalues."""
+    ts_compute_app replaces it with a sortable DataTable of eigenvalues.
+    """
     result = _call("ts_compute_app", {"d_count": 5, "Dq": 980.0, "B": 1350.0, "C": 4000.0})
     assert not result.is_error  # type: ignore[attr-defined]
     view = (result.structured_content or {}).get("view")  # type: ignore[attr-defined]
@@ -271,6 +272,42 @@ def test_ts_compute_app_returns_sorted_table_and_chart() -> None:
     assert mults & {"2", "4", "6"}, f"d5 should produce mixed multiplicities, got {mults}"
 
 
+def test_ts_compute_app_term_column_names_each_row_uniquely() -> None:
+    """The rendered Term cell must identify the row on its own.
+
+    It rendered `term_to_unicode(term)`, which repeats for every level of a
+    multi-level term: d8's table showed ³T₁g on two rows with only the adjacent
+    Level column to separate them.
+
+    d8 is used rather than d5 because its 3T1g multiplet is the canonical case
+    (3F and 3P parents) and its table is small enough to read.
+    """
+    result = _call("ts_compute_app", {"d_count": 8, "Dq": 850.0, "B": 907.0})
+    view = (result.structured_content or {}).get("view")  # type: ignore[attr-defined]
+
+    def find_first(node: object, type_name: str) -> dict | None:
+        if isinstance(node, dict):
+            if node.get("type") == type_name:
+                return node
+            for ch in node.get("children") or []:
+                found = find_first(ch, type_name)
+                if found:
+                    return found
+        return None
+
+    rows = (find_first(view, "DataTable") or {}).get("rows") or []
+    assert rows, "ts_compute_app must render a DataTable"
+
+    terms = [r["term"] for r in rows]
+    duplicates = {t for t in terms if terms.count(t) > 1}
+    assert not duplicates, f"Term column repeats: {sorted(duplicates)}"
+
+    t1 = [t for t in terms if t.startswith("³T₁g")]
+    assert t1 == ["³T₁g(a)", "³T₁g(b)"], t1
+    # 3T2g is the only 3T2g in d8 -- an ordinal there would be noise.
+    assert "³T₂g" in terms, terms
+
+
 def test_ts_terms_table_returns_sorted_rows() -> None:
     result = _call("ts_terms_table_data", {"d_count": 3, "Dq": 900.0})
     data = result.data  # type: ignore[attr-defined]
@@ -279,6 +316,34 @@ def test_ts_terms_table_returns_sorted_rows() -> None:
     energies = [r.energy_cm for r in rows]
     assert energies == sorted(energies), "rows must be sorted ascending"
     assert sum(1 for r in rows if r.is_ground) == 1
+
+
+def test_ts_terms_table_rows_carry_an_unambiguous_label() -> None:
+    """A term contributing several levels contributes several rows.
+
+    `term` alone repeats down the table, so a row needed `term` AND `level`
+    read together to be identified -- fine for a program, useless in a rendered
+    DataTable cell. Each row now names itself.
+
+    Uniqueness is derived, not measured: rows are (term, index) pairs, already
+    proven unique for every configuration in test_levels.py.
+    """
+    result = _call("ts_terms_table_data", {"d_count": 3, "Dq": 900.0})
+    rows = result.data.rows  # type: ignore[attr-defined]
+
+    labels = [r.label for r in rows]
+    duplicates = {a for a in labels if labels.count(a) > 1}
+    assert not duplicates, f"table reuses labels: {sorted(duplicates)}"
+
+    # d3 4A2g is the single-level ground term -- it must print bare.
+    ground = next(r for r in rows if r.is_ground)
+    assert ground.term == "4_A_2"
+    assert ground.label == "4_A_2", ground.label
+    assert ground.unicode == "⁴A₂g", ground.unicode
+
+    # 4T1g is the two-level term; its rows must be told apart.
+    t1 = [r.label for r in rows if r.term == "4_T_1"]
+    assert t1 == ["4_T_1(a)", "4_T_1(b)"], t1
 
 
 def test_ts_plot_png_returns_image() -> None:
@@ -420,7 +485,8 @@ def test_orgel_diagram_app_returns_unnormalised_payload() -> None:
     assert not r.is_error  # type: ignore[attr-defined]
     payload = json.loads(r.content[0].text)  # type: ignore[attr-defined]
     assert "cm⁻¹" in payload["x_label"] and "cm⁻¹" in payload["y_label"], (
-        f"Orgel axes must be in absolute cm⁻¹, got x={payload['x_label']!r} y={payload['y_label']!r}"
+        f"Orgel axes must be in absolute cm⁻¹, got "
+        f"x={payload['x_label']!r} y={payload['y_label']!r}"
     )
     assert payload["series"], "Orgel must produce at least one term series"
     # Highest energy must be in the cm⁻¹ regime, not the E/B regime (~1-100)
@@ -638,3 +704,174 @@ def test_ts_explain_includes_why_rationale() -> None:
     text = str(data)
     assert "Racah B" in text
     assert "Tanabe" in text
+
+
+def test_ts_fit_spectrum_distinguishes_the_two_d8_triplet_t1_bands() -> None:
+    """[Ni(H2O)6]2+ through the real server: nu2 and nu3 must not share a label.
+
+    The end-to-end form of the defect the Level structure exists to fix. d8 has
+    exactly two 3T1g levels (from the 3F and 3P free-ion parents), so nu2 and
+    nu3 both terminate on 3T1g; the old per-TERM assignment returned
+    "3_A_2->3_T_1" for both and a chemist could not tell them apart.
+
+    Pinned here rather than only at the _compute level because this string is
+    what actually reaches an agent.
+    """
+    result = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": [8500, 13800, 25300]})
+    data = result.data  # type: ignore[attr-defined]
+    assert data.ground_term == "3_A_2"
+
+    labels = [pk.assignment for pk in data.peak_assignments]
+    duplicates = {a for a in labels if labels.count(a) > 1}
+    assert not duplicates, f"assignments reused: {sorted(duplicates)}"
+
+    t1 = [a for a in labels if a.startswith("3_A_2→3_T_1")]
+    assert t1 == ["3_A_2→3_T_1(a)", "3_A_2→3_T_1(b)"], t1
+    # nu1 terminates on the only 3T2g there is, so it keeps a bare label.
+    assert "3_A_2→3_T_2" in labels, labels
+
+
+def _ground_multiplicity(d_count: int, Dq: float, B: float, C: float) -> int:
+    """Spin multiplicity of the lowest-lying level at one (Dq, B, C) point.
+
+    Deliberately *not* the app's own detection code: this reads eigenvalues
+    straight from ``compute_point`` and takes an argmin, so it shares no logic
+    with the crossing search under test. Ties resolve to the higher
+    multiplicity, which matters only at Dq = 0 where the field vanishes and all
+    crystal-field components of one free-ion term are exactly degenerate.
+    """
+    from tanabesugano.mcp._compute import compute_point
+
+    best_energy = float("inf")
+    best_mult: int | None = None
+    for term, eigenvalues in compute_point(d_count, Dq, B, C).items():
+        mult = int(str(term).split("_")[0])
+        energy = min(float(e) for e in eigenvalues)
+        if energy < best_energy - 1e-9 or (
+            abs(energy - best_energy) <= 1e-9 and best_mult is not None and mult > best_mult
+        ):
+            best_energy, best_mult = energy, mult
+    assert best_mult is not None
+    return best_mult
+
+
+@pytest.mark.parametrize("d_count", [4, 5, 6, 7])
+def test_spin_crossover_critical_delta_is_a_root_not_a_grid_sample(d_count: int) -> None:
+    """The reported critical Δ must sit *at* the ground-term multiplicity flip.
+
+    Provenance: this asserts the definition of the crossing, not a number
+    measured from the implementation. The critical Δ is by definition the point
+    either side of which the ground level carries a different spin
+    multiplicity, so the test brackets the reported value by ±10 cm⁻¹ and
+    demands high-spin below / low-spin above. ``_ground_multiplicity`` computes
+    that from raw eigenvalues and shares no code with the search being tested.
+
+    The ±10 cm⁻¹ half-width is derived from what must be *excluded*: at the
+    tool's defaults (dq_max=3000, steps=100) the grid spacing is 303 cm⁻¹ in Δ,
+    so a bracket 30x tighter than one cell cannot be satisfied by returning a
+    sampled grid point. It is not a tolerance measured off the fix.
+
+    Observed failure before the fix (grid argmin, ``steps=100``), verbatim::
+
+        d4: reported critical Δ=26,666.7 cm⁻¹ is not the crossing. Ground
+            multiplicity is 3 at Δ-10 and 3 at Δ+10; a true crossing has
+            high-spin strictly below and low-spin strictly above.
+        d5: reported critical Δ=24,545.5 ... multiplicity 2 at Δ-10 and 2 at Δ+10
+        d6: reported critical Δ=21,515.2 ... multiplicity 1 at Δ-10 and 1 at Δ+10
+        d7: reported critical Δ=21,212.1 ... multiplicity 2 at Δ-10 and 2 at Δ+10
+
+    In every case the grid answer overshoots into the low-spin region, so *both*
+    bracket probes land above the crossing — the signature of a sampled point
+    rather than a root. The bisected values are 26,386.0 / 24,332.0 / 21,348.3 /
+    21,058.5 cm⁻¹.
+    """
+    import json
+
+    from tanabesugano.mcp._defaults import DEFAULTS
+
+    B = float(DEFAULTS[d_count]["default_B"])
+    C = float(DEFAULTS[d_count]["default_C"])
+
+    r = _call("ts_spin_crossover_app", {"d_count": d_count, "dq_max": 3000.0, "steps": 100})
+    payload = json.loads(r.content[0].text)  # type: ignore[attr-defined]
+    critical_delta = payload["critical_delta_cm1"]
+    assert critical_delta is not None, f"d{d_count} reported no crossing"
+
+    bracket = 10.0  # cm⁻¹ in Δ; 3% of one default grid cell
+    below = _ground_multiplicity(d_count, (critical_delta - bracket) / 10.0, B, C)
+    above = _ground_multiplicity(d_count, (critical_delta + bracket) / 10.0, B, C)
+    assert below > above, (
+        f"d{d_count}: reported critical Δ={critical_delta:,.1f} cm⁻¹ is not the crossing. "
+        f"Ground multiplicity is {below} at Δ-{bracket:g} and {above} at Δ+{bracket:g}; "
+        f"a true crossing has high-spin strictly below and low-spin strictly above."
+    )
+
+
+@pytest.mark.parametrize("d_count", [4, 5, 6, 7])
+def test_spin_crossover_critical_delta_is_independent_of_sweep_resolution(
+    d_count: int,
+) -> None:
+    """``steps`` sets the drawing resolution only — it must not move the answer.
+
+    Provenance: a pure invariant. A grid argmin is steps-dependent by
+    construction; a bisected root is not. No expected value appears here, so
+    nothing can be enshrined from the implementation.
+
+    Observed failure before the fix, verbatim::
+
+        d7: critical Δ varies by 454.1 cm⁻¹ across sweep resolutions
+            [(40, 21538.5), (100, 21212.1), (250, 21084.3)]
+            — the reported value tracks the grid, not the crossing.
+
+    d4 varied by 417.1, d5 by 278.0, d6 by 92.7 cm⁻¹. After the fix all three
+    resolutions agree to the bisection tolerance.
+    """
+    import json
+
+    values = []
+    for steps in (40, 100, 250):
+        r = _call(
+            "ts_spin_crossover_app",
+            {"d_count": d_count, "dq_max": 3000.0, "steps": steps},
+        )
+        payload = json.loads(r.content[0].text)  # type: ignore[attr-defined]
+        values.append((steps, payload["critical_delta_cm1"]))
+
+    assert all(v is not None for _, v in values), f"d{d_count} lost the crossing: {values}"
+    spread = max(v for _, v in values) - min(v for _, v in values)
+    assert spread <= 2.0, (
+        f"d{d_count}: critical Δ varies by {spread:,.1f} cm⁻¹ across sweep resolutions "
+        f"{values} — the reported value tracks the grid, not the crossing."
+    )
+
+
+@pytest.mark.parametrize("d_count", [4, 5, 6, 7])
+def test_spin_crossover_app_finds_the_crossing_at_its_own_defaults(d_count: int) -> None:
+    """Calling the tool with no arguments but ``d_count`` must find the crossing.
+
+    Provenance: the claim is the tool's own docstring contract -- it advertises
+    d⁴-d⁷ support and a ``dq_max`` default chosen to "leave margin on both
+    sides". Nothing here is measured from the implementation; the test simply
+    exercises the documented default path.
+
+    This gap survived because every existing spin-crossover test passes
+    ``dq_max=3000.0`` explicitly, so the shipped default was never once
+    exercised.
+
+    Observed failure before the fix, verbatim::
+
+        d4: tool returned critical_delta_cm1=None at its own defaults; the
+            crossing is at Δ=26,386.0 cm⁻¹ (Dq=2,638.6), above the default
+            dq_max.
+
+    The four crossings sit at Dq = 2106-2639 cm⁻¹, so the old default of 2500
+    excluded d⁴ outright and cleared d⁵ by only 3%.
+    """
+    import json
+
+    r = _call("ts_spin_crossover_app", {"d_count": d_count})
+    payload = json.loads(r.content[0].text)  # type: ignore[attr-defined]
+    assert payload["critical_delta_cm1"] is not None, (
+        f"d{d_count}: tool returned critical_delta_cm1=None at its own defaults; "
+        f"the swept Dq range does not reach this configuration's crossing."
+    )

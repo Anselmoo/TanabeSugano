@@ -16,6 +16,18 @@ class _DConfig(TypedDict):
     default_C: float
 
 
+# Per-configuration free-ion Racah defaults.
+#
+# PROVENANCE CAVEAT: the implied C/B ratios (d2 4.420 ... d8 4.709) are the
+# "classic" per-dn values, but no citable primary source for this exact set was
+# located -- the original Tanabe-Sugano papers are paywalled and Koenig & Kremer
+# (1977) prints diagrams, not the ratios. C/B is a modelling choice rather than
+# a constant (Adachi 2025 argues 3.7 / 4.7 / 8.0 for d3 alone), so treat these
+# as documented defaults, not physical truth. test_leftovers.py pins them so a
+# change has to be deliberate.
+#
+# The CLI takes a different route: it uses ONE (B, C) pair for whatever d_count
+# is selected, defaulting to the d5 values here.
 DEFAULTS: dict[int, _DConfig] = {
     2: {"ground_term": "3F", "matrix_size": 10, "default_B": 860.0, "default_C": 3801.0},
     3: {"ground_term": "4F", "matrix_size": 19, "default_B": 918.0, "default_C": 4133.0},
@@ -26,18 +38,27 @@ DEFAULTS: dict[int, _DConfig] = {
     8: {"ground_term": "3F", "matrix_size": 10, "default_B": 1030.0, "default_C": 4850.0},
 }
 
-# Free-ion → octahedral ground-term key mapping. DEFAULTS["ground_term"] stores
-# free-ion spectroscopic notation (3F, 6S, …) for human display, but the
-# matrices.py solvers use octahedral keys (3_T_1, 6_A_1, …) under crystal-field
-# splitting.
-GROUND_TERM_OCTAHEDRAL: dict[int, str] = {
-    2: "3_T_1",  # 3F → 3T1g
-    3: "4_A_2",  # 4F → 4A2g
-    4: "3_T_1",  # 5D → 5Eg high-spin / 3T1g low-spin; pick high-spin term
-    5: "6_A_1",  # 6S → 6A1g (only one octahedral term)
-    6: "1_A_1",  # 5D → 5T2g high-spin / 1A1g low-spin; pick low-spin term
-    7: "4_T_1",  # 4F → 4T1g
-    8: "3_A_2",  # 3F → 3A2g
+# Ground term in the WEAK-FIELD (high-spin) octahedral limit, spelled with the
+# solver's own term keys.
+#
+# This table is a TEST ORACLE, not production data. Production code must derive
+# the ground term per point via _compute.reference_ground_term(), because the
+# ground term is genuinely Dq-dependent for d4/d6/d7 (d6 flips 5_T_2 -> 1_A_1
+# across the spin crossover) -- any static per-d_count answer is wrong physics
+# somewhere on the diagram. What IS static is the weak-field limit, which is
+# also independent of B (verified across B = 400..1400), so this table is a
+# sound independent check on that derivation.
+#
+# Key spellings follow the solver's now-uniform vocabulary: Eg carries no
+# subscript (5_E, not 5_E_1) and there is no T3 irrep (1_T_2, not 1_T_3).
+HIGH_SPIN_GROUND_TERM: dict[int, str] = {
+    2: "3_T_1",  # 3F -> 3T1g
+    3: "4_A_2",  # 4F -> 4A2g
+    4: "5_E",  # 5D -> 5Eg
+    5: "6_A_1",  # 6S -> 6A1g
+    6: "5_T_2",  # 5D -> 5T2g
+    7: "4_T_1",  # 4F -> 4T1g
+    8: "3_A_2",  # 3F -> 3A2g
 }
 
 

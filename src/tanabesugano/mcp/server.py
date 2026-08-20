@@ -21,7 +21,7 @@ _INSTALL_HINT = (
 )
 
 
-def _make_unwrap_data_middleware():  # noqa: ANN202 — fastmcp types not importable when extra missing
+def _make_unwrap_data_middleware():
     """Build a middleware that defensively unwraps ``{"data": {...}}`` tool args.
 
     Our published inputSchemas are flat (``{d_count, dq_min, ...}``), but some
@@ -70,11 +70,17 @@ def create_server() -> FastMCP[Any]:
             "visualisation: ts_diagram_app, ts_plot_view, ts_overlay_app, "
             "ts_compare_app, ts_spectrum_app, ts_oxidation_landscape_app, "
             "ts_orgel_diagram_app, ts_spin_crossover_app, "
-            "ts_correlation_diagram_app, ts_reverse_fit_app, and ts_ratio_fit_app "
-            "all render as in-chat Chart.js; ts_compute_app and "
+            "ts_correlation_diagram_app, ts_reverse_fit_app, ts_ratio_fit_app "
+            "and ts_fit_plot_app (observed vs computed bands, plotted as "
+            "residuals) all render as in-chat Chart.js; ts_compute_app and "
             "ts_dashboard_app render as Prefab-native cards + tables; "
-            "ts_plot_png is a matplotlib PNG fallback for non-capable "
-            "clients. ts_emit_png is an internal export sink: every "
+            "ts_plot_png renders a matplotlib figure for non-capable clients "
+            "and is also the only vector export route — pass format='pdf' or "
+            "'svg' for publication output. For a figure destined for a paper, "
+            "prefer ts_fit_script: it returns runnable matplotlib source "
+            "carrying the fit's own numbers, which is reproducible, editable, "
+            "and sidesteps the sandbox because it is text. "
+            "ts_emit_png is an internal export sink: every "
             "Chart.js iframe's 'Send PNG to chat' button calls back to it "
             "with the rendered canvas as base64, and the chat then carries "
             "the image — there is no need to call ts_emit_png directly. "

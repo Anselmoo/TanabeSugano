@@ -44,7 +44,7 @@ def _call(tool: str, args: dict) -> object:
 
     from tanabesugano.mcp.server import create_server
 
-    async def _go():  # noqa: ANN202
+    async def _go():
         server = create_server()
         async with Client(server) as client:
             return await client.call_tool(tool, args)

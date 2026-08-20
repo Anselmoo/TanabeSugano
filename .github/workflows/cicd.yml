@@ -35,8 +35,11 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
+      # --extra plotly is load-bearing, not cosmetic: without it the artifact
+      # drift check skips the .html half entirely and reports success, so the
+      # guard would be registered but never actually run.
       - name: Install dependencies
-        run: uv sync --all-groups --extra mcp
+        run: uv sync --all-groups --extra mcp --extra plotly
       - name: Check health regressions
         run: uv run rrt doctor --check --strict
       - name: Generate tree manifest (for diagnostics)
@@ -51,6 +54,15 @@ jobs:
         run: uv run rrt tree --check --strict --strict-empty-dirs
       - name: Check artifact integrity
         run: uv run rrt artifacts --check --strict
+      # The committed TS/DD/TS_Cut CSVs are CLI output with no other guard. While
+      # nothing regenerated them they accumulated three independent errors at
+      # once: stale term keys (1_T_3), a delta_B column holding Dq/B while
+      # labelled Delta/B (10x wrong), and a cm^-1 -> eV factor of 0.00012 instead
+      # of 1/8065.54. --check regenerates into a temp dir and exits 1 on any
+      # difference; `uv run poe regen-diagrams` rewrites them. The check now
+      # covers the .html diagrams and manifest.json as well as the CSVs.
+      - name: Check TS diagram artifact drift
+        run: uv run poe regen-diagrams-check
 
   # ──────────────────────────── 1. Static checks ────────────────────────────
   lint:
@@ -67,8 +79,15 @@ jobs:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # --extra plotly is required by the `ty` pre-commit hook, not optional
+      # polish: plotly.express is imported by Tanabe_Sugano.ipynb and soft-
+      # imported by scripts/regenerate_ts_diagrams.py, and ty reports
+      # unresolved-import for a module that is not installed. Installing the
+      # declared extra means ty actually CHECKS those paths rather than the
+      # alternative of teaching it to ignore them, which would blind it to real
+      # errors in the same files.
       - name: Install dependencies
-        run: uv sync --all-groups --extra mcp
+        run: uv sync --all-groups --extra mcp --extra plotly
 
       - name: Run pre-commit
         run: uv run pre-commit run --all-files --show-diff-on-failure

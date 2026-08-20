@@ -21,6 +21,7 @@ from pathlib import Path
 
 import matplotlib
 
+
 matplotlib.use("Agg")  # headless: write files without a display
 
 import matplotlib.pyplot as plt

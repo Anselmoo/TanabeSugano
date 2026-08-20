@@ -76,7 +76,10 @@ def _fail(message: str) -> None:
 
 
 def validate(
-    bundle: Path, expected_version: str, package_spec: str, entry_script: str
+    bundle: Path,
+    expected_version: str,
+    package_spec: str,
+    entry_script: str,
 ) -> list[str]:
     """Return a list of problems found in *bundle*; empty means valid."""
     problems: list[str] = []
@@ -93,7 +96,7 @@ def validate(
     version = manifest.get("version")
     if version != expected_version:
         problems.append(
-            f"{bundle.name}: manifest version {version!r} != expected {expected_version!r}"
+            f"{bundle.name}: manifest version {version!r} != expected {expected_version!r}",
         )
 
     args = manifest.get("server", {}).get("mcp_config", {}).get("args", [])
@@ -105,19 +108,19 @@ def validate(
     if args[-1] != entry_script:
         problems.append(
             f"{bundle.name}: launch entry point is {args[-1]!r}, expected "
-            f"{entry_script!r} — the bundle would start the CLI, not the MCP server"
+            f"{entry_script!r} — the bundle would start the CLI, not the MCP server",
         )
 
     spec = next((a for a in args if a.startswith(package_spec)), None)
     if spec is None:
         problems.append(
             f"{bundle.name}: launch args do not request {package_spec!r} — "
-            f"fastmcp would be missing at runtime (args: {args})"
+            f"fastmcp would be missing at runtime (args: {args})",
         )
     elif spec != f"{package_spec}=={expected_version}":
         problems.append(
             f"{bundle.name}: launch spec {spec!r} is not pinned to {expected_version} — "
-            "the bundle would resolve whatever is newest on PyPI"
+            "the bundle would resolve whatever is newest on PyPI",
         )
 
     return problems
@@ -159,7 +162,7 @@ def main() -> int:
     for bundle in bundles:
         print(
             f"OK: {bundle.name} launches {entry_script} from "
-            f"{package_spec}=={args.expected_version}"
+            f"{package_spec}=={args.expected_version}",
         )
     return 0
 

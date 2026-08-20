@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
-
-try:
-    from typing import TypeAlias
-except ImportError:
-    from typing import Any as TypeAlias
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from numpy._typing._array_like import NDArray
 from numpy.linalg import eigh
+from numpy.typing import NDArray
 
-from tanabesugano.constants import ENERGY_TOLERANCE
+from tanabesugano.levels import LevelSet
+from tanabesugano.terms import TermKey
+
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Sequence
 
 
 _sqrt2 = np.sqrt(2.0)
@@ -26,11 +28,13 @@ _3sqrt2 = _sqrt2 * 3.0
 _3sqrt3 = _sqrt3 * 3.0
 _3sqrt6 = _sqrt6 * 3.0
 
-Float64Array: TypeAlias = NDArray[np.float64]
+type Float64Array = NDArray[np.float64]
 
 
 class LigandFieldTheory:
     """Parent class for ligand field theory configurations."""
+
+    _d_count: int = 0
 
     def __init__(self, Dq: float, B: float, C: float) -> None:
         """Initialize the configuration with given parameters.
@@ -57,25 +61,67 @@ class LigandFieldTheory:
                 field Hamiltonian.
 
         """
-        return eigh(matrix)[0]
+        # asarray, not a bare return: numpy.linalg.eigh is typed as returning
+        # floating[_32Bit], while it returns float64 at runtime (verified on
+        # the d8 path). Coercing makes the annotation true by construction
+        # rather than asserting it over a checker's objection, and it is free
+        # when the dtype already matches -- which it always does here.
+        return np.asarray(eigh(matrix)[0], dtype=np.float64)
 
-    def solver(self) -> dict[str, Float64Array]:
+    def solver(self) -> LevelSet:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
-                eigenvalues as values.
+            LevelSet: the term manifold, referenced to the ground state.
 
         """
         msg = "Subclasses should implement this method."
         raise NotImplementedError(msg)
 
+    def _as_levels(self, states: dict[TermKey, Float64Array]) -> LevelSet:
+        """Wrap raw term blocks as a LevelSet, referenced to the ground state.
+
+        That reference shift also performs the spin-crossover correction that
+        d4, d5, d6 and d7 previously did with 43 hand-written subtraction lines
+        -- twelve, eleven, twelve and eight, each naming one term explicitly.
+        They were complete, but only by vigilance: adding a term meant
+        remembering to add a line, and nothing structural said so.
+
+        Verified bit-identical over 137,520 level values across 5,040
+        (config, Dq, B, C) points: shifting by the guard term's lowest level and
+        shifting so the minimum is zero are the SAME operation, because the
+        guard term is the minimum exactly when it goes negative. The four
+        different guard terms and two different thresholds were therefore all
+        expressing one invariant the package already holds -- the ground state
+        sits at 0.0 -- and omission is no longer expressible.
+        """
+        return LevelSet.from_states(
+            {term.value: [float(x) for x in np.asarray(v).flatten()] for term, v in states.items()},
+            d_count=self._d_count,
+            dq=float(self.Dq),
+            b=float(self.B),
+            c=float(self.C),
+        )
+
     def construct_matrix(
         self,
-        diag_elements: list[float],
-        off_diag_elements: dict[tuple[int, int], float],
+        diag_elements: Sequence[float],
+        off_diag_elements: Mapping[tuple[int, int], float],
     ) -> Float64Array:
-        """Construct a symmetric matrix from diagonal and off-diagonal elements."""
+        """Construct a symmetric matrix from diagonal and off-diagonal elements.
+
+        Callers build these elements from ``self.Dq``/``self.B``/``self.C``, which
+        ``__init__`` coerces to ``np.float64``, so the arguments are almost always
+        ``np.float64`` (occasionally a literal Python ``0.0`` for a zero off-diagonal
+        coupling). ``np.float64`` is a genuine runtime subclass of ``float``, so
+        ``float`` correctly describes every element -- but ``list``/``dict`` are
+        invariant in their type parameters, so a homogeneous ``list[np.float64]`` or
+        ``dict[..., np.float64]`` argument would NOT satisfy ``list[float]``/
+        ``dict[..., float]`` parameters. Accepting the read-only, covariant
+        ``Sequence``/``Mapping`` supertypes instead (this method never mutates either
+        argument) matches both what every call site actually passes and how the
+        values are actually used.
+        """
         size = len(diag_elements)
         matrix = np.zeros((size, size))
         np.fill_diagonal(matrix, diag_elements)
@@ -87,6 +133,8 @@ class LigandFieldTheory:
 
 class d2(LigandFieldTheory):
     """Class representing the d2 configuration in ligand field theory."""
+
+    _d_count = 2
 
     def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3801.0) -> None:
         """Initialize the d2 configuration with given parameters.
@@ -130,12 +178,11 @@ class d2(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> dict[str, Float64Array]:
+    def solver(self) -> LevelSet:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
-                eigenvalues as values.
+            LevelSet: the term manifold, referenced to the ground state.
 
         """
         # Ligand field independent states
@@ -151,19 +198,23 @@ class d2(LigandFieldTheory):
         T_1_2 = self.T_1_2_states() - GS
         T_3_1 = self.T_3_1_states() - GS
 
-        return {
-            "1_A_1": A_1_1,
-            "1_E": E_1,
-            "1_T_3": T_1_2,
-            "3_T_1": T_3_1,
-            "1_T_1": T_1_1,
-            "3_T_2": T_3_2,
-            "3_A_2": A_3_2,
-        }
+        return self._as_levels(
+            {
+                TermKey.SINGLET_A_1: A_1_1,
+                TermKey.SINGLET_E: E_1,
+                TermKey.SINGLET_T_2: T_1_2,
+                TermKey.TRIPLET_T_1: T_3_1,
+                TermKey.SINGLET_T_1: T_1_1,
+                TermKey.TRIPLET_T_2: T_3_2,
+                TermKey.TRIPLET_A_2: A_3_2,
+            },
+        )
 
 
 class d3(LigandFieldTheory):
     """Class representing the d3 configuration in ligand field theory."""
+
+    _d_count = 3
 
     def __init__(self, Dq: float = 0.0, B: float = 918.0, C: float = 4133.0) -> None:
         """Initialize the d3 configuration with given parameters.
@@ -250,12 +301,11 @@ class d3(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> dict[str, Float64Array]:
+    def solver(self) -> LevelSet:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
-                eigenvalues as values.
+            LevelSet: the term manifold, referenced to the ground state.
 
         """
         # Ligand field independent states
@@ -273,20 +323,24 @@ class d3(LigandFieldTheory):
         E_2 = self.E_2_states() - GS
         T_4_1 = self.T_4_1_states() - GS
 
-        return {
-            "2_T_2": T_2_2,
-            "2_T_1": T_2_1,
-            "2_E": E_2,
-            "4_T_1": T_4_1,
-            "4_A_2": A_4_2,
-            "4_T_2": T_4_2,
-            "2_A_1": A_2_1,
-            "2_A_2": A_2_2,
-        }
+        return self._as_levels(
+            {
+                TermKey.DOUBLET_T_2: T_2_2,
+                TermKey.DOUBLET_T_1: T_2_1,
+                TermKey.DOUBLET_E: E_2,
+                TermKey.QUARTET_T_1: T_4_1,
+                TermKey.QUARTET_A_2: A_4_2,
+                TermKey.QUARTET_T_2: T_4_2,
+                TermKey.DOUBLET_A_1: A_2_1,
+                TermKey.DOUBLET_A_2: A_2_2,
+            },
+        )
 
 
 class d4(LigandFieldTheory):
     """Class representing the d4 configuration in ligand field theory."""
+
+    _d_count = 4
 
     def __init__(self, Dq: float = 0.0, B: float = 965.0, C: float = 4449.0) -> None:
         """Initialize the d4 configuration with given parameters.
@@ -499,12 +553,11 @@ class d4(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> dict[str, Float64Array]:
+    def solver(self) -> LevelSet:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
-                eigenvalues as values.
+            LevelSet: the term manifold, referenced to the ground state.
 
         """
         # Ligand field independent states
@@ -526,38 +579,28 @@ class d4(LigandFieldTheory):
         A_3_2 = self.A_3_2_states() - GS
         A_1_2 = self.A_1_2_states() - GS
 
-        if T_3_1[0] <= 0:
-            T_1_2 -= T_3_1[0]
-            A_1_1 -= T_3_1[0]
-            E_1_1 -= T_3_1[0]
-            T_3_2 -= T_3_1[0]
-            T_1_1 -= T_3_1[0]
-            E_3_1 -= T_3_1[0]
-            A_3_2 -= T_3_1[0]
-            A_1_2 -= T_3_1[0]
-            E_5_1 -= T_3_1[0]
-            T_5_2 -= T_3_1[0]
-            A_3_1 -= T_3_1[0]
-            T_3_1 -= T_3_1[0]
-
-        return {
-            "3_T_1": T_3_1,
-            "1_T_2": T_1_2,
-            "1_A_1": A_1_1,
-            "1_E_1": E_1_1,
-            "3_T_2": T_3_2,
-            "1_T_1": T_1_1,
-            "3_E_1": E_3_1,
-            "3_A_2": A_3_2,
-            "1_A_2": A_1_2,
-            "5_E_1": E_5_1,
-            "5_T_2": T_5_2,
-            "3_A_1": A_3_1,
-        }
+        return self._as_levels(
+            {
+                TermKey.TRIPLET_T_1: T_3_1,
+                TermKey.SINGLET_T_2: T_1_2,
+                TermKey.SINGLET_A_1: A_1_1,
+                TermKey.SINGLET_E: E_1_1,
+                TermKey.TRIPLET_T_2: T_3_2,
+                TermKey.SINGLET_T_1: T_1_1,
+                TermKey.TRIPLET_E: E_3_1,
+                TermKey.TRIPLET_A_2: A_3_2,
+                TermKey.SINGLET_A_2: A_1_2,
+                TermKey.QUINTET_E: E_5_1,
+                TermKey.QUINTET_T_2: T_5_2,
+                TermKey.TRIPLET_A_1: A_3_1,
+            },
+        )
 
 
 class d5(LigandFieldTheory):
     """Class representing the d5 configuration in ligand field theory."""
+
+    _d_count = 5
 
     def __init__(self, Dq: float = 0.0, B: float = 860.0, C: float = 3850.0) -> None:
         """Initialize the d5 configuration with given parameters.
@@ -787,12 +830,11 @@ class d5(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> dict[str, Float64Array]:
+    def solver(self) -> LevelSet:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
-                eigenvalues as values.
+            LevelSet: the term manifold, referenced to the ground state.
 
         """
         # Ligand field independent states
@@ -815,37 +857,27 @@ class d5(LigandFieldTheory):
         T_4_1 = self.T_4_1_states() - GS
         T_4_2 = self.T_4_2_states() - GS
 
-        if T_2_2[0] <= 0:
-            A_6_1 -= T_2_2[0]
-            E_4 -= T_2_2[0]
-            A_4_1 -= T_2_2[0]
-            A_4_2 -= T_2_2[0]
-            T_2_1 -= T_2_2[0]
-            E_2 -= T_2_2[0]
-            A_2_1 -= T_2_2[0]
-            A_2_2 -= T_2_2[0]
-            T_4_1 -= T_2_2[0]
-            T_4_2 -= T_2_2[0]
-            # Finally create new ligand field independent state
-            T_2_2 -= T_2_2[0]
-
-        return {
-            "2_T_2": T_2_2,
-            "2_T_1": T_2_1,
-            "2_E": E_2,
-            "2_A_1": A_2_1,
-            "2_A_2": A_2_2,
-            "4_T_1": T_4_1,
-            "4_T_2": T_4_2,
-            "4_E": E_4,
-            "6_A_1": A_6_1,
-            "4_A_1": A_4_1,
-            "4_A_2": A_4_2,
-        }
+        return self._as_levels(
+            {
+                TermKey.DOUBLET_T_2: T_2_2,
+                TermKey.DOUBLET_T_1: T_2_1,
+                TermKey.DOUBLET_E: E_2,
+                TermKey.DOUBLET_A_1: A_2_1,
+                TermKey.DOUBLET_A_2: A_2_2,
+                TermKey.QUARTET_T_1: T_4_1,
+                TermKey.QUARTET_T_2: T_4_2,
+                TermKey.QUARTET_E: E_4,
+                TermKey.SEXTET_A_1: A_6_1,
+                TermKey.QUARTET_A_1: A_4_1,
+                TermKey.QUARTET_A_2: A_4_2,
+            },
+        )
 
 
 class d6(LigandFieldTheory):
     """Class representing the d6 configuration in ligand field theory."""
+
+    _d_count = 6
 
     def __init__(self, Dq: float = 0.0, B: float = 1065.0, C: float = 5120.0) -> None:
         """Initialize the d6 configuration with given parameters.
@@ -1058,12 +1090,11 @@ class d6(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> dict[str, Float64Array]:
+    def solver(self) -> LevelSet:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
-                eigenvalues as values.
+            LevelSet: the term manifold, referenced to the ground state.
 
         """
         GS = np.array([-4 * self.Dq - 21 * self.B])
@@ -1085,40 +1116,28 @@ class d6(LigandFieldTheory):
         A_3_2 = -GS + self.A_3_2_states()
         A_1_2 = -GS + self.A_1_2_states()
 
-        if A_1_1[0] <= ENERGY_TOLERANCE:
-            T_1_2 -= A_1_1[0]
-
-            E_1_1 -= A_1_1[0]
-            T_3_2 -= A_1_1[0]
-            T_1_1 -= A_1_1[0]
-            E_3_1 -= A_1_1[0]
-            A_3_2 -= A_1_1[0]
-            A_1_2 -= A_1_1[0]
-            T_3_1 -= A_1_1[0]
-
-            E_5_1 -= A_1_1[0]
-            T_5_2 -= A_1_1[0]
-            A_3_1 -= A_1_1[0]
-            A_1_1 -= A_1_1[0]
-
-        return {
-            "3_T_1": T_3_1,
-            "1_T_2": T_1_2,
-            "1_A_1": A_1_1,
-            "1_E_1": E_1_1,
-            "3_T_2": T_3_2,
-            "1_T_1": T_1_1,
-            "3_E_1": E_3_1,
-            "3_A_2": A_3_2,
-            "1_A_2": A_1_2,
-            "5_E_1": E_5_1,
-            "5_T_2": T_5_2,
-            "3_A_1": A_3_1,
-        }
+        return self._as_levels(
+            {
+                TermKey.TRIPLET_T_1: T_3_1,
+                TermKey.SINGLET_T_2: T_1_2,
+                TermKey.SINGLET_A_1: A_1_1,
+                TermKey.SINGLET_E: E_1_1,
+                TermKey.TRIPLET_T_2: T_3_2,
+                TermKey.SINGLET_T_1: T_1_1,
+                TermKey.TRIPLET_E: E_3_1,
+                TermKey.TRIPLET_A_2: A_3_2,
+                TermKey.SINGLET_A_2: A_1_2,
+                TermKey.QUINTET_E: E_5_1,
+                TermKey.QUINTET_T_2: T_5_2,
+                TermKey.TRIPLET_A_1: A_3_1,
+            },
+        )
 
 
 class d7(LigandFieldTheory):
     """Class for d7 configuration."""
+
+    _d_count = 7
 
     def __init__(self, Dq: float = 0.0, B: float = 971.0, C: float = 4499.0) -> None:
         """Initialize the d7 configuration with given parameters.
@@ -1205,25 +1224,21 @@ class d7(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> dict[str, np.ndarray]:
+    def solver(self) -> LevelSet:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, np.ndarray]: Dictionary with atomic term symbols as keys and
-                eigenvalues as values.
+            LevelSet: the term manifold, referenced to the ground state.
 
         """
         # Ligand field independent states
 
         # Ligandfield multi dependent state become GS
 
-        T_4_1 = self.T_4_1_states()
+        GS = self.T_4_1_states()[0]
 
         # Ligendfield single dependent states
 
-        GS = T_4_1[0]
-
-        T_4_1[0] = 0.0
         A_4_2 = np.array([12 * self.Dq - 15 * self.B]) - GS
         T_4_2 = np.array([2 * self.Dq - 15 * self.B]) - GS
 
@@ -1234,32 +1249,26 @@ class d7(LigandFieldTheory):
         T_2_2 = self.T_2_2_states() - GS
         T_2_1 = self.T_2_1_states() - GS
         E_2 = self.E_2_states() - GS
-        T_4_1[1] -= GS
+        T_4_1 = self.T_4_1_states() - GS
 
-        if E_2[0] <= 0:
-            A_4_2 -= E_2[0]
-            T_4_2 -= E_2[0]
-            A_2_1 -= E_2[0]
-            A_2_2 -= E_2[0]
-            T_2_2 -= E_2[0]
-            T_2_1 -= E_2[0]
-            T_4_1 -= E_2[0]
-            E_2 -= E_2[0]
-
-        return {
-            "2_T_2": T_2_2,
-            "2_T_1": T_2_1,
-            "2_E": E_2,
-            "4_T_1": T_4_1,
-            "4_A_2": A_4_2,
-            "4_T_2": T_4_2,
-            "2_A_1": A_2_1,
-            "2_A_2": A_2_2,
-        }
+        return self._as_levels(
+            {
+                TermKey.DOUBLET_T_2: T_2_2,
+                TermKey.DOUBLET_T_1: T_2_1,
+                TermKey.DOUBLET_E: E_2,
+                TermKey.QUARTET_T_1: T_4_1,
+                TermKey.QUARTET_A_2: A_4_2,
+                TermKey.QUARTET_T_2: T_4_2,
+                TermKey.DOUBLET_A_1: A_2_1,
+                TermKey.DOUBLET_A_2: A_2_2,
+            },
+        )
 
 
 class d8(LigandFieldTheory):
     """Class for d8 configuration."""
+
+    _d_count = 8
 
     def __init__(self, Dq: float = 0.0, B: float = 1030.0, C: float = 4850.0) -> None:
         """Initialize the d8 configuration with given parameters.
@@ -1303,12 +1312,11 @@ class d8(LigandFieldTheory):
         states = self.construct_matrix(diag_elements, off_diag_elements)
         return self.eigensolver(states)
 
-    def solver(self) -> dict[str, Float64Array]:
+    def solver(self) -> LevelSet:
         """Solve for all states and return a dictionary of results.
 
         Returns:
-            Dict[str, Float64Array]: Dictionary with atomic term symbols as keys and
-                eigenvalues as values.
+            LevelSet: the term manifold, referenced to the ground state.
 
         """
         # Ligand field independent states
@@ -1326,12 +1334,14 @@ class d8(LigandFieldTheory):
         T_1_2 = self.T_1_2_states() - GS
         T_3_1 = self.T_3_1_states() - GS
 
-        return {
-            "1_A_1": A_1_1,
-            "1_E": E_1,
-            "1_T_3": T_1_2,
-            "3_T_1": T_3_1,
-            "1_T_1": T_1_1,
-            "3_T_2": T_3_2,
-            "3_A_2": A_3_2,
-        }
+        return self._as_levels(
+            {
+                TermKey.SINGLET_A_1: A_1_1,
+                TermKey.SINGLET_E: E_1,
+                TermKey.SINGLET_T_2: T_1_2,
+                TermKey.TRIPLET_T_1: T_3_1,
+                TermKey.SINGLET_T_1: T_1_1,
+                TermKey.TRIPLET_T_2: T_3_2,
+                TermKey.TRIPLET_A_2: A_3_2,
+            },
+        )

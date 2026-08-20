@@ -19,6 +19,8 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic import Field
 
+from tanabesugano.constants import CM1_TO_EV  # noqa: F401  (re-exported for the MCP layer)
+
 
 # Constrains every tool's `d_count` parameter to the eight supported octahedral
 # configurations; FastMCP surfaces this as an enum in the tool's input schema.
@@ -30,7 +32,6 @@ D_COUNT_LITERAL = Literal[2, 3, 4, 5, 6, 7, 8]
 EnergyUnit = Literal["cm1", "eV", "nm"]
 
 # 1 cm^-1 expressed in eV; also used in tanabesugano.tools (racah conversion).
-CM1_TO_EV: float = 1.0 / 8065.54
 
 # Typical maxima used to validate Sliders / range queries.
 DQ_MAX = 5000.0  # cm^-1; well past the strong-field limit for first-row TM ions

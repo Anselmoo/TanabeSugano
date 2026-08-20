@@ -10,6 +10,7 @@ from tanabesugano import matrices
 from tanabesugano import tools
 from tanabesugano.constants import PARAMETER_RANGE_LENGTH
 from tanabesugano.constants import ElectronConfiguration
+from tanabesugano.constants import matrix_size
 
 
 if TYPE_CHECKING:
@@ -103,20 +104,14 @@ class Batch:
         self.C = np.linspace(C[0], C[1], int(C[2]))  # Racah-C-parameter
 
         if slater:
-            # Transformin Racah to Slater-Condon
-            self.B, self.C = tools.racah(B, C)
+            # Slater-Condon (F2, F4 in eV) -> Racah (B, C in cm^-1).
+            # Must transform the linspace GRIDS, not the 3-element
+            # [start, stop, steps] constructor lists -- passing those in divided
+            # a list by a float and raised TypeError on every call.
+            self.B, self.C = tools.racah(self.B, self.C)
 
         self.d_count = d_count
-        if self.d_count in {
-            ElectronConfiguration.D4,
-            ElectronConfiguration.D5,
-            ElectronConfiguration.D6,
-        }:
-            self._size = 42
-        if self.d_count in {ElectronConfiguration.D3, ElectronConfiguration.D7}:
-            self._size = 19
-        if self.d_count in {ElectronConfiguration.D2, ElectronConfiguration.D8}:
-            self._size = 10
+        self._size = matrix_size(d_count)
         self.result: list[dict] = []
 
     def calculation(self) -> None:
@@ -130,7 +125,7 @@ class Batch:
         for _Dq in self.Dq:
             for _B in self.B:
                 for _C in self.C:
-                    states = solver_class(Dq=_Dq, B=_B, C=_C).solver()
+                    states = solver_class(Dq=_Dq, B=_B, C=_C).solver().as_dict()
                     self.result.append(
                         {
                             "d_count": self.d_count,
