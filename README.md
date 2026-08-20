@@ -10,7 +10,7 @@
 
 ### 📊 Build & Quality
 
-[![Python Package](https://github.com/Anselmoo/TanabeSugano/actions/workflows/python-package.yml/badge.svg)](https://github.com/Anselmoo/TanabeSugano/actions/workflows/python-package.yml)
+[![CI/CD](https://github.com/Anselmoo/TanabeSugano/actions/workflows/cicd.yml/badge.svg)](https://github.com/Anselmoo/TanabeSugano/actions/workflows/cicd.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/anselmoo/tanabesugano/badge)](https://www.codefactor.io/repository/github/anselmoo/tanabesugano)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
@@ -24,8 +24,8 @@
 ### 📚 Resources
 
 [![DOI](https://zenodo.org/badge/206847682.svg)](https://zenodo.org/badge/latestdoi/206847682)
-[![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)](https://github.com/Anselmoo/TanabeSugano/blob/master/LICENSE)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/master/Tanabe_Sugano.ipynb)
+[![GitHub](https://img.shields.io/github/license/Anselmoo/TanabeSugano)](https://github.com/Anselmoo/TanabeSugano/blob/main/LICENSE)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/main/Tanabe_Sugano.ipynb)
 
 ---
 
@@ -41,6 +41,7 @@
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
+- [Upgrading to 2.0.0](#-upgrading-to-200)
 - [Quick Start](#-quick-start)
 - [Features](#-features)
 - [Usage](#-usage)
@@ -64,6 +65,21 @@
 - 🔄 **Interactive Exploration** - Explore diagrams with Plotly integration
 - 🚀 **Easy to Use** - Simple CLI and Python API
 - 📱 **Cloud-Ready** - Run in Google Colab or locally
+
+---
+
+## 🔄 Upgrading to 2.0.0
+
+**2.0.0 is a breaking release.** Three changes bite existing users; the full list is in
+[`CHANGELOG.md`](CHANGELOG.md).
+
+| What changed | Migration |
+|---|---|
+| `matrices.dN.solver()` returns a **`LevelSet`**, not `dict[TermKey, Float64Array]`. `LevelSet` is *not* a Mapping — `states[key]`, `.items()` and `len()` raise `TypeError`. | Call `.as_dict()` for the old shape, or iterate `.levels`. A bare dict could not express a multiplet: for d⁸ it mapped `3_T_1` to a two-element array, so ν₂ and ν₃ were indistinguishable. |
+| **Term keys renamed**: `1_T_3` → `1_T_2` (no T₃ irrep exists in O<sub>h</sub>) and `*_E_1` → `*_E` (E<sub>g</sub> carries no subscript). | Update any literal key match. `TermKey` now makes both old spellings unwritable. This also renames the corresponding **CSV columns** in `ts-diagrams/**`. |
+| **Committed CSV artifacts changed.** `delta_B` held `Dq/B` while labelled `Δ/B` and is now **10× larger** (the old values were wrong); the cm⁻¹→eV factor was `0.00012` and is now `1/8065.54`; columns are renamed as above and now sorted rather than dict-insertion ordered. | Re-read any pinned column indices by name. Values are otherwise unchanged — verified cell-by-cell across all 42 regenerated files, and now guarded by a `--check` step in CI. |
+
+Python ≥ 3.12 is required.
 
 ---
 
@@ -101,7 +117,7 @@ tanabesugano -d 6
 tanabesugano -d 6 -Dq 8000 -B 860 1.0 -C 3850 1.0
 ```
 
-**🎮 Try it now:** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/master/Tanabe_Sugano.ipynb)
+**🎮 Try it now:** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Anselmoo/TanabeSugano/blob/main/Tanabe_Sugano.ipynb)
 
 ---
 
@@ -254,7 +270,7 @@ High-quality diagram for d<sup>6</sup> configuration with B = 860 cm⁻¹ and C 
 
 <div align="center">
 
-![Tanabe-Sugano Diagram for d6](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/dd-diagram_for_d6.png?raw=true)
+![Tanabe-Sugano Diagram for d6](https://github.com/Anselmoo/TanabeSugano/blob/main/examples/dd-diagram_for_d6.png?raw=true)
 
 *Figure: Tanabe-Sugano diagram showing energy levels as a function of crystal field strength*
 
@@ -266,7 +282,7 @@ Interactive diagram for d<sup>6</sup> with Slater-Condon parameters F² = 1065 c
 
 <div align="center">
 
-![Interactive Tanabe-Sugano Diagram](https://github.com/Anselmoo/TanabeSugano/blob/master/examples/d6_ts_interactive.gif?raw=true)
+![Interactive Tanabe-Sugano Diagram](https://github.com/Anselmoo/TanabeSugano/blob/main/examples/d6_ts_interactive.gif?raw=true)
 
 *Figure: Interactive diagram with hover tooltips and zoom capabilities*
 
@@ -420,14 +436,20 @@ If you use TanabeSugano in your research, please cite:
 
 ```bibtex
 @software{tanabesugano,
-  author       = {Anselm Hahn},
+  author       = {Hahn, Anselm W.},
   title        = {TanabeSugano: Python-based Eigensolver for Tanabe-Sugano Diagrams},
-  year         = {2024},
+  year         = {2026},
   publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.206847682},
+  version      = {2.0.0-alpha.1},
+  doi          = {10.5281/zenodo.3402463},
   url          = {https://github.com/Anselmoo/TanabeSugano}
 }
 ```
+
+> **Which DOI?** `10.5281/zenodo.3402463` is the *concept* DOI — it always resolves to the
+> newest deposited release, which is what you want in a reference list. To cite the exact
+> version you ran, use that release's own version DOI from the
+> [Zenodo record](https://doi.org/10.5281/zenodo.3402463) instead.
 
 [![DOI](https://zenodo.org/badge/206847682.svg)](https://zenodo.org/badge/latestdoi/206847682)
 
@@ -447,6 +469,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 [Report Bug](https://github.com/Anselmoo/TanabeSugano/issues) ·
 [Request Feature](https://github.com/Anselmoo/TanabeSugano/issues) ·
-[Discussions](https://github.com/Anselmoo/TanabeSugano/discussions)
+[Interactive Diagrams](https://anselmoo.github.io/TanabeSugano/)
 
 </div>
