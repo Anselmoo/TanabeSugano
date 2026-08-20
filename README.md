@@ -115,8 +115,8 @@ tanabesugano -d 6 -Dq 8000 -B 860 1.0 -C 3850 1.0
 
 - **Static Plots** via Matplotlib
 - **Interactive Diagrams** via Plotly
-- **Export Formats**: PNG, HTML, TXT
-- **Publication-Ready** output quality
+- **Export Formats**: PNG, PDF, SVG, HTML, CSV
+- **Publication-Ready** vector output
 
 </td>
 <td width="50%">
@@ -146,9 +146,9 @@ tanabesugano -d 6 -Dq 8000 -B 860 1.0 -C 3850 1.0
 ### 📤 Export Options
 
 - **Tables** via PrettyTable
-- **Diagrams** as images or HTML
-- **Data** as text files
-- **Interactive** HTML exports
+- **Diagrams** as raster (PNG) or vector (PDF/SVG)
+- **Data** as CSV
+- **Reproducible** matplotlib source via `ts_fit_script`
 
 </td>
 </tr>
@@ -164,41 +164,84 @@ tanabesugano -d 6 -Dq 8000 -B 860 1.0 -C 3850 1.0
 <summary>🔧 <strong>View all CLI options</strong></summary>
 
 ```console
-tanabesugano --help
+$ tanabesugano --help
+usage: tanabesugano [-h] [-d D] [-Dq DQ] [-cut CUT] [-B B B] [-C C C] [-n N] [-ndisp]
+                    [-ntxt] [-slater] [-v] [-html]
 
-usage: __main__.py [-h] [-d D] [-Dq DQ] [-cut CUT] [-B B B] [-C C C] [-n N]
-               [-ndisp] [-ntxt] [-slater]
+A python-based Eigensolver for Tanabe-Sugano- & Energy-Correlation-Diagrams based on
+studies by *Yukito Tanabe and Satoru Sugano* for d3-d8 transition metal ions: For
+further help, please use tanabe '--help'
 
-optional arguments:
+options:
   -h, --help     show this help message and exit
-  -d D           Number of unpaired electrons (default d5)
+  -d D           Number of d electrons, 2-8 (default d5)
   -Dq DQ         10Dq crystal field splitting (default 10Dq = 8065 cm-)
   -cut CUT       10Dq crystal field splitting (default 10Dq = 8065 cm-)
-  -B B B         Racah Parameter B and the corresponding reduction (default B = 860 cm- * 1.)
-  -C C C         Racah Parameter C and the corresponding reduction (default C = 4.477*860 cm- * 1.)
+  -B B B         Racah Parameter B and the corresponding reduction (default B = 860 cm-
+                 * 1.)
+  -C C C         Racah Parameter C and the corresponding reduction (default C =
+                 4.477*860 cm- * 1.)
   -n N           Number of roots (default nroots = 500)
   -ndisp         Plot TS-diagram (default = on)
   -ntxt          Save TS-diagram and dd energies (default = on)
-  -slater        Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C (default = off)
+  -slater        Using Slater-Condon F2,F4 parameter instead Racah-Parameter B,C
+                 (default = off)
   -v, --version  Print version number and exit
-  -html          Save TS-diagram and dd energies (default = on)
+  -html          Save TS-diagram and dd energies (default = off)
 ```
+
+> The MCP layer uses **per-configuration** Racah defaults rather than the CLI's
+> single d5 free-ion pair — see `src/tanabesugano/mcp/_defaults.py`.
 
 </details>
 
 ### Python API
 
+> **Changed in 2.0.0.** `solver()` returns a `LevelSet`, not a `dict`.
+> `LevelSet` is **not** a Mapping — `states[key]`, `.items()` and `len()` raise
+> `TypeError`. Call `.as_dict()` for the previous shape, or iterate `.levels`.
+
 ```python
-from tanabesugano import TanabeSugano
+from tanabesugano.levels import LevelSet
 
-# Create a d6 configuration
-ts = TanabeSugano(d=6, Dq=8065, B=860, C=3850)
+# Solve the d8 manifold at one ligand-field strength.
+manifold = LevelSet.solve(8, dq=850.0, b=1030.0, c=4850.0)
 
-# Generate and display diagram
-ts.plot()
+print(manifold.ground.label)          # 3_A_2
+print(manifold.level_count)           # 11 levels ...
+print(manifold.total_degeneracy)      # ... accounting for C(10,8) = 45 microstates
 
-# Export to HTML for interactive use
-ts.export_html('d6_diagram.html')
+# Levels are typed objects, not bare arrays, and carry free-ion parentage:
+# 3T_1g(F) / 3T_1g(P), the notation the literature uses, rather than a
+# positional (a)/(b).
+for level in manifold.spin_allowed():
+    print(f"{level.parent_unicode:10} {level.energy_cm1:9.1f} cm-1")
+# 3T_2g        8500.0 cm-1     <- nu1 = 10Dq exactly, for d3 and d8
+# 3T_1g(F)    14283.0 cm-1
+# 3T_1g(P)    26667.0 cm-1
+
+# Name a transition the way a caption would.
+excited = manifold.for_term("3_T_1")[1]
+print(manifold.transition_unicode(excited))   # 3A_2g -> 3T_1g(P)
+```
+
+Sweeping a range of ligand-field strengths, and exporting a figure:
+
+```python
+from pathlib import Path
+
+from tanabesugano.batch import Batch
+from tanabesugano.mcp.plotting import render_diagram
+
+# Sweep Dq while holding the Racah parameters fixed.
+# Each parameter is [start, stop, steps]; hold B and C fixed with one step.
+batch = Batch(Dq=[500.0, 1500.0, 20], B=[1030.0, 1030.0, 1], C=[4850.0, 4850.0, 1], d_count=8)
+batch.calculation()
+
+# Publication figure: "png" (default), "pdf" or "svg".
+Path("d8.pdf").write_bytes(
+    render_diagram(d_count=8, dq_max=1500.0, B=1030.0, C=4850.0, fmt="pdf"),
+)
 ```
 
 ---
@@ -288,9 +331,11 @@ Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the `B
 | `ts_terms_table_data` | All eigenvalues at one (Dq, B, C), sorted ascending with multiplicity (machine-readable rows). |
 | `ts_fit_spectrum` | Fit observed UV-Vis absorption peaks → Dq and Racah B. |
 | `ts_nephelauxetic` | Interpret a fitted B as metal-ligand covalency (nephelauxetic β). |
-| `ts_plot_png` | Matplotlib PNG plot (cheap default for any client). |
+| `ts_plot_png` | Matplotlib figure for any client. `format="png"` (default) returns an inline image; `format="pdf"` / `"svg"` return true vector output as an embedded resource — the only vector export route in the package. |
+| `ts_fit_script` | Runnable matplotlib **source** for an observed-vs-computed fit figure. Carries the fitter's own numbers as literals and imports matplotlib only, so a reviewer can reproduce a published figure without installing this package. |
 | `ts_plot_view` | Interactive Chart.js line plot (capable clients only). |
 | `ts_explain` | One-paragraph ground-state description. |
+| `ts_emit_png` | Internal export sink — each Chart.js iframe's "Send PNG to chat" button calls it with the rendered canvas. Not called directly. |
 
 > **Note.** `ts_compute` and `ts_diagram` (raw nested-dict eigenvalue payloads) were removed because the output was unusable without further rendering — Claude's "next steps" devolved into "save to CSV / render PNG" suggestions the client cannot execute. Use `ts_compute_app` / `ts_diagram_app` for in-chat tables and charts, or `ts_terms_table_data` for machine-readable rows.
 
@@ -310,6 +355,7 @@ Every release attaches a `tanabesugano-<version>.mcpb` artifact (built by the `B
 | `ts_spectrum_app` | Simulated Lorentzian UV-Vis spectrum (spin-allowed + spin-forbidden). |
 | `ts_reverse_fit_app` | Grid-search Dq and B to best-fit observed peak positions. |
 | `ts_ratio_fit_app` | Derive Dq and B from 2–3 measured bands via the ratio method. |
+| `ts_fit_plot_app` | Observed vs computed bands for a fit, plotted as residuals (computed − observed). A ~100 cm⁻¹ misfit is narrower than a marker on an 8,000–26,000 cm⁻¹ axis, so raw positions would show coincident dots; the raw values travel in the structured payload. |
 
 #### Prompts & resources
 

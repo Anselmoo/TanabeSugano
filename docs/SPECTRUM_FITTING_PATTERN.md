@@ -48,47 +48,57 @@ def fit_spectrum(
     d_count: int,
     observed_peaks_cm1: list[float],
     C: float | None = None,
-    dq_bounds: tuple[float, float] = (500.0, 30000.0),
-    b_bounds: tuple[float, float] = (200.0, 1200.0),
-) -> tuple[float, float, float, float, list[tuple[float, str]]]:
+    *,
+    spin_state: SpinState = "high",
+    include_spin_forbidden: bool = False,
+    dq_bounds: tuple[float, float] | None = None,
+    b_bounds: tuple[float, float] = (200.0, 1500.0),
+) -> SpectrumFit:
     """Fit observed absorption peaks to find optimal Dq and B parameters."""
 
-    # 1. Setup: convert inputs
-    observed = np.asarray(observed_peaks_cm1, dtype=float)
+    # 1. Refuse ill-posed inputs up front, loudly.
+    #    High-spin d5 has ZERO spin-allowed d-d transitions; d4/d6 have exactly
+    #    one (= 10Dq), so B is unidentifiable. Returning a number here would be
+    #    a confident lie.
+    if not seed_candidates:
+        raise ValueError("... no spin-allowed d-d transitions ...")
+    if len(seed_candidates) < observed.size:
+        raise ValueError("... the fit is under-determined ...")
 
-    # 2. Strategy enclosure: define the objective function in a closure
+    # 2. Seed from physics, not from a constant. For d3/d8 the closed form
+    #    Dq = nu1/10, B = (nu3 + nu2 - 3*nu1)/15 is exact, so the optimizer
+    #    starts on the answer.
+    dq_seed, b_seed = closed_form_dq_b(d_count, observed.tolist())
+
+    # 3. Objective. Two rules make it honest:
     def objective(params: np.ndarray) -> float:
         dq, b = params
-        # Bounds enforcement
-        if dq < dq_bounds[0] or dq > dq_bounds[1]:
-            return 1e6
-        if b < b_bounds[0] or b > b_bounds[1]:
-            return 1e6
-        # Core computation
-        try:
-            terms = compute_point(d_count, dq, b, C)
-            transitions = _extract_transition_energies(terms)
-            predicted = np.array([t[0] for t in transitions])
-            return _match_peaks(observed, predicted)
-        except Exception:
-            return 1e6
+        # (a) The penalty is FINITE, scale-aware and sloped back toward the
+        #     feasible box. A constant sentinel (the old `return 1e6`) makes the
+        #     objective perfectly flat wherever nothing matches -- and
+        #     Nelder-Mead reports success on a flat plateau, so the caller gets
+        #     the untouched seed back with a sentinel RMSE and no error.
+        if out_of_bounds:
+            return base * (2.0 + excess)
+        found_ground, candidates = transition_candidates(
+            compute_point(d_count, dq, b, C),
+            spin_allowed_only=not include_spin_forbidden,
+        )
+        # (b) Pin the spin regime. Low-spin manifolds are far denser (d5: 31
+        #     lines vs 0), and a nearest-neighbour residual is minimised by a
+        #     dense forest -- so an unconstrained search is *rewarded* for
+        #     crossing the spin crossover into a physically wrong regime.
+        if found_ground != reference:
+            return base * 2.0
+        # (c) Every observed peak contributes to BOTH numerator and denominator.
+        #     The old metric gated on a 500 cm^-1 tolerance and divided by the
+        #     matched count, so "match one peak, ignore the rest" scored 0.0.
+        return peak_rmse(observed, np.array([e for e, _a, _s in candidates]))
 
-    # 3. Algorithm selection: explicit choice of Nelder-Mead
-    initial_guess = np.array([5000.0, 600.0])
-    result = minimize(
-        objective,           # <-- Objective passed as callable
-        initial_guess,
-        method="Nelder-Mead",  # <-- Algorithm explicitly named
-        options={"maxiter": 500, "xatol": 1e-2, "fatol": 1.0},
-    )
-
-    # 4. Extract results
-    if not result.success:
-        msg = f"Fitting failed to converge: {result.message}"
-        raise ValueError(msg)
-
-    fitted_dq, fitted_b = result.x
-    # ... return fitted parameters
+    # 4. Multi-start, then REFUSE a result that never escaped the penalty region.
+    #    `result.success` alone is not enough -- see (a).
+    if result.fun >= base:
+        raise ValueError("fit never escaped the penalty region ...")
 ```
 
 ## Why This Pattern?
@@ -132,7 +142,7 @@ result = spectrum.fit()
 
 ```python
 # ✓ Clean: Computation is a function
-dq, b, c, rmse, transitions = fit_spectrum(observed_peaks, d_count)
+fit = fit_spectrum(d_count, observed_peaks)   # note: d_count FIRST
 ```
 
 **Advantages**:
@@ -164,21 +174,42 @@ This is **Strategy without a class**: the objective function *is* the strategy. 
 The objective function chains three computations:
 
 1. **Bounds check**: Is (dq, b) within allowed ranges?
-2. **Forward model**: Compute the theoretical spectrum at this (dq, b)
-3. **Fitness metric**: How close is the theoretical spectrum to observed?
+2. **Spin-regime check**: Is this point still on the requested side of the crossover?
+3. **Forward model**: Compute the theoretical spectrum at this (dq, b)
+4. **Fitness metric**: How close is the theoretical spectrum to observed?
 
 ```python
-if dq < dq_bounds[0] or dq > dq_bounds[1]:
-    return 1e6  # Penalty: out of bounds
+# Graded, finite penalty -- never a constant. A constant makes the objective
+# flat, and a flat objective makes Nelder-Mead "converge" without moving.
+if excess > 0 or dq <= 0 or b <= 0:
+    return base * (2.0 + excess)
 
 try:
-    terms = compute_point(d_count, dq, b, C)  # Forward model
-    transitions = _extract_transition_energies(terms)
-    predicted = np.array([t[0] for t in transitions])
-    return _match_peaks(observed, predicted)  # Fitness
-except Exception:
-    return 1e6  # Penalty: computation failed
+    terms = compute_point(d_count, dq, b, C)          # Forward model
+    found_ground, candidates = transition_candidates(  # Ground term + spin filter
+        terms, spin_allowed_only=not include_spin_forbidden,
+    )
+except (ValueError, KeyError, np.linalg.LinAlgError):
+    return base * 3.0
+
+if found_ground != reference or not candidates:
+    return base * 2.0                                  # Wrong spin regime
+
+return peak_rmse(observed, np.array([e for e, _a, _s in candidates]))  # Fitness
 ```
+
+> **Three traps this shape exists to avoid**, each of which shipped in an
+> earlier version of this file:
+>
+> 1. **Never normalise a residual by the number of peaks you managed to match.**
+>    If unmatched peaks leave both the numerator and the denominator, ignoring
+>    data becomes the global optimum and a one-of-three match scores 0.0.
+> 2. **Never use a constant as an out-of-bounds penalty.** It flattens the
+>    objective; `scipy` then reports `success=True` on the plateau and hands back
+>    the untouched seed. A convergence guard on `result.success` will not fire.
+> 3. **Never take the ground term from `next(iter(term_energies))`.** Dict order
+>    is not energy order -- that expression names the wrong term for all seven
+>    configurations. Derive it with `min()` over the energies, per point.
 
 ### Algorithm Selection Is Explicit
 
@@ -223,7 +254,7 @@ def test_nickel_aqua_complex(self) -> None:
         - Appears green: absorbs blue and red
     """
     observed_peaks = [10**7 / 450, 10**7 / 700]
-    dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
+    fit = fit_spectrum(8, observed_peaks)
 
     # Assertion: recovered parameters are physically sensible
     assert 4500 < dq < 6000, f"Dq={dq:.0f} unreasonable for aqua Ni²⁺"
@@ -238,7 +269,7 @@ This test **documents that the pattern works**: given real UV-Vis data from the 
 |---|---|
 | **Explicit is better than implicit** | Algorithm choice is named in `method=` parameter; bounds are explicit in function signature |
 | **Simple is better than complex** | A function is simpler than a factory + multiple optimizer classes |
-| **Readability counts** | `fit_spectrum(observed, d_count)` is clear; intent is obvious |
+| **Readability counts** | `fit_spectrum(d_count, observed)` is clear; intent is obvious |
 | **Errors should never pass silently** | Exceptions from `compute_point()` are caught and penalized, but fitting still returns result |
 | **There should be one way** | One function, one optimizer (Nelder-Mead), one algorithm selection mechanism |
 

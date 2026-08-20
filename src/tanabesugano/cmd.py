@@ -24,7 +24,8 @@ from tanabesugano import tools
 
 # Import the solver mapping from batch module
 from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
-from tanabesugano.constants import ElectronConfiguration
+from tanabesugano.constants import CM1_TO_EV
+from tanabesugano.constants import matrix_size
 from tanabesugano.plot_style import line_style_for
 from tanabesugano.plot_style import style_axes
 
@@ -73,20 +74,18 @@ class CMDmain:
         energy = np.linspace(0.0, self.Dq, nroots)
 
         self.d_count = d_count
-        if self.d_count in {
-            ElectronConfiguration.D4,
-            ElectronConfiguration.D5,
-            ElectronConfiguration.D6,
-        }:
-            self._size = 42
-        if self.d_count in {ElectronConfiguration.D3, ElectronConfiguration.D7}:
-            self._size = 19
-        if self.d_count in {ElectronConfiguration.D2, ElectronConfiguration.D8}:
-            self._size = 10
+        self._size = matrix_size(d_count)
         self.result = np.zeros((self._size + 1, nroots))
 
+        # `energy` holds Dq, so Delta_o = 10 * Dq. The delta_B column is plotted
+        # and exported under the label $\Delta/B$, so it must carry 10Dq/B --
+        # it previously carried Dq/B, making the axis wrong by a factor of 10.
         self.df = pd.DataFrame(
-            {"Energy": energy, "delta_B": energy / self.B, "10Dq": energy * 10.0},
+            {
+                "Energy": energy,
+                "delta_B": energy * 10.0 / self.B,
+                "10Dq": energy * 10.0,
+            },
         )
         self.title_TS = (
             f"TS-diagram_d{self.d_count}_10Dq_{int(self.Dq * 10.0)}_B_{int(self.B)}_C_{int(self.C)}"
@@ -179,12 +178,12 @@ class CMDmain:
         # Get the solver class for this electron configuration
         solver_class = ELECTRON_CONFIG_SOLVERS.get(self.d_count)
         if solver_class is None:
-            msg = "The number of unpaired electrons should be between 2 and 8."
+            msg = "The number of d electrons should be between 2 and 8."
             raise ValueError(msg)
 
         result = []
         for dq in self.df["Energy"]:
-            states = solver_class(Dq=dq, B=self.B, C=self.C).solver()
+            states = solver_class(Dq=dq, B=self.B, C=self.C).solver().as_dict()
             result.append(self.subsplit_states(states))
 
         # Transform list of dictionaries to dictionary of arrays
@@ -203,18 +202,18 @@ class CMDmain:
                 rearranged_states[key] = value
         return rearranged_states
 
-    def ci_cut(self, dq_ci: float | None = None) -> None:
+    def ci_cut(self, dq_ci: float) -> None:
         """Extract atomic-termsymbols for specific dq by oxidation state."""
         # Get the solver class for this electron configuration
         solver_class = ELECTRON_CONFIG_SOLVERS.get(self.d_count)
         if solver_class is None:
-            msg = "The number of unpaired electrons should be between 2 and 8."
+            msg = "The number of d electrons should be between 2 and 8."
             raise ValueError(msg)
 
-        states = solver_class(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver()
+        states = solver_class(Dq=dq_ci / 10.0, B=self.B, C=self.C).solver().as_dict()
         self.ts_print(states, dq_ci=dq_ci)
 
-    def ts_print(self, states: dict, dq_ci: float | None = None) -> None:
+    def ts_print(self, states: dict, dq_ci: float) -> None:
         """Print the atomic-termsymbols.
 
         Print the atomic-termsymbols for a specific dq depending on the oxidation state
@@ -224,8 +223,10 @@ class CMDmain:
         ----------
         states : dict
             List of atomic-termsymbols for a specific oxidation state
-        dq_ci : float, optional
-            Specific crystalfield-splitting in Dq, by default None
+        dq_ci : float
+            Specific crystalfield-splitting as 10Dq in cm^-1. Required: the body
+            divides by it, so the previous `= None` default raised TypeError for
+            anyone who took the signature at its word.
 
         """
         count = 0
@@ -235,7 +236,7 @@ class CMDmain:
             for energy in energies:
                 cut["state"][count] = irreducible
                 cut["cm"][count] = np.round(energy, 0).astype(int)
-                cut["eV"][count] = np.round(energy * 0.00012, 4)
+                cut["eV"][count] = np.round(energy * CM1_TO_EV, 4)
 
                 count += 1
 
@@ -246,9 +247,14 @@ class CMDmain:
             x.add_row(row)
         # Change some column alignments; default was 'c'
         x.field_names = ["State", "cm-", "eV"]
-        x.align["state"] = "l"
-        x.align["cm"] = "r"
+        # Alignment keys must match the CURRENT field names, which were just
+        # renamed above -- the old lowercase keys silently aligned nothing.
+        x.align["State"] = "l"
+        x.align["cm-"] = "r"
         x.align["eV"] = "r"
+        # The docstring promises the table appears "on the screen"; it was built
+        # and then dropped, so only the CSV was ever produced.
+        print(x)
         title = f"TS_Cut_d{self.d_count}_10Dq_{int(dq_ci)}_B_{int(self.B)}_C_{int(self.C)}.csv"
 
         np.savetxt(
@@ -344,7 +350,7 @@ def cmd_line() -> None:
         "-d",
         type=int,
         default=6,
-        help="Number of unpaired electrons (default d5)",
+        help="Number of d electrons, 2-8 (default d5)",
     )
     parser.add_argument(
         "-Dq",

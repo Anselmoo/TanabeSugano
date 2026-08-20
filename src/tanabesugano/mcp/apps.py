@@ -47,6 +47,7 @@ try:
     from prefab_ui.components.charts import Sparkline  # used by ts_dashboard_app
 
     from tanabesugano import __version__ as _pkg_version
+    from tanabesugano.mcp._compute import SpinState
     from tanabesugano.mcp._inputs import CM1_TO_EV
 
     _HAVE_APPS = True
@@ -75,6 +76,7 @@ def register_apps(mcp: FastMCP) -> None:
     _register_oxidation_landscape(mcp)
     _register_orgel(mcp)
     _register_spin_crossover(mcp)
+    _register_fit_plot(mcp)
     _register_correlation_diagram(mcp)
     _register_compute_table(mcp)
 
@@ -558,7 +560,8 @@ def _register_dashboard(mcp: FastMCP) -> None:
 def _register_compare(mcp: FastMCP) -> None:
     """Compare diagrams via Chart.js: each d-count's terms drawn as its own
     series on one shared (10Dq/B, E/B) axis set. Replaces the previous
-    Prefab small-multiples grid that did not render in Claude Desktop."""
+    Prefab small-multiples grid that did not render in Claude Desktop.
+    """
 
     @mcp.tool(
         name="ts_compare_app",
@@ -748,12 +751,12 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
         d_count: int,
         B: float | None = None,
         C: float | None = None,
-        dq_max: float = 2500.0,
+        dq_max: float = 3500.0,
         steps: int = 100,
     ) -> ToolResult:
         """Plot the ground-term energies of the two candidate spin states vs Δ.
 
-        Sweeps Dq from 0 to ``dq_max`` (default 2500 cm⁻¹ — well past the
+        Sweeps Dq from 0 to ``dq_max`` (default 3500 cm⁻¹ — past the
         crossing for all four configurations), computes the ground-term
         energy of every term at each Dq, and tags each term by spin
         multiplicity. The two relevant curves are: lowest *high-spin*
@@ -769,14 +772,22 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
             d_count: must be 4, 5, 6, or 7.
             B, C: Racah parameters (cm⁻¹); per-configuration defaults if
                 omitted.
-            dq_max: Upper Dq bound for the sweep (cm⁻¹). The crossing
-                typically sits between 1500 and 2200 cm⁻¹; 2500 leaves
-                margin on both sides.
+            dq_max: Upper Dq bound for the sweep (cm⁻¹). At the default
+                Racah parameters the crossing sits at Dq ≈ 2106 (d⁷),
+                2135 (d⁶), 2433 (d⁵) and 2639 (d⁴) cm⁻¹, so 3500 clears
+                the highest by ~30%. The previous default of 2500 put d⁴'s
+                crossing outside the swept range entirely and the tool
+                reported no crossing at all. Raise this for large B: the
+                critical Dq scales roughly with B, so B ≈ 1400 pushes d⁴
+                past 3800.
             steps: Sweep resolution.
 
         """
         import json as _json
 
+        from tanabesugano.mcp._compute import CROSSOVER_TOL_DQ_CM1
+        from tanabesugano.mcp._compute import crossover_dq
+        from tanabesugano.mcp._compute import ground_term
         from tanabesugano.mcp._compute import sweep_dq
         from tanabesugano.mcp.tools._shared import resolve_bc
 
@@ -849,22 +860,37 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
             if ls_mult in mm:
                 ls_curve.append({"x": round(x, 1), "y": round(mm[ls_mult], 1)})
 
-        # Detect crossing: the first Dq step where the LS minimum dips
-        # below the HS minimum (i.e. the ground term flips).
+        # Locate the crossing by bisection, NOT by scanning the sweep.
+        #
+        # The grid above is for *drawing* the two curves. Reading the critical
+        # Dq off it quantises the answer to the sweep spacing: at steps=100 that
+        # is 303 cm-1 in delta over a 0..3000 sweep, and 354 cm-1 over the
+        # current 0..3500 default. Measured against an exact bisection, the grid
+        # answer overshot the true crossing by 167-450 cm-1 and -- worse -- made
+        # the reported number a function of `steps`, a parameter whose whole
+        # documented job is drawing resolution. `crossover_dq` bisects the same
+        # predicate to CROSSOVER_TOL_DQ_CM1, so the answer stops moving.
+        #
+        # It is anchored on the strong-field ground term rather than on "the
+        # ground term differs from Dq=0": at Dq=0 the field vanishes, so all
+        # crystal-field components of the free-ion ground term are exactly
+        # degenerate and the tie-break names an arbitrary one (d6 gives 5_E,
+        # not the weak-field 5_T_2). See crossover_dq's docstring.
         crossing_dq: float | None = None
-        for i in range(1, len(per_step_mult_min)):
-            prev = per_step_mult_min[i - 1]
-            cur = per_step_mult_min[i]
-            if (
-                hs_mult in prev
-                and ls_mult in prev
-                and hs_mult in cur
-                and ls_mult in cur
-                and (prev[hs_mult] < prev[ls_mult])
-                and (cur[hs_mult] >= cur[ls_mult])
-            ):
-                crossing_dq = float(dq_values[i]) * 10.0
-                break
+        ls_reference = ground_term(points[-1])[0]
+        if _multiplicity_of(ls_reference) < hs_mult:
+            dq_root = crossover_dq(
+                d_count,
+                b_val,
+                c_val,
+                ls_reference,
+                hi=float(dq_max),
+                tol=CROSSOVER_TOL_DQ_CM1,
+            )
+            # crossover_dq returns `hi` when the flip is not strictly inside
+            # the swept range, which is the "no crossing here" signal.
+            if dq_root < float(dq_max):
+                crossing_dq = dq_root * 10.0
 
         crossing_label = (
             f"critical Δ ≈ {crossing_dq:,.0f} cm⁻¹ (Dq/B ≈ {(crossing_dq / 10.0) / b_val:.2f})"
@@ -915,6 +941,134 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
                 "series": series,
                 "critical_delta_cm1": crossing_dq,
                 "critical_Dq_cm1": (crossing_dq / 10.0) if crossing_dq is not None else None,
+            },
+        )
+        return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+
+def _register_fit_plot(mcp: FastMCP) -> None:
+    """Observed vs computed band positions for a spectral fit.
+
+    The counterpart of ``ts_fit_script`` for the inline surface. Same numbers,
+    same assignments, same estimator -- one is a chart in the conversation, the
+    other is source a reviewer can run. Neither recomputes the ligand-field
+    problem; both read a single :func:`fit_spectrum` result.
+    """
+
+    @mcp.tool(
+        name="ts_fit_plot_app",
+        title="Observed vs computed bands for a spectral fit",
+        version=_pkg_version,
+        tags={"tanabesugano", "fit", "residuals", "spectrum"},
+        annotations=_READONLY_ANNOTATIONS,
+        meta=_TS_META,
+        app=AppConfig(resource_uri=DIAGRAM_URI),
+    )
+    def ts_fit_plot_app(
+        d_count: int,
+        observed_peaks: list[float],
+        C: float | None = None,
+        spin_state: SpinState = "high",
+        include_spin_forbidden: bool = False,
+    ) -> ToolResult:
+        """Plot how far each computed band sits from the band that was measured.
+
+        The y axis is the residual, computed minus observed, NOT the raw band
+        position. That is deliberate: over a d-d spectrum spanning roughly
+        8,000 to 26,000 cm⁻¹ a good fit's misfit is a hundred-odd cm⁻¹, which
+        is narrower than a plot marker. A chart of raw positions would show the
+        observed and computed points on top of each other and tell the reader
+        nothing about fit quality. Residuals put the disagreement on its own
+        scale, and the raw positions travel in the structured payload.
+
+        Bands are labelled with free-ion parentage — ³A₂g → ³T₁g(P), not
+        ³A₂g → ³T₁g(b) — so a chart and a manuscript caption agree.
+
+        For a figure to put in a paper, use ``ts_fit_script`` instead: it emits
+        runnable matplotlib source carrying these same numbers. Nothing can be
+        downloaded from an inline chart, because the MCP Apps sandbox strips
+        ``allow-downloads`` from every UI iframe.
+
+        Args:
+            d_count: 2..8.
+            observed_peaks: measured band maxima in cm⁻¹.
+            C: Racah C; per-configuration default when omitted.
+            spin_state: which side of a spin crossover to pin the fit to.
+            include_spin_forbidden: required for high-spin d5, whose d-d bands
+                are all spin-forbidden.
+
+        """
+        import json as _json
+
+        from tanabesugano.mcp._compute import fit_spectrum
+        from tanabesugano.script_export import labelled_bands
+
+        try:
+            fit = fit_spectrum(
+                d_count,
+                [float(p) for p in observed_peaks],
+                C,
+                spin_state=spin_state,
+                include_spin_forbidden=include_spin_forbidden,
+            )
+            bands = labelled_bands(fit, d_count, [float(p) for p in observed_peaks])
+        except (ValueError, KeyError) as exc:
+            return ToolResult(
+                content=[_mcp_types.TextContent(type="text", text=str(exc))],
+                is_error=True,
+            )
+
+        # `assignment_unicode`, not `assignment`: the latter is mathtext for
+        # the matplotlib exporter, and Chart.js renders no mathtext -- a chart
+        # fed it would print a literal `$^{3}A_{2g} \rightarrow ...$`.
+        residual_points = [
+            {
+                "x": round(band["observed_cm1"], 1),
+                "y": round(band["residual_cm1"], 1),
+                "label": band["assignment_unicode"],
+            }
+            for band in bands
+        ]
+        xs = [point["x"] for point in residual_points]
+        # The zero line has to span the data, otherwise a reader cannot tell a
+        # residual's sign from the chart alone. Pad so end points are not
+        # sitting on the axis edge.
+        pad = max((max(xs) - min(xs)) * 0.05, 100.0) if xs else 100.0
+        series: list[dict] = [
+            {
+                "label": "zero (perfect fit)",
+                "color": "#666666",
+                "borderDash": [4, 4],
+                "data": [
+                    {"x": round(min(xs) - pad, 1), "y": 0},
+                    {"x": round(max(xs) + pad, 1), "y": 0},
+                ],
+            },
+            {
+                "label": "residual (computed − observed)",
+                "color": "#0072B2",
+                "data": residual_points,
+            },
+        ]
+
+        title = (
+            f"d{d_count} fit — Dq = {fit.Dq:,.0f}, B = {fit.B:,.0f} cm⁻¹, "
+            f"RMSE = {fit.rmse_cm1:,.0f} cm⁻¹ ({fit.ground_term} ground)"
+        )
+        payload = _json.dumps(
+            {
+                "title": title,
+                "x_label": "observed band position  (cm⁻¹)",
+                "y_label": "residual, computed − observed  (cm⁻¹)",
+                "series": series,
+                "Dq_cm1": fit.Dq,
+                "B_cm1": fit.B,
+                "C_cm1": fit.C,
+                "rmse_cm1": fit.rmse_cm1,
+                "ground_term": str(fit.ground_term),
+                "spin_state": str(fit.spin_state),
+                "warnings": list(fit.warnings),
+                "bands": bands,
             },
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
@@ -1111,6 +1265,23 @@ def _register_overlay(mcp: FastMCP) -> None:
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
+def _as_tool_result(app: PrefabApp, structured: dict) -> ToolResult:
+    """Serialise a Prefab card so its child tree survives the wire.
+
+    `ToolResult(content=app)` serialises the PrefabApp via `model_dump()`, which
+    drops everything the `with` block built and emits an empty card. `to_json()`
+    preserves it. Every branch returning a card must go through here -- the
+    happy paths already did, and the error branches did not, so a user with bad
+    input saw a blank widget instead of the reason.
+    """
+    import json as _json
+
+    return ToolResult(
+        content=[_mcp_types.TextContent(type="text", text=_json.dumps(app.to_json()))],
+        structured_content=structured,
+    )
+
+
 def _register_reverse_fit(mcp: FastMCP) -> None:
     """Fit Dq/B from observed absorption peak positions."""
 
@@ -1127,11 +1298,11 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
         d_count: int,
         observed_peaks: list[float],
         energy_unit: str = "cm1",
-        dq_max_search: float = 2500.0,
+        dq_max_search: float | None = None,
         b_min: float = 400.0,
         b_max: float = 1600.0,
         grid_steps: int = 25,
-    ) -> PrefabApp:
+    ) -> ToolResult:
         """Grid-search Dq and Racah B to best-fit observed absorption peak positions.
 
         Performs a coarse grid search over (Dq, B) space, comparing computed
@@ -1142,14 +1313,23 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             d_count: d-electron count (2–8).
             observed_peaks: Measured absorption maxima in the chosen energy_unit.
             energy_unit: Unit of observed_peaks: "cm1" (default), "eV", or "nm".
-            dq_max_search: Upper Dq search limit in cm^-1.
+            dq_max_search: Upper Dq search limit in cm^-1. Defaults to 3x the
+                physics estimate min(peaks)/10, which adapts to the complex; the
+                previous fixed 2500 silently truncated any complex with a lowest
+                band above 25000 cm^-1.
             b_min, b_max: Racah B search range (cm^-1).
             grid_steps: Grid resolution per axis (total grid_steps² evaluations).
 
         """
-        import math
+        import json as _json
 
+        import numpy as _np
+
+        from tanabesugano.levels import LevelSet
         from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._compute import peak_rmse
+        from tanabesugano.mcp._compute import reference_ground_term
+        from tanabesugano.mcp._compute import transition_candidates
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
 
@@ -1165,37 +1345,41 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
         if not peaks_cm:
             with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
                 pf.Heading(content="No valid peaks provided", level=3)
-            return app
+                pf.Text(
+                    content="Supply at least one absorption maximum greater than zero.",
+                    css_class="text-sm text-muted-foreground",
+                )
+            return _as_tool_result(app, {"d_count": d_count, "error": "no valid peaks"})
 
         default_C = DEFAULTS[d_count]["default_C"]
-        ground_mult = _multiplicity_of(DEFAULTS[d_count]["ground_term"])
+        ground_key = reference_ground_term(d_count, *resolve_bc(d_count, None, None))
+        ground_mult = _multiplicity_of(ground_key)
 
         best_dq = best_b = best_rms = float("inf")
         results: list[dict] = []
 
+        if dq_max_search is None:
+            dq_max_search = peaks_cm[0] / 10.0 * 3.0
         dq_grid = [dq_max_search * i / max(grid_steps - 1, 1) for i in range(grid_steps)]
         b_grid = [b_min + (b_max - b_min) * j / max(grid_steps - 1, 1) for j in range(grid_steps)]
 
+        observed_arr = _np.asarray(peaks_cm, dtype=float)
         for dq in dq_grid:
             for b in b_grid:
                 try:
-                    terms = compute_point(d_count, dq, b, default_C)
-                except Exception:
+                    found_ground, candidates = transition_candidates(
+                        compute_point(d_count, dq, b, default_C),
+                    )
+                except (ValueError, KeyError):
                     continue
-                # Collect spin-allowed transitions from the ground term.
-                allowed: list[float] = []
-                for term_key, energies in terms.items():
-                    if _multiplicity_of(term_key) == ground_mult:
-                        allowed.extend(float(e) for e in energies if e > 0)
-                if not allowed:
+                # Pin the spin regime: the low-spin manifolds are far denser, so
+                # a nearest-neighbour residual is minimised by crossing over.
+                if found_ground != ground_key or not candidates:
                     continue
-                allowed.sort()
-                # Match each observed peak to the closest computed transition.
-                rms = 0.0
-                for pk in peaks_cm:
-                    closest = min(allowed, key=lambda e, pk=pk: abs(e - pk))
-                    rms += (closest - pk) ** 2
-                rms = math.sqrt(rms / len(peaks_cm))
+                rms = peak_rmse(
+                    observed_arr,
+                    _np.array([e for e, _a, _s in candidates]),
+                )
                 results.append({"Dq": round(dq, 1), "B": round(b, 1), "RMS": round(rms, 1)})
                 if rms < best_rms:
                     best_rms, best_dq, best_b = rms, dq, b
@@ -1207,9 +1391,8 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                     content="The grid search produced no candidates. Try relaxing the search bounds.",
                     css_class="text-sm text-muted-foreground",
                 )
-            return app
+            return _as_tool_result(app, {"d_count": d_count, "error": "no fit found"})
 
-        best_c = default_C
         _, best_c = resolve_bc(d_count, best_b, None)
 
         # Build best-fit terms table.
@@ -1217,21 +1400,44 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             best_terms = compute_point(d_count, best_dq, best_b, best_c)
         except (ValueError, RuntimeError):
             best_terms = {}
-        table_rows: list[dict] = []
-        for term_key, energies in best_terms.items():
-            for n, e in enumerate(energies):
-                table_rows.append(
-                    {
-                        "term": term_key,
-                        "level": n,
-                        "energy_cm": round(float(e), 1),
-                        "spin_allowed": _multiplicity_of(term_key) == ground_mult,
-                    },
-                )
-        table_rows.sort(key=lambda r: r["energy_cm"])
+        # LevelSet names each level and sorts by energy; doing either by hand
+        # here is how the two 3T1g rows ended up indistinguishable in the card.
+        best_manifold = LevelSet.from_states(best_terms) if best_terms else None
+        table_rows: list[dict] = [
+            {
+                "label": lv.label,
+                "term": lv.term.value,
+                "level": lv.index,
+                "energy_cm": round(lv.energy_cm1, 1),
+                "spin_allowed": lv.multiplicity == ground_mult,
+            }
+            for lv in (best_manifold.levels if best_manifold else ())
+        ]
 
         results.sort(key=lambda r: r["RMS"])
         top_results = results[:20]
+
+        # Per-peak residuals. The docstring has always promised "best-fit
+        # parameters plus a residuals table"; the parameters were rendered as
+        # Metrics but the residuals table did not exist.
+        best_allowed = sorted(
+            float(e)
+            for term_key, energies in best_terms.items()
+            for e in energies
+            if float(e) > 0 and _multiplicity_of(term_key) == ground_mult
+        )
+        residual_rows: list[dict] = []
+        for pk in peaks_cm:
+            if not best_allowed:
+                break
+            closest = min(best_allowed, key=lambda e, pk=pk: abs(e - pk))
+            residual_rows.append(
+                {
+                    "observed_cm": round(pk, 1),
+                    "predicted_cm": round(closest, 1),
+                    "delta_cm": round(closest - pk, 1),
+                },
+            )
 
         with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content=f"Reverse fit: d{d_count}", level=3)
@@ -1239,6 +1445,10 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 pf.Metric(label="Best Dq", value=f"{best_dq:.1f} cm⁻¹")
                 pf.Metric(label="Best B", value=f"{best_b:.1f} cm⁻¹")
                 pf.Metric(label="RMS residual", value=f"{best_rms:.1f} cm⁻¹")
+            pf.Text(
+                content=f"Ground term: {ground_key} (high-spin)",
+                css_class="text-sm text-muted-foreground",
+            )
             pf.Text(
                 content=f"Observed peaks ({energy_unit}): {', '.join(str(p) for p in observed_peaks)}",
                 css_class="text-sm text-muted-foreground",
@@ -1255,10 +1465,21 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 search=False,
             )
             pf.Separator()
+            pf.Heading(content="Residuals at best fit", level=4)
+            pf.DataTable(
+                columns=[
+                    pf.DataTableColumn(key="observed_cm", header="Observed (cm⁻¹)"),
+                    pf.DataTableColumn(key="predicted_cm", header="Predicted (cm⁻¹)"),
+                    pf.DataTableColumn(key="delta_cm", header="Δ (cm⁻¹)"),
+                ],
+                rows=residual_rows,
+                search=False,
+            )
+            pf.Separator()
             pf.Heading(content="Term energies at best-fit Dq", level=4)
             pf.DataTable(
                 columns=[
-                    pf.DataTableColumn(key="term", header="Term", sortable=True),
+                    pf.DataTableColumn(key="label", header="Term", sortable=True),
                     pf.DataTableColumn(key="level", header="Level", sortable=True),
                     pf.DataTableColumn(key="energy_cm", header="E (cm⁻¹)", sortable=True),
                     pf.DataTableColumn(key="spin_allowed", header="Spin-allowed"),
@@ -1266,7 +1487,38 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 rows=table_rows,
                 search=True,
             )
-        return app
+
+        # Return the rendered card AND a machine-readable payload. The docstring
+        # promises "best-fit parameters plus a residuals table"; a PrefabApp is a
+        # widget, so an agent calling this tool previously got no numbers at all.
+        # test_reverse_fit_contract.py pins the card's structure so this
+        # return-type change cannot silently break the rendering.
+        fit_data = {
+            "d_count": d_count,
+            "Dq": round(best_dq, 1),
+            "B": round(best_b, 1),
+            "C": round(float(best_c), 1),
+            "rmse_cm1": round(best_rms, 1),
+            "ground_term": ground_key,
+            "spin_state": "high",
+            "residuals": [
+                {
+                    "observed_cm1": row["observed_cm"],
+                    "predicted_cm1": row["predicted_cm"],
+                    "delta_cm1": row["delta_cm"],
+                }
+                for row in residual_rows
+            ],
+            "grid_candidates": top_results,
+        }
+        # NOTE: pass the card as app.to_json(), NOT as the PrefabApp object.
+        # ToolResult serialises a bare PrefabApp via model_dump(), which drops
+        # the child tree built by the `with` context manager and emits an empty
+        # card. to_json() preserves it. Caught by test_reverse_fit_contract.py.
+        return ToolResult(
+            content=[_mcp_types.TextContent(type="text", text=_json.dumps(app.to_json()))],
+            structured_content=fit_data,
+        )
 
 
 def _register_ratio_fit(mcp: FastMCP) -> None:
@@ -1311,6 +1563,8 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         import math
 
         from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._compute import reference_ground_term
+        from tanabesugano.mcp._compute import transition_candidates
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
 
@@ -1333,9 +1587,13 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
             )
 
         obs_ratios = [obs[i] / obs[0] for i in range(1, len(obs))]
-        ground_mult = _multiplicity_of(DEFAULTS[d_count]["ground_term"])
+        ground_key = reference_ground_term(d_count, *resolve_bc(d_count, None, None))
         default_C = DEFAULTS[d_count]["default_C"]
-        dq_max_search = obs[0] * 2.0  # sensible upper bound
+        # Dq is of order nu1/10, not nu1: for [Ni(H2O)6]2+ nu1 = 8500 cm^-1 and
+        # Dq = 850. Searching out to 2*nu1 spread 30 grid points over a range 20x
+        # too wide, making the spacing (586 cm^-1) larger than Dq itself. Bound
+        # the search at 3x the physics estimate instead.
+        dq_max_search = obs[0] / 10.0 * 3.0
 
         best_dq = best_b = float("inf")
         best_score = float("inf")
@@ -1343,20 +1601,21 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         dq_grid = [dq_max_search * i / max(grid_steps - 1, 1) for i in range(grid_steps)]
         b_grid = [b_min + (b_max - b_min) * j / max(grid_steps - 1, 1) for j in range(grid_steps)]
 
+        min_allowed_for_ratio = 2
         for dq in dq_grid:
             for b in b_grid:
                 try:
-                    terms = compute_point(d_count, dq, b, default_C)
-                except Exception:
+                    found_ground, candidates = transition_candidates(
+                        compute_point(d_count, dq, b, default_C),
+                    )
+                except (ValueError, KeyError):
                     continue
-                allowed = sorted(
-                    float(e)
-                    for term_key, energies in terms.items()
-                    if _multiplicity_of(term_key) == ground_mult
-                    for e in energies
-                    if e > 0
-                )
-                if len(allowed) < 2:
+                # Pin the spin regime, as fit_spectrum does: the ratio metric is
+                # just as easily gamed by a denser low-spin manifold.
+                if found_ground != ground_key:
+                    continue
+                allowed = [e for e, _a, _s in candidates]
+                if len(allowed) < min_allowed_for_ratio:
                     continue
                 comp_ratios = [
                     allowed[i] / allowed[0] for i in range(1, min(len(obs), len(allowed)))
@@ -1484,12 +1743,14 @@ def _register_spectrum(mcp: FastMCP) -> None:
         import math
 
         from tanabesugano.mcp._compute import compute_point
-        from tanabesugano.mcp._defaults import DEFAULTS
+        from tanabesugano.mcp._compute import reference_ground_term
         from tanabesugano.mcp.tools._shared import resolve_bc
 
         b_val, c_val = resolve_bc(d_count, B, C)
         terms = compute_point(d_count, Dq, b_val, c_val)
-        ground_mult = _multiplicity_of(DEFAULTS[d_count]["ground_term"])
+        ground_mult = _multiplicity_of(
+            reference_ground_term(d_count, *resolve_bc(d_count, None, None)),
+        )
 
         # Collect stick transitions (energy_cm, relative_intensity).
         sticks: list[tuple[float, float]] = []
@@ -1792,6 +2053,7 @@ def _register_compute_table(mcp: FastMCP) -> None:
                 60 000 cm⁻¹; raise it to see deep-UV high-multiplicity levels).
 
         """
+        from tanabesugano.levels import LevelSet
         from tanabesugano.mcp._compute import compute_point
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
@@ -1808,25 +2070,23 @@ def _register_compute_table(mcp: FastMCP) -> None:
         terms = compute_point(d_count, Dq, b_val, c_val)
 
         # Flatten to rows {term, level, energy_cm, energy_over_B, mult, color}.
-        rows: list[dict] = []
-        for term_name, eigs in terms.items():
-            mult = _multiplicity_of(term_name)
-            for level, e in enumerate(eigs):
-                e_f = float(e)
-                if e_f > max_energy_cm:
-                    continue
-                rows.append(
-                    {
-                        "term": term_to_unicode(term_name),
-                        "term_raw": term_name,
-                        "level": level,
-                        "energy_cm": round(e_f, 1),
-                        "energy_over_B": round(e_f / b_val, 3) if b_val else 0.0,
-                        "mult": str(mult),
-                        "color": color_for(term_name),
-                    },
-                )
-        rows.sort(key=lambda r: (r["energy_cm"], r["term_raw"], r["level"]))
+        # LevelSet already sorts by (energy, term, level) and renders the
+        # multiplet ordinal, so the Term cell identifies its row on its own.
+        manifold = LevelSet.from_states(terms, d_count=d_count, dq=Dq, b=b_val, c=c_val)
+        rows: list[dict] = [
+            {
+                "term": lv.unicode,
+                "term_raw": lv.term.value,
+                "uid": lv.uid,
+                "level": lv.index,
+                "energy_cm": round(lv.energy_cm1, 1),
+                "energy_over_B": round(lv.energy_over_b(b_val), 3) if b_val else 0.0,
+                "mult": str(lv.multiplicity),
+                "color": color_for(lv.term.value),
+            }
+            for lv in manifold.levels
+            if lv.energy_cm1 <= max_energy_cm
+        ]
 
         # Strip plot: x = level multiplicity (jittered horizontally per term),
         # y = energy. One series per spin manifold for legend filtering. Keep
@@ -1896,7 +2156,7 @@ def _register_compute_table(mcp: FastMCP) -> None:
             # is delivered through ts_oxidation_landscape_app (Chart.js)
             # instead. This tool stays Prefab-native because the Metric +
             # DataTable components render correctly.
-            _ = chart_series  # noqa: F841 — kept for future Chart.js variant
+            _ = chart_series
             pf.DataTable(
                 columns=[
                     pf.DataTableColumn(key="term", header="Term", sortable=True),
@@ -1923,11 +2183,15 @@ _BADGE_VARIANT_BY_MULT: dict[int, str] = {
 
 
 def _multiplicity_of(term: str) -> int:
-    head = term.split("_", 1)[0]
-    try:
-        return int(head)
-    except ValueError:
-        return 0
+    """Spin multiplicity of an octahedral solver key. Raises on free-ion notation.
+
+    Delegates to _compute.term_multiplicity. The previous local implementation
+    returned 0 for anything it could not parse, which silently disabled the
+    spin-allowed comparison at every call site that passed a free-ion string.
+    """
+    from tanabesugano.mcp._compute import term_multiplicity
+
+    return term_multiplicity(term)
 
 
 def _badge_variant(term: str) -> str:

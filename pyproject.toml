@@ -1,6 +1,6 @@
 [project]
 name = "tanabesugano"
-version = "1.8.0-alpha.1"
+version = "2.0.0-alpha.1"
 description = "A python-solver for Tanabe-Sugano and Energy-Correlation diagrams"
 authors = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
 maintainers = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
@@ -71,6 +71,7 @@ screenshot = [
     "pytest-playwright>=0.8",
 ]
 dev = [
+    "hypothesis>=6.100",
     "poethepoet>=0.40,<1.0",
     "pytest>=8.3,<10",
     "pytest-clarity>=1.0.1",
@@ -80,6 +81,10 @@ dev = [
     # Anselmoo/repo-release-tools action pin in .github/workflows/cicd.yml.
     "repo-release-tools>=1.15,<2.0.0",
     "ruff>=0.14,<0.17",
+    # `poe types` needs this in the project env, not via uvx: run in isolation
+    # ty cannot resolve scipy/numpy stubs and silently checks less. That is how
+    # a genuine eigensolver return-type mismatch went unseen.
+    "ty>=0.0.1a14",
     "pre-commit>=4.6.0",
 ]
 
@@ -89,49 +94,100 @@ line-length = 100
 src = ["src"]
 
 [tool.ruff.lint]
+# `select = ["ALL"]` turns on every rule ruff ships, including mutually
+# exclusive and highly opinionated ones. The ignore list below is therefore not
+# debt -- it IS this project's style, written down. Every entry states why.
 select = ["ALL"]
 ignore = [
-    "N801",    # Class name should use CapWords convention (d2, d3, etc. are scientific notation)
-    "N802",    # Function name should be lowercase (A_1_1_states, etc. are scientific notation)
-    "N803",    # Argument name should be lowercase (Dq, B, C are standard scientific notation)
-    "N806",    # Variable in function should be lowercase (Dq, B, C are standard scientific notation)
-    "N815",    # mixedCase variable in class scope (Dq, B, C are scientific notation in models)
-    "N816",    # mixedCase variable in global scope (Dq, B, C are scientific notation)
-    "PLR0913", # Too many arguments in function definition (CLI design choice)
-    "FBT001",  # Boolean-typed positional argument in function (intentional design)
-    "FBT002",  # Boolean default positional argument in function (intentional design)
-    "A005",    # Module shadows Python standard library (cmd.py is intentional)
+    # -- Scientific naming. Dq, B, C, d2..d8 and term symbols like A_1_1_states
+    # are the notation the literature uses; renaming them to satisfy PEP 8
+    # would make the code harder to check against a paper.
+    "N801",    # Class name should use CapWords (d2, d3, ... are configurations)
+    "N802",    # Function name should be lowercase (A_1_1_states)
+    "N803",    # Argument name should be lowercase (Dq, B, C)
+    "N806",    # Variable in function should be lowercase (Dq, B, C)
+    "N815",    # mixedCase in class scope (Dq, B, C in models)
+    "N816",    # mixedCase in global scope (Dq, B, C)
+
+    # -- Signature shape. A ligand-field call legitimately takes
+    # (d_count, Dq, B, C, steps, normalize, ...); splitting it into a config
+    # object would obscure the physics for no gain.
+    "PLR0913", # Too many arguments
+    "PLR0917", # Too many positional arguments -- the sibling of PLR0913, and
+               # ignoring only one of the pair is why 18 of these survived
+    "FBT001",  # Boolean-typed positional argument (normalize=, slater=)
+    "FBT002",  # Boolean default positional argument
+
+    # -- Deliberate structure, documented in CLAUDE.md.
+    "A005",    # Module shadows a stdlib name (cmd.py, intentionally)
+    "PLC0415", # import not at top level. Load-bearing here: plot_style is
+               # imported lazily so the MCP compute layer stays matplotlib-free,
+               # and the [mcp]/[plotly] extras are soft-imported so the CLI runs
+               # without them installed.
+
+    # -- Not this project's convention.
+    "CPY001",  # Missing copyright notice. No file in this repo carries one.
+
+    # -- Pairs ruff itself reports as incompatible; pick one of each explicitly
+    # so `ruff check` stops printing configuration warnings on every run.
+    "D203",    # incorrect-blank-line-before-class (conflicts with D211)
+    "D213",    # multi-line-summary-second-line (conflicts with D212)
+    "COM812",  # missing-trailing-comma (conflicts with the formatter)
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Tests. Docstrings here carry provenance where it matters (see CLAUDE.md);
+# requiring one on every method would dilute that into boilerplate.
 "src/tanabesugano/test/*" = [
-    "PT006", "ANN001", "ANN201", "D103", "S101", "PLR2004", "PLC0415",
-]
-"src/tanabesugano/test/test_screenshots.py" = [
-    "PT006", "ANN001", "ANN201", "D103", "S101", "PLR2004", "PLC0415",
-    "PT007",  # parametrize values don't need type annotations
-    "INP001",  # test files don't need __init__ namespace package membership
+    "ANN001", "ANN002", "ANN003", "ANN201", "ANN202",  # fixtures/params are self-evident
+    "D101", "D102", "D103", "D205", "D400", "D401", "D415",
+    "S101",     # assert is the point
+    "PLR2004",  # comparing against a literal expected value is the point
+    "PLC0415",  # imports inside tests keep optional extras optional
+    "PT006", "PT007", "PT018",  # parametrize/assert style is a matter of taste
+    "RUF001", "RUF002", "RUF003",  # Delta, cm^-1 etc. in assertion messages
+    "RUF043",   # pytest.raises(match=...) patterns are deliberately loose
+    "EM101", "EM102", "TRY003",  # message-in-raise is fine in a test
+    "SLF001",   # tests may reach into private helpers
+    "PERF401",  # clarity beats micro-optimisation in a test
+    "INP001",   # not a namespace package
+    "S102",     # exec() is how the README/script-export tests prove code runs
+    "RUF012",   # a parametrize table is a class attribute; ClassVar adds nothing
+    "ICN001",   # `import matplotlib` to set the Agg backend reads clearer than mpl
+    "ANN205",   # staticmethod helpers inside a test class
+    "PTH109",   # os.getcwd() when asserting on chdir behaviour itself
+    "D301",     # LaTeX in a docstring quoting generated output
 ]
 "src/tanabesugano/mcp/*" = [
-    "PLC0415", # lazy / soft imports are intentional for optional [mcp] extra
     "C901",    # register_tools dispatches the whole ts_* tool family
-    "RUF001",  # nice typography (–, ⁻¹) in user-facing strings is intentional
-    "RUF002",  # ditto in docstrings shown to humans
-    "RUF003",  # ditto in inline comments
-    "TC001",   # D_COUNT_LITERAL needs to be evaluated at runtime for Pydantic
-    "B905",    # zip(..., strict=True) would break streaming rows in payload builders
-    "F841",    # some local assignments are kept for readability in grid-search loops
-    "E501",    # long lines in HTML string constants and JSON payloads are intentional
-    "D401",    # imperative mood not always natural for internal helper docstrings
-    "D417",    # partial arg-doc OK in internal helpers; full docs in compute_tools
-    "S112",    # try-except-continue is the correct pattern for solver grid searches
-    "BLE001",  # bare except is intentional: catches numpy LinAlgError in grid loops
-    "RUF059",  # discarded sweep title in overlay/ratio tools is deliberate
-    "PLR0912", # grid-search and UI-rendering functions are inherently branch-heavy
-    "PLR0915", # grid-search functions are inherently statement-heavy
-    "PLR2004", # scientific threshold constants (1e-3, 2.0) are more readable inline
+    "RUF001", "RUF002", "RUF003",  # typography in strings shown to humans
+    "TC001",   # D_COUNT_LITERAL must be evaluated at runtime for Pydantic
+    "B905",    # zip(strict=True) would break streaming payload builders
+    "F841",    # some locals are kept for readability in grid-search loops
+    "E501",    # long HTML/JSON string constants
+    "D205", "D401", "D417",  # internal helper docstrings
+    "S112",    # try/except/continue is correct for solver grid searches
+    "BLE001",  # broad except catches numpy LinAlgError in grid loops
+    "RUF059",  # a discarded sweep title is deliberate
+    "PLR0912", "PLR0915",  # UI/grid-search functions are branch- and stmt-heavy
+    "PLR2004", # inline scientific thresholds read better than named constants
+    "ANN001", "ANN202",  # local closures inside tool bodies
+    "EM102", "TRY003",   # structured errors carry their message inline
+    "SIM105", "PERF401", "ICN001",
 ]
-"scripts/*" = ["INP001", "T201"]
+# Maintenance scripts: they print, they are not importable modules, and they
+# are allowed to be long and branchy.
+"scripts/*" = [
+    "INP001", "T201", "EXE001",
+    "PLR0911",  # one early return per drift reason reads better than one exit
+
+    "C901", "PLR0912", "PLR0915",
+    "D103", "D107", "D301", "D401",
+    "EM101", "EM102", "TRY003",
+    "PERF401", "ICN001", "PLC0415",
+]
+# The CLI prints to stdout; that is its interface.
+"src/tanabesugano/cmd.py" = ["T201"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["tanabesugano"]
@@ -139,6 +195,18 @@ force-single-line = true
 lines-between-types = 1
 lines-after-imports = 2
 required-imports = ["from __future__ import annotations"]
+
+[tool.ty.src]
+# One scope for BOTH `poe types` and the ty pre-commit hook. The hook sets
+# `pass_filenames: false` and checks the whole project, so a pre-commit
+# `exclude:` has no effect on it -- the hook's own manifest says scoping must
+# live in ty's configuration. Putting it here means the two cannot disagree.
+#
+# The test suite carries ~200 diagnostics that are deliberately out of scope:
+# `**dict` unpacking into `Literal` fields and `Tolerance | None` narrowing in
+# test_ion_case_studies.py. Left unscoped the hook fails on every commit
+# forever, which is how a gate gets deleted rather than fixed.
+exclude = ["src/tanabesugano/test"]
 
 [tool.rrt]
 release_branch = "release/v{version}"
@@ -171,29 +239,85 @@ pattern = "(?m)(^version: )([0-9][^\\n]*)()"
 
 [tool.poe.tasks]
 
+  [tool.poe.tasks.lint]
+  cmd  = "ruff check src/ scripts/"
+  help = "Run ruff over source AND scripts (the full ALL ruleset)"
+
+  [tool.poe.tasks.lint-fix]
+  cmd  = "ruff check --fix src/ scripts/"
+  help = "Apply ruff's safe autofixes"
+
+  [tool.poe.tasks.format]
+  cmd  = "ruff format --check src/ scripts/"
+  help = "Check formatting with ruff"
+
+  [tool.poe.tasks.format-fix]
+  cmd  = "ruff format src/ scripts/"
+  help = "Reformat source and scripts"
+
+  [tool.poe.tasks.types]
+  cmd  = "ty check"
+  help = "Type-check the project (scope lives in [tool.ty.src], shared with the hook)"
+
+  [tool.poe.tasks.test]
+  # No coverage here on purpose: `addopts` used to force --cov on every run,
+  # so every ad-hoc invocation paid for it and had to be undone with --no-cov.
+  # Use `poe cov` when you want the report.
+  cmd  = "pytest -q --no-cov --ignore=src/tanabesugano/test/test_screenshots.py"
+  help = "Run the test suite (excludes the browser-dependent screenshot tests)"
+
+  [tool.poe.tasks.test-all]
+  cmd  = "pytest -q --no-cov"
+  help = "Run everything, screenshot tests included (needs the screenshot group)"
+
+  [tool.poe.tasks.test-mcp]
+  cmd  = "pytest -q --no-cov -m mcp"
+  help = "Run MCP-only tests (requires the [mcp] extra)"
+
+  [tool.poe.tasks.cov]
+  cmd  = "pytest -q --cov=src/tanabesugano --ignore=src/tanabesugano/test/test_screenshots.py"
+  help = "Run the test suite with a coverage report"
+
+  # -- Generated artifacts ---------------------------------------------------
+  # Every committed artifact has a script, and every script has a task. These
+  # trees went stale for years precisely because regenerating them was folklore
+  # rather than a command.
+
+  [tool.poe.tasks.regen-diagrams]
+  cmd  = "python scripts/regenerate_ts_diagrams.py"
+  help = "Rewrite the committed TS/DD CSVs, .html diagrams and manifest.json"
+
+  [tool.poe.tasks.regen-diagrams-check]
+  cmd  = "python scripts/regenerate_ts_diagrams.py --check"
+  help = "Fail if any committed diagram artifact has drifted (this runs in CI)"
+
+  [tool.poe.tasks.regen-examples]
+  cmd  = "python scripts/regenerate_examples.py"
+  help = "Rewrite the examples/ demo tables and the two README figures"
+
+  [tool.poe.tasks.regen-uvvis]
+  cmd  = "python scripts/plot_uvvis_fits.py"
+  help = "Rewrite the UV-Vis reference figures under assets/uvvis/"
+
+  [tool.poe.tasks.regen-all]
+  sequence = ["regen-diagrams", "regen-examples", "regen-uvvis"]
+  help     = "Regenerate every committed artifact"
+
+  # -- Release ---------------------------------------------------------------
+
   [tool.poe.tasks.build-mcpb]
   cmd  = "python scripts/build_mcpb.py"
-  help = "Build the release .mcpb bundle (uses PyPI-published package — run after uv publish)"
+  help = "Build the release .mcpb bundle (uses the PyPI-published package)"
 
   [tool.poe.tasks.build-mcpb-dev]
   cmd  = "python scripts/build_mcpb.py --dev"
-  help = "Build a dev .mcpb bundle pointing to local source (use before publishing to PyPI)"
+  help = "Build a dev .mcpb bundle pointing at local source"
 
-  [tool.poe.tasks.lint]
-  cmd  = "ruff check src/"
-  help = "Run ruff linter"
+  # -- Aggregate -------------------------------------------------------------
 
-  [tool.poe.tasks.format]
-  cmd  = "ruff format --check src/"
-  help = "Check code formatting with ruff"
-
-  [tool.poe.tasks.test]
-  cmd  = "pytest -vv"
-  help = "Run full test suite"
-
-  [tool.poe.tasks.test-mcp]
-  cmd  = "pytest -vv -m mcp"
-  help = "Run MCP-only tests (requires [mcp] extra)"
+  [tool.poe.tasks.check]
+  sequence = ["lint", "format", "types", "test", "regen-diagrams-check"]
+  help     = "Everything CI enforces, in one command"
 
 [tool.coverage.run]
 source = ["src/tanabesugano"]
@@ -210,10 +334,16 @@ exclude_also = [
 ]
 
 [tool.pytest.ini_options]
-markers = """
-    xfail: mark test as expecting to fail
-    skip: mark test as skipped
-    mcp: tests requiring the [mcp] optional extra (fastmcp)
-    screenshot: tests requiring playwright (install the screenshot dep-group)
-"""
-addopts = "-v --cov=src/tanabesugano"
+# A TOML array, not a triple-quoted string. pytest parses `markers` as a
+# linelist so the string form happened to work, but the array is the documented
+# shape and does not depend on that leniency.
+markers = [
+    "xfail: mark test as expecting to fail",
+    "skip: mark test as skipped",
+    "mcp: tests requiring the [mcp] optional extra (fastmcp)",
+    "screenshot: tests requiring playwright (install the screenshot dep-group)",
+]
+# Deliberately no --cov here. It used to be forced on every run, so every
+# ad-hoc `pytest` paid for coverage and had to be undone with --no-cov; CI and
+# `poe cov` ask for it explicitly instead.
+addopts = "-q"

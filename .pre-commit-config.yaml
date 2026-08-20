@@ -6,16 +6,45 @@ repos:
         - id: check-merge-conflict
         - id: check-symlinks
         - id: check-yaml
+        # Generated artifacts are excluded from both whitespace hooks. They are
+        # CLI output, reproduced byte-for-byte by scripts/regenerate_ts_diagrams.py
+        # and checked in CI ("Check TS diagram CSV drift"). A hook that rewrites
+        # them puts the committed file permanently at odds with what the
+        # generator produces, so the drift gate fails on every run and the only
+        # way out is to delete the gate -- which is how these artifacts went
+        # stale for years in the first place. Verified: without this exclude the
+        # hooks rewrite all 28 .html and the check exits 1.
         - id: end-of-file-fixer
+          exclude: &generated_artifacts '^(ts-diagrams|docs/ts-diagrams|docs-site/public/ts-diagrams|examples)/.*\.(html|csv)$'
         - id: trailing-whitespace
+          exclude: *generated_artifacts
   -   repo: https://github.com/astral-sh/ruff-pre-commit
       rev: v0.16.3
       hooks:
+        # No --select override. It used to pin this hook to D100,E,F,W, a far
+        # narrower gate than [tool.ruff.lint] in pyproject.toml -- so `poe lint`
+        # and CI enforced different standards and `ruff check src/` sat at 279
+        # errors that nothing failed on. The pyproject config is now the single
+        # source of truth and passes clean.
         - id: ruff
           types_or: [python, pyi]
-          args: [--fix, --select=D100,E,F,W]
+          args: [--fix]
         - id: ruff-format
           types_or: [python, pyi]
+  - repo: https://github.com/astral-sh/ty-pre-commit
+    # Keep in lockstep with the `ty` pin in [dependency-groups].dev, so this
+    # hook and `poe types` cannot disagree about what passes.
+    rev: v0.0.73
+    hooks:
+      # Scoped to match `poe types`. Test files carry ~200 diagnostics that are
+      # deliberately out of scope -- `**dict` unpacking into Literal fields and
+      # `Tolerance | None` narrowing in test_ion_case_studies.py -- so an
+      # unscoped hook would fail on every commit forever and end up removed.
+      # The notebook IS checked: it is linked from the README's Colab badge,
+      # and this hook immediately caught a real bug there (interactive_plot was
+      # annotated `-> None` while returning a 2-tuple that every caller
+      # unpacks).
+      - id: ty
   -   repo: https://github.com/Anselmoo/repo-release-tools
       rev: v1.15.0
       hooks:

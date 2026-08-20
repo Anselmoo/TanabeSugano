@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from tanabesugano import __version__
+from tanabesugano.levels import LevelSet
 from tanabesugano.mcp._compute import compute_point
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
 from tanabesugano.mcp.models import ComputeError
@@ -26,6 +27,14 @@ class TermEnergyRow(BaseModel):
     term: str = Field(description="Term-symbol key (e.g. '4_T_1').")
     multiplicity: int = Field(description="Spin multiplicity (2S+1).")
     level: int = Field(description="Level index within the term (0 = lowest).")
+    label: str = Field(
+        description="Term plus multiplet ordinal, e.g. '4_T_1(b)'. Bare for a "
+        "term holding one level. Display only -- use uid as a key.",
+    )
+    uid: str = Field(
+        description="Stable machine key, e.g. '4_T_1#1'. Always carries the index.",
+    )
+    unicode: str = Field(description="Publication spelling, e.g. '⁴T₁g(b)'.")
     energy_cm: float = Field(description="Eigenvalue in wavenumbers (cm^-1).")
     energy_over_B: float = Field(description="Eigenvalue normalised by Racah B.")
     is_ground: bool = Field(description="True if this is the lowest eigenvalue overall.")
@@ -72,29 +81,22 @@ def register(mcp: FastMCP) -> None:
         except (ValueError, RuntimeError) as exc:
             return ComputeError(error=str(exc))
 
-        rows: list[TermEnergyRow] = []
-        for term, energies in terms.items():
-            mult = _parse_multiplicity(term)
-            for level, e in enumerate(energies):
-                rows.append(
-                    TermEnergyRow(
-                        term=term,
-                        multiplicity=mult,
-                        level=level,
-                        energy_cm=float(e),
-                        energy_over_B=float(e / b_val) if b_val else 0.0,
-                        is_ground=False,
-                    ),
-                )
-        rows.sort(key=lambda r: r.energy_cm)
-        if rows:
-            rows[0].is_ground = True
+        # LevelSet already enumerates each term block, sorts by energy and
+        # names every level. Re-deriving any of that here would be a second
+        # copy that can disagree with the first.
+        manifold = LevelSet.from_states(terms, d_count=d_count, dq=Dq, b=b_val, c=c_val)
+        rows = [
+            TermEnergyRow(
+                term=lv.term.value,
+                multiplicity=lv.multiplicity,
+                level=lv.index,
+                label=lv.label,
+                uid=lv.uid,
+                unicode=lv.unicode,
+                energy_cm=lv.energy_cm1,
+                energy_over_B=lv.energy_over_b(b_val),
+                is_ground=lv is manifold.ground,
+            )
+            for lv in manifold.levels
+        ]
         return TermsTable(d_count=d_count, Dq=Dq, B=b_val, C=c_val, rows=rows)
-
-
-def _parse_multiplicity(term: str) -> int:
-    head = term.split("_", 1)[0]
-    try:
-        return int(head)
-    except ValueError:
-        return 0

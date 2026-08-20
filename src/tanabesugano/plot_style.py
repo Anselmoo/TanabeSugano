@@ -53,12 +53,18 @@ _FALLBACK_COLOR = "#444444"
 
 
 def multiplicity_of(term: str) -> int | None:
-    """Return 2S+1 from a term-symbol key like ``4_T_1``; None if unparseable."""
-    head = term.split("_", 1)[0]
-    try:
-        return int(head)
-    except ValueError:
-        return None
+    """Return 2S+1 from a term-symbol key like ``4_T_1``; None if unparseable.
+
+    Presentation-layer helper: an unrecognised key falls back to a default
+    colour/linestyle rather than failing a plot. Code that reasons about the
+    *physics* must use ``_compute.term_multiplicity``, which raises instead --
+    silently treating a free-ion string like ``"3F"`` as "no multiplicity" is
+    how the spin-allowed filter came to be disabled across four tools.
+
+    Both share :data:`_TERM_RE` so there is one parse mechanism, not two.
+    """
+    match = _TERM_RE.match(term)
+    return int(match.group("mult")) if match else None
 
 
 def color_for(term: str) -> str:
@@ -118,12 +124,23 @@ def style_axes(ax: Axes, *, title: str, x_label: str, y_label: str) -> None:
         )
 
 
-# Match the term-symbol grammar produced by `tanabesugano.matrices.dN.solver()`:
-# leading multiplicity (1..7), a Mulliken irrep letter (A/B/E/T plus optional
-# digit), then optional subscript digit (1 or 2). Allows trailing "_g" or "_u"
-# in case future updates ship them; current keys are gerade-only.
+# Term-symbol grammar produced by `tanabesugano.matrices.dN.solver()`.
+#
+# STRICT by design. The previous pattern was `\d+_[ABET](_\d+)?(_[gu])?`, which
+# accepted "1_T_3" (no T3 irrep exists in Oh), "5_E_1" (Eg carries no subscript),
+# "9_B_2", "1_T_9" and "0_A_1". That permissiveness is *why* the first two
+# survived for the life of the project: nothing in the codebase could tell a
+# real key from a typo. Now: multiplicity 1..6; A and T carry subscript 1 or 2;
+# E carries none. Trailing "_g"/"_u" is tolerated for forward compatibility --
+# current keys are gerade-only.
+#
+# `terms.TERM_KEY_RE` is the same grammar; this copy exists because plot_style
+# is imported by `terms`-free code paths and must stay dependency-light. The
+# two are kept in step by test_terms.py, which validates both against the
+# closed TermKey set.
 _TERM_RE = re.compile(
-    r"^(?P<mult>\d+)_(?P<irrep>[ABET])(?:_(?P<sub>\d+))?(?:_(?P<parity>[gu]))?$",
+    r"^(?P<mult>[1-6])_(?:(?P<irrep>[AT])_(?P<sub>[12])|(?P<e_irrep>E))"
+    r"(?:_(?P<parity>[gu]))?$",
 )
 
 
@@ -144,7 +161,7 @@ def term_to_mathtext(term: str, *, assume_gerade: bool = True) -> str:
     if not m:
         return term.replace("_", " ")
     mult = m.group("mult")
-    irrep = m.group("irrep")
+    irrep = m.group("irrep") or m.group("e_irrep")
     sub = m.group("sub")
     parity = m.group("parity") or ("g" if assume_gerade else "")
     sub_part = f"{sub}{parity}" if sub else parity
@@ -177,10 +194,38 @@ def term_to_unicode(term: str, *, assume_gerade: bool = True) -> str:
     if not m:
         return term.replace("_", " ")
     mult = m.group("mult").translate(_SUPER)
-    irrep = m.group("irrep")
+    irrep = m.group("irrep") or m.group("e_irrep")
     sub = (m.group("sub") or "").translate(_SUB)
     parity = m.group("parity") or ("g" if assume_gerade else "")
     return f"{mult}{irrep}{sub}{parity}"
+
+
+def term_to_ascii(term: str, *, assume_gerade: bool = True) -> str:
+    """Convert a key like ``"4_T_1"`` to plain ASCII ``"4T1g"``.
+
+    The lowest-fidelity rung of the same notation ladder as
+    :func:`term_to_unicode` and :func:`term_to_mathtext`: identical spelling,
+    no characters outside ASCII. For log lines, CSV columns and any terminal
+    that cannot be trusted with Unicode digits.
+
+    This is *not* the raw solver key -- ``4_T_1`` keeps its underscores and is
+    what :attr:`tanabesugano.levels.Level.uid` is built from.
+
+    Falls back to the raw key with underscores replaced by spaces if the
+    pattern does not match.
+
+    Args:
+        term: The raw term-symbol key from `tanabesugano.matrices.solver()`.
+        assume_gerade: When True (default) and no parity is encoded in the key,
+            append the octahedral ``g`` subscript.
+
+    """
+    m = _TERM_RE.match(term)
+    if not m:
+        return term.replace("_", " ")
+    irrep = m.group("irrep") or m.group("e_irrep")
+    parity = m.group("parity") or ("g" if assume_gerade else "")
+    return f"{m.group('mult')}{irrep}{m.group('sub') or ''}{parity}"
 
 
 def apply_scientific_rcparams() -> None:

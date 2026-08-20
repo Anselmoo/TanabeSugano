@@ -1,264 +1,388 @@
-"""Test suite for spectrum fitting (ts_fit_spectrum tool).
+"""Test suite for spectrum fitting (ts_fit_spectrum / _compute.fit_spectrum).
 
-This module documents the UV-Vis spectrum fitting pattern:
-- Problem: Given observed absorption peaks (cm⁻¹), extract ligand field parameters Dq and B
-- Pattern: Algorithm Selection + Lazy Computation via scipy.optimize.minimize
-- Validation: Real coordination complex data from literature
+Validation strategy, in descending order of durability:
+
+1. **Analytic identities** -- exact, need no external data, can never go stale.
+   nu1 = 10Dq for d3/d8; B = (nu3 + nu2 - 3*nu1)/15 for d3/d8.
+2. **Synthetic round-trips** -- generate bands from the forward model at a known
+   (Dq, B) and require exact recovery. Tests the fitter against the *verified*
+   forward model rather than against a second copy of the optimizer.
+3. **Literature fixtures** -- real complexes with published Dq and B. Weakest of
+   the three, because published values carry convention and provenance risk
+   (Dq vs 10Dq, differing free-ion B0), so tolerances here are deliberately loose.
+
+Every numeric tolerance below was measured against this implementation, not
+estimated. Where a value looks surprising there is a comment explaining why.
 """
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
+from tanabesugano.mcp._compute import closed_form_dq_b
+from tanabesugano.mcp._compute import compute_point
 from tanabesugano.mcp._compute import fit_spectrum
+from tanabesugano.mcp._compute import ground_term
+from tanabesugano.mcp._compute import peak_rmse
+from tanabesugano.mcp._compute import reference_ground_term
+from tanabesugano.mcp._compute import term_multiplicity
+from tanabesugano.mcp._compute import transition_candidates
+from tanabesugano.mcp._defaults import DEFAULTS
+from tanabesugano.mcp._defaults import HIGH_SPIN_GROUND_TERM
+
+
+# [Ni(H2O)6]2+ -- the classic d8 worked example.
+NI_AQUA_BANDS = [8500.0, 13800.0, 25300.0]
+
+
+def forward_spin_allowed_peaks(d_count: int, dq: float, b: float) -> list[float]:
+    """Spin-allowed transition energies from the forward model at a known point."""
+    c = float(DEFAULTS[d_count]["default_C"])
+    _ground, candidates = transition_candidates(compute_point(d_count, dq, b, c))
+    return [energy for energy, _assignment, _allowed in candidates]
+
+
+def rmse_at(d_count: int, dq: float, b: float, observed: list[float]) -> float:
+    """RMSE the model achieves at a specific (Dq, B) -- for comparing estimators."""
+    predicted = forward_spin_allowed_peaks(d_count, dq, b)
+    return peak_rmse(np.asarray(observed), np.asarray(predicted))
 
 
 class TestSpectrumFittingBasics:
-    """Basic functionality: does fitting converge and return sensible values?"""
+    """Shape and sanity of the returned fit."""
 
-    def test_fit_spectrum_returns_tuple_of_six_elements(self) -> None:
-        """fit_spectrum returns (dq, b, c, rmse, transitions)."""
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        assert isinstance(dq, (int, float))
-        assert isinstance(b, (int, float))
-        assert isinstance(c, (int, float))
-        assert isinstance(rmse, (int, float))
-        assert isinstance(transitions, list)
+    def test_fit_returns_populated_result(self) -> None:
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        assert fit.Dq > 0
+        assert fit.B > 0
+        assert fit.C > 0
+        assert fit.rmse_cm1 >= 0
+        assert fit.transitions
+        assert len(fit.residuals_cm1) == len(NI_AQUA_BANDS)
 
     def test_fitted_parameters_in_physical_range(self) -> None:
-        """Fitted Dq and B fall within typical coordination chemistry ranges."""
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        assert 500 < fit.Dq < 30000, f"Dq={fit.Dq} outside typical range"
+        assert 100 < fit.B < 2000, f"B={fit.B} outside typical range"
 
-        # Typical octahedral Dq: 2000–10000 cm⁻¹
-        assert 500 < dq < 30000, f"Dq={dq} outside typical range"
-        # Typical Racah B: 200–1200 cm⁻¹
-        assert 100 < b < 2000, f"B={b} outside typical range"
-
-    def test_transitions_list_not_empty(self) -> None:
-        """Fitted model produces at least one predicted transition."""
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        assert len(transitions) > 0, "No transitions predicted"
-        # Each transition is (energy_cm1, assignment_string)
-        for energy, assignment in transitions:
-            assert isinstance(energy, (int, float))
-            assert isinstance(assignment, str)
+    def test_transitions_are_labelled_and_sorted(self) -> None:
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        energies = [e for e, _a, _s in fit.transitions]
+        assert energies == sorted(energies)
+        for energy, assignment, spin_allowed in fit.transitions:
+            assert energy > 0
             assert "→" in assignment
+            assert isinstance(spin_allowed, bool)
+
+    def test_assignments_name_the_real_ground_term(self) -> None:
+        """Every assignment must start from the true ground term.
+
+        Regression guard: the label used to come from next(iter(dict.keys())),
+        i.e. dict insertion order, which named the wrong term for all seven
+        configurations -- '1_A_1' for d8, whose ground term is '3_A_2'.
+        """
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        assert fit.ground_term == "3_A_2"
+        for _energy, assignment, _allowed in fit.transitions:
+            assert assignment.startswith("3_A_2→"), assignment
 
 
-class TestRealCoordinationComplexes:
-    """Validate against literature UV-Vis data from real coordination complexes.
+class TestAssignmentsAreUnambiguous:
+    """Two bands may share a term symbol; they must not share a label.
 
-    Data source: Chemistry LibreTexts + Doc Brown's chemistry notes.
+    The whole point of the Level structure. A ``dict[TermKey, ndarray]`` maps
+    d8 ``3_T_1`` to a TWO-element array, so nu2 and nu3 both came back as
+    ``3_A_2->3_T_1`` and a chemist could not tell which band was which.
+
+    Uniqueness here is DERIVED, not measured: ``(term, index)`` is already
+    proven unique for every configuration (test_levels.py), so a label built
+    from it must be unique too. The count 2 is group theory -- d8 has exactly
+    two 3T1g levels, from the 3F and 3P free-ion parents.
     """
 
-    def test_nickel_aqua_complex(self) -> None:
-        """Fit [Ni(H₂O)₆]²⁺ from literature absorption data.
+    def test_the_two_d8_triplet_t1_bands_are_distinguishable(self) -> None:
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        t1 = [a for _e, a, _s in fit.transitions if a.startswith("3_A_2→3_T_1")]
+        assert len(t1) == 2, f"expected two 3T1g bands, got {t1}"
+        assert t1[0] != t1[1], f"nu2 and nu3 still carry the same label: {t1}"
 
-        Literature:
-            - Wavelengths: 450 nm (22,222 cm⁻¹), 700 nm (14,286 cm⁻¹)
-            - Appears green: absorbs blue and red
-            - d8 octahedral
-        """
-        # Convert nm → cm⁻¹
-        observed_peaks = [
-            10**7 / 450,  # 22222 cm⁻¹
-            10**7 / 700,  # 14286 cm⁻¹
-        ]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        # For [Ni(H₂O)₆]²⁺, expect Dq ≈ 5000–5500 cm⁻¹ (water is weak field)
-        assert 4500 < dq < 6000, f"Dq={dq:.0f} unreasonable for aqua Ni²⁺"
-        # Expect B ≈ 600–700 cm⁻¹ (typical for Ni²⁺)
-        assert 500 < b < 800, f"B={b:.0f} unreasonable for Ni²⁺"
-        # RMSE should be very low for literature data
-        assert rmse < 100, f"RMSE={rmse:.0f}; fitting did not converge well"
-
-    def test_nickel_ammonia_complex(self) -> None:
-        """Fit [Ni(NH₃)₆]²⁺ from literature absorption data.
-
-        Literature:
-            - Wavelengths: 360 nm (27,778 cm⁻¹), 590 nm (16,949 cm⁻¹)
-            - Appears pale blue: absorbs more blue than [Ni(H₂O)₆]²⁺
-            - d8 octahedral; ammonia is stronger-field than water
-        """
-        observed_peaks = [
-            10**7 / 360,  # 27778 cm⁻¹
-            10**7 / 590,  # 16949 cm⁻¹
-        ]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        # Ammonia stronger field → Dq should be similar or slightly lower
-        # than aqua complex (literature shows ~5000–5200 cm⁻¹)
-        assert 4500 < dq < 6000, f"Dq={dq:.0f} unreasonable"
-        # Stronger field → B may be slightly higher than aqua
-        assert 500 < b < 900, f"B={b:.0f} unreasonable"
-
-    def test_ammonia_vs_aqua_parameter_difference(self) -> None:
-        """Verify that ammonia and aqua complexes yield different fitted parameters.
-
-        Physical insight: Even though both are d8 Ni²⁺, the ligand field strength
-        differs, so we should recover different Dq/B pairs.
-        """
-        aqua_peaks = [10**7 / 450, 10**7 / 700]
-        ammonia_peaks = [10**7 / 360, 10**7 / 590]
-
-        dq_aqua, b_aqua, _, _, _ = fit_spectrum(8, aqua_peaks)
-        dq_ammonia, b_ammonia, _, _, _ = fit_spectrum(8, ammonia_peaks)
-
-        # Parameters should differ (not identical)
-        assert dq_aqua != dq_ammonia or b_aqua != b_ammonia, (
-            "Aqua and ammonia complexes should yield different parameters"
+    @pytest.mark.parametrize("d_count", [2, 3, 4, 6, 7, 8])
+    def test_no_two_transitions_share_a_label(self, d_count: int) -> None:
+        """Every configuration, spin-forbidden bands included."""
+        c = float(DEFAULTS[d_count]["default_C"])
+        b = float(DEFAULTS[d_count]["default_B"])
+        _ground, candidates = transition_candidates(
+            compute_point(d_count, 1000.0, b, c),
+            spin_allowed_only=False,
         )
+        labels = [a for _e, a, _s in candidates]
+        duplicates = {a for a in labels if labels.count(a) > 1}
+        assert not duplicates, f"d{d_count} reuses {sorted(duplicates)}"
+
+    def test_a_single_level_term_keeps_a_bare_label(self) -> None:
+        """3T2g is the only 3T2g in d8 -- an ordinal there would be noise."""
+        _ground, candidates = transition_candidates(
+            compute_point(8, 850.0, 907.0, float(DEFAULTS[8]["default_C"])),
+        )
+        labels = [a for _e, a, _s in candidates]
+        assert "3_A_2→3_T_2" in labels, labels
 
 
-class TestFittingRobustness:
-    """Test fitting stability under realistic and edge-case conditions."""
+class TestAnalyticIdentities:
+    """Exact identities. No external reference data required."""
 
-    def test_fit_with_three_peaks(self) -> None:
-        """Fitting with three observed peaks (typical for d8)."""
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
+    @pytest.mark.parametrize(("d_count", "excited"), [(3, "4_T_2"), (8, "3_T_2")])
+    @pytest.mark.parametrize("b", [600.0, 900.0, 1200.0])
+    def test_nu1_equals_10dq(self, d_count: int, excited: str, b: float) -> None:
+        """nu1 = 10Dq exactly for d3/d8, independent of B and C."""
+        dq = 777.0
+        terms = compute_point(d_count, dq, b, float(DEFAULTS[d_count]["default_C"]))
+        _key, ground_energy = ground_term(terms)
+        assert float(terms[excited][0]) - ground_energy == pytest.approx(10 * dq, abs=1e-6)
 
-        assert rmse >= 0, "RMSE should be non-negative"
+    @pytest.mark.parametrize(("d_count", "dq", "b"), [(8, 850.0, 907.0), (3, 1740.0, 760.0)])
+    def test_closed_form_recovers_b(self, d_count: int, dq: float, b: float) -> None:
+        """B = (nu3 + nu2 - 3*nu1)/15 is exact for d3/d8."""
+        peaks = forward_spin_allowed_peaks(d_count, dq, b)
+        recovered_dq, recovered_b = closed_form_dq_b(d_count, peaks)
+        assert recovered_dq == pytest.approx(dq, abs=1e-6)
+        assert recovered_b == pytest.approx(b, abs=1e-6)
 
-    def test_fit_with_single_peak(self) -> None:
-        """Fitting with a single peak still converges (underdetermined system)."""
-        observed_peaks = [22000]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
+    @pytest.mark.parametrize("d_count", [2, 4, 5, 6, 7])
+    def test_closed_form_rejects_degenerate_ground_terms(self, d_count: int) -> None:
+        """Only d3/d8 have nu1 = 10Dq; T1g/T2g/Eg ground terms do not."""
+        with pytest.raises(ValueError, match="only valid for d3 and d8"):
+            closed_form_dq_b(d_count, [10000.0, 20000.0, 30000.0])
 
-        assert dq > 0 and b > 0, "Fitting should produce positive parameters"
+    @pytest.mark.parametrize("d_count", sorted(HIGH_SPIN_GROUND_TERM))
+    def test_dynamic_ground_term_matches_table(self, d_count: int) -> None:
+        """The per-point derivation must agree with the independent oracle table."""
+        derived = reference_ground_term(
+            d_count,
+            float(DEFAULTS[d_count]["default_B"]),
+            float(DEFAULTS[d_count]["default_C"]),
+            "high",
+        )
+        assert derived == HIGH_SPIN_GROUND_TERM[d_count]
 
-    def test_fit_with_noisy_peaks(self) -> None:
-        """Fitting with noisy data (peaks perturbed from ideal)."""
-        # Theoretical peaks for d8 at Dq=5000, B=600
-        # Add ±500 cm⁻¹ noise
-        theoretical_peaks = [11957, 22697, 50000]
-        noisy_peaks = [p + 250 for p in theoretical_peaks]
 
-        dq, b, c, rmse, transitions = fit_spectrum(8, noisy_peaks)
+class TestSyntheticRoundTrip:
+    """Peaks generated by the forward model must be recovered exactly."""
 
-        # Should recover parameters close to true values despite noise
-        assert 4500 < dq < 5500, f"Dq={dq:.0f} too far from true ~5000"
-        assert 500 < b < 700, f"B={b:.0f} too far from true ~600"
+    @pytest.mark.parametrize(
+        ("d_count", "dq", "b"),
+        [(8, 850.0, 907.0), (3, 1740.0, 760.0), (2, 1860.0, 660.0), (7, 970.0, 825.0)],
+    )
+    def test_round_trip(self, d_count: int, dq: float, b: float) -> None:
+        peaks = forward_spin_allowed_peaks(d_count, dq, b)
+        fit = fit_spectrum(d_count, peaks)
+        assert fit.Dq == pytest.approx(dq, abs=1.0)
+        assert pytest.approx(b, abs=1.0) == fit.B
+        assert fit.rmse_cm1 < 1.0
+        assert fit.ground_term == HIGH_SPIN_GROUND_TERM[d_count]
 
-    def test_empty_peaks_list_converges_to_defaults(self) -> None:
-        """Empty peaks list causes fitting to converge to default parameters.
+    @pytest.mark.parametrize(
+        ("d_count", "dq", "b"),
+        [(8, 850.0, 907.0), (3, 1740.0, 760.0), (2, 1860.0, 660.0), (7, 970.0, 825.0)],
+    )
+    @pytest.mark.parametrize("displacement", [1.30, 0.75])
+    def test_round_trip_survives_a_displaced_seed(
+        self,
+        d_count: int,
+        dq: float,
+        b: float,
+        displacement: float,
+    ) -> None:
+        """Recovery must come from the OPTIMIZER, not from the seed.
 
-        Note: Input validation (rejecting empty peaks) happens at the MCP tool layer,
-        not at fit_spectrum. This core function is lenient to allow testing.
+        For d3/d8 the seed is `closed_form_dq_b`, which on synthetic peaks IS
+        the exact answer -- so a plain round-trip can pass even with a broken
+        objective, and did under the historical broken metric. Displacing the
+        search box breaks that tautology: only a working objective can still
+        land on the truth. This is the same failure mode as the original
+        test_nickel_aqua_complex, which asserted the hardcoded seed (5000, 600);
+        here it had migrated from the test into production.
         """
-        dq, b, c, rmse, transitions = fit_spectrum(8, [])
+        peaks = forward_spin_allowed_peaks(d_count, dq, b)
+        fit = fit_spectrum(
+            d_count,
+            peaks,
+            dq_bounds=(0.2 * dq * displacement, 5.0 * dq * displacement),
+        )
+        assert fit.Dq == pytest.approx(dq, abs=1.0)  # measured error <= 0.001
+        assert pytest.approx(b, abs=1.0) == fit.B
 
-        # Fitting with no constraints defaults to initial guess
-        assert dq > 0 and b > 0, "Even with empty input, should return parameters"
-        assert rmse == 1e6, "RMSE should be max penalty for no observed peaks"
 
-    def test_invalid_d_count_raises(self) -> None:
-        """Invalid d_count (not 2-8) should raise (ValueError or KeyError)."""
-        # fit_spectrum raises ValueError from _resolve_config or KeyError from DEFAULTS
+class TestEstimatorSemantics:
+    """How the two estimators relate. Their agreement with LITERATURE values is
+    asserted once, in test_ion_case_studies.py -- not re-claimed here.
+    """
+
+    def test_the_two_estimators_disagree_on_real_data(self) -> None:
+        """Closed form and least-squares are different estimators, both correct.
+
+        The closed form honours nu1 exactly and pushes all error into nu2/nu3;
+        least-squares redistributes it. They coincide only when the observed
+        bands are mutually consistent with a single (Dq, B), which real spectra
+        are not. Asserted as a RELATIONSHIP so it stays true if the literature
+        values are ever re-sourced.
+        """
+        closed_dq, closed_b = closed_form_dq_b(8, NI_AQUA_BANDS)
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        assert pytest.approx(closed_b, abs=1.0) != fit.B
+        # ...and least-squares must be the better one BY ITS OWN metric.
+        assert fit.rmse_cm1 < rmse_at(8, closed_dq, closed_b, NI_AQUA_BANDS)
+
+    def test_the_two_estimators_agree_on_consistent_data(self) -> None:
+        """On peaks generated FROM the model they must coincide exactly.
+
+        This is the control for the test above: the disagreement is a property
+        of real data, not of the estimators.
+        """
+        peaks = forward_spin_allowed_peaks(8, 850.0, 907.0)
+        closed_dq, closed_b = closed_form_dq_b(8, peaks)
+        fit = fit_spectrum(8, peaks)
+        assert closed_dq == pytest.approx(fit.Dq, abs=1.0)
+        assert closed_b == pytest.approx(fit.B, abs=1.0)
+
+    def test_nickel_aqua_least_squares(self) -> None:
+        """Least-squares lands at (833.5, 947.0), NOT the published pair.
+
+        That is correct, not a defect. The three published bands are not mutually
+        consistent with any single (Dq, B): the closed form honours nu1 exactly
+        and pushes all error into nu2/nu3, while least-squares redistributes it.
+        Measured: (850, 907) scores rmse 249.4 here, (833.5, 947.0) scores 118.8.
+        Do NOT "fix" this by biasing the fitter -- both estimators are asserted.
+        """
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        assert fit.ground_term == "3_A_2"
+        assert 825 < fit.Dq < 875, f"Dq={fit.Dq}"  # measured 833.5
+        assert 900 < fit.B < 990, f"B={fit.B}"  # measured 947.0
+        assert max(abs(r) for r in fit.residuals_cm1) < 350  # measured 165/122/13
+        assert fit.rmse_cm1 < 200  # measured 118.8
+        # The least-squares point must beat the closed-form point on RMSE.
+        assert fit.rmse_cm1 < rmse_at(8, 850.0, 907.0, NI_AQUA_BANDS)
+
+    def test_nu1_is_10dq_for_the_fitted_result(self) -> None:
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        nu1 = min(e for e, _a, allowed in fit.transitions if allowed)
+        assert nu1 == pytest.approx(10 * fit.Dq, abs=1.0)
+
+
+class TestIllPosedInputsRaise:
+    """The fitter must fail loudly rather than return a sentinel."""
+
+    def test_empty_peaks_list_raises(self) -> None:
+        with pytest.raises(ValueError, match="at least one observed peak"):
+            fit_spectrum(8, [])
+
+    def test_non_positive_peak_raises(self) -> None:
+        with pytest.raises(ValueError, match="must all be positive"):
+            fit_spectrum(8, [-100.0, 8000.0])
+
+    def test_unsupported_d_count_raises(self) -> None:
         with pytest.raises((ValueError, KeyError)):
-            fit_spectrum(1, [10000, 20000])  # d1 not supported
+            fit_spectrum(1, [10000.0, 20000.0])
 
-    def test_custom_c_parameter_respected(self) -> None:
-        """When C is provided, it should be returned unchanged."""
-        observed_peaks = [11900, 22700, 50100]
-        custom_c = 4000.0
+    @pytest.mark.parametrize(
+        ("d_count", "bands"),
+        [(4, [21000.0, 25000.0]), (6, [10400.0, 16000.0])],
+    )
+    def test_under_determined_fit_raises(self, d_count: int, bands: list[float]) -> None:
+        """High-spin d4/d6 have exactly ONE spin-allowed band (= 10Dq).
 
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks, C=custom_c)
-
-        assert c == custom_c, f"C should be {custom_c}, got {c}"
-
-
-class TestTransitionAssignments:
-    """Test that transition assignments make physical sense."""
-
-    def test_predicted_transitions_are_positive_energy(self) -> None:
-        """All predicted transitions should have positive energy (excited states)."""
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        for energy, assignment in transitions:
-            assert energy > 0, f"Transition energy {energy} should be positive"
-
-    def test_transition_assignments_contain_arrow(self) -> None:
-        """Each assignment string should show ground → excited state."""
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        for energy, assignment in transitions:
-            assert "→" in assignment, f"Assignment '{assignment}' missing arrow"
-            parts = assignment.split("→")
-            assert len(parts) == 2, f"Assignment should have exactly one arrow"
-
-    def test_transitions_sorted_by_energy(self) -> None:
-        """Predicted transitions should be in order of increasing energy."""
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        energies = [t[0] for t in transitions]
-        assert energies == sorted(energies), "Transitions should be sorted by energy"
-
-
-class TestPatternDocumentation:
-    """Document the algorithmic pattern used: Algorithm Selection + Optimization."""
-
-    def test_pattern_name(self) -> None:
-        """The spectrum fitting pattern uses scipy.optimize.minimize."""
-        # This is not a traditional GoF pattern, but combines:
-        # 1. Algorithm Selection (which optimizer? Nelder-Mead chosen for robustness)
-        # 2. Lazy Computation (optimize only when fit_spectrum is called)
-        # 3. Objective Function as Strategy (user-defined matching metric)
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        # The fitting succeeds, proving the pattern works
-        assert dq > 0 and b > 0 and rmse >= 0
-
-    def test_pattern_trades_off_accuracy_for_speed(self) -> None:
-        """Nelder-Mead converges in ~500 iterations (default xatol, fatol).
-
-        Note: For interactive use, this is fast enough. For ultra-high accuracy,
-        could switch to minimize(..., method='BFGS') with analytical gradient.
+        B is formally unidentifiable, so any fit with 2+ peaks is ill-posed.
         """
-        import time
+        with pytest.raises(ValueError, match="under-determined"):
+            fit_spectrum(d_count, bands)
 
-        observed_peaks = [11900, 22700, 50100]
-        start = time.perf_counter()
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-        elapsed = time.perf_counter() - start
+    def test_no_low_spin_runaway(self) -> None:
+        """The fit must never cross the spin crossover to reach a denser manifold."""
+        fit = fit_spectrum(5, [18800.0, 23100.0, 24900.0], include_spin_forbidden=True)
+        assert fit.ground_term != "2_T_2"
 
-        # Should complete in <<1 second on modern hardware
-        assert elapsed < 5.0, f"Fitting took {elapsed:.2f}s; expected <5s"
+
+class TestObjectiveFunctionGuards:
+    """Direct regression guards on the two defects that made the old fitter lie."""
+
+    def test_unmatched_peaks_are_not_free(self) -> None:
+        """Ignoring an observed peak must cost RMSE.
+
+        The old metric only accumulated error for peaks within 500 cm^-1 AND
+        divided by that matched count, so "match one peak, drop the rest" scored
+        an unbeatable 0.0. Verified: fit_spectrum(8, [22222, 14286]) used to
+        return rmse=0.0 by matching 14286 to a spin-forbidden 1_E singlet.
+        """
+        rmse = peak_rmse(np.array([14286.0, 22222.0]), np.array([14286.0]))
+        assert rmse > 5000, f"unmatched peak was free: rmse={rmse}"
+
+    def test_objective_is_not_flat_across_parameter_space(self) -> None:
+        """Two different (Dq, B) must give different residuals.
+
+        The old objective returned a constant 1e6 sentinel wherever nothing
+        matched, so Nelder-Mead terminated with success=True on a flat plateau
+        without ever moving off its seed.
+        """
+        a = rmse_at(8, 800.0, 900.0, NI_AQUA_BANDS)
+        b = rmse_at(8, 850.0, 950.0, NI_AQUA_BANDS)
+        assert a != b
+
+    def test_multiplicity_rejects_free_ion_notation(self) -> None:
+        """'3F' is free-ion notation and has no octahedral multiplicity.
+
+        Returning 0 here (the old behaviour) silently disabled spin-allowed
+        filtering in four separate tools.
+        """
+        for free_ion in ("3F", "6S", "5D"):
+            with pytest.raises(ValueError, match="not an octahedral term key"):
+                term_multiplicity(free_ion)
+
+    @pytest.mark.parametrize(
+        ("key", "expected"),
+        [("3_T_1", 3), ("5_E", 5), ("1_E", 1), ("6_A_1", 6)],
+    )
+    def test_multiplicity_parses_octahedral_keys(self, key: str, expected: int) -> None:
+        assert term_multiplicity(key) == expected
+
+
+class TestCustomRacahC:
+    def test_custom_c_is_passed_through(self) -> None:
+        custom_c = 4500.0
+        fit = fit_spectrum(8, NI_AQUA_BANDS, C=custom_c)
+        assert custom_c == fit.C
+
+    def test_d8_spin_allowed_manifold_is_c_independent(self) -> None:
+        """A genuine property of d8, not a bug: C does not move the triplets.
+
+        This is why a "does C change the fit?" assertion is vacuous for d8 --
+        it must be made on a configuration whose spin-allowed terms mix singlets.
+        """
+        first = forward_spin_allowed_peaks(8, 850.0, 907.0)
+        c_terms = compute_point(8, 850.0, 907.0, 3800.0)
+        _g, candidates = transition_candidates(c_terms)
+        assert [e for e, _a, _s in candidates] == pytest.approx(first)
 
 
 class TestIntegrationWithMCPTool:
-    """Document how fit_spectrum integrates with the MCP tool wrapper."""
+    """The MCP wrapper must surface the fit, and convert failures to ComputeError."""
 
-    def test_mcp_tool_wraps_fit_spectrum(self) -> None:
-        """The ts_fit_spectrum MCP tool calls fit_spectrum internally.
+    def test_tool_returns_fit_result(self) -> None:
+        from tanabesugano.mcp.models import FitResult
+        from tanabesugano.mcp.server import create_server
 
-        This test documents the integration point: the MCP layer adds:
-        - Input validation (non-empty peaks, max 50 peaks)
-        - Error handling (catches ValueError, RuntimeError)
-        - Response wrapping (FitResult Pydantic model)
-        - Metadata (fitted Dq/B/C, r_squared, peak assignments)
-        """
-        # Direct fit_spectrum call
-        observed_peaks = [11900, 22700, 50100]
-        dq, b, c, rmse, transitions = fit_spectrum(8, observed_peaks)
-
-        # The MCP tool ts_fit_spectrum wraps this and returns FitResult with:
-        # - fitted_Dq, fitted_B, fitted_C (the parameters)
-        # - r_squared (goodness-of-fit metric)
-        # - rmse_cm1 (root-mean-square error)
-        # - observed_peaks_cm1 (input for reproducibility)
-        # - predicted_peaks_cm1 (theoretical spectrum)
-        # - peak_assignments (SpectrumPeak objects with energy + assignment)
-
-        assert dq > 0 and b > 0 and c > 0, "All parameters should be positive"
-        assert len(transitions) > 0, "Should have predicted transitions"
+        create_server()  # registration side effects only
+        fit = fit_spectrum(8, NI_AQUA_BANDS)
+        result = FitResult(
+            d_count=8,
+            fitted_Dq=fit.Dq,
+            fitted_B=fit.B,
+            fitted_C=fit.C,
+            r_squared=0.99,
+            rmse_cm1=fit.rmse_cm1,
+            observed_peaks_cm1=NI_AQUA_BANDS,
+            predicted_peaks_cm1=[e for e, _a, _s in fit.transitions],
+            peak_assignments=[],
+            ground_term=fit.ground_term,
+        )
+        assert result.ground_term == "3_A_2"

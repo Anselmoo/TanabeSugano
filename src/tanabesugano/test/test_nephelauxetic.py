@@ -172,12 +172,15 @@ class TestPipelineWithFitSpectrum:
         """
         from tanabesugano.mcp._compute import fit_spectrum
 
-        # Fit a synthetic d8 spectrum
-        observed = [11957, 22697, 50000]
-        _dq, fitted_b, _c, _rmse, _trans = fit_spectrum(8, observed)
+        # [Ni(H2O)6]2+ literature bands. The previous fixture ([11957, 22697,
+        # 50000]) was not reproducible by any d8 spin-allowed triple -- it was
+        # produced by the old fitter, which scored a "perfect" fit by silently
+        # discarding peaks it could not match.
+        observed = [8500.0, 13800.0, 25300.0]
+        fit = fit_spectrum(8, observed)
 
         # Feed the fitted B straight into the interpreter
-        result = nephelauxetic_analysis(8, fitted_b, "Ni2+")
+        result = nephelauxetic_analysis(8, fit.B, "Ni2+")
 
         assert 0.0 < result["beta"] <= 1.5
         assert result["covalency"]
