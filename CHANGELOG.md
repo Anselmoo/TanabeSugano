@@ -1,6 +1,15 @@
 # Changelog
 
 ## [Unreleased]
+### Documentation
+
+- Repaired three broken README links: the CI badge pointed at a workflow
+  file (`python-package.yml`) that no longer exists — the workflow is now
+  `cicd.yml`; the citation BibTeX carried the GitHub repository id as a
+  Zenodo DOI (`10.5281/zenodo.206847682`), which 404s, replaced with the
+  resolving concept DOI `10.5281/zenodo.3402463`; and the footer linked to
+  `/discussions`, which 404s because Discussions is not enabled, repointed at
+  the interactive diagrams site. Also added a 2.0.0 upgrade section
 
 ## [2.0.0-alpha.1] - 2026-08-20
 ### Changed
