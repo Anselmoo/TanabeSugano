@@ -299,6 +299,14 @@ pattern = "(?m)(^version: )([0-9][^\\n]*)()"
   cmd  = "python scripts/plot_uvvis_fits.py"
   help = "Rewrite the UV-Vis reference figures under assets/uvvis/"
 
+  [tool.poe.tasks.regen-gif]
+  cmd  = "python scripts/record_interactive_gif.py"
+  help = "Re-record the README's interactive-diagram GIF (needs a browser)"
+
+  [tool.poe.tasks.regen-diagrams-offline]
+  cmd  = "python scripts/regenerate_ts_diagrams.py --offline"
+  help = "Write the .html diagrams with a shared local plotly.min.js"
+
   [tool.poe.tasks.regen-all]
   sequence = ["regen-diagrams", "regen-examples", "regen-uvvis"]
   help     = "Regenerate every committed artifact"
