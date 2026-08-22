@@ -1,6 +1,13 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+
+- `docs/` build failed `tsc` with `TS2882` on the side-effect imports of
+  `App.css` and `index.css`: the app had no ambient module declaration for
+  CSS imports. Added `docs/src/vite-env.d.ts` with the standard
+  `/// <reference types="vite/client" />`, already covered by
+  `docs/tsconfig.json`'s `src` include
 
 ## [2.0.0-alpha.2] - 2026-08-22
 ### Changed
