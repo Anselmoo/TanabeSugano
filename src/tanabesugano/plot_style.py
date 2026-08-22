@@ -11,9 +11,14 @@ Design choices
   states visually distinct from doublets -- the prior rainbow colouring
   scrambled this information and made d^5 diagrams in particular hard to read.
   Colours are taken from the Okabe-Ito palette, which is colour-blind safe.
-* **Linestyle = level index within a term.** The lowest level of each term
-  is solid; higher levels are dashed / dotted / dash-dotted to keep the
-  legend short while still letting users trace individual states.
+* **Linestyle = spin-allowedness.** Solid where a transition from the ground
+  level is spin-allowed, dashed where it is forbidden. Dash used to encode the
+  level index, which recycled after five patterns while d6's ``3_T_1`` holds
+  seven levels -- so the one visual channel a reader most relies on was both
+  ambiguous *and* carrying an ordinal that appears in no textbook. Level index
+  moved to a lightness ramp (:func:`shade`), which separates seven curves where
+  five dash patterns cannot. :func:`linestyle_for` is kept for callers that have
+  not migrated.
 * **Ground term is emphasised** with thicker, fully-opaque lines; other
   curves run at ~0.85 alpha so dense regions don't crowd out the baseline.
 * **Light grid + thin spines** for a publication-friendly look.
@@ -24,13 +29,14 @@ from __future__ import annotations
 import re
 
 from typing import TYPE_CHECKING
-from typing import Any
+from typing import TypedDict
 
 import matplotlib as mpl
 
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+    from matplotlib.typing import LineStyleType
 
 
 # Okabe-Ito colour-blind-safe palette, indexed by spin multiplicity (2S+1).
@@ -46,10 +52,97 @@ SPIN_COLORS: dict[int, str] = {
     7: "#56B4E9",  # septet  — sky (rare; fallback)
 }
 
-_LineStyle = str | tuple[int, tuple[int, ...]]
+# matplotlib's own linestyle contract rather than a hand-written `str | tuple`.
+# The loose alias type-checked here and failed at every call site: `str` is not
+# assignable to the Literal set `Axes.plot` and `Line2D` actually accept, so
+# every styled plot call was an error. Borrowing the upstream type means this
+# cannot drift from what matplotlib will take.
+type _LineStyle = LineStyleType
 LEVEL_LINESTYLES: tuple[_LineStyle, ...] = ("-", "--", ":", "-.", (0, (3, 1, 1, 1)))
 
+# The D3 encoding: dash carries spin-allowedness, which a chemist reads straight
+# off the figure, rather than an internal ordinal. The forbidden dash is a long
+# 5-on/2-off period on purpose -- the old "--" default rendered at 1.2 pt line
+# width was what made dashed curves indistinguishable in the first place.
+SPIN_ALLOWED_LINESTYLE: _LineStyle = "-"
+SPIN_FORBIDDEN_LINESTYLE: _LineStyle = (0, (5, 2))
+
+# Matplotlib linestyle -> plotly dash. Exists so the two renderers cannot
+# disagree about what a dash means: plotly only understands these five names,
+# so the mapping is lossy by nature and belongs in exactly one place.
+PLOTLY_DASHES: dict[str, str] = {
+    "-": "solid",
+    "--": "dash",
+    ":": "dot",
+    "-.": "dashdot",
+}
+_FALLBACK_PLOTLY_DASH = "dash"
+
+ANNOTATION_COLORS: dict[str, str] = {
+    "observed": "#D55E00",
+    "computed": "#0072B2",
+    "spectrum": "#0072B2",
+    "parameters": "#009E73",
+    "reference_rule": "#666666",
+    "marker": "#CC3311",
+}
+"""Colours for marks that are NOT a term curve.
+
+Kept apart from :data:`SPIN_COLORS` because they answer a different question.
+``SPIN_COLORS`` is a lookup: give it a multiplicity, get that multiplicity's
+hue. These are roles: the observed spectrum, the computed one, a zero-residual
+rule, a fitted-parameter marker. Nothing indexes them by a number, and a
+"multiplicity" of ``observed`` is meaningless.
+
+They deliberately reuse Okabe-Ito hues. That is safe only because they never
+share an axes with term curves -- a fit plot shows observed against computed and
+no manifold at all -- and it keeps the whole package inside one colour-blind-safe
+palette. Adding a term curve to a fit figure would break that assumption, so
+route any such figure through ``SPIN_COLORS`` and pick annotation roles that do
+not collide.
+
+``spectrum`` and ``computed`` share a hue for the same reason, one level down:
+``spectrum`` is the measured absorption envelope in the UV-Vis figures and
+``computed`` is a calculated band marker in the fit figures, and no figure draws
+both. ``observed`` is vermillion in every surface, which is the one association
+a reader carries between figures -- do not reassign it.
+"""
+
 _FALLBACK_COLOR = "#444444"
+
+# How far the level-index ramp may travel toward white. Above ~0.55 an
+# Okabe-Ito hue stops holding contrast against the white figure background,
+# which would trade one unreadable channel for another.
+_MAX_LIGHTEN = 0.55
+
+# A "#rrggbb" string; anything else (a named colour, "tab:blue") is returned by
+# `shade` untouched rather than mangled.
+_HEX_COLOR_LENGTH = 7
+
+# Below two levels there is no ramp to draw.
+_MIN_RAMP_LEVELS = 2
+
+# The ramp spends its full range only on terms large enough to need it. Dividing
+# by `n_levels - 1` alone sent a two-level term straight to maximum lightness,
+# which made d3's 4T1g(P) -- one of the three bands Cr(III) is known for -- too
+# pale to read. A floor on the denominator keeps small multiplets near their
+# palette colour while seven-level terms still fan out fully.
+_RAMP_DENOMINATOR = 4
+
+
+class LineKwargs(TypedDict):
+    """Exactly the ``Axes.plot`` keywords this package sets.
+
+    A plain ``dict[str, object]`` unpacked into ``plot(**kwargs)`` erases every
+    value type, so the checker cannot tell a linestyle from a linewidth and
+    reports the whole call as wrong. Naming the four keys keeps the call site
+    checkable.
+    """
+
+    color: str
+    linestyle: _LineStyle
+    linewidth: float
+    alpha: float
 
 
 def multiplicity_of(term: str) -> int | None:
@@ -75,24 +168,119 @@ def color_for(term: str) -> str:
     return SPIN_COLORS.get(m, _FALLBACK_COLOR)
 
 
+def color_for_multiplicity(multiplicity: int) -> str:
+    """Palette colour for a spin multiplicity, with the neutral fallback.
+
+    The counterpart of :func:`color_for` for callers that already hold the
+    integer rather than a term key -- the Chart.js layer buckets levels by
+    multiplicity before it draws them. Exists so those callers stop reaching
+    for a private fallback constant, or worse, writing their own table: two
+    such tables existed in ``mcp/apps.py``, both shifted by one multiplicity
+    against this one.
+    """
+    return SPIN_COLORS.get(multiplicity, _FALLBACK_COLOR)
+
+
 def linestyle_for(level: int) -> _LineStyle:
-    """Pick a linestyle for the n-th level within a term."""
+    """Pick a linestyle for the n-th level within a term.
+
+    Superseded by :func:`linestyle_for_transition` for figures that carry
+    spin-allowedness (see the module docstring). Kept because it is the
+    fallback :func:`line_style_for` uses when a caller has no spin information.
+    """
     return LEVEL_LINESTYLES[level % len(LEVEL_LINESTYLES)]
 
 
-def line_style_for(term: str, *, level: int = 0, is_ground: bool = False) -> dict[str, Any]:
+def linestyle_for_transition(*, spin_allowed: bool) -> _LineStyle:
+    """Solid when a transition from the ground level is spin-allowed."""
+    return SPIN_ALLOWED_LINESTYLE if spin_allowed else SPIN_FORBIDDEN_LINESTYLE
+
+
+def to_plotly_dash(linestyle: _LineStyle) -> str:
+    """Map a matplotlib linestyle onto plotly's dash vocabulary.
+
+    Plotly understands only ``solid``/``dash``/``dot``/``dashdot``/``longdash``,
+    so an explicit dash tuple like :data:`SPIN_FORBIDDEN_LINESTYLE` has no exact
+    counterpart and lands on ``dash``. That loss is fine -- what must not happen
+    is the two renderers each inventing their own approximation.
+    """
+    if isinstance(linestyle, str):
+        return PLOTLY_DASHES.get(linestyle, _FALLBACK_PLOTLY_DASH)
+    return _FALLBACK_PLOTLY_DASH
+
+
+def plotly_dash_for_transition(*, spin_allowed: bool) -> str:
+    """Return the plotly dash name for the same encoding :func:`linestyle_for_transition` uses."""
+    return to_plotly_dash(linestyle_for_transition(spin_allowed=spin_allowed))
+
+
+def shade(color: str, level: int, n_levels: int) -> str:
+    """Lighten *color* in proportion to a level's position within its term.
+
+    Hue keeps encoding spin multiplicity; lightness encodes the level index.
+    Seven levels of one term stay separable this way, which five recycling dash
+    patterns could not manage -- see the module docstring.
+
+    ``level == 0`` returns *color* unchanged, so the lowest level of every term
+    is drawn in the exact palette colour and diagrams that hold only
+    single-level terms look identical to before.
+
+    Args:
+        color: Base ``#rrggbb`` colour, normally from :func:`color_for`.
+        level: Level index within the term (0 = lowest).
+        n_levels: Size of the term's multiplet. Values < 2 disable the ramp.
+
+    """
+    if n_levels < _MIN_RAMP_LEVELS or level <= 0:
+        return color
+    if not (len(color) == _HEX_COLOR_LENGTH and color.startswith("#")):
+        return color
+    fraction = _MAX_LIGHTEN * min(level, n_levels - 1) / max(n_levels - 1, _RAMP_DENOMINATOR)
+    channels = (int(color[i : i + 2], 16) for i in (1, 3, 5))
+    blended = (round(c + (255 - c) * fraction) for c in channels)
+    return "#{:02X}{:02X}{:02X}".format(*blended)
+
+
+def line_style_for(
+    term: str,
+    *,
+    level: int = 0,
+    is_ground: bool = False,
+    n_levels: int = 1,
+    spin_allowed: bool | None = None,
+) -> LineKwargs:
     """Return matplotlib `plot()` kwargs for one curve.
+
+    Two encodings live here, and which one you get depends on whether the
+    caller can say anything about spin:
+
+    * ``spin_allowed`` given -> the D3 encoding: hue = multiplicity,
+      lightness = level index, dash = spin-allowedness.
+    * ``spin_allowed=None`` -> the historical encoding, dash = level index.
+
+    The fallback is deliberate rather than lazy. Spin-allowedness is defined
+    relative to a *ground level*, so a caller plotting an isolated term block
+    has no honest answer, and inventing one would put a meaning on the dash
+    channel that the figure cannot support.
 
     Args:
         term: Term-symbol key (e.g. ``"2_T_2"``).
         level: Level index within the term (0 = lowest).
         is_ground: True for curves belonging to the ground-state term;
             renders thicker / fully opaque to anchor the diagram.
+        n_levels: Size of the term's multiplet; drives the lightness ramp.
+        spin_allowed: Whether a transition from the ground level to this level
+            is spin-allowed. ``None`` when the caller cannot know.
 
     """
+    linestyle = (
+        linestyle_for(level)
+        if spin_allowed is None
+        else linestyle_for_transition(spin_allowed=spin_allowed)
+    )
     return {
-        "color": color_for(term),
-        "linestyle": linestyle_for(level),
+        "color": shade(color_for(term), level, n_levels),
+        "linestyle": linestyle,
         "linewidth": 2.0 if is_ground else 1.2,
         "alpha": 1.0 if is_ground else 0.85,
     }
@@ -226,6 +414,162 @@ def term_to_ascii(term: str, *, assume_gerade: bool = True) -> str:
     irrep = m.group("irrep") or m.group("e_irrep")
     parity = m.group("parity") or ("g" if assume_gerade else "")
     return f"{m.group('mult')}{irrep}{m.group('sub') or ''}{parity}"
+
+
+def term_to_plotly(term: str, *, assume_gerade: bool = True) -> str:
+    """Convert a key like ``"4_T_1"`` to plotly markup ``"<sup>4</sup>T<sub>1g</sub>"``.
+
+    The fourth rung of the notation ladder that :func:`term_to_mathtext`,
+    :func:`term_to_unicode` and :func:`term_to_ascii` already form -- identical
+    spelling, different renderer. Plotly.js understands a small HTML subset
+    (``<b> <i> <sup> <sub> <br> <span>``) in trace names, hover text and axis
+    titles, which typesets a term symbol properly where Unicode can only
+    approximate it with pre-composed digit glyphs.
+
+    Use this **only** on plotly surfaces. The markup is inert everywhere else
+    and would be printed verbatim by matplotlib, Chart.js, a CSV cell or a
+    terminal -- exactly the failure mode CLAUDE.md records for handing Chart.js
+    LaTeX. Every other surface has its own rung above.
+
+    Falls back to the raw key with underscores replaced by spaces if the
+    pattern does not match.
+
+    Args:
+        term: The raw term-symbol key from `tanabesugano.matrices.solver()`.
+        assume_gerade: When True (default) and no parity is encoded in the key,
+            append the octahedral ``g`` subscript.
+
+    """
+    m = _TERM_RE.match(term)
+    if not m:
+        return term.replace("_", " ")
+    irrep = m.group("irrep") or m.group("e_irrep")
+    parity = m.group("parity") or ("g" if assume_gerade else "")
+    sub_part = f"{m.group('sub') or ''}{parity}"
+    body = f"{irrep}<sub>{sub_part}</sub>" if sub_part else irrep
+    return f"<sup>{m.group('mult')}</sup>{body}"
+
+
+# A curve label needs this much vertical room, in points, before it collides
+# with its neighbour. Measured from the 7 pt label font plus leading, not tuned
+# against a particular figure: at 7 pt a line box is ~8.4 pt tall.
+LABEL_PITCH_PT = 8.6
+LABEL_FONT_PT = 7.0
+
+
+def darken(color: str, fraction: float = 0.35) -> str:
+    """Blend a palette colour toward black for use as label text.
+
+    The palette is chosen for LINES on white. Set the same values as 7 pt type
+    and the pale end -- Okabe-Ito's singlet grey above all -- stops being
+    readable. Lines keep the palette value; their labels get this.
+    """
+    if not (len(color) == _HEX_COLOR_LENGTH and color.startswith("#")):
+        return color
+    channels = (int(color[i : i + 2], 16) for i in (1, 3, 5))
+    return "#{:02X}{:02X}{:02X}".format(*(round(c * (1.0 - fraction)) for c in channels))
+
+
+def spread_labels(
+    positions: list[float],
+    *,
+    span: tuple[float, float],
+    pitch: float,
+) -> list[float]:
+    """Nudge label anchors apart so none overlaps, preserving their order.
+
+    Two upward passes and one downward pass over positions sorted by value: push
+    each label at least ``pitch`` above its predecessor, then, if that pushed the
+    stack past the top of the axes, push back down from the top. Order is never
+    swapped, so a label always sits nearest the curve it names -- which is the
+    only property that makes a leader-free direct label readable at all.
+
+    A collision-avoidance library (adjustText) would do this and more, but it is
+    a runtime dependency for a problem whose exact shape is known: one column,
+    fixed pitch, monotone order.
+
+    Args:
+        positions: Desired y anchors, in data units, one per label.
+        span: ``(low, high)`` bounds the labels must stay inside.
+        pitch: Minimum vertical gap, in data units.
+
+    Returns:
+        Adjusted anchors in the same order as ``positions``.
+
+    """
+    if not positions:
+        return []
+    order = sorted(range(len(positions)), key=lambda i: positions[i])
+    placed = [positions[i] for i in order]
+
+    for i in range(1, len(placed)):
+        placed[i] = max(placed[i], placed[i - 1] + pitch)
+
+    low, high = span
+    if placed[-1] > high:
+        placed[-1] = high
+        for i in range(len(placed) - 2, -1, -1):
+            placed[i] = min(placed[i], placed[i + 1] - pitch)
+    if placed[0] < low:
+        placed[0] = low
+        for i in range(1, len(placed)):
+            placed[i] = max(placed[i], placed[i - 1] + pitch)
+
+    out = [0.0] * len(positions)
+    for slot, original in enumerate(order):
+        out[original] = placed[slot]
+    return out
+
+
+def encoding_key(ax: Axes, multiplicities: set[int]) -> None:
+    """Legend explaining the three visual channels, not listing the states.
+
+    A d6 diagram holds 43 levels. A legend naming each one is a wall of text
+    that no reader parses, and it was previously avoided by naming only the
+    lowest level of every term -- which left every other curve anonymous. The
+    states are named on the curves themselves now, so the legend's job is to say
+    what colour, lightness and dash MEAN.
+    """
+    from matplotlib.lines import Line2D
+
+    from tanabesugano.plot_style import SPIN_ALLOWED_LINESTYLE
+    from tanabesugano.plot_style import SPIN_COLORS
+    from tanabesugano.plot_style import SPIN_FORBIDDEN_LINESTYLE
+
+    names = {1: "singlet", 2: "doublet", 3: "triplet", 4: "quartet", 5: "quintet", 6: "sextet"}
+    handles = [
+        Line2D(
+            [],
+            [],
+            color=SPIN_COLORS.get(m, "#444444"),
+            linewidth=2.0,
+            label=names.get(m, f"2S+1 = {m}"),
+        )
+        for m in sorted(multiplicities)
+    ]
+    handles += [
+        Line2D([], [], color="#444444", linestyle=SPIN_ALLOWED_LINESTYLE, label="spin-allowed"),
+        Line2D(
+            [],
+            [],
+            color="#444444",
+            linestyle=SPIN_FORBIDDEN_LINESTYLE,
+            label="spin-forbidden",
+        ),
+    ]
+    ax.legend(
+        handles=handles,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.10),
+        fontsize=8,
+        ncol=min(len(handles), 5),
+        frameon=False,
+        handlelength=2.6,
+        labelspacing=0.35,
+        columnspacing=1.4,
+        title="colour = spin multiplicity   ·   paler = higher level of the same term",
+        title_fontsize=7.5,
+    )
 
 
 def apply_scientific_rcparams() -> None:

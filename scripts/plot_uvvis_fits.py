@@ -28,14 +28,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from tanabesugano.mcp._compute import nephelauxetic_analysis
+from tanabesugano.plot_style import ANNOTATION_COLORS
 from tanabesugano.plot_style import apply_scientific_rcparams
 from tanabesugano.plot_style import style_axes
 
 
 # Okabe-Ito colour-blind-safe accents, matching the package palette.
-OBSERVED_COLOR = "#0072B2"  # blue  — measured absorption envelope
-BAND_COLOR = "#D55E00"  # vermilion — assigned band maxima
-PARAM_COLOR = "#009E73"  # green — parameter annotation box
+# Roles, not literals: `script_export.py` draws the same two ideas and declared
+# them separately, which is how "observed" came to mean vermillion in one figure
+# surface and blue in the other.
+OBSERVED_COLOR = ANNOTATION_COLORS["spectrum"]  # measured absorption envelope
+BAND_COLOR = ANNOTATION_COLORS["observed"]  # assigned band maxima
+PARAM_COLOR = ANNOTATION_COLORS["parameters"]  # parameter annotation box
 
 # The three spin-allowed octahedral d8 transitions, low energy -> high energy.
 # Mathtext for figures; plain ASCII for the exported txt headers.

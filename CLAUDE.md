@@ -29,7 +29,9 @@ than a command:
 uv run poe regen-all              # every committed artifact
 uv run poe regen-diagrams         # ts-diagrams CSVs, .html diagrams, manifest.json
 uv run poe regen-diagrams-check   # fail on drift -- this is the CI gate
+uv run poe regen-diagrams-offline # self-contained .html with a local plotly.min.js
 uv run poe regen-examples         # examples/ tables + the two README figures
+uv run poe regen-gif              # re-record the README's interactive GIF (needs a browser)
 uv run poe regen-uvvis            # assets/uvvis reference figures
 ```
 
@@ -62,6 +64,7 @@ Solver core (do not duplicate logic in the MCP layer):
 - `src/tanabesugano/script_export.py` — emits a standalone matplotlib script for an observed-vs-computed fit, plus `labelled_bands()`, the single place a band is paired with a computed line. Both figure surfaces (`ts_fit_script`, `ts_fit_plot_app`) read it, so they cannot disagree about an assignment.
 - `src/tanabesugano/tools.py` — Slater-Condon ↔ Racah parameter transforms.
 - `src/tanabesugano/constants.py` — `ElectronConfiguration` enum + numerical tolerances.
+- `src/tanabesugano/figure_style.py` — decides colour, dash and label per level. All four renderers (matplotlib, plotly, Chart.js, manifest) plus the React docs app read it, so they cannot drift.
 
 Naming rule: `Level.label` (`3_T_1(b)`) is a **display** string — the `(a)/(b)`
 ordinal is suppressed for terms holding a single level, matching how the
@@ -81,7 +84,9 @@ guesses.
 
 Rendering: matplotlib gets `parent_latex` (mathtext), Chart.js gets
 `parent_unicode` — Chart.js renders no mathtext and will print `$^{3}A_{2g}…$`
-verbatim if handed LaTeX.
+verbatim if handed LaTeX. Plotly gets `parent_plotly` (`<sup>3</sup>A<sub>2g</sub>`),
+because plotly.js parses a small HTML tag subset but does NOT decode HTML
+entities — `&mdash;` reached a rendered title verbatim during this work.
 
 MCP layer (`src/tanabesugano/mcp/`):
 

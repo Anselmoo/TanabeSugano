@@ -1,6 +1,80 @@
 # Changelog
 
 ## [Unreleased]
+
+## [2.0.0-alpha.2] - 2026-08-22
+### Changed
+
+- **One notation ladder now spans four renderers.** Plotly surfaces get a new
+  fourth rung, `term_to_plotly` / `Level.parent_plotly`, emitting
+  `<sup>3</sup>T<sub>1g</sub>(F)`. The committed `.html` diagrams had shown raw
+  solver keys (`3_T_1_0`) and the docs app showed `3 T 1 0`
+- **One colour standard.** Three palettes disagreed: `mcp/apps.py` carried an
+  Okabe-Ito copy **shifted by one multiplicity** (a quartet rendered green in
+  matplotlib and vermillion in the oxidation-landscape chart), and the React
+  docs app carried a hand-written "Alucard" palette mapping 2→cyan / 4→orange
+  where Okabe-Ito says 2→orange / 4→green. `mcp/apps.py` in fact held **two**
+  shifted copies, and `ts_spin_crossover_app` hardcoded its two ground-state
+  curves, so the low-spin curve of d6 — a singlet — drew in the triplet blue.
+  All deleted; `plot_style.SPIN_COLORS` and the new `color_for_multiplicity`
+  are the only source, pinned by a test that fails on any `"#rrggbb"` literal
+  outside `plot_style`
+- **Dash now encodes spin-allowedness, not level index.** It used to cycle
+  through five patterns by level, which recycles while d6's `3_T_1` holds seven
+  levels — the channel was ambiguous *and* carried an internal ordinal that
+  appears in no textbook. Solid now means a transition from the ground level is
+  spin-allowed. Level index moved to a lightness ramp. Consequence worth stating:
+  d5 comes out entirely dashed, which is why Mn(II) is pale
+- Committed `.html` diagrams now reference plotly.js from the CDN instead of
+  inlining a 4.9 MB copy each: `ts-diagrams/` went from 80 MB to about 20 MB
+  even after gaining 28 figures. `poe regen-diagrams-offline` and the
+  `-html-offline` CLI flag write self-contained copies for offline reading
+- `docs-site/` deleted — 36 tracked files, ~80 MB, with no `package.json` and
+  no `src/`, built by no workflow. The live Vite app is `docs/`, whose
+  `package.json` is confusingly *named* `docs-site`
+
+### Added
+
+- Every diagram now ships a matplotlib PNG and PDF beside its CSV and HTML (14
+  diagrams x 2 formats), rendered by `poe regen-diagrams` at 200 sweep points
+- `manifest.json` carries a `series` block per diagram — label, colour, dash and
+  uid per CSV column — so the React app holds no palette and no label formatter
+  of its own
+- `src/tanabesugano/figure_style.py`, the single place that decides how a level
+  is drawn, shared by matplotlib, plotly, Chart.js and the manifest
+- `LevelSet.display_labels(renderer)`, which guarantees no two levels on a
+  figure share a label. Parentage is not injective — d4, d5 and d6 each hold
+  two pairs whose `parent_*` labels are byte-identical (d6: two `3T1g(H)`) — so
+  only the colliding pairs gain the ordinal, as `3T1g(H,a)` / `3T1g(H,b)`
+- `scripts/record_interactive_gif.py` and `poe regen-gif`: the README's
+  interactive GIF was a hand-made screen recording, which is why it still showed
+  the old raw legend keys. Deliberately outside `regen-all` (needs a browser)
+  and outside the drift gate (a recording is not reproducible frame-for-frame)
+
+### Fixed
+
+- Matplotlib figures named only the FIRST level of each term (`label=... if n == 0 else None`),
+  so every dashed curve was anonymous by construction. All levels are now
+  labelled directly on the curve in free-ion parentage, with a legend that
+  explains the visual channels instead of listing states
+- `cmd.plot()` legends used the raw solver key rather than typeset notation
+- `scripts/plot_uvvis_fits.py` and `script_export.py` each declared their own
+  `OBSERVED_COLOR` and disagreed — vermillion in one figure surface, blue in the
+  other, for figures a reader compares side by side. Both now read named roles
+  from `plot_style.ANNOTATION_COLORS`, which is kept separate from the
+  multiplicity palette because nothing indexes it by a number
+- `cmd._split()` rendered every single-level A and T term in the fallback grey:
+  each such key already ends in a digit, so `"3_A_1"` split into `("3_A", 1)`
+  and `color_for("3_A")` matched nothing. `figure_style.column_to_uid` resolves
+  the split against `TermKey` membership instead
+- The HTML drift gate would have become a permanent pass. It grepped raw term
+  keys out of the embedded data, and typesetting the legends removed them — an
+  empty set compares equal to any other empty set. It now reads `trace.meta.uid`
+  and raises `VacuousGateError` rather than comparing nothing
+- `scripts/regenerate_ts_diagrams.py` decided which directories get HTML by
+  checking which already contained HTML, so deleting every `.html` once made the
+  tree unable to regenerate itself. The target is now declared
+
 ### Documentation
 
 - Repaired three broken README links: the CI badge pointed at a workflow

@@ -6,10 +6,21 @@ interface DiagramViewerProps {
   config: string
 }
 
+interface SeriesEntry {
+  uid: string
+  label: string
+  label_unicode: string
+  color: string
+  dash: 'solid' | 'dash'
+  mult: number
+  spin_allowed: boolean
+}
+
 interface ManifestFile {
   name: string
   path: string
   type: string
+  series?: Record<string, SeriesEntry>
 }
 
 interface Manifest {
@@ -17,37 +28,15 @@ interface Manifest {
 }
 
 const DiagramViewer = ({ config }: DiagramViewerProps) => {
+  // Styling (colors, labels, line patterns) now comes from manifest.json,
+  // which Python generates — app and figures stay synchronized.
   const [diagramType, setDiagramType] = useState<'TS' | 'DD'>('TS')
   const [data, setData] = useState<DiagramData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<string>('')
-
-  // Color palette: spin multiplicity groups (gerade even: 2,4,6; ungerade odd: 1,3,5)
-  // Optimized for light background (#FFFBEB) using Alucard Classic subset.
-  // Design goals:
-  //  - Even set uses cooler / structured hues with ascending perceived weight.
-  //  - Odd set uses warmer / vivid hues for immediate separation.
-  //  - All pairs exceed ~4.5:1 contrast vs light background (except purple borderline but retained for categorical distinctiveness).
-  //  - Avoid duplicate hues across parity groups to reinforce semantic grouping.
-  // Chosen mapping:
-  //    Even: 2 → Cyan (#036A96), 4 → Green (#14710A), 6 → Purple (#644AC9)
-  //    Odd:  1 → Red (#CB3A2A), 3 → Orange (#A34D14), 5 → Pink (#A3144D)
-  // Rationale: provides six distinct hue families; purple moved to even (higher energy visual anchor) while pink reserved for highest odd multiplicity.
-  const getColorForTermSymbol = (traceName: string): string | undefined => {
-    const match = traceName.match(/^(\d+)\s/)
-    if (!match) return undefined
-    const multiplicity = parseInt(match[1], 10)
-    const colorMap: Record<number, string> = {
-      2: '#036A96', // Cyan (support / structural)
-      4: '#A34D14', // Orange (stable)
-      6: '#644AC9', // Purple (higher even multiplicity emphasis)
-      1: '#CB3A2A', // Red (baseline odd alertness)
-      3: '#14710A', // Green (mid odd)
-      5: '#A3144D', // Pink (highest odd multiplicity)
-    }
-    return colorMap[multiplicity] || '#5A5A5A' // Fallback neutral gray for unexpected multiplicity
-  }
+  const [currentSeries, setCurrentSeries] = useState<Record<string, SeriesEntry> | null>(null)
+  const [manifestFiles, setManifestFiles] = useState<ManifestFile[]>([])
 
   useEffect(() => {
     const loadManifest = async () => {
@@ -75,12 +64,15 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
             return a.name.localeCompare(b.name)
           })
 
-          // Auto-select first file of current diagram type (now sorted to prefer full diagrams)
+          // Store files and auto-select first file of current diagram type
+          setManifestFiles(filteredFiles)
           if (filteredFiles.length > 0) {
             setSelectedFile(filteredFiles[0].name)
+            setCurrentSeries(filteredFiles[0].series || null)
           } else {
             setSelectedFile('')
             setData(null)
+            setCurrentSeries(null)
           }
         }
       } catch (err) {
@@ -90,6 +82,14 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
 
     loadManifest()
   }, [config, diagramType])
+
+  useEffect(() => {
+    if (!selectedFile) return
+
+    // Update currentSeries when selectedFile changes
+    const file = manifestFiles.find(f => f.name === selectedFile)
+    setCurrentSeries(file?.series || null)
+  }, [selectedFile, manifestFiles])
 
   useEffect(() => {
     if (!selectedFile) return
@@ -171,16 +171,20 @@ const DiagramViewer = ({ config }: DiagramViewerProps) => {
         <div className="chart-container">
           <Plot
             data={data.traces.map(trace => {
-              const color = getColorForTermSymbol(trace.name)
+              const series = currentSeries?.[trace.seriesKey]
+              const displayName = series?.label || trace.seriesKey
+              const color = series?.color || '#444444'
+              const dash = series?.dash || 'solid'
               return {
                 x: data.xValues,
                 y: trace.yValues,
                 type: 'scatter',
                 mode: 'lines',
-                name: trace.name,
+                name: displayName,
                 line: {
                   width: 2,
-                  ...(color && { color })
+                  color,
+                  dash
                 }
               }
             })}

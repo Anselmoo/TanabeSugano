@@ -9,6 +9,9 @@ surfaces produce visually-consistent, publication-style figures.
 from __future__ import annotations
 
 import io
+import math
+
+from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 
@@ -17,12 +20,19 @@ import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
+from tanabesugano.figure_style import series_styles
 from tanabesugano.mcp._compute import sweep_dq
-from tanabesugano.plot_style import annotate_ground_term
+from tanabesugano.plot_style import LABEL_FONT_PT
+from tanabesugano.plot_style import LABEL_PITCH_PT
 from tanabesugano.plot_style import apply_scientific_rcparams
-from tanabesugano.plot_style import line_style_for
+from tanabesugano.plot_style import darken
+from tanabesugano.plot_style import encoding_key
+from tanabesugano.plot_style import spread_labels
 from tanabesugano.plot_style import style_axes
-from tanabesugano.plot_style import term_to_mathtext
+
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 
 _Y_LABEL_MATHTEXT: dict[str, str] = {
@@ -98,7 +108,13 @@ def _diagram_ground_term(
     return _ground_term_of(points[-1])
 
 
-def render_diagram(
+def _title(d_count: int, B: float, C: float, *, normalize: bool) -> str:
+    """Figure title naming which diagram this is, not just the configuration."""
+    kind = "Tanabe-Sugano" if normalize else "Energy-correlation"
+    return f"{kind} diagram, d$^{{{d_count}}}$ (B = {B:g}, C = {C:g} cm$^{{-1}}$)"
+
+
+def build_diagram(
     d_count: int,
     dq_min: float = 0.0,
     dq_max: float = 1500.0,
@@ -109,13 +125,14 @@ def render_diagram(
     normalize: bool = True,
     energy_unit: str = "cm1",
     dpi: int = 144,
-    fmt: str = "png",
-) -> bytes:
-    """Render a Tanabe-Sugano (or DD-energy) diagram and return encoded bytes.
+) -> Figure:
+    """Build a Tanabe-Sugano (or DD-energy) diagram as a matplotlib Figure.
 
-    ``fmt`` selects the container: ``"png"`` (raster, the default),
-    ``"pdf"`` or ``"svg"`` (both vector, for publication). ``dpi`` only
-    affects the raster path; the vector backends carry true geometry.
+    Separated from :func:`render_diagram` so the figure itself can be
+    asserted on. While this returned only encoded bytes, "every level carries
+    its own label" was a claim no test could check without rasterising and
+    reading pixels -- which is exactly how the figures came to name only the
+    first level of each term and nobody noticed.
 
     Visual conventions (see tanabesugano.plot_style for the helpers):
 
@@ -146,52 +163,95 @@ def render_diagram(
 
     dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, B, C)
     term_keys = list(points[0].keys())
-    ground_term = _ground_term_of(points[-1])
+    styles = series_styles(d_count, dq_max, B, C)
+    level_count = len(styles)
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.8), dpi=dpi)
+    # Height scales with how many labels have to fit down the right margin, and
+    # width leaves that margin room. A fixed 7.2 x 4.8 in figure cannot carry
+    # d6's 43 labels at any legible font size.
+    fig_height = min(max(4.8, 0.21 * level_count), 11.0)
+    fig, ax = plt.subplots(figsize=(9.0, fig_height), dpi=dpi)
+    # Set the axes box BEFORE measuring it: the label pitch is derived from the
+    # axes height in points, so measuring first and shrinking afterwards
+    # computes the spacing for a figure that no longer exists.
+    fig.subplots_adjust(left=0.09, right=0.80, top=0.88, bottom=0.16)
+
     x_axis = (dq_values * 10.0 / B) if normalize else (dq_values * 10.0)
     x_label = r"$10\,Dq / B$" if normalize else r"$10\,Dq$ (cm$^{-1}$)"
     y_label = r"$E / B$" if normalize else _Y_LABEL_MATHTEXT.get(energy_unit, r"$E$ (cm$^{-1}$)")
 
-    # Track the y-position of the ground term's level-0 at xmax for annotation.
-    # Sentinel None means "not yet found"; avoids placing annotation at y=0
-    # when the ground term produces an empty eigenseries.
-    ground_end_y: float | None = None
+    # (end-of-curve y, label, colour) for every level, collected while drawing
+    # so the label placement pass sees exactly what was plotted.
+    endpoints: list[tuple[float, str, str]] = []
 
     for term in term_keys:
         series = [pt[term] for pt in points]
         max_n = max(len(s) for s in series)
-        label = term_to_mathtext(term)
         for n in range(max_n):
+            style = styles[f"{term}#{n}"]
             y = [s[n] if n < len(s) else float("nan") for s in series]
             if normalize:
                 y_plot = [v / B for v in y]
             else:
                 y_plot = [_convert_energy_png(v, energy_unit) for v in y]
-            style = line_style_for(term, level=n, is_ground=(term == ground_term))
-            ax.plot(
-                x_axis,
-                y_plot,
-                label=label if n == 0 else None,
-                **style,
-            )
-            if term == ground_term and n == 0 and y_plot:
-                import math
-
-                last = y_plot[-1]
-                if not math.isnan(last):  # skip NaN
-                    ground_end_y = float(last)
+            ax.plot(x_axis, y_plot, **style.matplotlib_kwargs())
+            last = y_plot[-1] if y_plot else float("nan")
+            if not math.isnan(last):
+                endpoints.append((float(last), style.label_latex, style.base_color))
 
     style_axes(
-        ax,
-        title=f"Tanabe-Sugano d{d_count} (B={B:g} cm$^{{-1}}$, C={C:g} cm$^{{-1}}$)",
-        x_label=x_label,
-        y_label=y_label,
+        ax, title=_title(d_count, B, C, normalize=normalize), x_label=x_label, y_label=y_label
     )
+    encoding_key(ax, {style.multiplicity for style in styles.values()})
 
-    # Inline annotation of the ground term at the right edge (only when found).
-    if x_axis.size and ground_end_y is not None:
-        annotate_ground_term(ax, term=ground_term, x=float(x_axis[-1]), y=ground_end_y)
+    # Direct labels in the right margin: every level is named, which the legend
+    # never did -- it carried one entry per TERM, so each term's second and
+    # later levels were drawn as anonymous dashes.
+    if endpoints:
+        low, high = ax.get_ylim()
+        # Labels are spread inside the axes box, so without headroom the
+        # topmost cluster is squeezed against the secondary x-axis.
+        high += (high - low) * 0.02
+        ax.set_ylim(low, high)
+        axes_height_pt = fig_height * 72.0 * ax.get_position().height
+        pitch = (high - low) * LABEL_PITCH_PT / max(axes_height_pt, 1.0)
+        anchors = spread_labels(
+            [y for y, _label, _color in endpoints],
+            span=(low, high),
+            pitch=pitch,
+        )
+        leader_threshold = pitch * 0.6
+        # x in axes fraction, y in data: labels sit in a fixed right margin
+        # regardless of the x-axis units, while their anchors track the curves.
+        from matplotlib.transforms import blended_transform_factory
+
+        margin = blended_transform_factory(ax.transAxes, ax.transData)
+        x_right = float(x_axis[-1])
+        for (y_curve, label, color), y_text in zip(endpoints, anchors, strict=True):
+            ax.annotate(
+                label,
+                xy=(x_right, y_curve),
+                xycoords="data",
+                xytext=(1.015, y_text),
+                textcoords=margin,
+                fontsize=LABEL_FONT_PT,
+                color=darken(color),
+                va="center",
+                ha="left",
+                annotation_clip=False,
+                arrowprops=(
+                    {
+                        "arrowstyle": "-",
+                        "color": color,
+                        "linewidth": 0.5,
+                        "alpha": 0.5,
+                        "shrinkA": 0,
+                        "shrinkB": 1,
+                    }
+                    if abs(y_text - y_curve) > leader_threshold
+                    else None
+                ),
+            )
 
     # Secondary x-axis: when normalized show raw 10Dq in cm^-1 on top.
     if normalize:
@@ -202,13 +262,45 @@ def render_diagram(
         secax.set_xlabel(r"$10\,Dq$ (cm$^{-1}$)", fontsize=9)
         secax.tick_params(direction="in", labelsize=8)
 
-    fig.tight_layout()
+    return fig
 
+
+def render_diagram(
+    d_count: int,
+    dq_min: float = 0.0,
+    dq_max: float = 1500.0,
+    steps: int = 60,
+    B: float = 860.0,
+    C: float = 3850.0,
+    *,
+    normalize: bool = True,
+    energy_unit: str = "cm1",
+    dpi: int = 144,
+    fmt: str = "png",
+) -> bytes:
+    """Render a diagram and return encoded bytes.
+
+    ``fmt`` selects the container: ``"png"`` (raster, the default), ``"pdf"``
+    or ``"svg"`` (both vector, for publication). ``dpi`` only affects the
+    raster path; the vector backends carry true geometry.
+
+    See :func:`build_diagram` for the arguments and the visual conventions.
+    """
     if fmt not in EXPORT_MIME_TYPES:
-        plt.close(fig)
         msg = f"unsupported format {fmt!r}; choose one of {sorted(EXPORT_MIME_TYPES)}"
         raise ValueError(msg)
 
+    fig = build_diagram(
+        d_count,
+        dq_min,
+        dq_max,
+        steps,
+        B,
+        C,
+        normalize=normalize,
+        energy_unit=energy_unit,
+        dpi=dpi,
+    )
     buf = io.BytesIO()
     fig.savefig(buf, format=fmt)
     plt.close(fig)
