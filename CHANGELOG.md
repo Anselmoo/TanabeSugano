@@ -7,7 +7,8 @@
   `App.css` and `index.css`: the app had no ambient module declaration for
   CSS imports. Added `docs/src/vite-env.d.ts` with the standard
   `/// <reference types="vite/client" />`, already covered by
-  `docs/tsconfig.json`'s `src` include
+  `docs/tsconfig.json`'s `src` include. Refreshed `.rrt/tree.lock.toml`
+  (213 -> 214 entries) so CI's tree drift gate accounts for the new file
 
 ## [2.0.0-alpha.2] - 2026-08-22
 ### Changed
