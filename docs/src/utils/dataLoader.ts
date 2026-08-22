@@ -3,7 +3,7 @@ import Papa from 'papaparse'
 export interface DiagramData {
   xValues: number[]
   traces: {
-    name: string
+    seriesKey: string  // Raw CSV header for manifest lookup
     yValues: number[]
   }[]
 }
@@ -36,7 +36,7 @@ export const loadCSV = async (path: string): Promise<DiagramData> => {
         const xValues = data.map(row => row[xKey]).filter(v => v != null)
 
         const traces = headers.slice(1).map(header => ({
-          name: header.replace(/_/g, ' '),
+          seriesKey: header,
           yValues: data.map(row => row[header]).filter(v => v != null)
         }))
 

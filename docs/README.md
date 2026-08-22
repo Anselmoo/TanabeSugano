@@ -32,7 +32,7 @@ An interactive web application for visualizing Tanabe-Sugano diagrams and DD ene
 ### Setup
 
 ```bash
-cd docs-site
+cd docs
 npm install
 ```
 
@@ -61,7 +61,7 @@ npm run preview
 ## Project Structure
 
 ```
-docs-site/
+docs/
 ├── public/
 │   └── ts-diagrams/     # CSV data files (d2-d8)
 ├── src/
