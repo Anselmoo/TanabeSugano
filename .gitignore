@@ -381,3 +381,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Self-contained diagrams from 'poe regen-diagrams-offline' (the committed
+# .html reference plotly.js from the CDN; these inline it and are large).
+ts-diagrams-offline/

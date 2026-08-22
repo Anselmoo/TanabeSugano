@@ -3,12 +3,214 @@
     {
       "name": "DD-energies_d2_10Dq_40000_B_860_C_3801.csv",
       "path": "ts-diagrams/d2/DD-energies_d2_10Dq_40000_B_860_C_3801.csv",
-      "type": "DD"
+      "type": "DD",
+      "series": {
+        "1_A_1_0": {
+          "uid": "1_A_1#0",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9A\u2081g(G)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_1": {
+          "uid": "1_A_1#1",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b9A\u2081g(S)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_0": {
+          "uid": "1_E#0",
+          "label": "<sup>1</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b9Eg(D)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_1": {
+          "uid": "1_E#1",
+          "label": "<sup>1</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b9Eg(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1": {
+          "uid": "1_T_1#0",
+          "label": "<sup>1</sup>T<sub>1g</sub>",
+          "label_unicode": "\u00b9T\u2081g",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_0": {
+          "uid": "1_T_2#0",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b9T\u2082g(D)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_1": {
+          "uid": "1_T_2#1",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b9T\u2082g(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "3_A_2": {
+          "uid": "3_A_2#0",
+          "label": "<sup>3</sup>A<sub>2g</sub>",
+          "label_unicode": "\u00b3A\u2082g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_0": {
+          "uid": "3_T_1#0",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b3T\u2081g(F)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_1": {
+          "uid": "3_T_1#1",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b3T\u2081g(P)",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2": {
+          "uid": "3_T_2#0",
+          "label": "<sup>3</sup>T<sub>2g</sub>",
+          "label_unicode": "\u00b3T\u2082g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        }
+      }
     },
     {
       "name": "TS-diagram_d2_10Dq_40000_B_860_C_3801.csv",
       "path": "ts-diagrams/d2/TS-diagram_d2_10Dq_40000_B_860_C_3801.csv",
-      "type": "TS"
+      "type": "TS",
+      "series": {
+        "1_A_1_0": {
+          "uid": "1_A_1#0",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9A\u2081g(G)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_1": {
+          "uid": "1_A_1#1",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b9A\u2081g(S)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_0": {
+          "uid": "1_E#0",
+          "label": "<sup>1</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b9Eg(D)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_1": {
+          "uid": "1_E#1",
+          "label": "<sup>1</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b9Eg(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1": {
+          "uid": "1_T_1#0",
+          "label": "<sup>1</sup>T<sub>1g</sub>",
+          "label_unicode": "\u00b9T\u2081g",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_0": {
+          "uid": "1_T_2#0",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b9T\u2082g(D)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_1": {
+          "uid": "1_T_2#1",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b9T\u2082g(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "3_A_2": {
+          "uid": "3_A_2#0",
+          "label": "<sup>3</sup>A<sub>2g</sub>",
+          "label_unicode": "\u00b3A\u2082g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_0": {
+          "uid": "3_T_1#0",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b3T\u2081g(F)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_1": {
+          "uid": "3_T_1#1",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b3T\u2081g(P)",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2": {
+          "uid": "3_T_2#0",
+          "label": "<sup>3</sup>T<sub>2g</sub>",
+          "label_unicode": "\u00b3T\u2082g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        }
+      }
     },
     {
       "name": "TS_Cut_d2_10Dq_24000_B_860_C_3801.csv",
@@ -20,12 +222,376 @@
     {
       "name": "DD-energies_d3_10Dq_40000_B_918_C_4132.csv",
       "path": "ts-diagrams/d3/DD-energies_d3_10Dq_40000_B_918_C_4132.csv",
-      "type": "DD"
+      "type": "DD",
+      "series": {
+        "2_A_1": {
+          "uid": "2_A_1#0",
+          "label": "<sup>2</sup>A<sub>1g</sub>",
+          "label_unicode": "\u00b2A\u2081g",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_A_2": {
+          "uid": "2_A_2#0",
+          "label": "<sup>2</sup>A<sub>2g</sub>",
+          "label_unicode": "\u00b2A\u2082g",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_E_0": {
+          "uid": "2_E#0",
+          "label": "<sup>2</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b2Eg(G)",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_E_1": {
+          "uid": "2_E#1",
+          "label": "<sup>2</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b2Eg(H)",
+          "color": "#E9AC23",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_E_2": {
+          "uid": "2_E#2",
+          "label": "<sup>2</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b2Eg(D)",
+          "color": "#EDB946",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_E_3": {
+          "uid": "2_E#3",
+          "label": "<sup>2</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b2Eg(D')",
+          "color": "#F0C769",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_0": {
+          "uid": "2_T_1#0",
+          "label": "<sup>2</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b2T\u2081g(G)",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_1": {
+          "uid": "2_T_1#1",
+          "label": "<sup>2</sup>T<sub>1g</sub>(b)",
+          "label_unicode": "\u00b2T\u2081g(b)",
+          "color": "#E9AC23",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_2": {
+          "uid": "2_T_1#2",
+          "label": "<sup>2</sup>T<sub>1g</sub>(c)",
+          "label_unicode": "\u00b2T\u2081g(c)",
+          "color": "#EDB946",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_3": {
+          "uid": "2_T_1#3",
+          "label": "<sup>2</sup>T<sub>1g</sub>(d)",
+          "label_unicode": "\u00b2T\u2081g(d)",
+          "color": "#F0C769",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_4": {
+          "uid": "2_T_1#4",
+          "label": "<sup>2</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b2T\u2081g(F)",
+          "color": "#F4D48C",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_0": {
+          "uid": "2_T_2#0",
+          "label": "<sup>2</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b2T\u2082g(G)",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_1": {
+          "uid": "2_T_2#1",
+          "label": "<sup>2</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b2T\u2082g(H)",
+          "color": "#E9AC23",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_2": {
+          "uid": "2_T_2#2",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b2T\u2082g(D)",
+          "color": "#EDB946",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_3": {
+          "uid": "2_T_2#3",
+          "label": "<sup>2</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b2T\u2082g(F)",
+          "color": "#F0C769",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_4": {
+          "uid": "2_T_2#4",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b2T\u2082g(D')",
+          "color": "#F4D48C",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "4_A_2": {
+          "uid": "4_A_2#0",
+          "label": "<sup>4</sup>A<sub>2g</sub>",
+          "label_unicode": "\u2074A\u2082g",
+          "color": "#009E73",
+          "dash": "solid",
+          "mult": 4,
+          "spin_allowed": true
+        },
+        "4_T_1_0": {
+          "uid": "4_T_1#0",
+          "label": "<sup>4</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u2074T\u2081g(F)",
+          "color": "#009E73",
+          "dash": "solid",
+          "mult": 4,
+          "spin_allowed": true
+        },
+        "4_T_1_1": {
+          "uid": "4_T_1#1",
+          "label": "<sup>4</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u2074T\u2081g(P)",
+          "color": "#23AB86",
+          "dash": "solid",
+          "mult": 4,
+          "spin_allowed": true
+        },
+        "4_T_2": {
+          "uid": "4_T_2#0",
+          "label": "<sup>4</sup>T<sub>2g</sub>",
+          "label_unicode": "\u2074T\u2082g",
+          "color": "#009E73",
+          "dash": "solid",
+          "mult": 4,
+          "spin_allowed": true
+        }
+      }
     },
     {
       "name": "TS-diagram_d3_10Dq_40000_B_918_C_4132.csv",
       "path": "ts-diagrams/d3/TS-diagram_d3_10Dq_40000_B_918_C_4132.csv",
-      "type": "TS"
+      "type": "TS",
+      "series": {
+        "2_A_1": {
+          "uid": "2_A_1#0",
+          "label": "<sup>2</sup>A<sub>1g</sub>",
+          "label_unicode": "\u00b2A\u2081g",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_A_2": {
+          "uid": "2_A_2#0",
+          "label": "<sup>2</sup>A<sub>2g</sub>",
+          "label_unicode": "\u00b2A\u2082g",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_E_0": {
+          "uid": "2_E#0",
+          "label": "<sup>2</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b2Eg(G)",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_E_1": {
+          "uid": "2_E#1",
+          "label": "<sup>2</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b2Eg(H)",
+          "color": "#E9AC23",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_E_2": {
+          "uid": "2_E#2",
+          "label": "<sup>2</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b2Eg(D)",
+          "color": "#EDB946",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_E_3": {
+          "uid": "2_E#3",
+          "label": "<sup>2</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b2Eg(D')",
+          "color": "#F0C769",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_0": {
+          "uid": "2_T_1#0",
+          "label": "<sup>2</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b2T\u2081g(G)",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_1": {
+          "uid": "2_T_1#1",
+          "label": "<sup>2</sup>T<sub>1g</sub>(b)",
+          "label_unicode": "\u00b2T\u2081g(b)",
+          "color": "#E9AC23",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_2": {
+          "uid": "2_T_1#2",
+          "label": "<sup>2</sup>T<sub>1g</sub>(c)",
+          "label_unicode": "\u00b2T\u2081g(c)",
+          "color": "#EDB946",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_3": {
+          "uid": "2_T_1#3",
+          "label": "<sup>2</sup>T<sub>1g</sub>(d)",
+          "label_unicode": "\u00b2T\u2081g(d)",
+          "color": "#F0C769",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_1_4": {
+          "uid": "2_T_1#4",
+          "label": "<sup>2</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b2T\u2081g(F)",
+          "color": "#F4D48C",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_0": {
+          "uid": "2_T_2#0",
+          "label": "<sup>2</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b2T\u2082g(G)",
+          "color": "#E69F00",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_1": {
+          "uid": "2_T_2#1",
+          "label": "<sup>2</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b2T\u2082g(H)",
+          "color": "#E9AC23",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_2": {
+          "uid": "2_T_2#2",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b2T\u2082g(D)",
+          "color": "#EDB946",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_3": {
+          "uid": "2_T_2#3",
+          "label": "<sup>2</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b2T\u2082g(F)",
+          "color": "#F0C769",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "2_T_2_4": {
+          "uid": "2_T_2#4",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b2T\u2082g(D')",
+          "color": "#F4D48C",
+          "dash": "dash",
+          "mult": 2,
+          "spin_allowed": false
+        },
+        "4_A_2": {
+          "uid": "4_A_2#0",
+          "label": "<sup>4</sup>A<sub>2g</sub>",
+          "label_unicode": "\u2074A\u2082g",
+          "color": "#009E73",
+          "dash": "solid",
+          "mult": 4,
+          "spin_allowed": true
+        },
+        "4_T_1_0": {
+          "uid": "4_T_1#0",
+          "label": "<sup>4</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u2074T\u2081g(F)",
+          "color": "#009E73",
+          "dash": "solid",
+          "mult": 4,
+          "spin_allowed": true
+        },
+        "4_T_1_1": {
+          "uid": "4_T_1#1",
+          "label": "<sup>4</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u2074T\u2081g(P)",
+          "color": "#23AB86",
+          "dash": "solid",
+          "mult": 4,
+          "spin_allowed": true
+        },
+        "4_T_2": {
+          "uid": "4_T_2#0",
+          "label": "<sup>4</sup>T<sub>2g</sub>",
+          "label_unicode": "\u2074T\u2082g",
+          "color": "#009E73",
+          "dash": "solid",
+          "mult": 4,
+          "spin_allowed": true
+        }
+      }
     },
     {
       "name": "TS_Cut_d3_10Dq_24000_B_918_C_4132.csv",
@@ -37,12 +603,790 @@
     {
       "name": "DD-energies_d4_10Dq_40000_B_965_C_4449.csv",
       "path": "ts-diagrams/d4/DD-energies_d4_10Dq_40000_B_965_C_4449.csv",
-      "type": "DD"
+      "type": "DD",
+      "series": {
+        "1_A_1_0": {
+          "uid": "1_A_1#0",
+          "label": "<sup>1</sup>A<sub>1g</sub>(I)",
+          "label_unicode": "\u00b9A\u2081g(I)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_1": {
+          "uid": "1_A_1#1",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9A\u2081g(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_2": {
+          "uid": "1_A_1#2",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b9A\u2081g(S)",
+          "color": "#B5B5B5",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_3": {
+          "uid": "1_A_1#3",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G')",
+          "label_unicode": "\u00b9A\u2081g(G')",
+          "color": "#C3C3C3",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_4": {
+          "uid": "1_A_1#4",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S')",
+          "label_unicode": "\u00b9A\u2081g(S')",
+          "color": "#D1D1D1",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_2_0": {
+          "uid": "1_A_2#0",
+          "label": "<sup>1</sup>A<sub>2g</sub>(I)",
+          "label_unicode": "\u00b9A\u2082g(I)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_2_1": {
+          "uid": "1_A_2#1",
+          "label": "<sup>1</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b9A\u2082g(F)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_0": {
+          "uid": "1_E#0",
+          "label": "<sup>1</sup>E<sub>g</sub>(I)",
+          "label_unicode": "\u00b9Eg(I)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_1": {
+          "uid": "1_E#1",
+          "label": "<sup>1</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b9Eg(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_2": {
+          "uid": "1_E#2",
+          "label": "<sup>1</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b9Eg(D)",
+          "color": "#B5B5B5",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_3": {
+          "uid": "1_E#3",
+          "label": "<sup>1</sup>E<sub>g</sub>(G')",
+          "label_unicode": "\u00b9Eg(G')",
+          "color": "#C3C3C3",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_4": {
+          "uid": "1_E#4",
+          "label": "<sup>1</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b9Eg(D')",
+          "color": "#D1D1D1",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1_0": {
+          "uid": "1_T_1#0",
+          "label": "<sup>1</sup>T<sub>1g</sub>(I)",
+          "label_unicode": "\u00b9T\u2081g(I)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1_1": {
+          "uid": "1_T_1#1",
+          "label": "<sup>1</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9T\u2081g(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1_2": {
+          "uid": "1_T_1#2",
+          "label": "<sup>1</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b9T\u2081g(F)",
+          "color": "#B5B5B5",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1_3": {
+          "uid": "1_T_1#3",
+          "label": "<sup>1</sup>T<sub>1g</sub>(G')",
+          "label_unicode": "\u00b9T\u2081g(G')",
+          "color": "#C3C3C3",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_0": {
+          "uid": "1_T_2#0",
+          "label": "<sup>1</sup>T<sub>2g</sub>(I,a)",
+          "label_unicode": "\u00b9T\u2082g(I,a)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_1": {
+          "uid": "1_T_2#1",
+          "label": "<sup>1</sup>T<sub>2g</sub>(I,b)",
+          "label_unicode": "\u00b9T\u2082g(I,b)",
+          "color": "#A2A2A2",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_2": {
+          "uid": "1_T_2#2",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b9T\u2082g(G)",
+          "color": "#ACACAC",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_3": {
+          "uid": "1_T_2#3",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b9T\u2082g(D)",
+          "color": "#B5B5B5",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_4": {
+          "uid": "1_T_2#4",
+          "label": "<sup>1</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b9T\u2082g(F)",
+          "color": "#BEBEBE",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_5": {
+          "uid": "1_T_2#5",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G')",
+          "label_unicode": "\u00b9T\u2082g(G')",
+          "color": "#C8C8C8",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_6": {
+          "uid": "1_T_2#6",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b9T\u2082g(D')",
+          "color": "#D1D1D1",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "3_A_1": {
+          "uid": "3_A_1#0",
+          "label": "<sup>3</sup>A<sub>1g</sub>",
+          "label_unicode": "\u00b3A\u2081g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_A_2_0": {
+          "uid": "3_A_2#0",
+          "label": "<sup>3</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b3A\u2082g(F)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_A_2_1": {
+          "uid": "3_A_2#1",
+          "label": "<sup>3</sup>A<sub>2g</sub>(F')",
+          "label_unicode": "\u00b3A\u2082g(F')",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_E_0": {
+          "uid": "3_E#0",
+          "label": "<sup>3</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b3Eg(H)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_E_1": {
+          "uid": "3_E#1",
+          "label": "<sup>3</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b3Eg(G)",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_E_2": {
+          "uid": "3_E#2",
+          "label": "<sup>3</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b3Eg(D)",
+          "color": "#4699C7",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_0": {
+          "uid": "3_T_1#0",
+          "label": "<sup>3</sup>T<sub>1g</sub>(H,a)",
+          "label_unicode": "\u00b3T\u2081g(H,a)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_1": {
+          "uid": "3_T_1#1",
+          "label": "<sup>3</sup>T<sub>1g</sub>(H,b)",
+          "label_unicode": "\u00b3T\u2081g(H,b)",
+          "color": "#177FB9",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_2": {
+          "uid": "3_T_1#2",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b3T\u2081g(P)",
+          "color": "#2F8CC0",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_3": {
+          "uid": "3_T_1#3",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b3T\u2081g(F)",
+          "color": "#4699C7",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_4": {
+          "uid": "3_T_1#4",
+          "label": "<sup>3</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b3T\u2081g(G)",
+          "color": "#5EA6CE",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_5": {
+          "uid": "3_T_1#5",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F')",
+          "label_unicode": "\u00b3T\u2081g(F')",
+          "color": "#75B3D5",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_6": {
+          "uid": "3_T_1#6",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P')",
+          "label_unicode": "\u00b3T\u2081g(P')",
+          "color": "#8CC0DC",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_0": {
+          "uid": "3_T_2#0",
+          "label": "<sup>3</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b3T\u2082g(H)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_1": {
+          "uid": "3_T_2#1",
+          "label": "<sup>3</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b3T\u2082g(F)",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_2": {
+          "uid": "3_T_2#2",
+          "label": "<sup>3</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b3T\u2082g(G)",
+          "color": "#4699C7",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_3": {
+          "uid": "3_T_2#3",
+          "label": "<sup>3</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b3T\u2082g(D)",
+          "color": "#69ACD2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_4": {
+          "uid": "3_T_2#4",
+          "label": "<sup>3</sup>T<sub>2g</sub>(F')",
+          "label_unicode": "\u00b3T\u2082g(F')",
+          "color": "#8CC0DC",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "5_E": {
+          "uid": "5_E#0",
+          "label": "<sup>5</sup>E<sub>g</sub>",
+          "label_unicode": "\u2075Eg",
+          "color": "#D55E00",
+          "dash": "dash",
+          "mult": 5,
+          "spin_allowed": false
+        },
+        "5_T_2": {
+          "uid": "5_T_2#0",
+          "label": "<sup>5</sup>T<sub>2g</sub>",
+          "label_unicode": "\u2075T\u2082g",
+          "color": "#D55E00",
+          "dash": "dash",
+          "mult": 5,
+          "spin_allowed": false
+        }
+      }
     },
     {
       "name": "TS-diagram_d4_10Dq_40000_B_965_C_4449.csv",
       "path": "ts-diagrams/d4/TS-diagram_d4_10Dq_40000_B_965_C_4449.csv",
-      "type": "TS"
+      "type": "TS",
+      "series": {
+        "1_A_1_0": {
+          "uid": "1_A_1#0",
+          "label": "<sup>1</sup>A<sub>1g</sub>(I)",
+          "label_unicode": "\u00b9A\u2081g(I)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_1": {
+          "uid": "1_A_1#1",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9A\u2081g(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_2": {
+          "uid": "1_A_1#2",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b9A\u2081g(S)",
+          "color": "#B5B5B5",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_3": {
+          "uid": "1_A_1#3",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G')",
+          "label_unicode": "\u00b9A\u2081g(G')",
+          "color": "#C3C3C3",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_4": {
+          "uid": "1_A_1#4",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S')",
+          "label_unicode": "\u00b9A\u2081g(S')",
+          "color": "#D1D1D1",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_2_0": {
+          "uid": "1_A_2#0",
+          "label": "<sup>1</sup>A<sub>2g</sub>(I)",
+          "label_unicode": "\u00b9A\u2082g(I)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_2_1": {
+          "uid": "1_A_2#1",
+          "label": "<sup>1</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b9A\u2082g(F)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_0": {
+          "uid": "1_E#0",
+          "label": "<sup>1</sup>E<sub>g</sub>(I)",
+          "label_unicode": "\u00b9Eg(I)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_1": {
+          "uid": "1_E#1",
+          "label": "<sup>1</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b9Eg(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_2": {
+          "uid": "1_E#2",
+          "label": "<sup>1</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b9Eg(D)",
+          "color": "#B5B5B5",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_3": {
+          "uid": "1_E#3",
+          "label": "<sup>1</sup>E<sub>g</sub>(G')",
+          "label_unicode": "\u00b9Eg(G')",
+          "color": "#C3C3C3",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_4": {
+          "uid": "1_E#4",
+          "label": "<sup>1</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b9Eg(D')",
+          "color": "#D1D1D1",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1_0": {
+          "uid": "1_T_1#0",
+          "label": "<sup>1</sup>T<sub>1g</sub>(I)",
+          "label_unicode": "\u00b9T\u2081g(I)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1_1": {
+          "uid": "1_T_1#1",
+          "label": "<sup>1</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9T\u2081g(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1_2": {
+          "uid": "1_T_1#2",
+          "label": "<sup>1</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b9T\u2081g(F)",
+          "color": "#B5B5B5",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1_3": {
+          "uid": "1_T_1#3",
+          "label": "<sup>1</sup>T<sub>1g</sub>(G')",
+          "label_unicode": "\u00b9T\u2081g(G')",
+          "color": "#C3C3C3",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_0": {
+          "uid": "1_T_2#0",
+          "label": "<sup>1</sup>T<sub>2g</sub>(I,a)",
+          "label_unicode": "\u00b9T\u2082g(I,a)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_1": {
+          "uid": "1_T_2#1",
+          "label": "<sup>1</sup>T<sub>2g</sub>(I,b)",
+          "label_unicode": "\u00b9T\u2082g(I,b)",
+          "color": "#A2A2A2",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_2": {
+          "uid": "1_T_2#2",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b9T\u2082g(G)",
+          "color": "#ACACAC",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_3": {
+          "uid": "1_T_2#3",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b9T\u2082g(D)",
+          "color": "#B5B5B5",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_4": {
+          "uid": "1_T_2#4",
+          "label": "<sup>1</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b9T\u2082g(F)",
+          "color": "#BEBEBE",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_5": {
+          "uid": "1_T_2#5",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G')",
+          "label_unicode": "\u00b9T\u2082g(G')",
+          "color": "#C8C8C8",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_6": {
+          "uid": "1_T_2#6",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b9T\u2082g(D')",
+          "color": "#D1D1D1",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "3_A_1": {
+          "uid": "3_A_1#0",
+          "label": "<sup>3</sup>A<sub>1g</sub>",
+          "label_unicode": "\u00b3A\u2081g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_A_2_0": {
+          "uid": "3_A_2#0",
+          "label": "<sup>3</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b3A\u2082g(F)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_A_2_1": {
+          "uid": "3_A_2#1",
+          "label": "<sup>3</sup>A<sub>2g</sub>(F')",
+          "label_unicode": "\u00b3A\u2082g(F')",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_E_0": {
+          "uid": "3_E#0",
+          "label": "<sup>3</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b3Eg(H)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_E_1": {
+          "uid": "3_E#1",
+          "label": "<sup>3</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b3Eg(G)",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_E_2": {
+          "uid": "3_E#2",
+          "label": "<sup>3</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b3Eg(D)",
+          "color": "#4699C7",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_0": {
+          "uid": "3_T_1#0",
+          "label": "<sup>3</sup>T<sub>1g</sub>(H,a)",
+          "label_unicode": "\u00b3T\u2081g(H,a)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_1": {
+          "uid": "3_T_1#1",
+          "label": "<sup>3</sup>T<sub>1g</sub>(H,b)",
+          "label_unicode": "\u00b3T\u2081g(H,b)",
+          "color": "#177FB9",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_2": {
+          "uid": "3_T_1#2",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b3T\u2081g(P)",
+          "color": "#2F8CC0",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_3": {
+          "uid": "3_T_1#3",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b3T\u2081g(F)",
+          "color": "#4699C7",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_4": {
+          "uid": "3_T_1#4",
+          "label": "<sup>3</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b3T\u2081g(G)",
+          "color": "#5EA6CE",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_5": {
+          "uid": "3_T_1#5",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F')",
+          "label_unicode": "\u00b3T\u2081g(F')",
+          "color": "#75B3D5",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_6": {
+          "uid": "3_T_1#6",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P')",
+          "label_unicode": "\u00b3T\u2081g(P')",
+          "color": "#8CC0DC",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_0": {
+          "uid": "3_T_2#0",
+          "label": "<sup>3</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b3T\u2082g(H)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_1": {
+          "uid": "3_T_2#1",
+          "label": "<sup>3</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b3T\u2082g(F)",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_2": {
+          "uid": "3_T_2#2",
+          "label": "<sup>3</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b3T\u2082g(G)",
+          "color": "#4699C7",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_3": {
+          "uid": "3_T_2#3",
+          "label": "<sup>3</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b3T\u2082g(D)",
+          "color": "#69ACD2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2_4": {
+          "uid": "3_T_2#4",
+          "label": "<sup>3</sup>T<sub>2g</sub>(F')",
+          "label_unicode": "\u00b3T\u2082g(F')",
+          "color": "#8CC0DC",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "5_E": {
+          "uid": "5_E#0",
+          "label": "<sup>5</sup>E<sub>g</sub>",
+          "label_unicode": "\u2075Eg",
+          "color": "#D55E00",
+          "dash": "dash",
+          "mult": 5,
+          "spin_allowed": false
+        },
+        "5_T_2": {
+          "uid": "5_T_2#0",
+          "label": "<sup>5</sup>T<sub>2g</sub>",
+          "label_unicode": "\u2075T\u2082g",
+          "color": "#D55E00",
+          "dash": "dash",
+          "mult": 5,
+          "spin_allowed": false
+        }
+      }
     },
     {
       "name": "TS_Cut_d4_10Dq_24000_B_965_C_4449.csv",
@@ -54,12 +1398,790 @@
     {
       "name": "DD-energies_d5_10Dq_40000_B_860_C_3850.csv",
       "path": "ts-diagrams/d5/DD-energies_d5_10Dq_40000_B_860_C_3850.csv",
-      "type": "DD"
+      "type": "DD",
+      "series": {
+        "2_A_1_0": {
+          "uid": "2_A_1#0",
+          "label": "<sup>2</sup>A<sub>1g</sub>(I)",
+          "label_unicode": "\u00b2A\u2081g(I)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_1_1": {
+          "uid": "2_A_1#1",
+          "label": "<sup>2</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b2A\u2081g(G)",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_1_2": {
+          "uid": "2_A_1#2",
+          "label": "<sup>2</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b2A\u2081g(S)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_1_3": {
+          "uid": "2_A_1#3",
+          "label": "<sup>2</sup>A<sub>1g</sub>(G')",
+          "label_unicode": "\u00b2A\u2081g(G')",
+          "color": "#F0C769",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_2_0": {
+          "uid": "2_A_2#0",
+          "label": "<sup>2</sup>A<sub>2g</sub>(I)",
+          "label_unicode": "\u00b2A\u2082g(I)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_2_1": {
+          "uid": "2_A_2#1",
+          "label": "<sup>2</sup>A<sub>2g</sub>(F')",
+          "label_unicode": "\u00b2A\u2082g(F')",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_2_2": {
+          "uid": "2_A_2#2",
+          "label": "<sup>2</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b2A\u2082g(F)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_0": {
+          "uid": "2_E#0",
+          "label": "<sup>2</sup>E<sub>g</sub>(I)",
+          "label_unicode": "\u00b2Eg(I)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_1": {
+          "uid": "2_E#1",
+          "label": "<sup>2</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b2Eg(D)",
+          "color": "#E8A817",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_2": {
+          "uid": "2_E#2",
+          "label": "<sup>2</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b2Eg(H)",
+          "color": "#EBB12F",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_3": {
+          "uid": "2_E#3",
+          "label": "<sup>2</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b2Eg(G)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_4": {
+          "uid": "2_E#4",
+          "label": "<sup>2</sup>E<sub>g</sub>(D'')",
+          "label_unicode": "\u00b2Eg(D'')",
+          "color": "#EFC25E",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_5": {
+          "uid": "2_E#5",
+          "label": "<sup>2</sup>E<sub>g</sub>(G')",
+          "label_unicode": "\u00b2Eg(G')",
+          "color": "#F1CB75",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_6": {
+          "uid": "2_E#6",
+          "label": "<sup>2</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b2Eg(D')",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_0": {
+          "uid": "2_T_1#0",
+          "label": "<sup>2</sup>T<sub>1g</sub>(I)",
+          "label_unicode": "\u00b2T\u2081g(I)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_1": {
+          "uid": "2_T_1#1",
+          "label": "<sup>2</sup>T<sub>1g</sub>(F')",
+          "label_unicode": "\u00b2T\u2081g(F')",
+          "color": "#E8A714",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_2": {
+          "uid": "2_T_1#2",
+          "label": "<sup>2</sup>T<sub>1g</sub>(H,c)",
+          "label_unicode": "\u00b2T\u2081g(H,c)",
+          "color": "#EAAE28",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_3": {
+          "uid": "2_T_1#3",
+          "label": "<sup>2</sup>T<sub>1g</sub>(H,d)",
+          "label_unicode": "\u00b2T\u2081g(H,d)",
+          "color": "#ECB63C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_4": {
+          "uid": "2_T_1#4",
+          "label": "<sup>2</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b2T\u2081g(G)",
+          "color": "#EEBD50",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_5": {
+          "uid": "2_T_1#5",
+          "label": "<sup>2</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b2T\u2081g(F)",
+          "color": "#F0C564",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_6": {
+          "uid": "2_T_1#6",
+          "label": "<sup>2</sup>T<sub>1g</sub>(G')",
+          "label_unicode": "\u00b2T\u2081g(G')",
+          "color": "#F2CC78",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_7": {
+          "uid": "2_T_1#7",
+          "label": "<sup>2</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b2T\u2081g(P)",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_0": {
+          "uid": "2_T_2#0",
+          "label": "<sup>2</sup>T<sub>2g</sub>(I,a)",
+          "label_unicode": "\u00b2T\u2082g(I,a)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_1": {
+          "uid": "2_T_2#1",
+          "label": "<sup>2</sup>T<sub>2g</sub>(I,b)",
+          "label_unicode": "\u00b2T\u2082g(I,b)",
+          "color": "#E8A510",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_2": {
+          "uid": "2_T_2#2",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b2T\u2082g(D)",
+          "color": "#E9AB1F",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_3": {
+          "uid": "2_T_2#3",
+          "label": "<sup>2</sup>T<sub>2g</sub>(F')",
+          "label_unicode": "\u00b2T\u2082g(F')",
+          "color": "#EBB12F",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_4": {
+          "uid": "2_T_2#4",
+          "label": "<sup>2</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b2T\u2082g(H)",
+          "color": "#ECB63E",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_5": {
+          "uid": "2_T_2#5",
+          "label": "<sup>2</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b2T\u2082g(G)",
+          "color": "#EEBC4E",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_6": {
+          "uid": "2_T_2#6",
+          "label": "<sup>2</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b2T\u2082g(F)",
+          "color": "#EFC25E",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_7": {
+          "uid": "2_T_2#7",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D'')",
+          "label_unicode": "\u00b2T\u2082g(D'')",
+          "color": "#F1C86D",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_8": {
+          "uid": "2_T_2#8",
+          "label": "<sup>2</sup>T<sub>2g</sub>(G')",
+          "label_unicode": "\u00b2T\u2082g(G')",
+          "color": "#F2CE7D",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_9": {
+          "uid": "2_T_2#9",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b2T\u2082g(D')",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "4_A_1": {
+          "uid": "4_A_1#0",
+          "label": "<sup>4</sup>A<sub>1g</sub>",
+          "label_unicode": "\u2074A\u2081g",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_A_2": {
+          "uid": "4_A_2#0",
+          "label": "<sup>4</sup>A<sub>2g</sub>",
+          "label_unicode": "\u2074A\u2082g",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_E_0": {
+          "uid": "4_E#0",
+          "label": "<sup>4</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u2074Eg(G)",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_E_1": {
+          "uid": "4_E#1",
+          "label": "<sup>4</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u2074Eg(D)",
+          "color": "#23AB86",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_0": {
+          "uid": "4_T_1#0",
+          "label": "<sup>4</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u2074T\u2081g(G)",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_1": {
+          "uid": "4_T_1#1",
+          "label": "<sup>4</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u2074T\u2081g(P)",
+          "color": "#23AB86",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_2": {
+          "uid": "4_T_1#2",
+          "label": "<sup>4</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u2074T\u2081g(F)",
+          "color": "#46B99A",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_2_0": {
+          "uid": "4_T_2#0",
+          "label": "<sup>4</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u2074T\u2082g(G)",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_2_1": {
+          "uid": "4_T_2#1",
+          "label": "<sup>4</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u2074T\u2082g(D)",
+          "color": "#23AB86",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_2_2": {
+          "uid": "4_T_2#2",
+          "label": "<sup>4</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u2074T\u2082g(F)",
+          "color": "#46B99A",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "6_A_1": {
+          "uid": "6_A_1#0",
+          "label": "<sup>6</sup>A<sub>1g</sub>",
+          "label_unicode": "\u2076A\u2081g",
+          "color": "#CC79A7",
+          "dash": "dash",
+          "mult": 6,
+          "spin_allowed": false
+        }
+      }
     },
     {
       "name": "TS-diagram_d5_10Dq_40000_B_860_C_3850.csv",
       "path": "ts-diagrams/d5/TS-diagram_d5_10Dq_40000_B_860_C_3850.csv",
-      "type": "TS"
+      "type": "TS",
+      "series": {
+        "2_A_1_0": {
+          "uid": "2_A_1#0",
+          "label": "<sup>2</sup>A<sub>1g</sub>(I)",
+          "label_unicode": "\u00b2A\u2081g(I)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_1_1": {
+          "uid": "2_A_1#1",
+          "label": "<sup>2</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b2A\u2081g(G)",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_1_2": {
+          "uid": "2_A_1#2",
+          "label": "<sup>2</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b2A\u2081g(S)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_1_3": {
+          "uid": "2_A_1#3",
+          "label": "<sup>2</sup>A<sub>1g</sub>(G')",
+          "label_unicode": "\u00b2A\u2081g(G')",
+          "color": "#F0C769",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_2_0": {
+          "uid": "2_A_2#0",
+          "label": "<sup>2</sup>A<sub>2g</sub>(I)",
+          "label_unicode": "\u00b2A\u2082g(I)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_2_1": {
+          "uid": "2_A_2#1",
+          "label": "<sup>2</sup>A<sub>2g</sub>(F')",
+          "label_unicode": "\u00b2A\u2082g(F')",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_2_2": {
+          "uid": "2_A_2#2",
+          "label": "<sup>2</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b2A\u2082g(F)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_0": {
+          "uid": "2_E#0",
+          "label": "<sup>2</sup>E<sub>g</sub>(I)",
+          "label_unicode": "\u00b2Eg(I)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_1": {
+          "uid": "2_E#1",
+          "label": "<sup>2</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b2Eg(D)",
+          "color": "#E8A817",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_2": {
+          "uid": "2_E#2",
+          "label": "<sup>2</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b2Eg(H)",
+          "color": "#EBB12F",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_3": {
+          "uid": "2_E#3",
+          "label": "<sup>2</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b2Eg(G)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_4": {
+          "uid": "2_E#4",
+          "label": "<sup>2</sup>E<sub>g</sub>(D'')",
+          "label_unicode": "\u00b2Eg(D'')",
+          "color": "#EFC25E",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_5": {
+          "uid": "2_E#5",
+          "label": "<sup>2</sup>E<sub>g</sub>(G')",
+          "label_unicode": "\u00b2Eg(G')",
+          "color": "#F1CB75",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_6": {
+          "uid": "2_E#6",
+          "label": "<sup>2</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b2Eg(D')",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_0": {
+          "uid": "2_T_1#0",
+          "label": "<sup>2</sup>T<sub>1g</sub>(I)",
+          "label_unicode": "\u00b2T\u2081g(I)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_1": {
+          "uid": "2_T_1#1",
+          "label": "<sup>2</sup>T<sub>1g</sub>(F')",
+          "label_unicode": "\u00b2T\u2081g(F')",
+          "color": "#E8A714",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_2": {
+          "uid": "2_T_1#2",
+          "label": "<sup>2</sup>T<sub>1g</sub>(H,c)",
+          "label_unicode": "\u00b2T\u2081g(H,c)",
+          "color": "#EAAE28",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_3": {
+          "uid": "2_T_1#3",
+          "label": "<sup>2</sup>T<sub>1g</sub>(H,d)",
+          "label_unicode": "\u00b2T\u2081g(H,d)",
+          "color": "#ECB63C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_4": {
+          "uid": "2_T_1#4",
+          "label": "<sup>2</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b2T\u2081g(G)",
+          "color": "#EEBD50",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_5": {
+          "uid": "2_T_1#5",
+          "label": "<sup>2</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b2T\u2081g(F)",
+          "color": "#F0C564",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_6": {
+          "uid": "2_T_1#6",
+          "label": "<sup>2</sup>T<sub>1g</sub>(G')",
+          "label_unicode": "\u00b2T\u2081g(G')",
+          "color": "#F2CC78",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_7": {
+          "uid": "2_T_1#7",
+          "label": "<sup>2</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b2T\u2081g(P)",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_0": {
+          "uid": "2_T_2#0",
+          "label": "<sup>2</sup>T<sub>2g</sub>(I,a)",
+          "label_unicode": "\u00b2T\u2082g(I,a)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_1": {
+          "uid": "2_T_2#1",
+          "label": "<sup>2</sup>T<sub>2g</sub>(I,b)",
+          "label_unicode": "\u00b2T\u2082g(I,b)",
+          "color": "#E8A510",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_2": {
+          "uid": "2_T_2#2",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b2T\u2082g(D)",
+          "color": "#E9AB1F",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_3": {
+          "uid": "2_T_2#3",
+          "label": "<sup>2</sup>T<sub>2g</sub>(F')",
+          "label_unicode": "\u00b2T\u2082g(F')",
+          "color": "#EBB12F",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_4": {
+          "uid": "2_T_2#4",
+          "label": "<sup>2</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b2T\u2082g(H)",
+          "color": "#ECB63E",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_5": {
+          "uid": "2_T_2#5",
+          "label": "<sup>2</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b2T\u2082g(G)",
+          "color": "#EEBC4E",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_6": {
+          "uid": "2_T_2#6",
+          "label": "<sup>2</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b2T\u2082g(F)",
+          "color": "#EFC25E",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_7": {
+          "uid": "2_T_2#7",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D'')",
+          "label_unicode": "\u00b2T\u2082g(D'')",
+          "color": "#F1C86D",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_8": {
+          "uid": "2_T_2#8",
+          "label": "<sup>2</sup>T<sub>2g</sub>(G')",
+          "label_unicode": "\u00b2T\u2082g(G')",
+          "color": "#F2CE7D",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_9": {
+          "uid": "2_T_2#9",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b2T\u2082g(D')",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "4_A_1": {
+          "uid": "4_A_1#0",
+          "label": "<sup>4</sup>A<sub>1g</sub>",
+          "label_unicode": "\u2074A\u2081g",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_A_2": {
+          "uid": "4_A_2#0",
+          "label": "<sup>4</sup>A<sub>2g</sub>",
+          "label_unicode": "\u2074A\u2082g",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_E_0": {
+          "uid": "4_E#0",
+          "label": "<sup>4</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u2074Eg(G)",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_E_1": {
+          "uid": "4_E#1",
+          "label": "<sup>4</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u2074Eg(D)",
+          "color": "#23AB86",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_0": {
+          "uid": "4_T_1#0",
+          "label": "<sup>4</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u2074T\u2081g(G)",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_1": {
+          "uid": "4_T_1#1",
+          "label": "<sup>4</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u2074T\u2081g(P)",
+          "color": "#23AB86",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_2": {
+          "uid": "4_T_1#2",
+          "label": "<sup>4</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u2074T\u2081g(F)",
+          "color": "#46B99A",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_2_0": {
+          "uid": "4_T_2#0",
+          "label": "<sup>4</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u2074T\u2082g(G)",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_2_1": {
+          "uid": "4_T_2#1",
+          "label": "<sup>4</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u2074T\u2082g(D)",
+          "color": "#23AB86",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_2_2": {
+          "uid": "4_T_2#2",
+          "label": "<sup>4</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u2074T\u2082g(F)",
+          "color": "#46B99A",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "6_A_1": {
+          "uid": "6_A_1#0",
+          "label": "<sup>6</sup>A<sub>1g</sub>",
+          "label_unicode": "\u2076A\u2081g",
+          "color": "#CC79A7",
+          "dash": "dash",
+          "mult": 6,
+          "spin_allowed": false
+        }
+      }
     },
     {
       "name": "TS_Cut_d5_10Dq_24000_B_860_C_3850.csv",
@@ -71,12 +2193,790 @@
     {
       "name": "DD-energies_d6_10Dq_40000_B_1065_C_5120.csv",
       "path": "ts-diagrams/d6/DD-energies_d6_10Dq_40000_B_1065_C_5120.csv",
-      "type": "DD"
+      "type": "DD",
+      "series": {
+        "1_A_1_0": {
+          "uid": "1_A_1#0",
+          "label": "<sup>1</sup>A<sub>1g</sub>(I)",
+          "label_unicode": "\u00b9A\u2081g(I)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_1_1": {
+          "uid": "1_A_1#1",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9A\u2081g(G)",
+          "color": "#A7A7A7",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_1_2": {
+          "uid": "1_A_1#2",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b9A\u2081g(S)",
+          "color": "#B5B5B5",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_1_3": {
+          "uid": "1_A_1#3",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G')",
+          "label_unicode": "\u00b9A\u2081g(G')",
+          "color": "#C3C3C3",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_1_4": {
+          "uid": "1_A_1#4",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S')",
+          "label_unicode": "\u00b9A\u2081g(S')",
+          "color": "#D1D1D1",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_2_0": {
+          "uid": "1_A_2#0",
+          "label": "<sup>1</sup>A<sub>2g</sub>(I)",
+          "label_unicode": "\u00b9A\u2082g(I)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_2_1": {
+          "uid": "1_A_2#1",
+          "label": "<sup>1</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b9A\u2082g(F)",
+          "color": "#A7A7A7",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_0": {
+          "uid": "1_E#0",
+          "label": "<sup>1</sup>E<sub>g</sub>(I)",
+          "label_unicode": "\u00b9Eg(I)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_1": {
+          "uid": "1_E#1",
+          "label": "<sup>1</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b9Eg(G)",
+          "color": "#A7A7A7",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_2": {
+          "uid": "1_E#2",
+          "label": "<sup>1</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b9Eg(D)",
+          "color": "#B5B5B5",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_3": {
+          "uid": "1_E#3",
+          "label": "<sup>1</sup>E<sub>g</sub>(G')",
+          "label_unicode": "\u00b9Eg(G')",
+          "color": "#C3C3C3",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_4": {
+          "uid": "1_E#4",
+          "label": "<sup>1</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b9Eg(D')",
+          "color": "#D1D1D1",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_1_0": {
+          "uid": "1_T_1#0",
+          "label": "<sup>1</sup>T<sub>1g</sub>(I)",
+          "label_unicode": "\u00b9T\u2081g(I)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_1_1": {
+          "uid": "1_T_1#1",
+          "label": "<sup>1</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9T\u2081g(G)",
+          "color": "#A7A7A7",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_1_2": {
+          "uid": "1_T_1#2",
+          "label": "<sup>1</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b9T\u2081g(F)",
+          "color": "#B5B5B5",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_1_3": {
+          "uid": "1_T_1#3",
+          "label": "<sup>1</sup>T<sub>1g</sub>(G')",
+          "label_unicode": "\u00b9T\u2081g(G')",
+          "color": "#C3C3C3",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_0": {
+          "uid": "1_T_2#0",
+          "label": "<sup>1</sup>T<sub>2g</sub>(I,a)",
+          "label_unicode": "\u00b9T\u2082g(I,a)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_1": {
+          "uid": "1_T_2#1",
+          "label": "<sup>1</sup>T<sub>2g</sub>(I,b)",
+          "label_unicode": "\u00b9T\u2082g(I,b)",
+          "color": "#A2A2A2",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_2": {
+          "uid": "1_T_2#2",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b9T\u2082g(G)",
+          "color": "#ACACAC",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_3": {
+          "uid": "1_T_2#3",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b9T\u2082g(D)",
+          "color": "#B5B5B5",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_4": {
+          "uid": "1_T_2#4",
+          "label": "<sup>1</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b9T\u2082g(F)",
+          "color": "#BEBEBE",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_5": {
+          "uid": "1_T_2#5",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G')",
+          "label_unicode": "\u00b9T\u2082g(G')",
+          "color": "#C8C8C8",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_6": {
+          "uid": "1_T_2#6",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b9T\u2082g(D')",
+          "color": "#D1D1D1",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "3_A_1": {
+          "uid": "3_A_1#0",
+          "label": "<sup>3</sup>A<sub>1g</sub>",
+          "label_unicode": "\u00b3A\u2081g",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_A_2_0": {
+          "uid": "3_A_2#0",
+          "label": "<sup>3</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b3A\u2082g(F)",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_A_2_1": {
+          "uid": "3_A_2#1",
+          "label": "<sup>3</sup>A<sub>2g</sub>(F')",
+          "label_unicode": "\u00b3A\u2082g(F')",
+          "color": "#2385BD",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_E_0": {
+          "uid": "3_E#0",
+          "label": "<sup>3</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b3Eg(H)",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_E_1": {
+          "uid": "3_E#1",
+          "label": "<sup>3</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b3Eg(G)",
+          "color": "#2385BD",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_E_2": {
+          "uid": "3_E#2",
+          "label": "<sup>3</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b3Eg(D)",
+          "color": "#4699C7",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_0": {
+          "uid": "3_T_1#0",
+          "label": "<sup>3</sup>T<sub>1g</sub>(H,a)",
+          "label_unicode": "\u00b3T\u2081g(H,a)",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_1": {
+          "uid": "3_T_1#1",
+          "label": "<sup>3</sup>T<sub>1g</sub>(H,b)",
+          "label_unicode": "\u00b3T\u2081g(H,b)",
+          "color": "#177FB9",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_2": {
+          "uid": "3_T_1#2",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b3T\u2081g(P)",
+          "color": "#2F8CC0",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_3": {
+          "uid": "3_T_1#3",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b3T\u2081g(F)",
+          "color": "#4699C7",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_4": {
+          "uid": "3_T_1#4",
+          "label": "<sup>3</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b3T\u2081g(G)",
+          "color": "#5EA6CE",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_5": {
+          "uid": "3_T_1#5",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F')",
+          "label_unicode": "\u00b3T\u2081g(F')",
+          "color": "#75B3D5",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_6": {
+          "uid": "3_T_1#6",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P')",
+          "label_unicode": "\u00b3T\u2081g(P')",
+          "color": "#8CC0DC",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_0": {
+          "uid": "3_T_2#0",
+          "label": "<sup>3</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b3T\u2082g(H)",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_1": {
+          "uid": "3_T_2#1",
+          "label": "<sup>3</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b3T\u2082g(F)",
+          "color": "#2385BD",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_2": {
+          "uid": "3_T_2#2",
+          "label": "<sup>3</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b3T\u2082g(G)",
+          "color": "#4699C7",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_3": {
+          "uid": "3_T_2#3",
+          "label": "<sup>3</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b3T\u2082g(D)",
+          "color": "#69ACD2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_4": {
+          "uid": "3_T_2#4",
+          "label": "<sup>3</sup>T<sub>2g</sub>(F')",
+          "label_unicode": "\u00b3T\u2082g(F')",
+          "color": "#8CC0DC",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "5_E": {
+          "uid": "5_E#0",
+          "label": "<sup>5</sup>E<sub>g</sub>",
+          "label_unicode": "\u2075Eg",
+          "color": "#D55E00",
+          "dash": "dash",
+          "mult": 5,
+          "spin_allowed": false
+        },
+        "5_T_2": {
+          "uid": "5_T_2#0",
+          "label": "<sup>5</sup>T<sub>2g</sub>",
+          "label_unicode": "\u2075T\u2082g",
+          "color": "#D55E00",
+          "dash": "dash",
+          "mult": 5,
+          "spin_allowed": false
+        }
+      }
     },
     {
       "name": "TS-diagram_d6_10Dq_40000_B_1065_C_5120.csv",
       "path": "ts-diagrams/d6/TS-diagram_d6_10Dq_40000_B_1065_C_5120.csv",
-      "type": "TS"
+      "type": "TS",
+      "series": {
+        "1_A_1_0": {
+          "uid": "1_A_1#0",
+          "label": "<sup>1</sup>A<sub>1g</sub>(I)",
+          "label_unicode": "\u00b9A\u2081g(I)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_1_1": {
+          "uid": "1_A_1#1",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9A\u2081g(G)",
+          "color": "#A7A7A7",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_1_2": {
+          "uid": "1_A_1#2",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b9A\u2081g(S)",
+          "color": "#B5B5B5",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_1_3": {
+          "uid": "1_A_1#3",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G')",
+          "label_unicode": "\u00b9A\u2081g(G')",
+          "color": "#C3C3C3",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_1_4": {
+          "uid": "1_A_1#4",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S')",
+          "label_unicode": "\u00b9A\u2081g(S')",
+          "color": "#D1D1D1",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_2_0": {
+          "uid": "1_A_2#0",
+          "label": "<sup>1</sup>A<sub>2g</sub>(I)",
+          "label_unicode": "\u00b9A\u2082g(I)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_A_2_1": {
+          "uid": "1_A_2#1",
+          "label": "<sup>1</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b9A\u2082g(F)",
+          "color": "#A7A7A7",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_0": {
+          "uid": "1_E#0",
+          "label": "<sup>1</sup>E<sub>g</sub>(I)",
+          "label_unicode": "\u00b9Eg(I)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_1": {
+          "uid": "1_E#1",
+          "label": "<sup>1</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b9Eg(G)",
+          "color": "#A7A7A7",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_2": {
+          "uid": "1_E#2",
+          "label": "<sup>1</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b9Eg(D)",
+          "color": "#B5B5B5",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_3": {
+          "uid": "1_E#3",
+          "label": "<sup>1</sup>E<sub>g</sub>(G')",
+          "label_unicode": "\u00b9Eg(G')",
+          "color": "#C3C3C3",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_E_4": {
+          "uid": "1_E#4",
+          "label": "<sup>1</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b9Eg(D')",
+          "color": "#D1D1D1",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_1_0": {
+          "uid": "1_T_1#0",
+          "label": "<sup>1</sup>T<sub>1g</sub>(I)",
+          "label_unicode": "\u00b9T\u2081g(I)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_1_1": {
+          "uid": "1_T_1#1",
+          "label": "<sup>1</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9T\u2081g(G)",
+          "color": "#A7A7A7",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_1_2": {
+          "uid": "1_T_1#2",
+          "label": "<sup>1</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b9T\u2081g(F)",
+          "color": "#B5B5B5",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_1_3": {
+          "uid": "1_T_1#3",
+          "label": "<sup>1</sup>T<sub>1g</sub>(G')",
+          "label_unicode": "\u00b9T\u2081g(G')",
+          "color": "#C3C3C3",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_0": {
+          "uid": "1_T_2#0",
+          "label": "<sup>1</sup>T<sub>2g</sub>(I,a)",
+          "label_unicode": "\u00b9T\u2082g(I,a)",
+          "color": "#999999",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_1": {
+          "uid": "1_T_2#1",
+          "label": "<sup>1</sup>T<sub>2g</sub>(I,b)",
+          "label_unicode": "\u00b9T\u2082g(I,b)",
+          "color": "#A2A2A2",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_2": {
+          "uid": "1_T_2#2",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b9T\u2082g(G)",
+          "color": "#ACACAC",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_3": {
+          "uid": "1_T_2#3",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b9T\u2082g(D)",
+          "color": "#B5B5B5",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_4": {
+          "uid": "1_T_2#4",
+          "label": "<sup>1</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b9T\u2082g(F)",
+          "color": "#BEBEBE",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_5": {
+          "uid": "1_T_2#5",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G')",
+          "label_unicode": "\u00b9T\u2082g(G')",
+          "color": "#C8C8C8",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "1_T_2_6": {
+          "uid": "1_T_2#6",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b9T\u2082g(D')",
+          "color": "#D1D1D1",
+          "dash": "solid",
+          "mult": 1,
+          "spin_allowed": true
+        },
+        "3_A_1": {
+          "uid": "3_A_1#0",
+          "label": "<sup>3</sup>A<sub>1g</sub>",
+          "label_unicode": "\u00b3A\u2081g",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_A_2_0": {
+          "uid": "3_A_2#0",
+          "label": "<sup>3</sup>A<sub>2g</sub>(F)",
+          "label_unicode": "\u00b3A\u2082g(F)",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_A_2_1": {
+          "uid": "3_A_2#1",
+          "label": "<sup>3</sup>A<sub>2g</sub>(F')",
+          "label_unicode": "\u00b3A\u2082g(F')",
+          "color": "#2385BD",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_E_0": {
+          "uid": "3_E#0",
+          "label": "<sup>3</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b3Eg(H)",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_E_1": {
+          "uid": "3_E#1",
+          "label": "<sup>3</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b3Eg(G)",
+          "color": "#2385BD",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_E_2": {
+          "uid": "3_E#2",
+          "label": "<sup>3</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b3Eg(D)",
+          "color": "#4699C7",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_0": {
+          "uid": "3_T_1#0",
+          "label": "<sup>3</sup>T<sub>1g</sub>(H,a)",
+          "label_unicode": "\u00b3T\u2081g(H,a)",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_1": {
+          "uid": "3_T_1#1",
+          "label": "<sup>3</sup>T<sub>1g</sub>(H,b)",
+          "label_unicode": "\u00b3T\u2081g(H,b)",
+          "color": "#177FB9",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_2": {
+          "uid": "3_T_1#2",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b3T\u2081g(P)",
+          "color": "#2F8CC0",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_3": {
+          "uid": "3_T_1#3",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b3T\u2081g(F)",
+          "color": "#4699C7",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_4": {
+          "uid": "3_T_1#4",
+          "label": "<sup>3</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b3T\u2081g(G)",
+          "color": "#5EA6CE",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_5": {
+          "uid": "3_T_1#5",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F')",
+          "label_unicode": "\u00b3T\u2081g(F')",
+          "color": "#75B3D5",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_1_6": {
+          "uid": "3_T_1#6",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P')",
+          "label_unicode": "\u00b3T\u2081g(P')",
+          "color": "#8CC0DC",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_0": {
+          "uid": "3_T_2#0",
+          "label": "<sup>3</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b3T\u2082g(H)",
+          "color": "#0072B2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_1": {
+          "uid": "3_T_2#1",
+          "label": "<sup>3</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b3T\u2082g(F)",
+          "color": "#2385BD",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_2": {
+          "uid": "3_T_2#2",
+          "label": "<sup>3</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b3T\u2082g(G)",
+          "color": "#4699C7",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_3": {
+          "uid": "3_T_2#3",
+          "label": "<sup>3</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b3T\u2082g(D)",
+          "color": "#69ACD2",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "3_T_2_4": {
+          "uid": "3_T_2#4",
+          "label": "<sup>3</sup>T<sub>2g</sub>(F')",
+          "label_unicode": "\u00b3T\u2082g(F')",
+          "color": "#8CC0DC",
+          "dash": "dash",
+          "mult": 3,
+          "spin_allowed": false
+        },
+        "5_E": {
+          "uid": "5_E#0",
+          "label": "<sup>5</sup>E<sub>g</sub>",
+          "label_unicode": "\u2075Eg",
+          "color": "#D55E00",
+          "dash": "dash",
+          "mult": 5,
+          "spin_allowed": false
+        },
+        "5_T_2": {
+          "uid": "5_T_2#0",
+          "label": "<sup>5</sup>T<sub>2g</sub>",
+          "label_unicode": "\u2075T\u2082g",
+          "color": "#D55E00",
+          "dash": "dash",
+          "mult": 5,
+          "spin_allowed": false
+        }
+      }
     },
     {
       "name": "TS_Cut_d6_10Dq_24000_B_1065_C_5120.csv",
@@ -88,12 +2988,376 @@
     {
       "name": "DD-energies_d7_10Dq_25065_B_971_C_4498.csv",
       "path": "ts-diagrams/d7/DD-energies_d7_10Dq_25065_B_971_C_4498.csv",
-      "type": "DD"
+      "type": "DD",
+      "series": {
+        "2_A_1": {
+          "uid": "2_A_1#0",
+          "label": "<sup>2</sup>A<sub>1g</sub>",
+          "label_unicode": "\u00b2A\u2081g",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_2": {
+          "uid": "2_A_2#0",
+          "label": "<sup>2</sup>A<sub>2g</sub>",
+          "label_unicode": "\u00b2A\u2082g",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_0": {
+          "uid": "2_E#0",
+          "label": "<sup>2</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b2Eg(G)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_1": {
+          "uid": "2_E#1",
+          "label": "<sup>2</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b2Eg(H)",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_2": {
+          "uid": "2_E#2",
+          "label": "<sup>2</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b2Eg(D)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_3": {
+          "uid": "2_E#3",
+          "label": "<sup>2</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b2Eg(D')",
+          "color": "#F0C769",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_0": {
+          "uid": "2_T_1#0",
+          "label": "<sup>2</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b2T\u2081g(G)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_1": {
+          "uid": "2_T_1#1",
+          "label": "<sup>2</sup>T<sub>1g</sub>(b)",
+          "label_unicode": "\u00b2T\u2081g(b)",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_2": {
+          "uid": "2_T_1#2",
+          "label": "<sup>2</sup>T<sub>1g</sub>(c)",
+          "label_unicode": "\u00b2T\u2081g(c)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_3": {
+          "uid": "2_T_1#3",
+          "label": "<sup>2</sup>T<sub>1g</sub>(d)",
+          "label_unicode": "\u00b2T\u2081g(d)",
+          "color": "#F0C769",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_4": {
+          "uid": "2_T_1#4",
+          "label": "<sup>2</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b2T\u2081g(F)",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_0": {
+          "uid": "2_T_2#0",
+          "label": "<sup>2</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b2T\u2082g(G)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_1": {
+          "uid": "2_T_2#1",
+          "label": "<sup>2</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b2T\u2082g(H)",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_2": {
+          "uid": "2_T_2#2",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b2T\u2082g(D)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_3": {
+          "uid": "2_T_2#3",
+          "label": "<sup>2</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b2T\u2082g(F)",
+          "color": "#F0C769",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_4": {
+          "uid": "2_T_2#4",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b2T\u2082g(D')",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "4_A_2": {
+          "uid": "4_A_2#0",
+          "label": "<sup>4</sup>A<sub>2g</sub>",
+          "label_unicode": "\u2074A\u2082g",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_0": {
+          "uid": "4_T_1#0",
+          "label": "<sup>4</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u2074T\u2081g(F)",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_1": {
+          "uid": "4_T_1#1",
+          "label": "<sup>4</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u2074T\u2081g(P)",
+          "color": "#23AB86",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_2": {
+          "uid": "4_T_2#0",
+          "label": "<sup>4</sup>T<sub>2g</sub>",
+          "label_unicode": "\u2074T\u2082g",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        }
+      }
     },
     {
       "name": "TS-diagram_d7_10Dq_25065_B_971_C_4498.csv",
       "path": "ts-diagrams/d7/TS-diagram_d7_10Dq_25065_B_971_C_4498.csv",
-      "type": "TS"
+      "type": "TS",
+      "series": {
+        "2_A_1": {
+          "uid": "2_A_1#0",
+          "label": "<sup>2</sup>A<sub>1g</sub>",
+          "label_unicode": "\u00b2A\u2081g",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_A_2": {
+          "uid": "2_A_2#0",
+          "label": "<sup>2</sup>A<sub>2g</sub>",
+          "label_unicode": "\u00b2A\u2082g",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_0": {
+          "uid": "2_E#0",
+          "label": "<sup>2</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b2Eg(G)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_1": {
+          "uid": "2_E#1",
+          "label": "<sup>2</sup>E<sub>g</sub>(H)",
+          "label_unicode": "\u00b2Eg(H)",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_2": {
+          "uid": "2_E#2",
+          "label": "<sup>2</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b2Eg(D)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_E_3": {
+          "uid": "2_E#3",
+          "label": "<sup>2</sup>E<sub>g</sub>(D')",
+          "label_unicode": "\u00b2Eg(D')",
+          "color": "#F0C769",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_0": {
+          "uid": "2_T_1#0",
+          "label": "<sup>2</sup>T<sub>1g</sub>(G)",
+          "label_unicode": "\u00b2T\u2081g(G)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_1": {
+          "uid": "2_T_1#1",
+          "label": "<sup>2</sup>T<sub>1g</sub>(b)",
+          "label_unicode": "\u00b2T\u2081g(b)",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_2": {
+          "uid": "2_T_1#2",
+          "label": "<sup>2</sup>T<sub>1g</sub>(c)",
+          "label_unicode": "\u00b2T\u2081g(c)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_3": {
+          "uid": "2_T_1#3",
+          "label": "<sup>2</sup>T<sub>1g</sub>(d)",
+          "label_unicode": "\u00b2T\u2081g(d)",
+          "color": "#F0C769",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_1_4": {
+          "uid": "2_T_1#4",
+          "label": "<sup>2</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b2T\u2081g(F)",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_0": {
+          "uid": "2_T_2#0",
+          "label": "<sup>2</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b2T\u2082g(G)",
+          "color": "#E69F00",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_1": {
+          "uid": "2_T_2#1",
+          "label": "<sup>2</sup>T<sub>2g</sub>(H)",
+          "label_unicode": "\u00b2T\u2082g(H)",
+          "color": "#E9AC23",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_2": {
+          "uid": "2_T_2#2",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b2T\u2082g(D)",
+          "color": "#EDB946",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_3": {
+          "uid": "2_T_2#3",
+          "label": "<sup>2</sup>T<sub>2g</sub>(F)",
+          "label_unicode": "\u00b2T\u2082g(F)",
+          "color": "#F0C769",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "2_T_2_4": {
+          "uid": "2_T_2#4",
+          "label": "<sup>2</sup>T<sub>2g</sub>(D')",
+          "label_unicode": "\u00b2T\u2082g(D')",
+          "color": "#F4D48C",
+          "dash": "solid",
+          "mult": 2,
+          "spin_allowed": true
+        },
+        "4_A_2": {
+          "uid": "4_A_2#0",
+          "label": "<sup>4</sup>A<sub>2g</sub>",
+          "label_unicode": "\u2074A\u2082g",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_0": {
+          "uid": "4_T_1#0",
+          "label": "<sup>4</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u2074T\u2081g(F)",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_1_1": {
+          "uid": "4_T_1#1",
+          "label": "<sup>4</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u2074T\u2081g(P)",
+          "color": "#23AB86",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        },
+        "4_T_2": {
+          "uid": "4_T_2#0",
+          "label": "<sup>4</sup>T<sub>2g</sub>",
+          "label_unicode": "\u2074T\u2082g",
+          "color": "#009E73",
+          "dash": "dash",
+          "mult": 4,
+          "spin_allowed": false
+        }
+      }
     },
     {
       "name": "TS_Cut_d7_10Dq_24000_B_971_C_4498.csv",
@@ -105,12 +3369,214 @@
     {
       "name": "DD-energies_d8_10Dq_40000_B_1030_C_4850.csv",
       "path": "ts-diagrams/d8/DD-energies_d8_10Dq_40000_B_1030_C_4850.csv",
-      "type": "DD"
+      "type": "DD",
+      "series": {
+        "1_A_1_0": {
+          "uid": "1_A_1#0",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9A\u2081g(G)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_1": {
+          "uid": "1_A_1#1",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b9A\u2081g(S)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_0": {
+          "uid": "1_E#0",
+          "label": "<sup>1</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b9Eg(D)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_1": {
+          "uid": "1_E#1",
+          "label": "<sup>1</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b9Eg(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1": {
+          "uid": "1_T_1#0",
+          "label": "<sup>1</sup>T<sub>1g</sub>",
+          "label_unicode": "\u00b9T\u2081g",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_0": {
+          "uid": "1_T_2#0",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b9T\u2082g(D)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_1": {
+          "uid": "1_T_2#1",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b9T\u2082g(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "3_A_2": {
+          "uid": "3_A_2#0",
+          "label": "<sup>3</sup>A<sub>2g</sub>",
+          "label_unicode": "\u00b3A\u2082g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_0": {
+          "uid": "3_T_1#0",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b3T\u2081g(F)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_1": {
+          "uid": "3_T_1#1",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b3T\u2081g(P)",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2": {
+          "uid": "3_T_2#0",
+          "label": "<sup>3</sup>T<sub>2g</sub>",
+          "label_unicode": "\u00b3T\u2082g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        }
+      }
     },
     {
       "name": "TS-diagram_d8_10Dq_40000_B_1030_C_4850.csv",
       "path": "ts-diagrams/d8/TS-diagram_d8_10Dq_40000_B_1030_C_4850.csv",
-      "type": "TS"
+      "type": "TS",
+      "series": {
+        "1_A_1_0": {
+          "uid": "1_A_1#0",
+          "label": "<sup>1</sup>A<sub>1g</sub>(G)",
+          "label_unicode": "\u00b9A\u2081g(G)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_A_1_1": {
+          "uid": "1_A_1#1",
+          "label": "<sup>1</sup>A<sub>1g</sub>(S)",
+          "label_unicode": "\u00b9A\u2081g(S)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_0": {
+          "uid": "1_E#0",
+          "label": "<sup>1</sup>E<sub>g</sub>(D)",
+          "label_unicode": "\u00b9Eg(D)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_E_1": {
+          "uid": "1_E#1",
+          "label": "<sup>1</sup>E<sub>g</sub>(G)",
+          "label_unicode": "\u00b9Eg(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_1": {
+          "uid": "1_T_1#0",
+          "label": "<sup>1</sup>T<sub>1g</sub>",
+          "label_unicode": "\u00b9T\u2081g",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_0": {
+          "uid": "1_T_2#0",
+          "label": "<sup>1</sup>T<sub>2g</sub>(D)",
+          "label_unicode": "\u00b9T\u2082g(D)",
+          "color": "#999999",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "1_T_2_1": {
+          "uid": "1_T_2#1",
+          "label": "<sup>1</sup>T<sub>2g</sub>(G)",
+          "label_unicode": "\u00b9T\u2082g(G)",
+          "color": "#A7A7A7",
+          "dash": "dash",
+          "mult": 1,
+          "spin_allowed": false
+        },
+        "3_A_2": {
+          "uid": "3_A_2#0",
+          "label": "<sup>3</sup>A<sub>2g</sub>",
+          "label_unicode": "\u00b3A\u2082g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_0": {
+          "uid": "3_T_1#0",
+          "label": "<sup>3</sup>T<sub>1g</sub>(F)",
+          "label_unicode": "\u00b3T\u2081g(F)",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_1_1": {
+          "uid": "3_T_1#1",
+          "label": "<sup>3</sup>T<sub>1g</sub>(P)",
+          "label_unicode": "\u00b3T\u2081g(P)",
+          "color": "#2385BD",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        },
+        "3_T_2": {
+          "uid": "3_T_2#0",
+          "label": "<sup>3</sup>T<sub>2g</sub>",
+          "label_unicode": "\u00b3T\u2082g",
+          "color": "#0072B2",
+          "dash": "solid",
+          "mult": 3,
+          "spin_allowed": true
+        }
+      }
     },
     {
       "name": "TS_Cut_d8_10Dq_24000_B_1030_C_4850.csv",
