@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,6 +20,9 @@ try:
 except ImportError:  # pragma: no cover
     px = None
 
+if TYPE_CHECKING:
+    from plotly.graph_objects import Figure as PlotlyFigure
+
 from tanabesugano import __version__
 from tanabesugano import tools
 
@@ -26,7 +30,14 @@ from tanabesugano import tools
 from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
 from tanabesugano.constants import CM1_TO_EV
 from tanabesugano.constants import matrix_size
-from tanabesugano.plot_style import line_style_for
+from tanabesugano.figure_style import SeriesStyle
+from tanabesugano.figure_style import column_to_uid
+from tanabesugano.figure_style import series_styles
+from tanabesugano.plot_style import LABEL_FONT_PT
+from tanabesugano.plot_style import LABEL_PITCH_PT
+from tanabesugano.plot_style import darken
+from tanabesugano.plot_style import encoding_key
+from tanabesugano.plot_style import spread_labels
 from tanabesugano.plot_style import style_axes
 
 
@@ -95,6 +106,11 @@ class CMDmain:
             f"B_{int(self.B)}_C_{int(self.C)}"
         )
 
+    @property
+    def data_columns(self) -> list[str]:
+        """Columns of :attr:`df` that hold level energies, not axis values."""
+        return [c for c in self.df.columns if c not in ("Energy", "delta_B", "10Dq")]
+
     def plot(self) -> None:
         """Generate and display Tanabe-Sugano and DD excitation diagrams.
 
@@ -102,22 +118,19 @@ class CMDmain:
         1. Tanabe-Sugano diagram with E/B vs Delta/B
         2. DD excitations diagram with dd-state-energy vs 10Dq
 
-        Curves are coloured by spin multiplicity (Okabe-Ito palette,
-        colour-blind safe) and the ground-state term is emphasised. See
-        tanabesugano.plot_style for the shared palette used by the MCP layer.
+        Every level is named on the curve itself, in the free-ion parentage
+        spelling a reader can check against the literature. The legend
+        explains the three visual channels rather than listing states -- see
+        :mod:`tanabesugano.figure_style`.
         """
-        data_cols = [c for c in self.df.columns if c not in ("Energy", "delta_B", "10Dq")]
+        data_cols = self.data_columns
         if not data_cols:
             return
 
-        def _split(col: str) -> tuple[str, int]:
-            term, _, tail = col.rpartition("_")
-            if term and tail.isdigit():
-                return term, int(tail)
-            return col, 0
-
-        ground_col = self.df[data_cols].iloc[0].idxmin()
-        ground_term, _ = _split(str(ground_col))
+        styles = self.series_style()
+        # Height follows the label count: a fixed box cannot carry d6's 43
+        # names at a legible size, and unnamed curves were the whole complaint.
+        fig_height = min(max(4.6, 0.21 * len(data_cols)), 11.0)
 
         def _draw(
             ax: plt.Axes,
@@ -127,24 +140,89 @@ class CMDmain:
             x_label: str,
             y_label: str,
         ) -> None:
-            seen: set[str] = set()
+            endpoints: list[tuple[float, str, str]] = []
             for col in data_cols:
-                term, level = _split(col)
-                style = line_style_for(term, level=level, is_ground=(term == ground_term))
-                label = term if term not in seen else None
-                seen.add(term)
-                ax.plot(self.df[x_col], self.df[col] / y_scale, label=label, **style)
+                style = styles[col]
+                values = self.df[col] / y_scale
+                ax.plot(self.df[x_col], values, **style.matplotlib_kwargs())
+                endpoints.append((float(values.iloc[-1]), style.label_latex, style.base_color))
+
             style_axes(ax, title=title, x_label=x_label, y_label=y_label)
+            encoding_key(ax, {style.multiplicity for style in styles.values()})
+            self._label_curves(
+                ax,
+                endpoints,
+                x_end=float(self.df[x_col].iloc[-1]),
+                fig_height=fig_height,
+            )
 
-        fig1, ax1 = plt.subplots(num=1, figsize=(7.0, 4.6))
+        fig1, ax1 = plt.subplots(num=1, figsize=(9.0, fig_height))
+        fig1.subplots_adjust(left=0.09, right=0.80, top=0.92, bottom=0.16)
         _draw(ax1, "delta_B", self.B, "Tanabe-Sugano diagram", r"$\Delta/B$", r"$E/B$")
-        fig1.tight_layout()
 
-        fig2, ax2 = plt.subplots(num=2, figsize=(7.0, 4.6))
-        _draw(ax2, "10Dq", 1.0, "DD-excitation diagram", r"$10Dq$ (cm$^{-1}$)", r"$E$ (cm$^{-1}$)")
-        fig2.tight_layout()
+        fig2, ax2 = plt.subplots(num=2, figsize=(9.0, fig_height))
+        fig2.subplots_adjust(left=0.11, right=0.80, top=0.92, bottom=0.16)
+        _draw(
+            ax2,
+            "10Dq",
+            1.0,
+            "DD-excitation diagram",
+            r"$10Dq$ (cm$^{-1}$)",
+            r"$E$ (cm$^{-1}$)",
+        )
 
         plt.show()
+
+    @staticmethod
+    def _label_curves(
+        ax: plt.Axes,
+        endpoints: list[tuple[float, str, str]],
+        *,
+        x_end: float,
+        fig_height: float,
+    ) -> None:
+        """Name every curve in the right margin, spread so none overlaps."""
+        if not endpoints:
+            return
+        from matplotlib.transforms import blended_transform_factory
+
+        low, high = ax.get_ylim()
+        high += (high - low) * 0.02
+        ax.set_ylim(low, high)
+
+        axes_height_pt = fig_height * 72.0 * ax.get_position().height
+        pitch = (high - low) * LABEL_PITCH_PT / max(axes_height_pt, 1.0)
+        anchors = spread_labels(
+            [y for y, _label, _color in endpoints],
+            span=(low, high),
+            pitch=pitch,
+        )
+        margin = blended_transform_factory(ax.transAxes, ax.transData)
+        for (y_curve, label, color), y_text in zip(endpoints, anchors, strict=True):
+            ax.annotate(
+                label,
+                xy=(x_end, y_curve),
+                xycoords="data",
+                xytext=(1.015, y_text),
+                textcoords=margin,
+                fontsize=LABEL_FONT_PT,
+                color=darken(color),
+                va="center",
+                ha="left",
+                annotation_clip=False,
+                arrowprops=(
+                    {
+                        "arrowstyle": "-",
+                        "color": color,
+                        "linewidth": 0.5,
+                        "alpha": 0.5,
+                        "shrinkA": 0,
+                        "shrinkB": 1,
+                    }
+                    if abs(y_text - y_curve) > pitch * 0.6
+                    else None
+                ),
+            )
 
     def label_plot(self, arg0: str, arg1: str, arg2: str) -> None:
         """Labels the plot."""
@@ -267,63 +345,111 @@ class CMDmain:
             comments="",
         )
 
-    def interactive_plot(self) -> None:
-        """Interactive plot for the tanabe-sugano-diagram."""
+    def series_style(self) -> dict[str, SeriesStyle]:
+        """How each data column of :attr:`df` is drawn, keyed by column name.
+
+        The single decision point behind every figure this class produces and
+        behind the ``series`` block of ``ts-diagrams/manifest.json``. Anchored
+        at ``self.Dq`` -- the sweep's upper bound -- so spin-allowedness is
+        judged where the diagram ends, matching the ground-term annotation
+        convention in ``mcp.plotting``.
+        """
+        styles = series_styles(self.d_count, self.Dq, self.B, self.C)
+        by_column: dict[str, SeriesStyle] = {}
+        for column in self.data_columns:
+            uid = column_to_uid(column)
+            if uid not in styles:
+                # A column the level machinery does not recognise means the two
+                # paths have drifted apart, which is the whole failure this
+                # module exists to prevent. Loud beats mislabelled.
+                msg = f"column {column!r} maps to unknown level {uid!r} for d{self.d_count}"
+                raise KeyError(msg)
+            by_column[column] = styles[uid]
+        return by_column
+
+    def interactive_plot(self, *, include_plotlyjs: str | bool = "cdn") -> None:
+        """Write the two interactive Plotly diagrams as standalone HTML.
+
+        Args:
+            include_plotlyjs: Passed through to ``write_html``. ``"cdn"``
+                (default) references plotly.js from the CDN and needs a network
+                connection to render; ``True`` inlines the whole ~4.9 MB bundle
+                into every file, which is what produced 160 MB of committed
+                artifacts; ``"directory"`` writes one shared ``plotly.min.js``
+                next to the diagrams, keeping them offline-capable.
+
+        Labels use :attr:`Level.parent_plotly`, so a legend reads
+        ``³T₁g(F)`` typeset rather than the raw solver key ``3_T_1_0``. Colour,
+        lightness and dash come from :mod:`tanabesugano.figure_style`, the same
+        source matplotlib and the docs site read -- see its module docstring for
+        what each channel encodes.
+
+        """
         if px is None:
             msg = "Plotly is not installed. Install with: pip install tanabesugano[plotly]"
             raise ImportError(msg)
 
-        _col = self.df.drop(["Energy", "delta_B", "10Dq"], axis=1).columns
+        styles = self.series_style()
         _font = {"family": "Avant Garde, sans-serif", "size": 12, "color": "grey"}
         _template = "plotly_white"
-        _size = {
-            "autosize": False,
-            "width": 800,
-            "height": 800,
-        }
-        color_discrete_sequence = [px.colors.qualitative.Light24[int(i[0]) - 1] for i in _col]
+        _size = {"autosize": False, "width": 900, "height": 800}
 
-        _df = self.df.copy()
+        # Renaming the columns rather than patching trace names afterwards:
+        # plotly express bakes the column name into each trace's hovertemplate,
+        # so setting `trace.name` alone leaves the hover box still showing
+        # `3_T_1_0` while the legend shows the typeset symbol.
+        renames = {column: style.label_plotly for column, style in styles.items()}
+        by_label = {style.label_plotly: style for style in styles.values()}
+        labels = list(renames.values())
 
+        def _decorate(fig: PlotlyFigure) -> None:
+            """Attach colour, dash and the machine key to every trace."""
+            for trace in fig.data:
+                style = by_label[trace.name]
+                trace.line.color = style.color
+                trace.line.dash = style.dash
+                trace.line.width = 3.0 if style.is_ground else 1.6
+                # The uid is the only machine-readable key left in the file once
+                # labels are typeset. `scripts/regenerate_ts_diagrams.py` reads
+                # it to tell a stale diagram from a current one; without it the
+                # drift gate has nothing to compare and passes vacuously.
+                trace.meta = {"uid": style.uid}
+                trace.legendgroup = str(style.multiplicity)
+                trace.hovertemplate = (
+                    f"<b>{style.label_plotly}</b><br>"
+                    "%{xaxis.title.text}: %{x:.4g}<br>"
+                    "%{yaxis.title.text}: %{y:.4g}<extra></extra>"
+                )
+
+        dd_df = self.df.rename(columns=renames)
         fig_1 = px.line(
-            _df,
+            dd_df,
             x="10Dq",
-            y=_col,
-            title="Energy-Correlation-Diagram",
-            labels={
-                "variable": "State",
-                "value": "Energy (cm-1)",
-                "10Dq": "10Dq (cm-1)",
-            },
-            color_discrete_sequence=color_discrete_sequence,
+            y=labels,
+            title=f"Energy-Correlation Diagram \u2014 d<sup>{self.d_count}</sup>",
+            labels={"variable": "State", "value": "E (cm⁻¹)", "10Dq": "10Dq (cm⁻¹)"},
         )
+        _decorate(fig_1)
         fig_1.update_layout(
-            xaxis_title="10Dq (cm-1)",
-            yaxis_title="dd-states (cm-1)",
+            xaxis_title="10Dq (cm⁻¹)",
+            yaxis_title="E (cm⁻¹)",
             legend_title="State",
             template=_template,
             font=_font,
             **_size,
         )
-        # Save as html-file
-        fig_1.write_html(Path(f"{self.title_DD}.html"))
+        fig_1.write_html(Path(f"{self.title_DD}.html"), include_plotlyjs=include_plotlyjs)
 
-        # Apply / self.B to every column except for _col
-        _df[_col] = _df[_col].div(self.B, axis=0)
-
-        # Plot the tanabe-sugano-diagram
+        ts_df = dd_df.copy()
+        ts_df[labels] = ts_df[labels].div(self.B, axis=0)
         fig_2 = px.line(
-            _df,
+            ts_df,
             x="delta_B",
-            y=_col,
-            title="Tanabe-Sugano-Diagram",
-            labels={
-                "variable": "State",
-                "value": " E / B",
-                "delta_B": "Δ / B",
-            },
-            color_discrete_sequence=color_discrete_sequence,
+            y=labels,
+            title=f"Tanabe-Sugano Diagram \u2014 d<sup>{self.d_count}</sup>",
+            labels={"variable": "State", "value": "E / B", "delta_B": "Δ / B"},
         )
+        _decorate(fig_2)
         fig_2.update_layout(
             xaxis_title="Δ / B",
             yaxis_title="E / B",
@@ -332,8 +458,7 @@ class CMDmain:
             font=_font,
             **_size,
         )
-        # Save as html-file
-        fig_2.write_html(Path(f"{self.title_TS}.html"))
+        fig_2.write_html(Path(f"{self.title_TS}.html"), include_plotlyjs=include_plotlyjs)
 
 
 def cmd_line() -> None:
@@ -413,7 +538,17 @@ def cmd_line() -> None:
         "-html",
         action="store_true",
         default=False,
-        help="Save TS-diagram and dd energies (default = off)",
+        help="Save the interactive Plotly diagrams as HTML (default = off)",
+    )
+    parser.add_argument(
+        "-html-offline",
+        dest="html_offline",
+        action="store_true",
+        default=False,
+        help=(
+            "With -html, write a shared plotly.min.js beside the diagrams so "
+            "they render without a network connection (default = CDN)"
+        ),
     )
 
     args = parser.parse_args()
@@ -435,4 +570,4 @@ def cmd_line() -> None:
     if args.cut is not None:
         tmm.ci_cut(dq_ci=args.cut)
     if args.html:
-        tmm.interactive_plot()
+        tmm.interactive_plot(include_plotlyjs="directory" if args.html_offline else "cdn")

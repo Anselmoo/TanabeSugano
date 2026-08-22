@@ -228,6 +228,22 @@ class Level:
         return f"{plot_style.term_to_unicode(self.term.value)}{self.parent_suffix}"
 
     @property
+    def parent_plotly(self) -> str:
+        """``<sup>3</sup>T<sub>1g</sub>(P)`` -- plotly markup with parentage.
+
+        The plotly rung of the same ladder as :attr:`parent_unicode` (Chart.js,
+        Prefab, chat) and :attr:`parent_latex` (matplotlib). Plotly.js typesets
+        a small HTML subset in trace names and hover text, so a legend can carry
+        a real raised multiplicity instead of a pre-composed Unicode digit.
+
+        Inert everywhere else: hand this to matplotlib or a CSV cell and the
+        tags print verbatim. See :func:`tanabesugano.plot_style.term_to_plotly`.
+        """
+        from tanabesugano import plot_style  # deferred: pulls matplotlib
+
+        return f"{plot_style.term_to_plotly(self.term.value)}{self.parent_suffix}"
+
+    @property
     def parent_label_display(self) -> str:
         """``3_T_1(P)`` -- :attr:`label` with free-ion parentage instead of (a)/(b)."""
         return f"{self.term.value}{self.parent_suffix}"
@@ -424,6 +440,64 @@ class LevelSet:
         """Levels reachable from the ground term without a spin flip."""
         mult = self.ground.multiplicity
         return tuple(lv for lv in self.levels if lv.multiplicity == mult and lv.energy_cm1 > 0)
+
+    def display_labels(self, renderer: str = "unicode") -> dict[str, str]:
+        """Map every :attr:`Level.uid` to a label no two levels share.
+
+        Parentage is the right vocabulary for a figure -- ``(F)``/``(P)`` is
+        what the literature prints, ``(a)``/``(b)`` is this package's internal
+        spelling. But parentage is **not injective**: one free-ion term can feed
+        the same irrep twice, so d4, d5 and d6 each hold two pairs of levels
+        whose ``parent_*`` labels are byte-identical (d6: two ``3T1g(H)``, two
+        ``1T2g(I)``). ``parent_suffix`` only falls back to the ordinal when the
+        *parent* is ambiguous, which is a different situation and does not cover
+        this one.
+
+        Printing two curves with the same name is fine in a table, where a uid
+        column sits beside it, and not fine on a figure where the label IS the
+        identification. So the colliding pair -- and only the colliding pair --
+        gets the ordinal folded in: ``3T1g(H,a)``, ``3T1g(H,b)``. Every
+        non-colliding label is left exactly as :attr:`Level.parent_unicode` and
+        friends produce it, so the common case gains no notation to explain.
+
+        Both figure renderers call this rather than formatting labels
+        themselves; that is the only reason they cannot drift apart.
+
+        Args:
+            renderer: ``"unicode"`` (Chart.js, chat), ``"plotly"`` (plotly
+                markup), ``"latex"`` (matplotlib mathtext) or ``"ascii"``.
+
+        Returns:
+            ``{uid: label}`` for every level in the set.
+
+        """
+        from tanabesugano import plot_style  # deferred: pulls matplotlib
+
+        bodies = {
+            "ascii": plot_style.term_to_ascii,
+            "unicode": plot_style.term_to_unicode,
+            "plotly": plot_style.term_to_plotly,
+            "latex": lambda t: _math_body(TermKey(t)),
+        }
+        if renderer not in bodies:
+            msg = f"unknown renderer {renderer!r}; choose one of {sorted(bodies)}"
+            raise ValueError(msg)
+
+        counts: dict[tuple[TermKey, str], int] = {}
+        for lv in self.levels:
+            key = (lv.term, lv.parent_suffix)
+            counts[key] = counts.get(key, 0) + 1
+
+        labels: dict[str, str] = {}
+        for lv in self.levels:
+            suffix = lv.parent_suffix
+            if counts[(lv.term, suffix)] > 1:
+                # Always of the form "(X)" here: an empty suffix means a
+                # single-level term, which cannot collide with anything.
+                suffix = f"{suffix[:-1]},{_SUFFIXES[lv.index]})"
+            body = bodies[renderer](lv.term.value)
+            labels[lv.uid] = f"${body}{suffix}$" if renderer == "latex" else f"{body}{suffix}"
+        return labels
 
     def transition_label(self, excited: Level) -> str:
         """``3_A_2→3_T_1(b)`` -- an unambiguous band assignment.

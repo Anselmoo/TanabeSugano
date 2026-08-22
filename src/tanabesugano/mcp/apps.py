@@ -26,6 +26,9 @@ import logging
 
 from typing import TYPE_CHECKING
 
+from tanabesugano.plot_style import ANNOTATION_COLORS
+from tanabesugano.plot_style import color_for_multiplicity
+
 
 log = logging.getLogger(__name__)
 
@@ -901,13 +904,16 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
 
         series: list[dict] = [
             {
+                # Both curves are ground terms of a known multiplicity, so
+                # their colour is a lookup, not a choice. Hardcoded, the LS
+                # curve of d6 -- a singlet -- drew in the triplet blue.
                 "label": f"HS ground ({hs_mult}·(2S+1))",
-                "color": "#D55E00",
+                "color": color_for_multiplicity(hs_mult),
                 "data": hs_curve,
             },
             {
                 "label": f"LS ground ({ls_mult}·(2S+1))",
-                "color": "#0072B2",
+                "color": color_for_multiplicity(ls_mult),
                 "data": ls_curve,
             },
         ]
@@ -1037,7 +1043,7 @@ def _register_fit_plot(mcp: FastMCP) -> None:
         series: list[dict] = [
             {
                 "label": "zero (perfect fit)",
-                "color": "#666666",
+                "color": ANNOTATION_COLORS["reference_rule"],
                 "borderDash": [4, 4],
                 "data": [
                     {"x": round(min(xs) - pad, 1), "y": 0},
@@ -1046,7 +1052,7 @@ def _register_fit_plot(mcp: FastMCP) -> None:
             },
             {
                 "label": "residual (computed − observed)",
-                "color": "#0072B2",
+                "color": ANNOTATION_COLORS["computed"],
                 "data": residual_points,
             },
         ]
@@ -1689,7 +1695,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         all_series.append(
             {
                 "label": f"Fitted 10Dq/B = {x_fit_norm:g}",
-                "color": "#FF0000",
+                "color": ANNOTATION_COLORS["marker"],
                 "data": [{"x": x_fit_norm, "y": 0}, {"x": x_fit_norm, "y": 150}],
                 "borderDash": [6, 3],
             },
@@ -1802,7 +1808,13 @@ def _register_spectrum(mcp: FastMCP) -> None:
                 "title": title_spectrum,
                 "x_label": x_label,
                 "y_label": "Absorbance (arb. units)",
-                "series": [{"label": "Simulated spectrum", "color": "#0072B2", "data": data}],
+                "series": [
+                    {
+                        "label": "Simulated spectrum",
+                        "color": ANNOTATION_COLORS["computed"],
+                        "data": data,
+                    },
+                ],
             },
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
@@ -1847,15 +1859,9 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
     how the term-energy spread evolves across the d-block at fixed
     crystal-field strength.
     """
-    # Colour-blind-safe palette keyed by spin multiplicity (2S+1).
-    _MULT_COLOR: dict[int, str] = {
-        1: "#888888",  # singlet
-        2: "#0072B2",  # doublet
-        3: "#009E73",  # triplet
-        4: "#D55E00",  # quartet
-        5: "#CC79A7",  # quintet
-        6: "#E69F00",  # sextet
-    }
+    # The palette lives in plot_style.SPIN_COLORS. A copy here had drifted by
+    # one multiplicity, so a quartet drew vermillion in this chart and green in
+    # every matplotlib figure.
 
     @mcp.tool(
         name="ts_oxidation_landscape_app",
@@ -1995,7 +2001,7 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
             series = [
                 {
                     "label": f"{mult}·(2S+1)",
-                    "color": _MULT_COLOR.get(mult, "#888"),
+                    "color": color_for_multiplicity(mult),
                     "style": "scatter",
                     "data": sorted(pts, key=lambda p: (p["x"], p["y"])),
                 }
@@ -2103,14 +2109,8 @@ def _register_compute_table(mcp: FastMCP) -> None:
         chart_series = [
             {
                 "label": f"{m}·(2S+1)",
-                "color": {
-                    1: "#888888",
-                    2: "#0072B2",
-                    3: "#009E73",
-                    4: "#D55E00",
-                    5: "#CC79A7",
-                    6: "#E69F00",
-                }.get(m, "#666"),
+                # Second copy of the same table, shifted the same way.
+                "color": color_for_multiplicity(m),
                 "data": pts,
             }
             for m, pts in sorted(buckets.items())

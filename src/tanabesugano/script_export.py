@@ -162,6 +162,13 @@ def fit_figure_script(
     heading = title or f"d{d_count} fit: Dq = {fit.Dq:,.1f}, B = {fit.B:,.1f} cm$^{{-1}}$"
     warnings = "\n".join(f"#   ! {w}" for w in fit.warnings) or "#   (none)"
 
+    from tanabesugano import plot_style  # deferred: pulls matplotlib
+
+    # Read from plot_style rather than spelled here: the emitted script is a
+    # fourth figure surface, and a fourth private copy of the palette is exactly
+    # what this work removed from the other three.
+    observed_color = plot_style.ANNOTATION_COLORS["observed"]
+    computed_color = plot_style.ANNOTATION_COLORS["computed"]
     observed_src = ", ".join(f"{p:.4f}" for p in observed)
     computed_src = ", ".join(f"{energy:.4f}" for _, energy, _, _ in pairs)
     residual_src = ", ".join(f"{residual:.4f}" for *_, residual in pairs)
@@ -214,8 +221,8 @@ UNMATCHED = [
 {extra_src}
 ]
 
-OBSERVED_COLOR = "#D55E00"   # Okabe-Ito, colour-blind safe
-COMPUTED_COLOR = "#0072B2"
+OBSERVED_COLOR = "{observed_color}"   # Okabe-Ito, colour-blind safe
+COMPUTED_COLOR = "{computed_color}"
 
 
 def main() -> None:
