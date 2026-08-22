@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [2.0.0-alpha.2] - 2026-08-22
 ### Changed
 
 - **One notation ladder now spans four renderers.** Plotly surfaces get a new
