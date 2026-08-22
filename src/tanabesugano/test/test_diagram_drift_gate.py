@@ -36,6 +36,7 @@ exactly the thing it is guarding against.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 
 from pathlib import Path
@@ -122,6 +123,54 @@ def test_a_stale_vocabulary_is_visible_as_drift(diagram: Path, tmp_path: Path) -
     assert stale != current
     assert stale - current == {"1_T_3#0"}
     assert current - stale == {"1_T_2#0"}
+
+
+def test_a_plotly_native_uid_cannot_stand_in_for_a_level_uid(
+    diagram: Path,
+    tmp_path: Path,
+) -> None:
+    """Plotly traces carry a `uid` of their own, and it must not be counted.
+
+    Raised in review on #199. Plotly's own trace `uid` serialises to the same
+    JSON key the moment anything sets it, so a pattern matching every `"uid"`
+    would let those values stand in for ours -- a diagram with no `meta.uid`
+    would look populated and never raise, and plotly's uids are not stable
+    across writes, so the gate would report drift forever.
+
+    Verified against plotly 6.9.0 that our output currently carries no native
+    trace uid, which is precisely the state in which such a trap goes
+    unnoticed. Requiring the `<term>#<index>` shape is what excludes them.
+    """
+    # Plotly's own trace uids are short hex strings, NOT uuids. An earlier
+    # version of this test used a 36-character uuid, which the pattern it was
+    # meant to condemn rejected on length alone -- so it passed against the
+    # broken code. The value below is the shape plotly actually emits.
+    plotly_only = tmp_path / "plotly_only.html"
+    plotly_only.write_text(
+        re.sub(
+            r'"uid":"[^"]*"',
+            '"uid":"f3a91c4e"',
+            diagram.read_text(encoding="utf-8"),
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(gate.VacuousGateError, match="pass vacuously"):
+        gate._html_level_uids(plotly_only)
+
+
+def test_the_extractor_still_sees_an_illegal_irrep(diagram: Path, tmp_path: Path) -> None:
+    """Tightening the SHAPE must not narrow the VOCABULARY.
+
+    `1_T_3` is not a legal Oh irrep. A pattern that only accepted valid term
+    keys would be blind to exactly what the gate guards against, so the shape
+    requirement has to admit a well-formed key with a nonsense irrep.
+    """
+    corrupted = tmp_path / "illegal_irrep.html"
+    corrupted.write_text(
+        diagram.read_text(encoding="utf-8").replace('"uid":"1_T_2#0"', '"uid":"1_T_9#0"'),
+        encoding="utf-8",
+    )
+    assert "1_T_9#0" in gate._html_level_uids(corrupted)
 
 
 def test_docs_site_is_no_longer_a_target() -> None:

@@ -233,11 +233,17 @@ def _html_level_uids(path: Path) -> set[str]:
     report every diagram as current forever. `cmd.interactive_plot` stamps the
     uid for exactly this reason.
 
-    Deliberately extracts whatever the ``uid`` field holds, without filtering
-    to a legal shape. A pattern restricted to valid keys cannot see ``1_T_3``
-    -- the exact stale key this check exists to catch -- because T subscripts
-    are only ever 1 or 2. Verified: with a narrow pattern, substituting 1_T_3
-    into a committed diagram was reported as no drift at all.
+    Extracts anything shaped like a ``Level.uid`` (``<term>#<index>``) without
+    filtering to a legal *vocabulary*. That distinction is the whole point: a
+    pattern restricted to valid term keys cannot see ``1_T_3`` -- the exact
+    stale key this check exists to catch -- because T subscripts are only ever
+    1 or 2. Verified: with a vocabulary-restricted pattern, substituting
+    ``1_T_3`` into a committed diagram was reported as no drift at all.
+
+    The shape requirement is separate, and guards a different hazard: plotly
+    traces carry their own ``uid`` attribute, so matching every ``"uid"`` key
+    would let plotly's own values stand in for ours. See the comment on
+    :data:`_UID_IN_HTML_RE`.
 
     Raises:
         VacuousGateError: when the file names no levels. Without this the gate
@@ -260,7 +266,21 @@ def _html_level_uids(path: Path) -> set[str]:
 # Matches the uid stamped by `cmd.interactive_plot`, e.g. `"uid":"3_T_1#0"`.
 # Plotly escapes `<` and `>` as \uXXXX inside its JSON payload but leaves
 # `#`, letters and digits alone, so the value needs no unescaping.
-_UID_IN_HTML_RE = re.compile(r'"uid"\s*:\s*"([^"]{1,32})"')
+#
+# The trailing `#<index>` is REQUIRED, and that is not cosmetic. Plotly traces
+# carry a `uid` attribute of their own, which serialises to the same JSON key
+# the moment anything sets it. A pattern matching every `"uid"` would then
+# quietly pick those up instead -- so a diagram missing `meta.uid` would look
+# populated and never raise `VacuousGateError`, and plotly's uids are not
+# stable across writes, so the gate would report drift on every run until
+# somebody deleted it. Verified against plotly 6.9.0: our output currently
+# carries no native trace uid, which is exactly the state in which a latent
+# trap like this goes unnoticed.
+#
+# Requiring `#` keeps the vocabulary deliberately loose -- `1_T_3#0`, the stale
+# irrep this gate exists to catch, still matches -- while excluding any uid
+# whose shape is not `Level.uid`.
+_UID_IN_HTML_RE = re.compile(r'"uid"\s*:\s*"([^"]{1,24}#\d{1,4})"')
 
 
 def _normalise_html(path: Path) -> str:
