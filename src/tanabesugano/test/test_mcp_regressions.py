@@ -30,6 +30,7 @@ Deliberately NOT guarded here, to keep one claim in one place
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import inspect
 import json
@@ -39,17 +40,30 @@ import shutil
 import subprocess
 import tempfile
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from tanabesugano.free_ion import free_ion_levels
+from tanabesugano.mcp import _compute as ts_compute
 from tanabesugano.mcp import apps as ts_apps
+from tanabesugano.mcp import plotting as ts_plotting
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
 from tanabesugano.mcp._compute import compute_point
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.mcp.server import create_server
 
 
+if TYPE_CHECKING:
+    from types import ModuleType
+
+
 D_COUNTS = sorted(SUPPORTED_D_COUNTS)
+
+# Every module under mcp/ that sweeps Dq and could be tempted to read the
+# degenerate sample point. plotting.py is included precisely because it does
+# use `points[0]` -- legitimately, for `.keys()`, which the ban exempts.
+MCP_MODULES = (ts_apps, ts_compute, ts_plotting)
 
 
 def defaults_for(d_count: int) -> tuple[float, float]:
@@ -228,25 +242,58 @@ class TestZeroFieldIsNotASamplePoint:
             f"ground_y computed from the Dq=0 point. Expected 6."
         )
 
-    def test_no_mcp_module_picks_a_term_from_the_zero_field_point(self) -> None:
-        """Source-level ban on ``min(points[0], ...)`` anywhere under ``mcp/``.
+    @pytest.mark.parametrize("module", MCP_MODULES, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
+    def test_no_mcp_module_indexes_the_zero_field_point(self, module: ModuleType) -> None:
+        """Ban ``points[0]`` as a value anywhere under ``mcp/``.
 
         Paired with the numeric guard above rather than standing alone: a
         structural test cannot prove the physics, but it is the only thing that
-        catches the pattern being reintroduced at an eighth call site.
+        catches the pattern being reintroduced at a seventh call site.
 
-        Observed failure before the fix::
+        Parsed, not grepped. A text search cannot tell code from the prose
+        *describing* the code, and the first draft of this test duly failed on
+        the docstring in ``_sweep_payload`` that explains why the pattern was
+        removed -- a false positive, so the test was wrong and was fixed rather
+        than the source being reworded around it.
 
-            AssertionError: ground term derived from the Dq=0 sample point
-            in apps.py: ['        points[0],', '        key=lambda t:
+        ``points[0].keys()`` is exempt and reached on purpose: naming the terms
+        is fine at any Dq, because the *set* of terms does not change across
+        the sweep. Only reading energies at the degenerate point is banned,
+        which is what every other use of the subscript does.
+
+        Two observed failures, and they are different observations. The
+        grep-based first draft, run against the real unfixed source::
+
+            AssertionError: ground term derived from the Dq=0 sample point in
+            apps.py: ['        points[0],', '        key=lambda t:
             min(points[0][t]) if points[0][t] else float("inf"),']
+
+        This AST version never saw that source -- it was written after the fix,
+        to clear the docstring false positive -- so its red was produced by
+        reintroducing the pattern deliberately and confirming it fires::
+
+            AssertionError: apps.py reads energies from the Dq=0 sample point
+            at line(s) [160, 160]
         """
-        source = inspect.getsource(ts_apps)
-        offenders = [
-            line for line in source.splitlines() if "points[0]" in line and "keys()" not in line
-        ]
+        tree = ast.parse(inspect.getsource(module))
+        exempt = {
+            id(node.value)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute) and node.attr == "keys"
+        }
+        offenders = sorted(
+            node.lineno
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "points"
+            and isinstance(node.slice, ast.Constant)
+            and node.slice.value == 0
+            and id(node) not in exempt
+        )
         assert not offenders, (
-            f"ground term derived from the Dq=0 sample point in apps.py: {offenders}"
+            f"{module.__name__.rsplit('.', 1)[-1]}.py reads energies from the "
+            f"Dq=0 sample point at line(s) {offenders}"
         )
 
 

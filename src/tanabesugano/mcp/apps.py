@@ -128,14 +128,23 @@ def _sweep_payload(
     *,
     normalize: bool,
     energy_unit: str = "cm1",
-) -> tuple[list[dict], list[ChartSeries], str, str, str, str, float]:
+) -> tuple[list[dict], list[ChartSeries], str, str, str, str]:
     """Compute one sweep and return Prefab-shaped data: rows + ChartSeries list.
 
     Returns:
-        (rows, series, title, x_axis_key, x_label, y_label, ground_y) where
-        `rows` is a list of dicts keyed by x-axis value and one column per
-        unique term (level-0 only, so Prefab LineChart doesn't collapse).
-        `ground_y` is in the requested energy unit.
+        (rows, series, title, x_axis_key, x_label, y_label) where `rows` is a
+        list of dicts keyed by x-axis value and one column per unique term
+        (level-0 only, so Prefab LineChart doesn't collapse).
+
+    There is deliberately no ground-state y value here. It used to be derived
+    by taking ``min(points[0], ...)`` -- the Dq = 0 sample, where every
+    octahedral component of the free-ion ground term is exactly degenerate, so
+    the tie-break named an arbitrary one (``5_E`` for d6, whose weak-field
+    ground term is ``5_T_2``; also wrong for d2 and d7). Every one of the seven
+    call sites discarded it, which is why a wrong value survived the pass that
+    corrected three sibling call sites. Anything that needs a ground term must
+    call :func:`_compute.reference_ground_term`, which probes a field strong
+    enough to have lifted the degeneracy.
 
     """
     from tanabesugano.mcp._compute import sweep_dq
@@ -144,14 +153,9 @@ def _sweep_payload(
 
     dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
     if not points:
-        return [], [], "", "x", "x", "y", 0.0
+        return [], [], "", "x", "x", "y"
     if normalize and b_val <= 0:
         raise ValueError(f"normalize=True requires positive Racah B, got B={b_val!r}")
-
-    ground_term = min(
-        points[0],
-        key=lambda t: min(points[0][t]) if points[0][t] else float("inf"),
-    )
 
     x_key = "x"
     rows: list[dict] = []
@@ -195,8 +199,7 @@ def _sweep_payload(
     title = f"Tanabe-Sugano d{d_count} (B={b_val:g}, C={c_val:g} cm⁻¹)"
     x_label = "10Dq/B" if normalize else "10Dq (cm⁻¹)"
     y_label = "E/B" if normalize else _Y_LABEL.get(energy_unit, "E (cm⁻¹)")
-    ground_y = min((row.get(f"{ground_term}_0", float("inf")) for row in rows), default=0.0)
-    return rows, series, title, x_key, x_label, y_label, ground_y
+    return rows, series, title, x_key, x_label, y_label
 
 
 def _chartjs_series_payload(
@@ -290,7 +293,7 @@ def _register_plot_view(mcp: FastMCP) -> None:
                 ],
             )
         b_val, c_val = resolve_bc(d_count, B, C)
-        rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
+        rows, series, title, x_key, x_label, y_label = _sweep_payload(
             d_count,
             dq_min,
             dq_max,
@@ -390,7 +393,7 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         from tanabesugano.mcp.tools._shared import resolve_bc
 
         b_val, c_val = resolve_bc(d_count, B, C)
-        rows, series, _title, x_key, x_label, y_label, _ground_y = _sweep_payload(
+        rows, series, _title, x_key, x_label, y_label = _sweep_payload(
             d_count,
             dq_min,
             dq_max,
@@ -421,7 +424,7 @@ def _first_excited_curve(
     B: float,
     C: float,
     *,
-    dq_min: float = 0.0,
+    dq_min: float | None = None,
     dq_max: float = 1500.0,
     steps: int = 30,
     ground_eps: float = 1.0,
@@ -434,10 +437,28 @@ def _first_excited_curve(
     ``ground_eps`` is the threshold above which an eigenvalue counts as a real
     excited state -- the solvers zero the ground manifold, so anything at or
     below it is the ground state itself rather than a band.
+
+    ``dq_min`` defaults to one grid step, **not** to zero, and that is the
+    whole point of the parameter. At Dq = 0 the ligand field vanishes and every
+    octahedral component of the free-ion ground term is exactly degenerate, so
+    the entire ground manifold sits inside ``ground_eps``; the search for "the
+    first level above it" then falls through to the next free-ion term
+    altogether and reports a gap tens of thousands of cm-1 above the curve it
+    belongs to. Measured at the defaults, that put the first point 26x-48x
+    above the second for every configuration except d5 -- whose 6S ground term
+    is an orbital singlet, has nothing to split, and never spiked.
+
+    Deriving the offset as ``dq_max / steps`` rather than hardcoding it keeps
+    the grid uniform for any sweep: with the defaults the points fall on
+    50, 100, ... 1500, the same lattice the old sweep used with the singular
+    point at its origin simply omitted. Dropping that sample afterwards would
+    have silenced the symptom too, but it would hand the caller one point fewer
+    than they asked for.
     """
     from tanabesugano.mcp._compute import sweep_dq
 
-    _dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, B, C)
+    start = dq_max / steps if dq_min is None else dq_min
+    _dq_values, points = sweep_dq(d_count, start, dq_max, steps, B, C)
     curve: list[float] = []
     for point in points:
         all_e = sorted(float(e) for term in point.values() for e in term)
@@ -462,8 +483,10 @@ def _register_dashboard(mcp: FastMCP) -> None:
 
         For each d-count card: ground term symbol, matrix size, default Racah
         parameters, representative free ions, a one-line chemical note, and a
-        Sparkline of the **first excited state energy** across a 0–1500 cm⁻¹
+        Sparkline of the **first excited state energy** across a 50–1500 cm⁻¹
         Dq sweep — the band that an absorption spectrum would actually show.
+        The sweep starts one grid step above zero, not at zero: see
+        :func:`_first_excited_curve` for why Dq = 0 cannot be sampled.
         Useful as a 'home page' before drilling into one configuration with
         `ts_diagram_app`.
         """
@@ -522,7 +545,7 @@ def _register_dashboard(mcp: FastMCP) -> None:
                 content=(
                     "Per configuration: ground term, matrix size, default Racah "
                     "B/C, representative free ions, and a sparkline of the first "
-                    "excited state energy from Dq = 0 to 1500 cm⁻¹ — the lowest "
+                    "excited state energy from Dq = 50 to 1500 cm⁻¹ — the lowest "
                     "d-d band an absorption spectrum will show. Use "
                     "`ts_diagram_app` with d_count = N for the full diagram."
                 ),
@@ -628,7 +651,7 @@ def _register_compare(mcp: FastMCP) -> None:
         x_label = y_label = ""
         for d in valid:
             b_val, c_val = resolve_bc(d, None, None)
-            rows, series, _title, x_key, x_label, y_label, _ = _sweep_payload(
+            rows, series, _title, x_key, x_label, y_label = _sweep_payload(
                 d,
                 dq_min,
                 dq_max,
@@ -727,7 +750,7 @@ def _register_orgel(mcp: FastMCP) -> None:
         from tanabesugano.mcp.tools._shared import resolve_bc
 
         b_val, c_val = resolve_bc(d_count, B, C)
-        rows, series, _title, x_key, _x_label, _y_label, _ = _sweep_payload(
+        rows, series, _title, x_key, _x_label, _y_label = _sweep_payload(
             d_count,
             dq_min,
             dq_max,
@@ -1265,7 +1288,7 @@ def _register_overlay(mcp: FastMCP) -> None:
 
         for d in valid:
             b_val, c_val = resolve_bc(d, None, None)
-            rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
+            rows, series, title, x_key, x_label, y_label = _sweep_payload(
                 d,
                 dq_min,
                 dq_max,
@@ -1691,7 +1714,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         dq_hi = best_dq * 1.6
 
         try:
-            rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
+            rows, series, title, x_key, x_label, y_label = _sweep_payload(
                 d_count,
                 dq_lo,
                 dq_hi,
