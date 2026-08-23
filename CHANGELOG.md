@@ -1,6 +1,14 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+
+- CI's `Validate release policy (rrt)` step no longer runs
+  `check-commit-subject` on tag pushes. A tag points at an already-merged
+  squash commit whose subject is fixed at merge time; linting it again on
+  tag push blocked the whole release pipeline (`lint` gates `test` → `build`
+  → `mcpb`/`publish-pypi`/`release`) for a finding no one could still act on.
+  The check still runs on `pull_request` events, where it's actionable.
 
 ## [2.0.0-beta.1] - 2026-08-23
 ### Added

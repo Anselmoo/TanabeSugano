@@ -97,7 +97,14 @@ jobs:
         uses: Anselmoo/repo-release-tools@v1.15.0
         with:
           check-branch-name: "true"
-          check-commit-subject: "true"
+          # Tags point at an already-merged squash commit whose subject is
+          # the PR title, decided at merge time -- there is nothing left to
+          # act on by the time a tag triggers this job, and the subject
+          # can't be fixed after the fact without rewriting public history.
+          # Only lint it while it's still actionable, on the PR's own head
+          # commit. check-branch-name already self-exempts tag refs the same
+          # way internally.
+          check-commit-subject: ${{ github.event_name == 'pull_request' }}
           check-changelog: "true"
           changelog-strategy: "auto"
 
