@@ -417,6 +417,35 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
+def _first_excited_curve(
+    d_count: int,
+    B: float,
+    C: float,
+    *,
+    dq_min: float = 0.0,
+    dq_max: float = 1500.0,
+    steps: int = 30,
+    ground_eps: float = 1.0,
+) -> list[float]:
+    """Lowest eigenvalue above the ground manifold at each Dq of a sweep.
+
+    Extracted from ``ts_dashboard_app`` so the curve can be asserted on
+    directly; the tool body renders whatever this returns.
+
+    ``ground_eps`` is the threshold above which an eigenvalue counts as a real
+    excited state -- the solvers zero the ground manifold, so anything at or
+    below it is the ground state itself rather than a band.
+    """
+    from tanabesugano.mcp._compute import sweep_dq
+
+    _dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, B, C)
+    curve: list[float] = []
+    for point in points:
+        all_e = sorted(float(e) for term in point.values() for e in term)
+        curve.append(round(next((e for e in all_e if e > ground_eps), 0.0), 1))
+    return curve
+
+
 def _register_dashboard(mcp: FastMCP) -> None:
     """Overview: a Card grid showing each d-count's ground term + Sparkline."""
 
@@ -440,7 +469,6 @@ def _register_dashboard(mcp: FastMCP) -> None:
         `ts_diagram_app`.
         """
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
-        from tanabesugano.mcp._compute import sweep_dq
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp._defaults import GROUND_STATE_NOTES
         from tanabesugano.mcp._defaults import ION_BY_D_COUNT
@@ -460,16 +488,11 @@ def _register_dashboard(mcp: FastMCP) -> None:
             cfg = DEFAULTS[d]
             b = cfg["default_B"]
             c = cfg["default_C"]
-            _, points = sweep_dq(d, 0.0, 1500.0, 30, b, c)
             # First excited state energy at each Dq step: the lowest eigenvalue
             # above the ground manifold across all term symbols. This gives a
             # curve that meaningfully tracks the lowest d-d absorption band as
             # crystal-field strength grows.
-            spark: list[float] = []
-            for p in points:
-                all_e = sorted(float(e) for term in p.values() for e in term)
-                first_excited = next((e for e in all_e if e > ground_eps), 0.0)
-                spark.append(round(first_excited, 1))
+            spark = _first_excited_curve(d, b, c, ground_eps=ground_eps)
 
             # At a fixed reference Dq, name the lowest excited term so the
             # card reports a concrete assignable transition, not just an
