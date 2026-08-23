@@ -303,10 +303,25 @@ class TestFreeIonRacahClosedForms:
 class TestExactTransitionIdentities:
     """Identities that probe the Racah content, not just the field splitting."""
 
-    @pytest.mark.parametrize(("d_count", "excited"), [(3, "4_T_2"), (8, "3_T_2")])
+    @pytest.mark.parametrize(
+        ("d_count", "excited"),
+        [(3, "4_T_2"), (8, "3_T_2"), (4, "5_T_2"), (6, "5_E")],
+    )
     @pytest.mark.parametrize("b", [400.0, 900.0, 1400.0])
     def test_nu1_is_exactly_10dq(self, d_count: int, excited: str, b: float) -> None:
-        """Independent of B and C: the Racah terms cancel identically."""
+        """Independent of B and C: the Racah terms cancel identically.
+
+        d3/d8 are the classic pair. d4/d6 hold for a different reason and were
+        added when the dashboard began *displaying* the identity: 5D is the only
+        quintet in either configuration, so its Eg/T2g components have nothing to
+        mix with and their separation is exactly Delta_o. Group theory, not a
+        measurement of this solver -- which is what lets it police the
+        "= 10Dq exactly" badge ``ts_dashboard_app`` prints on d3/d4/d6/d8.
+
+        This is the ONLY place nu1 == 10Dq is asserted against the solver. The
+        dashboard tests deliberately do not re-assert it at a second tolerance;
+        they assert their own contract (one transition per curve) instead.
+        """
         dq = 777.0
         states = SOLVERS[d_count](Dq=dq, B=b, C=C_REF).solver().as_dict()
         ground = min(float(e) for v in states.values() for e in np.asarray(v).flatten())

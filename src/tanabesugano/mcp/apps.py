@@ -25,7 +25,13 @@ from __future__ import annotations
 import logging
 
 from typing import TYPE_CHECKING
+from typing import NamedTuple
 
+from tanabesugano.levels import LevelSet
+from tanabesugano.mcp._compute import compute_point
+from tanabesugano.mcp._compute import sweep_dq
+from tanabesugano.mcp._compute import transition_candidates
+from tanabesugano.mcp._defaults import _DConfig
 from tanabesugano.plot_style import ANNOTATION_COLORS
 from tanabesugano.plot_style import color_for_multiplicity
 
@@ -33,6 +39,36 @@ from tanabesugano.plot_style import color_for_multiplicity
 log = logging.getLogger(__name__)
 
 DIAGRAM_URI = "ui://tanabesugano/diagram.html"
+
+# ── Dashboard band selection ─────────────────────────────────────────────
+_GROUND_FLOOR_CM1 = 1.0
+"""Energy above which an eigenvalue counts as a real excited state.
+
+The solvers zero the ground manifold, so anything at or below this is the
+ground state itself rather than a band. Declared once and threaded into
+``transition_candidates(min_energy_cm1=...)``; ``ts_dashboard_app`` used to
+spell it twice, locally, which is the divergence the shared helpers exist to
+prevent.
+"""
+
+_TEN_DQ_TOL_CM1 = 1e-6
+"""How exactly nu1 must equal 10Dq to earn the '= 10Dq exactly' badge.
+
+Tight because the identity is exact, not approximate: for d3/d4/d6/d8 the Racah
+terms cancel identically and the residual is float noise. Pinned against the
+solver in ``test_matrices_invariants.TestExactTransitionIdentities``.
+"""
+
+_BRANCH_TOL_DQ_CM1 = 0.5
+"""Bisection half-width for the reported branch-change Dq, in cm^-1.
+
+Set from the *display* precision, not measured from the solver: the caption
+rounds 10 * Dq to the nearest 100 cm^-1, so 0.5 in Dq is already an order of
+magnitude finer than anything shown.
+"""
+
+_BRANCH_BISECT_STEPS = 12
+"""Bisection cap. log2(50 / 0.5) ~ 6.6, so this cannot bind at the defaults."""
 
 # Scatter point sizes used to carry spin-allowedness when the landscape is
 # weighted. Sizes, not colours: `plot_style` owns colour, and allowedness is
@@ -457,7 +493,150 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
 
-def _first_excited_curve(
+class _BandSeries(NamedTuple):
+    """One sparkline: the energies, and everything needed to caption them.
+
+    ``label`` is the *parentage* spelling (``3T1g(F)``), not the positional
+    ordinal (``3T1g(a)``) -- see :meth:`LevelSet.display_labels`. ``switch_*``
+    are populated only for a series that changes branch mid-sweep, which after
+    the spin-allowed filter is true of ``any_spin`` alone.
+    """
+
+    values: list[float]
+    label: str
+    spin_allowed: bool
+    is_ten_dq: bool
+    ref_energy: float = 0.0
+    ref_dq: float = 0.0
+    switch_label: str | None = None
+    switch_dq: float | None = None
+
+    def label_at(self, dq: float) -> str:
+        """The branch actually plotted at ``dq`` -- the second one past a switch."""
+        if self.switch_dq is not None and self.switch_label and dq >= self.switch_dq:
+            return self.switch_label
+        return self.label
+
+
+class _DashboardBands(NamedTuple):
+    """Both series a dashboard card can plot, from a single Dq sweep."""
+
+    dq_values: list[float]
+    spin_allowed: _BandSeries
+    any_spin: _BandSeries
+
+
+def _branch_of(term_energies: dict[str, list[float]], *, spin_allowed_only: bool) -> str | None:
+    """Positional assignment of the lowest candidate band, or ``None`` if there is none.
+
+    Positional (``4_T_1(a)``) on purpose: this string is an *identity* used to
+    detect a branch change, never displayed. Parentage is not injective -- d4,
+    d5 and d6 each hold level pairs whose parent labels are byte-identical --
+    so comparing parentage strings would miss a real crossing.
+    """
+    _ground, candidates = transition_candidates(
+        term_energies,
+        spin_allowed_only=spin_allowed_only,
+        min_energy_cm1=_GROUND_FLOOR_CM1,
+    )
+    return candidates[0][1] if candidates else None
+
+
+def _display_transition(
+    d_count: int, dq: float, B: float, C: float, *, spin_allowed_only: bool
+) -> tuple[str, bool]:
+    """Return ``(parentage label, is_spin_allowed)`` for the lowest band at ``dq``.
+
+    Goes through :meth:`LevelSet.solve` rather than :meth:`LevelSet.from_states`
+    because only ``solve`` derives free-ion parentage; ``from_states`` falls back
+    to the positional ordinal and would print ``3T1g(a)`` where the literature
+    writes ``3T1g(F)``. One extra solve per card, against the 30 the sweep pays.
+
+    When ``spin_allowed_only`` is asked for but no spin-allowed band exists --
+    high-spin d5, whose 6A1g is the configuration's only sextet -- this falls
+    back to the lowest level of any multiplicity and returns ``False`` so the
+    caller can say so. The fallback is never silent.
+    """
+    manifold = LevelSet.solve(d_count, dq, B, C)
+    labels = manifold.display_labels("unicode")
+    allowed = manifold.spin_allowed()
+    if spin_allowed_only and allowed:
+        return f"{labels[manifold.ground.uid]} → {labels[allowed[0].uid]}", True
+    excited = next(
+        (lv for lv in manifold.levels if lv.energy_cm1 > _GROUND_FLOOR_CM1),
+        None,
+    )
+    if excited is None:  # pragma: no cover - every configuration has excited levels
+        return labels[manifold.ground.uid], False
+    return f"{labels[manifold.ground.uid]} → {labels[excited.uid]}", not spin_allowed_only
+
+
+def _bisect_branch_change(
+    d_count: int,
+    B: float,
+    C: float,
+    lo: float,
+    hi: float,
+    lo_branch: str | None,
+    *,
+    spin_allowed_only: bool,
+) -> float:
+    """Dq at which the plotted band changes branch, within ``lo..hi``.
+
+    Bisected to :data:`_BRANCH_TOL_DQ_CM1` rather than reported as the grid
+    bracket, so the caption can name a number instead of a 50 cm^-1 window.
+    Costs ~10 solves and only for the configurations that actually cross.
+    """
+    for _ in range(_BRANCH_BISECT_STEPS):
+        mid = (lo + hi) / 2.0
+        branch = _branch_of(compute_point(d_count, mid, B, C), spin_allowed_only=spin_allowed_only)
+        if branch == lo_branch:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo <= _BRANCH_TOL_DQ_CM1:
+            break
+    return hi
+
+
+def _find_branch_change(
+    d_count: int,
+    B: float,
+    C: float,
+    dq_values: list[float],
+    branches: list[str | None],
+    *,
+    spin_allowed_only: bool,
+) -> tuple[str | None, float | None]:
+    """``(label after the change, Dq of the change)``, or ``(None, None)``.
+
+    Run for **both** series, not just ``any_spin``. An earlier draft computed it
+    only for ``any_spin`` and left ``spin_allowed.switch_dq`` hardcoded to
+    ``None`` -- which made the kink-guard test assert a constant and pass no
+    matter what the filter did. A mutation that disabled spin-allowed filtering
+    entirely survived it. The guard only has teeth if this value is derived on
+    the same path the test reads.
+    """
+    for i in range(1, len(branches)):
+        if branches[i] == branches[i - 1]:
+            continue
+        switch_dq = _bisect_branch_change(
+            d_count,
+            B,
+            C,
+            dq_values[i - 1],
+            dq_values[i],
+            branches[i - 1],
+            spin_allowed_only=spin_allowed_only,
+        )
+        label, _ = _display_transition(
+            d_count, dq_values[-1], B, C, spin_allowed_only=spin_allowed_only
+        )
+        return label, switch_dq
+    return None, None
+
+
+def _dashboard_bands(
     d_count: int,
     B: float,
     C: float,
@@ -465,26 +644,36 @@ def _first_excited_curve(
     dq_min: float | None = None,
     dq_max: float = 1500.0,
     steps: int = 30,
-    ground_eps: float = 1.0,
-) -> list[float]:
-    """Lowest eigenvalue above the ground manifold at each Dq of a sweep.
+    ref_dq: float = 1000.0,
+) -> _DashboardBands:
+    """Both dashboard series for one configuration, from a single Dq sweep.
 
-    Extracted from ``ts_dashboard_app`` so the curve can be asserted on
-    directly; the tool body renders whatever this returns.
+    The two series answer two different questions and the card used to conflate
+    them. ``spin_allowed`` is nu1 -- the lowest band an absorption spectrum
+    actually shows -- and tracks one transition end to end. ``any_spin`` is the
+    lowest level of *any* multiplicity, a structural quantity whose kink marks a
+    spin-forbidden level dropping below the spin-allowed one (d4 at 10Dq ~
+    12 800, d6 ~ 13 800, d7 ~ 11 200, d2 at the very last step).
 
-    ``ground_eps`` is the threshold above which an eigenvalue counts as a real
-    excited state -- the solvers zero the ground manifold, so anything at or
-    below it is the ground state itself rather than a band.
+    That kink is **not** the HS -> LS ground flip: the ground term is high-spin
+    and constant across this whole window, and the real crossovers sit at 10Dq =
+    26 386 (d4), 21 348 (d6) and 21 058 (d7), far outside it.
 
-    ``dq_min`` defaults to one grid step, **not** to zero, and that is the
-    whole point of the parameter. At Dq = 0 the ligand field vanishes and every
+    Both series are read off the same ``sweep_dq`` points, so the second one
+    costs no extra solve. Selection goes through the shared
+    :func:`~tanabesugano.mcp._compute.transition_candidates`; the dashboard used
+    to roll its own threshold twice, which is exactly what the note at the head
+    of ``_compute``'s shared-helpers section forbids.
+
+    ``dq_min`` defaults to one grid step, **not** to zero, and that is the whole
+    point of the parameter. At Dq = 0 the ligand field vanishes and every
     octahedral component of the free-ion ground term is exactly degenerate, so
-    the entire ground manifold sits inside ``ground_eps``; the search for "the
-    first level above it" then falls through to the next free-ion term
-    altogether and reports a gap tens of thousands of cm-1 above the curve it
-    belongs to. Measured at the defaults, that put the first point 26x-48x
-    above the second for every configuration except d5 -- whose 6S ground term
-    is an orbital singlet, has nothing to split, and never spiked.
+    the entire ground manifold sits inside the floor; the search for "the first
+    level above it" then falls through to the next free-ion term altogether and
+    reports a gap tens of thousands of cm-1 above the curve it belongs to.
+    Measured at the defaults, that put the first point 26x-48x above the second
+    for every configuration except d5 -- whose 6S ground term is an orbital
+    singlet, has nothing to split, and never spiked.
 
     Deriving the offset as ``dq_max / steps`` rather than hardcoding it keeps
     the grid uniform for any sweep: with the defaults the points fall on
@@ -493,15 +682,184 @@ def _first_excited_curve(
     have silenced the symptom too, but it would hand the caller one point fewer
     than they asked for.
     """
-    from tanabesugano.mcp._compute import sweep_dq
-
     start = dq_max / steps if dq_min is None else dq_min
-    _dq_values, points = sweep_dq(d_count, start, dq_max, steps, B, C)
-    curve: list[float] = []
+    dq_array, points = sweep_dq(d_count, start, dq_max, steps, B, C)
+    dq_values = [float(dq) for dq in dq_array]
+
+    allowed_raw: list[float] = []
+    any_raw: list[float] = []
+    allowed_branches: list[str | None] = []
+    any_branches: list[str | None] = []
+    any_allowed_flags: list[bool] = []
+    has_allowed = False
     for point in points:
-        all_e = sorted(float(e) for term in point.values() for e in term)
-        curve.append(round(next((e for e in all_e if e > ground_eps), 0.0), 1))
-    return curve
+        _g, allowed_cands = transition_candidates(
+            point,
+            spin_allowed_only=True,
+            min_energy_cm1=_GROUND_FLOOR_CM1,
+        )
+        _g2, any_cands = transition_candidates(
+            point,
+            spin_allowed_only=False,
+            min_energy_cm1=_GROUND_FLOOR_CM1,
+        )
+        any_raw.append(any_cands[0][0] if any_cands else 0.0)
+        any_branches.append(any_cands[0][1] if any_cands else None)
+        # transition_candidates reports allowedness per level; take it from
+        # there rather than assuming. The any-spin curve is spin-allowed for
+        # d3 and d8 the whole way, and only turns forbidden past a crossing
+        # for d2/d4/d6/d7 -- so a blanket "forbidden" badge on this tab
+        # contradicted the "= 10Dq exactly" badge sitting next to it.
+        any_allowed_flags.append(bool(any_cands and any_cands[0][2]))
+        allowed_branches.append(allowed_cands[0][1] if allowed_cands else any_branches[-1])
+        if allowed_cands:
+            has_allowed = True
+            allowed_raw.append(allowed_cands[0][0])
+        else:
+            # High-spin d5 only: no spin-allowed d-d band exists at all, so the
+            # card falls back to the lowest forbidden one and labels it as such.
+            allowed_raw.append(any_raw[-1])
+
+    def _is_ten_dq(values: list[float]) -> bool:
+        # Derived, never tabulated: a hardcoded {3, 4, 6, 8} would be a second
+        # copy of a claim the solver already answers, and would go stale.
+        return all(
+            abs(v - 10.0 * dq) <= _TEN_DQ_TOL_CM1 for v, dq in zip(values, dq_values, strict=True)
+        )
+
+    allowed_label, allowed_ok = _display_transition(d_count, ref_dq, B, C, spin_allowed_only=True)
+    any_label, _ = _display_transition(d_count, dq_values[0], B, C, spin_allowed_only=False)
+
+    allowed_switch_label, allowed_switch_dq = _find_branch_change(
+        d_count, B, C, dq_values, allowed_branches, spin_allowed_only=has_allowed
+    )
+    any_switch_label, any_switch_dq = _find_branch_change(
+        d_count, B, C, dq_values, any_branches, spin_allowed_only=False
+    )
+
+    # Read the reference point off the curve rather than re-solving at ref_dq:
+    # zero extra solves, and the printed number cannot disagree with the plotted
+    # one, which is how the old ref_label drifted from its own sparkline.
+    ref_i = min(range(len(dq_values)), key=lambda i: abs(dq_values[i] - ref_dq))
+
+    return _DashboardBands(
+        dq_values=dq_values,
+        spin_allowed=_BandSeries(
+            values=[round(v, 1) for v in allowed_raw],
+            label=allowed_label,
+            spin_allowed=has_allowed and allowed_ok,
+            is_ten_dq=_is_ten_dq(allowed_raw),
+            ref_energy=round(allowed_raw[ref_i], 1),
+            ref_dq=dq_values[ref_i],
+            switch_label=allowed_switch_label,
+            switch_dq=allowed_switch_dq,
+        ),
+        any_spin=_BandSeries(
+            values=[round(v, 1) for v in any_raw],
+            label=any_label,
+            spin_allowed=all(any_allowed_flags),
+            is_ten_dq=_is_ten_dq(any_raw),
+            ref_energy=round(any_raw[ref_i], 1),
+            ref_dq=dq_values[ref_i],
+            switch_label=any_switch_label,
+            switch_dq=any_switch_dq,
+        ),
+    )
+
+
+def _first_excited_curve(
+    d_count: int,
+    B: float,
+    C: float,
+    *,
+    dq_min: float | None = None,
+    dq_max: float = 1500.0,
+    steps: int = 30,
+) -> list[float]:
+    """Lowest eigenvalue above the ground manifold at each Dq of a sweep.
+
+    The lowest level of *any* multiplicity -- still shipped, as the dashboard's
+    "Lowest level (any spin)" tab. Kept as a named wrapper because its two
+    regression guards (no origin spike, every requested sample returned) are
+    guards on this curve specifically; see :func:`_dashboard_bands` for the
+    sweep itself and for why ``dq_min`` cannot be zero.
+    """
+    return _dashboard_bands(
+        d_count, B, C, dq_min=dq_min, dq_max=dq_max, steps=steps
+    ).any_spin.values
+
+
+def _dashboard_card(
+    d: int,
+    cfg: _DConfig,
+    ions: tuple,
+    note_short: str,
+    series: _BandSeries,
+    dq_values: list[float],
+    *,
+    heading: str,
+) -> None:
+    """Render one dashboard card for one of the two series.
+
+    Both tabs share this so a caption cannot say one thing on one tab and
+    something else on the other; only ``heading`` and the ``series`` differ.
+    """
+    lo, hi = series.values[0], series.values[-1]
+    dq_lo, dq_hi = dq_values[0], dq_values[-1]
+    with pf.Card(css_class="p-4"):
+        pf.Heading(content=f"d{d}", level=4)
+        with pf.Grid(columns=2, gap=2):
+            pf.Metric(label="Ground term", value=cfg["ground_term"])
+            pf.Metric(label="Matrix", value=str(cfg["matrix_size"]), description="terms")
+        pf.Muted(content=f"Ions: {', '.join(ions) if ions else '—'}")
+        pf.Muted(
+            content=f"B = {cfg['default_B']:g} cm⁻¹  C = {cfg['default_C']:g} cm⁻¹",
+        )
+        pf.Text(content=heading, css_class="text-xs text-muted-foreground")
+        Sparkline(data=series.values, height=48, variant="default", fill=True)
+
+        # Endpoints, never min/max: three of these curves descend, and a
+        # min -> max caption printed d5's arrow backwards for exactly that
+        # reason. And the Dq range is read off the sweep, so it cannot go
+        # stale the way the hardcoded "10Dq = 0" did once the sweep start moved.
+        pf.Muted(
+            content=(
+                f"{lo:,.0f} → {hi:,.0f} cm⁻¹ over 10Dq = {10 * dq_lo:,.0f} → {10 * dq_hi:,.0f} cm⁻¹"
+            ),
+            css_class="text-xs",
+        )
+        if series.switch_dq is not None:
+            pf.Muted(
+                content=(
+                    f"{series.label}, then {series.switch_label} above "
+                    f"10Dq ≈ {10 * series.switch_dq:,.0f} cm⁻¹"
+                ),
+                css_class="text-xs",
+            )
+        else:
+            pf.Muted(content=series.label, css_class="text-xs")
+
+        if series.is_ten_dq:
+            pf.Badge(label="= 10Dq exactly", variant="secondary")
+        if not series.spin_allowed:
+            pf.Badge(
+                label=(
+                    "spin-forbidden above the crossing"
+                    if series.switch_dq is not None
+                    else "spin-forbidden"
+                ),
+                variant="warning",
+            )
+
+        pf.Text(
+            content=(
+                f"@ 10Dq = {10 * series.ref_dq:,.0f}: "
+                f"{series.label_at(series.ref_dq)} = {series.ref_energy:,.0f} cm⁻¹"
+            ),
+            css_class="text-xs font-mono text-primary",
+        )
+        if note_short:
+            pf.Muted(content=note_short, css_class="text-xs")
 
 
 def _register_dashboard(mcp: FastMCP) -> None:
@@ -521,10 +879,20 @@ def _register_dashboard(mcp: FastMCP) -> None:
 
         For each d-count card: ground term symbol, matrix size, default Racah
         parameters, representative free ions, a one-line chemical note, and a
-        Sparkline of the **first excited state energy** across a 50–1500 cm⁻¹
-        Dq sweep — the band that an absorption spectrum would actually show.
-        The sweep starts one grid step above zero, not at zero: see
-        :func:`_first_excited_curve` for why Dq = 0 cannot be sampled.
+        Sparkline across a 50–1500 cm⁻¹ Dq sweep.
+
+        Two tabs, because the card used to conflate two different quantities
+        under one unlabelled curve. **Spin-allowed ν₁** is the lowest band an
+        absorption spectrum actually shows; it tracks one transition end to end.
+        **Lowest level (any spin)** is the lowest level of any multiplicity, and
+        its kink marks a spin-forbidden level dropping below the spin-allowed
+        one — real structure, but not what a spectrum shows, and not the
+        high-spin → low-spin ground flip either (the ground term is high-spin
+        across this whole window).
+
+        Both series come from the same sweep, so the second costs no extra
+        solve. The sweep starts one grid step above zero, not at zero: see
+        :func:`_dashboard_bands` for why Dq = 0 cannot be sampled.
         Useful as a 'home page' before drilling into one configuration with
         `ts_diagram_app`.
         """
@@ -532,114 +900,54 @@ def _register_dashboard(mcp: FastMCP) -> None:
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp._defaults import GROUND_STATE_NOTES
         from tanabesugano.mcp._defaults import ION_BY_D_COUNT
-        from tanabesugano.plot_style import term_to_unicode
 
-        # Energy threshold above which an eigenvalue counts as a real excited
-        # state — solvers zero the ground manifold so anything ≤ this is noise.
-        ground_eps = 1.0
-        # Representative octahedral Dq for displaying a single absorption-band
-        # number alongside the sparkline. 1000 cm⁻¹ is mid-range for the
-        # transition metals we cover (Dq sits between 600 and 1800 for the
-        # ions listed in ION_BY_D_COUNT).
-        ref_dq = 1000.0
-
-        cards: list[dict] = []
+        cards = []
         for d in SUPPORTED_D_COUNTS:
             cfg = DEFAULTS[d]
-            b = cfg["default_B"]
-            c = cfg["default_C"]
-            # First excited state energy at each Dq step: the lowest eigenvalue
-            # above the ground manifold across all term symbols. This gives a
-            # curve that meaningfully tracks the lowest d-d absorption band as
-            # crystal-field strength grows.
-            spark = _first_excited_curve(d, b, c, ground_eps=ground_eps)
-
-            # At a fixed reference Dq, name the lowest excited term so the
-            # card reports a concrete assignable transition, not just an
-            # energy number floating in space.
-            from tanabesugano.mcp._compute import compute_point
-
-            ref_terms = compute_point(d, ref_dq, b, c)
-            ref_pairs: list[tuple[float, str]] = []
-            for term_name, eigs in ref_terms.items():
-                for e in eigs:
-                    if e > ground_eps:
-                        ref_pairs.append((float(e), term_name))
-            ref_pairs.sort(key=lambda t: t[0])
-            if ref_pairs:
-                first_e, first_term = ref_pairs[0]
-                ref_label = (
-                    f"→ {term_to_unicode(first_term)}: {first_e:,.0f} cm⁻¹"
-                    f"  @ 10Dq = {ref_dq * 10:.0f}"
-                )
-            else:
-                ref_label = ""
-
-            cards.append({"d": d, "cfg": cfg, "spark": spark, "ref_label": ref_label})
+            bands = _dashboard_bands(d, cfg["default_B"], cfg["default_C"])
+            note = GROUND_STATE_NOTES.get(d, "")
+            # Strip the leading "dN (...):" prefix from the note so the
+            # card subtitle doesn't repeat info already shown above.
+            note_short = note.split(":", 1)[-1].strip() if ":" in note else note
+            cards.append((d, cfg, ION_BY_D_COUNT.get(d, ()), note_short, bands))
 
         with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content="Tanabe-Sugano: d² – d⁸ overview", level=2)
             pf.Muted(
                 content=(
                     "Per configuration: ground term, matrix size, default Racah "
-                    "B/C, representative free ions, and a sparkline of the first "
-                    "excited state energy from Dq = 50 to 1500 cm⁻¹ — the lowest "
-                    "d-d band an absorption spectrum will show. Use "
-                    "`ts_diagram_app` with d_count = N for the full diagram."
+                    "B/C, representative free ions, and a sparkline over Dq = 50 "
+                    "to 1500 cm⁻¹. Switch tabs to change which band is plotted. "
+                    "Use `ts_diagram_app` with d_count = N for the full diagram."
                 ),
             )
-            with pf.Grid(columns=4, gap=4):
-                for c_data in cards:
-                    d = c_data["d"]
-                    cfg = c_data["cfg"]
-                    ions = ION_BY_D_COUNT.get(d, ())
-                    note = GROUND_STATE_NOTES.get(d, "")
-                    # Strip the leading "dN (...):" prefix from the note so the
-                    # card subtitle doesn't repeat info already shown above.
-                    note_short = note.split(":", 1)[-1].strip() if ":" in note else note
-                    e_min = min(c_data["spark"]) if c_data["spark"] else 0.0
-                    e_max = max(c_data["spark"]) if c_data["spark"] else 0.0
-                    with pf.Card(css_class="p-4"):
-                        pf.Heading(content=f"d{d}", level=4)
-                        with pf.Grid(columns=2, gap=2):
-                            pf.Metric(
-                                label="Ground term",
-                                value=cfg["ground_term"],
-                            )
-                            pf.Metric(
-                                label="Matrix",
-                                value=str(cfg["matrix_size"]),
-                                description="terms",
-                            )
-                        pf.Muted(
-                            content=(f"Ions: {', '.join(ions) if ions else '—'}"),
-                        )
-                        pf.Muted(
-                            content=(
-                                f"B = {cfg['default_B']:g} cm⁻¹  C = {cfg['default_C']:g} cm⁻¹"
+            with pf.Tabs(value="allowed"):
+                with pf.Tab("Spin-allowed ν₁", value="allowed"), pf.Grid(columns=4, gap=4):
+                    for d, cfg, ions, note_short, bands in cards:
+                        _dashboard_card(
+                            d,
+                            cfg,
+                            ions,
+                            note_short,
+                            bands.spin_allowed,
+                            bands.dq_values,
+                            heading=(
+                                "Lowest d-d band (all spin-forbidden):"
+                                if not bands.spin_allowed.spin_allowed
+                                else "First spin-allowed band (cm⁻¹) vs Dq:"
                             ),
                         )
-                        pf.Text(
-                            content="First excited state (cm⁻¹) vs Dq:",
-                            css_class="text-xs text-muted-foreground",
+                with pf.Tab("Lowest level (any spin)", value="any"), pf.Grid(columns=4, gap=4):
+                    for d, cfg, ions, note_short, bands in cards:
+                        _dashboard_card(
+                            d,
+                            cfg,
+                            ions,
+                            note_short,
+                            bands.any_spin,
+                            bands.dq_values,
+                            heading="Lowest level, any multiplicity (cm⁻¹) vs Dq:",
                         )
-                        Sparkline(
-                            data=c_data["spark"],
-                            height=48,
-                            variant="default",
-                            fill=True,
-                        )
-                        pf.Muted(
-                            content=(f"{e_min:.0f} → {e_max:.0f} cm⁻¹ at 10Dq = 0 → 15 000 cm⁻¹"),
-                            css_class="text-xs",
-                        )
-                        if c_data.get("ref_label"):
-                            pf.Text(
-                                content=c_data["ref_label"],
-                                css_class="text-xs font-mono text-primary",
-                            )
-                        if note_short:
-                            pf.Muted(content=note_short, css_class="text-xs")
         return app
 
 

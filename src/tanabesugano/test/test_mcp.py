@@ -5,6 +5,8 @@ Skips cleanly when the optional `[mcp]` extra (fastmcp) is not installed.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 
@@ -573,30 +575,119 @@ def test_wrapped_data_args_are_unwrapped() -> None:
     assert flat_len == wrap_len, f"unwrapped output diverged: {flat_len} vs {wrap_len}"
 
 
+def test_dashboard_captions_match_the_curves_they_label() -> None:
+    """Every caption number must be readable off the sparkline beside it.
+
+    The caption is the only thing carrying scale -- a Prefab Sparkline renders
+    "with no axes, labels, or tooltips" and Recharts autoscales each card
+    independently -- so a wrong caption is not cosmetic, it is the whole
+    quantitative content of the card.
+
+    It had been wrong twice over, uncaught, because nothing asserted it:
+    the range was hardcoded ``10Dq = 0 → 15 000`` while the sweep had been moved
+    to start at Dq = 50, and the endpoints were ``min()``/``max()`` rather than
+    first/last, which printed d5's descending curve backwards as
+    ``15842 → 27808``.
+
+    Observed red, by restoring the old caption expression::
+
+        AssertionError: a caption claims the sweep spans 10Dq = 0 → 15,000 cm^-1,
+        but the sparkline beside it was computed over 500 → 15,000
+
+    Deliberately parses the rendered strings rather than re-deriving them: the
+    defect lived in the formatting, so a test that recomputed the same f-string
+    would have agreed with the bug.
+    """
+    result = _call("ts_dashboard_app", {})
+    assert not result.is_error  # type: ignore[attr-defined]
+
+    # Card children arrive in render order, so a Sparkline is followed by its
+    # own caption; pairing them positionally is what ties a number to a curve.
+    flat: list[tuple[str, object]] = []
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            if node.get("type") in {"Sparkline", "Muted", "Text"}:
+                flat.append((str(node["type"]), node.get("data") or node.get("content")))
+            for child in node.get("children") or []:
+                walk(child)
+
+    walk((result.structured_content or {}).get("view"))  # type: ignore[attr-defined]
+
+    range_re = re.compile(r"([\d,]+) → ([\d,]+) cm⁻¹ over 10Dq = ([\d,]+) → ([\d,]+) cm⁻¹")
+
+    def num(text: str) -> float:
+        return float(text.replace(",", ""))
+
+    checked = 0
+    for i, (kind, payload) in enumerate(flat):
+        if kind != "Sparkline":
+            continue
+        curve = list(payload or [])
+        caption = next(
+            (
+                m
+                for _k, c in flat[i + 1 : i + 4]
+                if isinstance(c, str) and (m := range_re.search(c))
+            ),
+            None,
+        )
+        assert caption is not None, f"sparkline {i} has no range caption beside it"
+        lo, hi, dq_lo, dq_hi = (num(g) for g in caption.groups())
+        checked += 1
+
+        assert (lo, hi) == (round(curve[0]), round(curve[-1])), (
+            f"caption says {lo:,.0f} → {hi:,.0f} cm⁻¹ but the curve runs "
+            f"{curve[0]:,.0f} → {curve[-1]:,.0f} -- min/max instead of endpoints "
+            f"reverses every descending curve."
+        )
+        assert (dq_lo, dq_hi) == (500.0, 15000.0), (
+            f"a caption claims the sweep spans 10Dq = {dq_lo:,.0f} → {dq_hi:,.0f} "
+            f"cm⁻¹, but the sparkline beside it was computed over 500 → 15,000"
+        )
+
+    assert checked == 14, f"expected to check 14 captions, checked {checked}"
+
+
 def test_dashboard_sparklines_show_meaningful_data() -> None:
     """Pins the dashboard fix: each d-card's Sparkline must vary (not flat zero)
-    because it now plots the first excited state energy across the Dq sweep,
-    not the ground-term energy (which is always 0 by construction).
+    because it plots a real band energy across the Dq sweep, not the ground-term
+    energy (which is always 0 by construction).
+
+    Fourteen, not seven: the card carries two tabs -- "Spin-allowed nu1" and
+    "Lowest level (any spin)" -- and both panels ship in the same payload, since
+    Prefab switches tabs client-side. Both are asserted, because the tab a
+    reader never opens is exactly where a regression would sit unnoticed.
     """
     result = _call("ts_dashboard_app", {})
     assert not result.is_error  # type: ignore[attr-defined]
 
     sparks: list[list[float]] = []
+    tabs: list[str] = []
 
     def walk(node: object) -> None:
         if isinstance(node, dict):
             if node.get("type") == "Sparkline":
                 sparks.append(node.get("data") or [])
+            elif node.get("type") == "Tab":
+                tabs.append(str(node.get("title") or node.get("value") or ""))
             for child in node.get("children") or []:
                 walk(child)
 
     view = (result.structured_content or {}).get("view")  # type: ignore[attr-defined]
     walk(view)
 
-    assert len(sparks) == 7, f"expected one sparkline per d-config, got {len(sparks)}"
-    for d, spark in zip(range(2, 9), sparks, strict=True):
-        assert spark, f"d{d} sparkline is empty"
-        assert max(spark) > 100, f"d{d} sparkline never rises above 100 cm⁻¹ — still flat zero?"
+    assert len(tabs) == 2, f"expected two tabs, got {len(tabs)}: {tabs}"
+    assert len(sparks) == 14, (
+        f"expected one sparkline per d-config per tab (7 x 2), got {len(sparks)}"
+    )
+    for i, spark in enumerate(sparks):
+        d = 2 + i % 7
+        tab = tabs[i // 7]
+        assert spark, f"d{d} sparkline on the {tab!r} tab is empty"
+        assert max(spark) > 100, (
+            f"d{d} on the {tab!r} tab never rises above 100 cm⁻¹ — still flat zero?"
+        )
 
 
 def test_oxidation_landscape_scatter_does_not_connect_d_counts() -> None:
