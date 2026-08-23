@@ -2000,6 +2000,11 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
                 "x_label": "d-electron count",
                 "y_label": "Energy E (cm⁻¹)",
                 "chart_type": "heatmap",
+                # The extent the grid was actually built over, sent explicitly
+                # so the axis is pinned by the request rather than inferred
+                # from whichever cells happen to carry density.
+                "y_min": 0.0,
+                "y_max": float(max_energy_cm),
                 "cells": cells,
             }
         else:
@@ -2395,7 +2400,13 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
             },
             scales: {
               x: { type: 'linear', title: { display: true, text: p.x_label || '', font: { size: 12 } } },
-              y: { type: 'linear', title: { display: true, text: p.y_label || '', font: { size: 12 } } },
+              // `reverse: false` is load-bearing, not decoration: the matrix
+              // controller lays cells out row-major like a spreadsheet, so an
+              // unconstrained scale puts 0 cm-1 at the TOP and the figure then
+              // asserts that energy decreases upward. Bounds come from the
+              // payload so the extent tracks max_energy_cm, not the cells.
+              y: { type: 'linear', reverse: false, min: p.y_min, max: p.y_max,
+                   title: { display: true, text: p.y_label || '', font: { size: 12 } } },
             },
           },
         });
@@ -2439,6 +2450,11 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
               ticks: { maxTicksLimit: 10 },
             },
             y: {
+              // Already correct by default; stated so it cannot drift, and so
+              // both branches of this file answer the question the same way.
+              // No min/max here: this scale is shared by every line/scatter
+              // tool, most of which send no bounds.
+              reverse: false,
               title: { display: true, text: p.y_label || '', font: { size: 12 } },
               ticks: { maxTicksLimit: 8 },
             },

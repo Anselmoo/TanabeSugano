@@ -33,6 +33,11 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import pathlib
+import re
+import shutil
+import subprocess
+import tempfile
 
 import pytest
 
@@ -70,6 +75,65 @@ def density_payload() -> dict:
     result = call_tool("ts_oxidation_landscape_app", style="density")
     assert not result.is_error, result.content[0].text
     return json.loads(result.content[0].text)
+
+
+# The sandbox globals the widget script touches before it reaches Chart.js, plus
+# a Chart stand-in that records the config instead of drawing it. The network
+# import of the MCP Apps SDK is stripped: it is unreachable from a test runner,
+# and nothing below the toolbar wiring depends on the real App.
+_JS_HARNESS_PRELUDE = """
+const captured = [];
+class Chart {
+  constructor(_ctx, cfg) { captured.push(cfg); }
+  destroy() {}
+  toBase64Image() { return ""; }
+}
+class App { connect() {} callServerTool() {} }
+const el = () => ({
+  style: {}, classList: { toggle() {}, add() {}, remove() {} },
+  addEventListener() {}, getContext: () => ({}), toBlob() {}, textContent: "",
+});
+const document = { getElementById: el };
+const setTimeout = () => {};
+"""
+
+_JS_HARNESS_EPILOGUE = """
+app.ontoolresult({ content: [{ type: "text", text: process.argv[2] }] });
+console.log(JSON.stringify(captured[0].options.scales.y));
+"""
+
+
+def _render_y_scale(style: str) -> dict:
+    """The y-scale Chart.js would receive, by running the widget's own script."""
+    # Two chart renderers live in this module. Select on the branch marker
+    # rather than on "does it call Chart()": the other one is _HEATMAP_HTML,
+    # kept deliberately as dead-but-harmless code for the removed
+    # ts_parameter_heatmap_app and no longer registered with the server.
+    # Matching it would test a renderer nothing can reach.
+    source = inspect.getsource(ts_apps)
+    bodies = [
+        body
+        for body in re.findall(r"<script[^>]*>(.*?)</script>", source, re.DOTALL)
+        if "chart_type === 'heatmap'" in body
+    ]
+    assert len(bodies) == 1, f"expected one live chart <script> in apps.py, found {len(bodies)}"
+    script = re.sub(r"^\s*import \{ App \}.*$", "", bodies[0], count=1, flags=re.MULTILINE)
+
+    result = call_tool("ts_oxidation_landscape_app", style=style)
+    assert not result.is_error, result.content[0].text
+
+    with tempfile.TemporaryDirectory() as tmp:
+        entry = pathlib.Path(tmp) / "widget.mjs"
+        entry.write_text(_JS_HARNESS_PRELUDE + script + _JS_HARNESS_EPILOGUE)
+        completed = subprocess.run(  # noqa: S603 - fixed argv, no shell
+            [shutil.which("node") or "node", str(entry), result.content[0].text],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    assert completed.returncode == 0, f"widget JS failed:\n{completed.stderr}"
+    return json.loads(completed.stdout)
 
 
 class TestZeroFieldIsNotASamplePoint:
@@ -229,6 +293,32 @@ class TestHeatmapEnergyAxis:
     energy decreases upward, which is false, and disagrees with every other
     chart the package draws.
     """
+
+    @pytest.mark.skipif(shutil.which("node") is None, reason="needs node to run the widget JS")
+    @pytest.mark.parametrize(
+        ("style", "expect_bounds"),
+        [("density", True), ("scatter", False)],
+    )
+    def test_rendered_scale_orients_energy_upward(self, style: str, expect_bounds: bool) -> None:
+        """Run the real widget JS on the real payload and read the scale back.
+
+        The two source assertions below can only see that the *characters*
+        ``reverse`` and ``min`` appear near a ``y:``. They would pass just as
+        happily if the JS read ``p.y_minimum`` while the payload sent
+        ``y_min``, which is the whole failure mode -- a wiring bug between two
+        languages that neither language's tooling checks. Executing the branch
+        is the only thing that proves the payload actually reaches the axis.
+
+        Skipped rather than failed where node is absent, so this can never
+        report a false green.
+        """
+        scale = _render_y_scale(style)
+        assert scale.get("reverse") is False, (
+            f"{style}: rendered y-scale does not force energy upward: {scale}"
+        )
+        if expect_bounds:
+            assert scale.get("min") == pytest.approx(0.0)
+            assert scale.get("max") == pytest.approx(40000.0)
 
     def test_payload_declares_its_energy_bounds(self, density_payload: dict) -> None:
         """The bounds must be pinned by the payload, not inferred from cells.
