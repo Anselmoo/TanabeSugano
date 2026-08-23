@@ -368,6 +368,232 @@ class TestDashboardSparkline:
             f"sweep start above Dq=0."
         )
 
+    @pytest.mark.parametrize("d_count", D_COUNTS)
+    def test_spin_allowed_curve_tracks_one_transition(self, d_count: int) -> None:
+        """The nu1 sparkline must never change which band it plots.
+
+        This is the kink guard, and the only correct spelling of it. Asserting
+        monotonicity would be false physics -- high-spin d5 descends by ~500
+        cm^-1 per step, as the sibling test above already records. What makes a
+        kink a defect is not its slope but that the curve swaps transitions
+        underneath an unlabelled sparkline, so the caption can only ever name
+        one of the two branches.
+
+        Observed red, produced by pointing this same assertion at the
+        ``any_spin`` series -- which kinks by design and is what the card used
+        to plot. Exactly d2/d4/d6/d7 fired, d3/d5/d8 passed::
+
+            AssertionError: d4: the plotted band changes identity mid-sweep --
+            5Eg -> 5T2g up to 10Dq = 12,766 cm^-1, then 5Eg -> 3T1g(H,a). A
+            sparkline that swaps transitions has a kink that is not physics,
+            and its caption can only name one of the two.
+        """
+        B, C = defaults_for(d_count)
+        series = ts_apps._dashboard_bands(d_count, B, C).spin_allowed
+
+        assert series.switch_dq is None, (
+            f"d{d_count}: the plotted band changes identity mid-sweep -- "
+            f"{series.label} up to 10Dq = {10 * (series.switch_dq or 0):,.0f} cm^-1, "
+            f"then {series.switch_label}. A sparkline that swaps transitions has a "
+            f"kink that is not physics, and its caption can only name one of the two."
+        )
+
+    # The four configurations whose lowest level of ANY multiplicity changes
+    # branch inside the 50-1500 cm^-1 window, and the approximate 10Dq at which
+    # it does. Group theory decides membership, not this solver: a low-spin
+    # excited level descends fast enough to dive under the high-spin one only
+    # where a low-spin manifold exists nearby. d3/d5/d8 have none, so they never
+    # cross. Values are brackets, deliberately loose -- this test pins WHICH
+    # configurations cross, not where.
+    ANY_SPIN_CROSSINGS = {2: 14_730, 4: 12_766, 6: 13_992, 7: 11_047}
+
+    @pytest.mark.parametrize("d_count", D_COUNTS)
+    def test_branch_detector_still_fires_on_the_curve_that_kinks(self, d_count: int) -> None:
+        """The any-spin series must still report its crossing.
+
+        The companion to ``test_spin_allowed_curve_tracks_one_transition``, and
+        the reason that one is not a tautology. "No branch change" is only
+        evidence of a working filter if the detector is known to fire when there
+        IS one -- otherwise hardcoding ``switch_dq = None`` would satisfy the
+        guard, which is exactly the bug a mutation check caught in the first
+        draft of these tests.
+
+        It also pins the physics the "Lowest level (any spin)" tab exists to
+        show: a spin-forbidden level dropping below the spin-allowed band. Note
+        this is NOT the HS -> LS ground flip -- the ground term is high-spin
+        across this whole window, and the real crossovers sit at 10Dq = 26 386
+        (d4), 21 348 (d6) and 21 058 (d7), roughly twice as far out.
+        """
+        B, C = defaults_for(d_count)
+        series = ts_apps._dashboard_bands(d_count, B, C).any_spin
+        expected = self.ANY_SPIN_CROSSINGS.get(d_count)
+
+        if expected is None:
+            assert series.switch_dq is None, (
+                f"d{d_count}: reported a branch change at 10Dq = "
+                f"{10 * (series.switch_dq or 0):,.0f} cm^-1, but it has no low-spin "
+                f"manifold near enough to cross inside this window."
+            )
+            return
+
+        assert series.switch_dq is not None, (
+            f"d{d_count}: expected a branch change near 10Dq = {expected:,} cm^-1 "
+            f"and found none -- the detector has stopped firing, which would make "
+            f"the spin-allowed guard vacuous."
+        )
+        assert 10 * series.switch_dq == pytest.approx(expected, rel=0.05), (
+            f"d{d_count}: branch change at 10Dq = {10 * series.switch_dq:,.0f} cm^-1, "
+            f"expected near {expected:,}."
+        )
+
+    @pytest.mark.parametrize("d_count", D_COUNTS)
+    def test_only_d5_falls_back_to_a_forbidden_band(self, d_count: int) -> None:
+        """The spin-forbidden fallback is d5's alone, and is never silent.
+
+        High-spin d5 has exactly one sextet, so it has zero spin-allowed d-d
+        transitions and the nu1 tab has nothing to plot; it falls back to the
+        lowest forbidden band and says so. Every other configuration has at
+        least one spin-allowed band (d4 and d6 have exactly one), so a ``False``
+        anywhere else means the filter has silently stopped working -- the same
+        failure mode ``term_multiplicity`` was hardened against, where a
+        multiplicity comparison that was never true disabled spin-allowed
+        filtering in four tools with no error.
+
+        Provenance: the count is group theory, not a measurement -- d5's free-ion
+        terms hold a single 6S. Observed red by inverting the expectation::
+
+            AssertionError: d5: expected a spin-allowed band, found none
+        """
+        B, C = defaults_for(d_count)
+        series = ts_apps._dashboard_bands(d_count, B, C).spin_allowed
+
+        if d_count == 5:
+            assert not series.spin_allowed, (
+                "d5: reported a spin-allowed band, but 6A1g is the only sextet in "
+                "the configuration so every d-d transition is spin-forbidden."
+            )
+        else:
+            assert series.spin_allowed, (
+                f"d{d_count}: expected a spin-allowed band, found none -- the "
+                f"multiplicity filter has stopped matching the ground term."
+            )
+
+    @pytest.mark.parametrize("d_count", D_COUNTS)
+    @pytest.mark.parametrize("dq", [500.0, 1500.0])
+    def test_display_transition_reports_real_allowedness(self, d_count: int, dq: float) -> None:
+        """The allowedness flag must describe the level, not the caller's request.
+
+        ``_display_transition`` returned ``not spin_allowed_only`` on its
+        fallback path -- so asking it for the lowest level of any multiplicity
+        got back "spin-allowed: True" unconditionally, whatever the level's
+        multiplicity actually was. Inert when caught, because both
+        ``spin_allowed_only=False`` callers discarded the flag, but wrong the
+        moment anyone reads it.
+
+        Cross-checked against ``transition_candidates``, which answers the same
+        question by a genuinely different route -- ``LevelSet.from_states`` plus
+        ``term_multiplicity`` on the solver keys, versus ``LevelSet.solve`` plus
+        ``Level.multiplicity`` here. Two paths, one answer; re-deriving it the
+        same way would only have restated the bug.
+
+        Observed red at Dq = 1500 on the configurations whose lowest level has
+        crossed to a forbidden branch, and at both Dq for d5::
+
+            AssertionError: d4 at Dq=1500: _display_transition reports
+            spin_allowed=True for 5Eg → 3T1g(H,a), but transition_candidates
+            says False.
+        """
+        B, C = defaults_for(d_count)
+        label, allowed = ts_apps._display_transition(d_count, dq, B, C, spin_allowed_only=False)
+        _ground, candidates = ts_compute.transition_candidates(
+            compute_point(d_count, dq, B, C), spin_allowed_only=False
+        )
+        expected = candidates[0][2]
+
+        assert allowed == expected, (
+            f"d{d_count} at Dq={dq:.0f}: _display_transition reports "
+            f"spin_allowed={allowed} for {label}, but transition_candidates "
+            f"says {expected}."
+        )
+
+    @pytest.mark.parametrize("d_count", D_COUNTS)
+    def test_the_two_badges_can_never_contradict_each_other(self, d_count: int) -> None:
+        """No series may be both "= 10Dq exactly" and "spin-forbidden".
+
+        nu1 == 10Dq holds precisely because the band is a single t2g -> eg
+        promotion within one free-ion term, which is spin-allowed by
+        construction. A series carrying both badges is therefore not a cosmetic
+        clash but a claim that cannot be true.
+
+        Observed red on the rendered card, not in a test -- which is why this
+        exists. The first draft hardcoded ``spin_allowed=False`` on the any-spin
+        series, so every card on that tab wore an amber "spin-forbidden" badge,
+        including d3 and d8 whose lowest level of any multiplicity is the
+        spin-allowed 4A2g -> 4T2g / 3A2g -> 3T2g the whole way. d3 rendered
+        "= 10Dq exactly" and "spin-forbidden" side by side::
+
+            AssertionError: d3 any_spin: badged "= 10Dq exactly" and
+            "spin-forbidden" at once, but nu1 == 10Dq is a spin-allowed
+            single-electron promotion by construction.
+        """
+        B, C = defaults_for(d_count)
+        bands = ts_apps._dashboard_bands(d_count, B, C)
+
+        for name in ("spin_allowed", "any_spin"):
+            series = getattr(bands, name)
+            assert not (series.is_ten_dq and not series.spin_allowed), (
+                f'd{d_count} {name}: badged "= 10Dq exactly" and "spin-forbidden" '
+                f"at once, but nu1 == 10Dq is a spin-allowed single-electron "
+                f"promotion by construction."
+            )
+
+    @pytest.mark.parametrize("d_count", D_COUNTS)
+    def test_any_spin_allowedness_is_read_off_the_levels(self, d_count: int) -> None:
+        """Only d3 and d8 keep a spin-allowed band as their lowest level throughout.
+
+        Everywhere else the any-spin curve either starts forbidden (d5) or turns
+        forbidden past its crossing (d2/d4/d6/d7), which is the entire reason
+        that tab is worth showing separately. Membership is group theory: d3 and
+        d8 have no low-spin manifold near enough to dive under nu1 inside this
+        window.
+        """
+        B, C = defaults_for(d_count)
+        series = ts_apps._dashboard_bands(d_count, B, C).any_spin
+
+        assert series.spin_allowed == (d_count in {3, 8}), (
+            f"d{d_count}: any-spin curve reports spin_allowed="
+            f"{series.spin_allowed}; only d3 and d8 stay spin-allowed for the "
+            f"whole sweep."
+        )
+
+    @pytest.mark.parametrize("d_count", D_COUNTS)
+    def test_ten_dq_badge_is_derived_not_asserted(self, d_count: int) -> None:
+        """The '= 10Dq exactly' badge must agree with the curve it labels.
+
+        Deliberately NOT a restatement of nu1 == 10Dq -- that claim is asserted
+        once, against the solver, in
+        ``test_matrices_invariants.TestExactTransitionIdentities``. Asserting it
+        here too would be the same fixture at two tolerances, and the looser one
+        would mask the tighter. What this pins is narrower and is the dashboard's
+        own contract: whatever the badge says, the plotted values back it up.
+
+        So the expectation is read off the curve, not off a ``{3, 4, 6, 8}``
+        table -- a hardcoded set would be a second copy of a claim the solver
+        already answers, and would go stale the first time a default B changed.
+        """
+        B, C = defaults_for(d_count)
+        bands = ts_apps._dashboard_bands(d_count, B, C)
+        series = bands.spin_allowed
+
+        exact = all(
+            abs(v - 10.0 * dq) <= 0.05  # the values are rounded to 0.1 cm^-1
+            for v, dq in zip(series.values, bands.dq_values, strict=True)
+        )
+        assert series.is_ten_dq == exact, (
+            f"d{d_count}: badge says is_ten_dq={series.is_ten_dq} but the curve "
+            f"{'does' if exact else 'does not'} satisfy nu1 == 10Dq at every point."
+        )
+
 
 class TestHeatmapEnergyAxis:
     """The density heatmap's energy axis, which once rendered inverted.

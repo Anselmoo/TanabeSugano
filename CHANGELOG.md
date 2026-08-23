@@ -1,7 +1,47 @@
 # Changelog
 
 ## [Unreleased]
+
+## [2.0.0-beta.2] - 2026-08-23
 ### Fixed
+
+- `ts_dashboard_app`'s sparkline plots the band the card claims. It took the
+  lowest eigenvalue of *any* multiplicity, so the curve silently changed which
+  transition it tracked mid-sweep — d4 ran ⁵Eg→⁵T₂g until 10Dq ≈ 12 766 cm⁻¹
+  and then switched to the spin-forbidden ⁵Eg→³T₁g, which is what the visible
+  kink was. Selection now goes through the shared `transition_candidates`,
+  which the dashboard was the only surface to bypass, declaring its own
+  threshold twice instead.
+- The card now carries two tabs. **Spin-allowed ν₁** is the lowest band an
+  absorption spectrum actually shows and tracks one transition end to end;
+  **Lowest level (any spin)** keeps the crossing, which is real structure —
+  a spin-forbidden level dropping below the spin-allowed one — and names both
+  branches plus the 10Dq where they swap. Note this is *not* the high-spin →
+  low-spin ground flip: the ground term is high-spin across the whole 50–1500
+  cm⁻¹ window, and the real crossovers sit at 10Dq = 26 386 (d4), 21 348 (d6)
+  and 21 058 (d7). Both series come from the same sweep, so the second costs
+  no extra solve.
+- High-spin d5 has no spin-allowed d-d band at all — ⁶A₁g is the
+  configuration's only sextet — so its card falls back to the lowest
+  spin-forbidden one and says so on a badge. The fallback is never silent.
+- Dashboard captions no longer misreport their own axes. The range was
+  hardcoded `10Dq = 0 → 15 000` while the sweep had been moved to start at
+  Dq = 50, and the endpoints were `min()`/`max()` rather than first/last —
+  which printed d5's descending curve backwards as `15842 → 27808`. Nothing
+  asserted the caption, so both survived; a test now parses the rendered
+  strings.
+- Transition labels on the dashboard use free-ion parentage (`³T₁g(F)`,
+  `⁴T₁g(G)`) rather than the positional ordinal, via `LevelSet.solve` instead
+  of `LevelSet.from_states` — the latter skips parentage derivation and falls
+  back to `(a)`/`(b)`, which appears in no textbook.
+
+### Added
+
+- `nu1 == 10Dq` is now asserted for d4 (`5_T_2`) and d6 (`5_E`) alongside the
+  existing d3/d8 pair. ⁵D is the only quintet in either configuration, so its
+  Eg/T₂g components have nothing to mix with and their separation is exactly
+  Δₒ — group theory, not a measurement of this solver, which is what lets it
+  police the `= 10Dq exactly` badge the dashboard prints.
 
 - CI's `Validate release policy (rrt)` step no longer runs
   `check-commit-subject` on tag pushes. A tag points at an already-merged
