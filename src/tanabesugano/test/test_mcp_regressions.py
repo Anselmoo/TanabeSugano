@@ -113,7 +113,7 @@ const setTimeout = () => {};
 
 _JS_HARNESS_EPILOGUE = """
 app.ontoolresult({ content: [{ type: "text", text: process.argv[2] }] });
-console.log(JSON.stringify(captured[0].options.scales.y));
+console.log(JSON.stringify(captured[0].options.scales));
 """
 
 
@@ -155,13 +155,13 @@ def _y_scale_blocks(script: str) -> list[str]:
     return blocks
 
 
-def _render_y_scale(style: str) -> dict:
-    """The y-scale Chart.js would receive, by running the widget's own script."""
+def _render_scales(tool: str, **kwargs) -> dict:
+    """The scales Chart.js would receive, by running the widget's own script."""
     bodies = [b for b in _chart_scripts() if "chart_type === 'heatmap'" in b]
     assert len(bodies) == 1, f"expected one live chart <script> in apps.py, found {len(bodies)}"
     script = re.sub(r"^\s*import \{ App \}.*$", "", bodies[0], count=1, flags=re.MULTILINE)
 
-    result = call_tool("ts_oxidation_landscape_app", style=style)
+    result = call_tool(tool, **kwargs)
     assert not result.is_error, result.content[0].text
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -176,6 +176,11 @@ def _render_y_scale(style: str) -> dict:
         )
     assert completed.returncode == 0, f"widget JS failed:\n{completed.stderr}"
     return json.loads(completed.stdout)
+
+
+def _render_y_scale(style: str) -> dict:
+    """The density/scatter landscape's y-scale as Chart.js would receive it."""
+    return _render_scales("ts_oxidation_landscape_app", style=style)["y"]
 
 
 class TestZeroFieldIsNotASamplePoint:
@@ -582,3 +587,171 @@ class TestFitReportsWhetherCWasConstrained:
         assert fit.c_is_default is False, (
             "C was supplied by the caller but the fit reports it as a default."
         )
+
+    @pytest.mark.parametrize(
+        ("label", "kwargs", "constrained"),
+        [
+            # No spin-allowed transition exists for high-spin d5, so the fit has
+            # to use spin-forbidden bands -- whose energies do carry C.
+            (
+                "Mn(II), spin-forbidden",
+                {
+                    "d_count": 5,
+                    "observed_peaks_cm1": [18900.0, 23000.0, 24900.0],
+                    "include_spin_forbidden": True,
+                },
+                True,
+            ),
+            # Past the crossover the spin-allowed set IS the low-spin manifold.
+            (
+                "Co(III), low-spin",
+                {
+                    "d_count": 6,
+                    "observed_peaks_cm1": [16600.0, 24600.0],
+                    "spin_state": "low",
+                },
+                True,
+            ),
+            # The common case: three spin-allowed d8 bands cannot see C at all.
+            (
+                "Ni(II) aqua, spin-allowed",
+                {"d_count": 8, "observed_peaks_cm1": [8500.0, 13800.0, 25300.0]},
+                False,
+            ),
+        ],
+        ids=lambda v: v if isinstance(v, str) else "",
+    )
+    def test_reports_whether_the_bands_could_pin_C(
+        self,
+        label: str,
+        kwargs: dict,
+        constrained: bool,
+    ) -> None:
+        """``c_constrained`` is the flag that answers the question W1 asked.
+
+        ``c_is_default`` only says where the number came from. This says
+        whether it could have been pinned by the data at all, and the two
+        genuinely differ: all three fits here take the default C, but only the
+        first two are in a regime where C does anything.
+
+        Shares the ``AttributeError: 'SpectrumFit' object has no attribute
+        'c_is_default'`` red with the tests above -- neither field existed.
+
+        A warning must accompany an unconstrained C, because a caller reading
+        the model rather than the flags is exactly who this was invisible to.
+        """
+        from tanabesugano.mcp._compute import fit_spectrum
+
+        fit = fit_spectrum(**kwargs)
+        assert fit.c_constrained is constrained, (
+            f"{label}: expected c_constrained={constrained}, got {fit.c_constrained} "
+            f"(Dq={fit.Dq:.0f}, C={fit.C:.0f})"
+        )
+        mentions_c = [w for w in fit.warnings if "not constrained by these bands" in w]
+        assert bool(mentions_c) is not constrained, (
+            f"{label}: c_constrained={fit.c_constrained} but warnings say {mentions_c}"
+        )
+
+
+class TestAxisLimitsAreSettable:
+    """W4 -- two complexes cannot be put on the same axes without arithmetic.
+
+    A normalised Tanabe-Sugano diagram plots E/B against 10Dq/B, so the extent
+    of both axes depends on B. Comparing two ions therefore meant back-solving
+    a ``dq_max`` per complex so that ``10*dq_max/B`` happened to land on the
+    same number -- arithmetic the caller should not be doing, and which does
+    nothing at all for the y-axis, whose extent is not a function of the sweep
+    bounds.
+
+    Bounds are in the units of the axis as drawn: with ``normalize=True`` that
+    is 10Dq/B and E/B, otherwise 10Dq in cm^-1 and the chosen energy unit.
+    """
+
+    def test_build_diagram_honours_explicit_bounds(self) -> None:
+        """The matplotlib figure must come back cropped to what was asked.
+
+        Asserted on the Figure rather than on rendered bytes: `build_diagram`
+        exists to be inspected, and a PNG can only be compared to another PNG.
+
+        Observed failure before the feature::
+
+            TypeError: build_diagram() got an unexpected keyword argument 'y_max'
+        """
+        from tanabesugano.mcp.plotting import build_diagram
+
+        figure = build_diagram(3, x_min=0.0, x_max=40.0, y_min=0.0, y_max=60.0)
+        axes = figure.axes[0]
+        assert axes.get_xlim() == pytest.approx((0.0, 40.0))
+        assert axes.get_ylim() == pytest.approx((0.0, 60.0))
+
+    def test_bounds_are_independent_of_the_swept_range(self) -> None:
+        """Cropping must not silently become "sweep a different range".
+
+        The point of the parameter is to decouple the two: the same sweep,
+        shown over two different windows. If the bounds were implemented by
+        adjusting ``dq_max`` the curves would end at the crop instead of
+        running through it.
+
+        Observed failure before the feature::
+
+            TypeError: build_diagram() got an unexpected keyword argument 'x_max'
+        """
+        from tanabesugano.mcp.plotting import build_diagram
+
+        wide = build_diagram(3, x_max=60.0)
+        narrow = build_diagram(3, x_max=20.0)
+
+        def rightmost(figure) -> float:
+            return max(
+                float(line.get_xdata()[-1])
+                for line in figure.axes[0].lines
+                if len(line.get_xdata())
+            )
+
+        assert rightmost(wide) == pytest.approx(rightmost(narrow)), (
+            "the data was re-swept to match the crop instead of being cropped"
+        )
+        assert narrow.axes[0].get_xlim()[1] == pytest.approx(20.0)
+
+    def test_diagram_app_payload_carries_the_bounds(self) -> None:
+        """The Chart.js surface needs them too, or only PNG callers benefit.
+
+        Observed failure before the feature::
+
+            TypeError: ts_diagram_app() got an unexpected keyword argument 'y_max'
+        """
+        result = call_tool("ts_diagram_app", d_count=3, y_min=0.0, y_max=55.0)
+        assert not result.is_error, result.content[0].text
+        payload = json.loads(result.content[0].text)
+        assert payload["y_min"] == pytest.approx(0.0)
+        assert payload["y_max"] == pytest.approx(55.0)
+
+    @pytest.mark.skipif(shutil.which("node") is None, reason="needs node to run the widget JS")
+    def test_diagram_app_bounds_reach_the_rendered_axes(self) -> None:
+        """Carrying the bounds in the payload is not the same as applying them.
+
+        The test above proves the numbers are in the JSON; this proves the
+        renderer reads them, which is a separate claim across a language
+        boundary that neither language's tooling checks. Also pins the
+        autoscale case: a tool that sends no bounds must not have them forced
+        to null, because this scale is shared with every other line chart.
+        """
+        pinned = _render_scales(
+            "ts_diagram_app", d_count=3, x_min=0.0, x_max=40.0, y_min=0.0, y_max=55.0
+        )
+        assert (pinned["x"]["min"], pinned["x"]["max"]) == pytest.approx((0.0, 40.0))
+        assert (pinned["y"]["min"], pinned["y"]["max"]) == pytest.approx((0.0, 55.0))
+
+        loose = _render_scales("ts_diagram_app", d_count=3)
+        assert loose["y"].get("min") is None, "an unpinned axis must keep autoscaling"
+        assert loose["x"].get("max") is None, "an unpinned axis must keep autoscaling"
+
+    def test_plot_png_accepts_the_bounds(self) -> None:
+        """The vector/PNG export route must take them as well.
+
+        Observed failure before the feature::
+
+            TypeError: ts_plot_png() got an unexpected keyword argument 'y_max'
+        """
+        cropped = call_tool("ts_plot_png", d_count=3, y_max=55.0)
+        assert not cropped.is_error, cropped.content[0].text

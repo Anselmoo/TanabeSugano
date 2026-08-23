@@ -210,6 +210,7 @@ def _chartjs_series_payload(
     title: str,
     x_label: str,
     y_label: str,
+    bounds: dict[str, float] | None = None,
 ) -> str:
     """Build the JSON payload for the Chart.js diagram / overlay HTML views.
 
@@ -218,10 +219,14 @@ def _chartjs_series_payload(
         series: list of ChartSeries with data_key, label, color.
         x_key: the dict key for x values.
         title, x_label, y_label: display strings.
+        bounds: optional axis crop, any subset of ``x_min``/``x_max``/
+            ``y_min``/``y_max``. Only the keys actually supplied are emitted,
+            so a renderer keeps autoscaling on every axis nobody pinned.
 
     Returns:
-        JSON string with ``{title, x_label, y_label, series}`` where each
-        series entry is ``{label, color, data: [{x, y}]}``.
+        JSON string with ``{title, x_label, y_label, series}`` plus whichever
+        bounds were given, where each series entry is
+        ``{label, color, data: [{x, y}]}``.
 
     """
     import json as _json
@@ -232,9 +237,14 @@ def _chartjs_series_payload(
         chart_series.append(
             {"label": s.label or s.data_key, "color": s.color or "#888", "data": data},
         )
-    return _json.dumps(
-        {"title": title, "x_label": x_label, "y_label": y_label, "series": chart_series},
-    )
+    payload: dict[str, object] = {
+        "title": title,
+        "x_label": x_label,
+        "y_label": y_label,
+        "series": chart_series,
+    }
+    payload.update(bounds or {})
+    return _json.dumps(payload)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -371,6 +381,10 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         C: float | None = None,
         normalize: bool = True,
         energy_unit: str = "cm1",
+        x_min: float | None = None,
+        x_max: float | None = None,
+        y_min: float | None = None,
+        y_max: float | None = None,
     ) -> ToolResult:
         """Render a Tanabe-Sugano diagram as a Chart.js line plot.
 
@@ -387,6 +401,14 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             B, C: Racah parameters in cm⁻¹; defaults per d_count.
             normalize: Plot E/B on y, 10Dq/B on x (standard Tanabe-Sugano).
             energy_unit: Used only when ``normalize=False`` (cm1 / eV / nm).
+            x_min, x_max, y_min, y_max: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm⁻¹ and ``energy_unit``. Use these to put
+                two ions on identical axes: their normalised extents differ
+                with B, so matching them by tuning ``dq_max`` per ion is
+                arithmetic that cannot work for the y-axis at all. Cropping
+                does not re-sweep -- the curves run through the window rather
+                than stopping at it. Any axis left unset keeps autoscaling.
 
         """
         from tanabesugano.mcp._defaults import DEFAULTS
@@ -415,6 +437,16 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             title=title_with_context,
             x_label=x_label,
             y_label=y_label,
+            bounds={
+                key: value
+                for key, value in (
+                    ("x_min", x_min),
+                    ("x_max", x_max),
+                    ("y_min", y_min),
+                    ("y_max", y_max),
+                )
+                if value is not None
+            },
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 
@@ -825,7 +857,11 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
             d_count: must be 4, 5, 6, or 7.
             B, C: Racah parameters (cm⁻¹); per-configuration defaults if
                 omitted.
-            dq_max: Upper Dq bound for the sweep (cm⁻¹). At the default
+            dq_max: Upper **Dq** bound for the sweep (cm⁻¹) -- that is
+                Δ/10, not Δ. The chart's own x-axis is Δ = 10·Dq, so a value
+                read off a published Δ must be divided by ten before it is
+                passed here; do it the other way and the sweep covers ten
+                times the intended range without complaint. At the default
                 Racah parameters the crossing sits at Dq ≈ 2106 (d⁷),
                 2135 (d⁶), 2433 (d⁵) and 2639 (d⁴) cm⁻¹, so 3500 clears
                 the highest by ~30%. The previous default of 2500 put d⁴'s
@@ -1946,6 +1982,21 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
             max_energy_cm: Clip points above this energy so the visible
                 window stays within typical UV-Vis range (default 40 000
                 cm⁻¹, just past the UV cutoff).
+
+        Both modes plot **excited states only**. Every level at or below
+        1 cm⁻¹ is dropped, which is each d-count's whole ground manifold: the
+        solvers zero the ground state by construction, so it would otherwise
+        draw as a row of points along E = 0 carrying no information. The
+        consequence worth knowing is that a reader counting levels here
+        against a term table will come up one manifold short per
+        configuration, and that this is a display choice rather than a
+        property of the calculation.
+
+        No selection rule is applied either. Every eigenvalue counts the same,
+        whether or not a transition to it from the ground state is spin
+        allowed, so neither mode is a simulated spectrum: the density is a
+        density of *states*, not of absorption. In scatter mode the
+        multiplicity colouring is bookkeeping, not intensity.
             style: "scatter" (default) draws each eigenvalue as a discrete
                 dot — independent d-counts are *not* joined by lines. Use
                 "density" to render a Gaussian-broadened 2D heatmap where
@@ -2473,15 +2524,18 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
           scales: {
             x: {
               type: 'linear',
+              min: p.x_min, max: p.x_max,
               title: { display: true, text: p.x_label || '', font: { size: 12 } },
               ticks: { maxTicksLimit: 10 },
             },
             y: {
               // Already correct by default; stated so it cannot drift, and so
               // both branches of this file answer the question the same way.
-              // No min/max here: this scale is shared by every line/scatter
-              // tool, most of which send no bounds.
               reverse: false,
+              // Undefined when the caller pinned nothing, which Chart.js reads
+              // as "autoscale" -- so this scale stays shared with every other
+              // line/scatter tool, none of which send bounds.
+              min: p.y_min, max: p.y_max,
               title: { display: true, text: p.y_label || '', font: { size: 12 } },
               ticks: { maxTicksLimit: 8 },
             },

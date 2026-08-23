@@ -1,14 +1,68 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+
+- `ts_plot_png` and `ts_diagram_app` take `x_min` / `x_max` / `y_min` / `y_max`,
+  in the units of the axis as drawn. Comparing two ions on a normalised diagram
+  previously meant back-solving a `dq_max` per ion until `10*dq_max/B` matched,
+  which cannot work for the y-axis at all — its extent is not a function of the
+  sweep bounds. The bounds crop; they do not re-sweep, so curves run through the
+  window rather than stopping at it, and an axis left unset keeps autoscaling
+- `SpectrumFit` and the `ts_fit_spectrum` result carry `c_is_default` and
+  `c_constrained`. C is reported beside Dq and B but never optimised, so on its
+  own it is indistinguishable from a fitted quantity — two unrelated complexes
+  came back with byte-identical C and nothing said why. `c_is_default` is
+  bookkeeping (defaults vs caller); `c_constrained` is the physical question,
+  measured per fit by perturbing C 5% either way and asking whether the fitted
+  bands move. An unconstrained C now also raises a warning. Measured rather than
+  tabulated because the answer is not a property of the configuration: d2, d3 and
+  d8 are C-independent everywhere, while d4–d7 acquire C-dependence only past
+  their spin crossover, so a lookup keyed on `d_count` would be wrong on one side
+  of it whichever value it stored
+
 ### Fixed
 
+- **The density heatmap's energy axis rendered upside down** — 0 cm⁻¹ at the
+  top, 40 000 at the bottom. `chartjs-chart-matrix` lays cells out row-major
+  like a spreadsheet and the y-scale set only a title, so the controller's
+  default row order won and the figure asserted that energy decreases upward.
+  The scale now states `reverse: false` and takes bounds from the payload
+- **The ground term was read off the Dq = 0 sample point** in `_sweep_payload`.
+  At zero field every octahedral component of the free-ion ground term is
+  exactly degenerate, so the tie-break named an arbitrary one — wrong for d2,
+  d6 and d7. It fed only a `ground_y` that all six call sites discarded, so the
+  slot is deleted rather than corrected; anything needing a ground term calls
+  `reference_ground_term`
+- The dashboard sparkline spiked 26×–48× at its first point for every
+  configuration except d5, from the same cause: at Dq = 0 the first *excited*
+  level is inside the degenerate ground manifold, so the search fell through to
+  the next free-ion term. The sweep now starts at `dq_max / steps` — derived, so
+  the grid stays uniform and the caller still gets the sample count they asked
+  for. d3, d4, d6 and d8 now correctly report ν₁ = 10Dq
+- `ts_oxidation_landscape_app` documents that both modes plot excited states
+  only (every level ≤ 1 cm⁻¹ is dropped, which is each d-count's whole ground
+  manifold) and that no selection rule is applied, so the density is a density
+  of *states*, not of absorption
+- `ts_spin_crossover_app` states that `dq_max` is in Dq — that is Δ/10 — beside
+  the parameter itself. The chart's own axis is Δ = 10·Dq, so a value read off a
+  published Δ swept ten times the intended range without complaint
 - `docs/` build failed `tsc` with `TS2882` on the side-effect imports of
   `App.css` and `index.css`: the app had no ambient module declaration for
   CSS imports. Added `docs/src/vite-env.d.ts` with the standard
   `/// <reference types="vite/client" />`, already covered by
   `docs/tsconfig.json`'s `src` include. Refreshed `.rrt/tree.lock.toml`
   (213 -> 214 entries) so CI's tree drift gate accounts for the new file
+
+### Removed
+
+- `_HEATMAP_HTML` / `HEATMAP_URI`, a second Chart.js renderer left behind by the
+  removed `ts_parameter_heatmap_app`. It was kept on the theory that a client
+  still referencing the URI would get "a clean not found rather than an import
+  error"; measured, an unregistered URI and one that never existed both raise
+  `NotFoundError: Unknown resource`, byte for byte. Resource lookup never
+  consults a module-level constant. What the dead copy did carry was its own
+  un-oriented y-axis, one re-registration away from coming back
 
 ## [2.0.0-alpha.2] - 2026-08-22
 ### Changed

@@ -151,6 +151,8 @@ def register(mcp: FastMCP) -> None:
             fitted_Dq=fit.Dq,
             fitted_B=fit.B,
             fitted_C=fit.C,
+            c_is_default=fit.c_is_default,
+            c_constrained=fit.c_constrained,
             r_squared=r_squared,
             rmse_cm1=fit.rmse_cm1,
             observed_peaks_cm1=observed_peaks_cm1,

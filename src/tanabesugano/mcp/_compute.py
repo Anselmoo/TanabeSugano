@@ -217,6 +217,59 @@ def transition_candidates(
     return ground_key, sorted(candidates)
 
 
+C_PROBE_FRACTION = 0.05
+"""How far Racah C is nudged either way when testing whether it matters."""
+
+C_SENSITIVITY_TOL_CM1 = 1.0
+"""Band shift below which a C perturbation counts as having done nothing.
+
+Far above float noise (the solver reproduces a level to ~1e-9 cm^-1) and far
+below any real dependence, which runs to hundreds of cm^-1.
+"""
+
+
+def c_constrains_manifold(
+    d_count: int,
+    Dq: float,
+    B: float,
+    C: float,
+    *,
+    spin_allowed_only: bool = True,
+) -> bool:
+    """Whether the fitted band set actually moves when Racah C moves.
+
+    Answered by measurement rather than by a per-configuration table, because
+    the honest answer is not a property of the configuration alone. Sweeping C
+    over 3000-5200 at Dq in {400 .. 2600} and B in {700 .. 1300}: d2, d3 and d8
+    are C-independent *everywhere*, while d4, d5, d6 and d7 acquire
+    C-dependence only past their spin crossover -- where the spin-allowed set
+    becomes the low-spin manifold, whose matrix elements do carry C. A lookup
+    keyed on ``d_count`` would therefore be wrong on one side of the crossover
+    whichever value it stored, which is the same trap the hand-maintained
+    ground-term table fell into.
+
+    A change in the *number* of candidate bands counts as dependence too: it
+    means the perturbation moved the ground term, which is as C-sensitive as an
+    outcome gets.
+    """
+
+    def band_energies(c_value: float) -> list[float]:
+        _ground, candidates = transition_candidates(
+            compute_point(d_count, Dq, B, c_value),
+            spin_allowed_only=spin_allowed_only,
+        )
+        return [energy for energy, _label, _allowed in candidates]
+
+    baseline = band_energies(C)
+    for probe in (C * (1.0 - C_PROBE_FRACTION), C * (1.0 + C_PROBE_FRACTION)):
+        shifted = band_energies(probe)
+        if len(shifted) != len(baseline):
+            return True
+        if any(abs(a - b) > C_SENSITIVITY_TOL_CM1 for a, b in zip(baseline, shifted, strict=True)):
+            return True
+    return False
+
+
 def peak_rmse(observed: np.ndarray, predicted: np.ndarray) -> float:
     """RMSE of every observed peak against its nearest predicted line.
 
@@ -277,6 +330,15 @@ class SpectrumFit:
     with an ``spin_allowed`` flag, so the assignment table loses no information.
     ``warnings`` collects soft signals -- a pinned parameter, a large residual,
     an unidentifiable B -- that are worth surfacing but must not fail the fit.
+
+    ``C`` is reported beside ``Dq`` and ``B`` but is never optimised, so on its
+    own it is indistinguishable from a fitted quantity: two unrelated complexes
+    come back with byte-identical C and nothing says why. Two flags separate
+    the questions that conflation hides. ``c_is_default`` is bookkeeping --
+    whether the value came from the per-configuration defaults or from the
+    caller. ``c_constrained`` is the physical one -- whether the observed bands
+    could have pinned C at all, measured per fit by
+    :func:`c_constrains_manifold` rather than assumed from ``d_count``.
     """
 
     Dq: float
@@ -288,6 +350,8 @@ class SpectrumFit:
     transitions: list[tuple[float, str, bool]]
     residuals_cm1: list[float]
     warnings: list[str]
+    c_is_default: bool
+    c_constrained: bool
 
 
 def crossover_dq(
@@ -374,6 +438,7 @@ def fit_spectrum(
         msg = f"observed peaks must all be positive; got {observed_peaks_cm1}"
         raise ValueError(msg)
 
+    c_is_default = C is None
     if C is None:
         C = float(DEFAULTS[d_count]["default_C"])
     observed = np.asarray(sorted(float(p) for p in observed_peaks_cm1), dtype=float)
@@ -545,6 +610,21 @@ def fit_spectrum(
             "band energy; the single-(Dq, B) model may not describe this spectrum",
         )
 
+    c_constrained = c_constrains_manifold(
+        d_count,
+        fitted_dq,
+        fitted_b,
+        C,
+        spin_allowed_only=spin_allowed_only,
+    )
+    if not c_constrained:
+        warnings.append(
+            f"C = {C:.0f} cm^-1 is reported but was not constrained by these bands: "
+            f"the fitted manifold of d{d_count} at Dq = {fitted_dq:.0f} cm^-1 is "
+            "unchanged by a 5% change in C, so this value is an assumption carried "
+            "through the fit, not a result of it",
+        )
+
     return SpectrumFit(
         Dq=fitted_dq,
         B=fitted_b,
@@ -555,6 +635,8 @@ def fit_spectrum(
         transitions=all_transitions,
         residuals_cm1=residuals,
         warnings=warnings,
+        c_is_default=c_is_default,
+        c_constrained=c_constrained,
     )
 
 
