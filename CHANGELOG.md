@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [2.0.0-beta.2] - 2026-08-23
 ### Fixed
 
 - `ts_dashboard_app`'s sparkline plots the band the card claims. It took the
