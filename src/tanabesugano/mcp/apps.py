@@ -32,7 +32,6 @@ from tanabesugano.plot_style import color_for_multiplicity
 
 log = logging.getLogger(__name__)
 
-HEATMAP_URI = "ui://tanabesugano/heatmap.html"
 DIAGRAM_URI = "ui://tanabesugano/diagram.html"
 SPECTRUM_URI = "ui://tanabesugano/spectrum.html"
 
@@ -670,10 +669,15 @@ def _register_compare(mcp: FastMCP) -> None:
 #   * ts_orgel_diagram_app    — Orgel diagram (E vs Δ, unnormalised)
 #   * ts_spin_crossover_app   — HS↔LS critical-Dq map for d⁴–d⁷
 #   * ts_correlation_diagram_app — free-ion → weak field → strong field
-# The HEATMAP_URI / _HEATMAP_HTML resource is left in the module as
-# dead-but-harmless code so external clients that may still reference the
-# URI receive a clean "not found" rather than an import error; it is no
-# longer registered with the FastMCP server.
+# HEATMAP_URI / _HEATMAP_HTML went with it. They were kept on the theory that
+# an external client still referencing the URI would get "a clean not found
+# rather than an import error", but that does not survive testing: an
+# unregistered URI and one that never existed both raise
+# `NotFoundError: Unknown resource`, byte for byte. Resource lookup never
+# consults a module-level constant, and a client does not import this module,
+# so "import error" was never among the outcomes. What the dead copy did carry
+# was its own un-oriented y-axis -- the F7 bug, one re-registration away from
+# coming back.
 
 
 def _register_orgel(mcp: FastMCP) -> None:
@@ -1977,7 +1981,7 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
         if style == "density":
             # Build a regular (d, E) grid and sum a Gaussian over every
             # eigenvalue for that d-count. The cell value is unitless
-            # density; the consumer (heatmap.html) colour-maps it.
+            # density; the chart resource colour-maps it.
             sigma = max(broadening_cm, 1.0)
             two_sigma_sq = 2.0 * sigma * sigma
             n_y = max(n_energy_points, 2)
@@ -2458,96 +2462,6 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
               title: { display: true, text: p.y_label || '', font: { size: 12 } },
               ticks: { maxTicksLimit: 8 },
             },
-          },
-        },
-      });
-    };
-    await app.connect();
-  </script>
-</body>
-</html>
-"""
-
-
-# Chart.js + chartjs-chart-matrix heatmap renderer.  No Plotly anywhere.
-_HEATMAP_HTML = """<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="color-scheme" content="light dark">
-  <title>Tanabe-Sugano heatmap</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
-  <style>
-    html, body { margin: 0; padding: 0; background: transparent; }
-    #wrap { padding: 10px; }
-    canvas { max-height: 460px; }
-    .hint { font-family: -apple-system, system-ui, sans-serif; color: #888;
-            padding: 12px; font-size: 13px; }
-  </style>
-</head>
-<body>
-  <div id="wrap">
-    <canvas id="hm"></canvas>
-    <div id="hint" class="hint">Waiting for ts_parameter_heatmap_app result…</div>
-  </div>
-  <script type="module">
-    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.0/app-with-deps";
-    const app = new App({ name: "TS Heatmap", version: "1.0.0" });
-    let chart = null;
-    app.ontoolresult = ({ content }) => {
-      // The Prefab Column emits a hidden Text with the heatmap JSON payload.
-      const txt = (content || []).find(c => c.type === 'text');
-      if (!txt) return;
-      let payload;
-      try { payload = JSON.parse(txt.text); }
-      catch (e) {
-        document.getElementById('hint').textContent = 'Invalid payload: ' + e.message;
-        return;
-      }
-      document.getElementById('hint').style.display = 'none';
-      const vs = payload.cells.map(c => c.v).filter(v => Number.isFinite(v));
-      const vmin = Math.min(...vs);
-      const vmax = Math.max(...vs);
-      const colorAt = (v) => {
-        if (!Number.isFinite(v)) return 'rgba(0,0,0,0.05)';
-        const t = (v - vmin) / (vmax - vmin || 1);
-        // viridis-ish: dark purple -> teal -> yellow
-        const r = Math.round(68 + (253 - 68) * t);
-        const g = Math.round(1  + (231 - 1)  * t);
-        const b = Math.round(84 + (37  - 84) * t);
-        return `rgb(${r},${g},${b})`;
-      };
-      const ctx = document.getElementById('hm').getContext('2d');
-      if (chart) chart.destroy();
-      const xWidth = payload.x_values.length > 1
-        ? (payload.x_values[1] - payload.x_values[0]) : 1;
-      const yHeight = payload.y_values.length > 1
-        ? (payload.y_values[1] - payload.y_values[0]) : 1;
-      chart = new Chart(ctx, {
-        type: 'matrix',
-        data: {
-          datasets: [{
-            label: payload.title,
-            data: payload.cells,
-            backgroundColor: (ctx) => colorAt(ctx.raw.v),
-            width: ({chart}) =>
-              (chart.chartArea?.width || 1) / payload.x_values.length - 1,
-            height: ({chart}) =>
-              (chart.chartArea?.height || 1) / payload.y_values.length - 1,
-          }],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: (i) =>
-              `B=${i.raw.x}, C=${i.raw.y}: ${i.raw.v} cm⁻¹` } },
-            title: { display: true, text: payload.title },
-          },
-          scales: {
-            x: { type: 'linear', title: { display: true, text: payload.x_label } },
-            y: { type: 'linear', title: { display: true, text: payload.y_label } },
           },
         },
       });

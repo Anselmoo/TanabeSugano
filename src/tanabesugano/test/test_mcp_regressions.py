@@ -103,19 +103,47 @@ console.log(JSON.stringify(captured[0].options.scales.y));
 """
 
 
-def _render_y_scale(style: str) -> dict:
-    """The y-scale Chart.js would receive, by running the widget's own script."""
-    # Two chart renderers live in this module. Select on the branch marker
-    # rather than on "does it call Chart()": the other one is _HEATMAP_HTML,
-    # kept deliberately as dead-but-harmless code for the removed
-    # ts_parameter_heatmap_app and no longer registered with the server.
-    # Matching it would test a renderer nothing can reach.
+def _brace_block(text: str, search_from: int) -> str:
+    """The balanced ``{ ... }`` run starting at the first brace at or after an index."""
+    depth = 0
+    for offset in range(text.index("{", search_from), len(text)):
+        if text[offset] == "{":
+            depth += 1
+        elif text[offset] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[search_from : offset + 1]
+    msg = f"unbalanced braces from offset {search_from}"
+    raise AssertionError(msg)
+
+
+def _chart_scripts() -> list[str]:
+    """Every ``<script>`` body in the module that constructs a Chart.js chart."""
     source = inspect.getsource(ts_apps)
-    bodies = [
+    return [
         body
         for body in re.findall(r"<script[^>]*>(.*?)</script>", source, re.DOTALL)
-        if "chart_type === 'heatmap'" in body
+        if "new Chart(" in body
     ]
+
+
+def _y_scale_blocks(script: str) -> list[str]:
+    """Every ``y: { ... }`` found inside a ``scales: { ... }`` in one script.
+
+    Anchored on ``scales:`` rather than on a bare ``y:`` because the payload's
+    own cells are ``{x, y, v}`` objects and would otherwise match.
+    """
+    blocks = []
+    for scales in re.finditer(r"\bscales:\s*\{", script):
+        scope = _brace_block(script, scales.start())
+        for y_at in re.finditer(r"\by:\s*\{", scope):
+            blocks.append(_brace_block(scope, y_at.start()))
+    return blocks
+
+
+def _render_y_scale(style: str) -> dict:
+    """The y-scale Chart.js would receive, by running the widget's own script."""
+    bodies = [b for b in _chart_scripts() if "chart_type === 'heatmap'" in b]
     assert len(bodies) == 1, f"expected one live chart <script> in apps.py, found {len(bodies)}"
     script = re.sub(r"^\s*import \{ App \}.*$", "", bodies[0], count=1, flags=re.MULTILINE)
 
@@ -360,6 +388,37 @@ class TestHeatmapEnergyAxis:
         block = self._y_scale_block("Default line/scatter mode")
         assert "reverse" in block, f"scatter y-scale does not set 'reverse': {block!r}"
 
+    def test_every_chart_renderer_orients_its_energy_axis(self) -> None:
+        """No y-scale anywhere in this module may leave its direction unstated.
+
+        The two tests above name their branch, so they only see the renderer
+        they were written against. That is how a *second* Chart.js renderer sat
+        in this module for the whole of the F7 investigation carrying the
+        identical un-oriented y-scale: ``_HEATMAP_HTML``, kept for the removed
+        ``ts_parameter_heatmap_app``. It was unreachable, so it broke nothing --
+        but it was one re-registration away from reintroducing the bug, and no
+        anchored test would have noticed.
+
+        This one is not anchored. Every ``y:`` inside every ``scales:`` inside
+        every chart-constructing ``<script>`` has to say which way energy goes.
+
+        Observed failure before ``_HEATMAP_HTML`` was deleted::
+
+            AssertionError: y-scale does not state its direction in chart
+            script 2/2: "y: { type: 'linear', title: { display: true, text:
+            payload.y_label } }"
+        """
+        scripts = _chart_scripts()
+        assert scripts, "no chart-constructing <script> found in apps.py"
+
+        offenders = [
+            f"chart script {i}/{len(scripts)}: {block!r}"
+            for i, script in enumerate(scripts, start=1)
+            for block in _y_scale_blocks(script)
+            if "reverse" not in block
+        ]
+        assert not offenders, "y-scale does not state its direction in " + "; ".join(offenders)
+
     @staticmethod
     def _y_scale_block(anchor: str) -> str:
         """The ``y: { ... }`` scale object following ``anchor`` in the embedded JS.
@@ -372,17 +431,7 @@ class TestHeatmapEnergyAxis:
         """
         source = inspect.getsource(ts_apps)
         window = source[source.index(anchor) :]
-        start = window.index("y: {", window.index("scales: {"))
-        depth = 0
-        for offset in range(window.index("{", start), len(window)):
-            if window[offset] == "{":
-                depth += 1
-            elif window[offset] == "}":
-                depth -= 1
-                if depth == 0:
-                    return window[start : offset + 1]
-        msg = f"unbalanced braces in the y-scale block after {anchor!r}"
-        raise AssertionError(msg)
+        return _brace_block(window, window.index("y: {", window.index("scales: {")))
 
 
 class TestDocumentedBehaviour:
