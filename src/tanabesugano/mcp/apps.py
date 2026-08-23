@@ -556,6 +556,13 @@ def _display_transition(
     high-spin d5, whose 6A1g is the configuration's only sextet -- this falls
     back to the lowest level of any multiplicity and returns ``False`` so the
     caller can say so. The fallback is never silent.
+
+    The flag always describes the level that was selected, never the request
+    that was made. An earlier version returned ``not spin_allowed_only`` on the
+    fallback path, so asking for the lowest level of any multiplicity got back
+    ``True`` whatever that level's multiplicity actually was. It was inert --
+    both such callers discard the flag -- but a caller reading it would have
+    been told a forbidden band was allowed.
     """
     manifold = LevelSet.solve(d_count, dq, B, C)
     labels = manifold.display_labels("unicode")
@@ -568,7 +575,11 @@ def _display_transition(
     )
     if excited is None:  # pragma: no cover - every configuration has excited levels
         return labels[manifold.ground.uid], False
-    return f"{labels[manifold.ground.uid]} → {labels[excited.uid]}", not spin_allowed_only
+    return (
+        f"{labels[manifold.ground.uid]} → {labels[excited.uid]}",
+        # Same comparison LevelSet.spin_allowed makes, so the two cannot disagree.
+        excited.multiplicity == manifold.ground.multiplicity,
+    )
 
 
 def _bisect_branch_change(

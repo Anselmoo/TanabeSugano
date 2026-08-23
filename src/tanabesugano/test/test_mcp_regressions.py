@@ -479,6 +479,44 @@ class TestDashboardSparkline:
             )
 
     @pytest.mark.parametrize("d_count", D_COUNTS)
+    @pytest.mark.parametrize("dq", [500.0, 1500.0])
+    def test_display_transition_reports_real_allowedness(self, d_count: int, dq: float) -> None:
+        """The allowedness flag must describe the level, not the caller's request.
+
+        ``_display_transition`` returned ``not spin_allowed_only`` on its
+        fallback path -- so asking it for the lowest level of any multiplicity
+        got back "spin-allowed: True" unconditionally, whatever the level's
+        multiplicity actually was. Inert when caught, because both
+        ``spin_allowed_only=False`` callers discarded the flag, but wrong the
+        moment anyone reads it.
+
+        Cross-checked against ``transition_candidates``, which answers the same
+        question by a genuinely different route -- ``LevelSet.from_states`` plus
+        ``term_multiplicity`` on the solver keys, versus ``LevelSet.solve`` plus
+        ``Level.multiplicity`` here. Two paths, one answer; re-deriving it the
+        same way would only have restated the bug.
+
+        Observed red at Dq = 1500 on the configurations whose lowest level has
+        crossed to a forbidden branch, and at both Dq for d5::
+
+            AssertionError: d4 at Dq=1500: _display_transition reports
+            spin_allowed=True for 5Eg → 3T1g(H,a), but transition_candidates
+            says False.
+        """
+        B, C = defaults_for(d_count)
+        label, allowed = ts_apps._display_transition(d_count, dq, B, C, spin_allowed_only=False)
+        _ground, candidates = ts_compute.transition_candidates(
+            compute_point(d_count, dq, B, C), spin_allowed_only=False
+        )
+        expected = candidates[0][2]
+
+        assert allowed == expected, (
+            f"d{d_count} at Dq={dq:.0f}: _display_transition reports "
+            f"spin_allowed={allowed} for {label}, but transition_candidates "
+            f"says {expected}."
+        )
+
+    @pytest.mark.parametrize("d_count", D_COUNTS)
     def test_the_two_badges_can_never_contradict_each_other(self, d_count: int) -> None:
         """No series may be both "= 10Dq exactly" and "spin-forbidden".
 
