@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [2.0.0-beta.1] - 2026-08-23
 ### Added
 
 - `ts_oxidation_landscape_app` takes `weight_by_selection_rule`. Off by default,
