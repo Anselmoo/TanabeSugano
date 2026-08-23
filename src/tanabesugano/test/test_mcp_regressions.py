@@ -755,3 +755,129 @@ class TestAxisLimitsAreSettable:
         """
         cropped = call_tool("ts_plot_png", d_count=3, y_max=55.0)
         assert not cropped.is_error, cropped.content[0].text
+
+
+class TestSelectionRuleWeighting:
+    """W9 / W10 -- the landscape counts every eigenvalue the same.
+
+    A Gaussian-broadened band of levels looks like an absorption spectrum, and
+    a reader who takes it for one will be badly wrong: a spin-forbidden
+    transition is roughly twenty times weaker than an allowed one, and for
+    high-spin d5 *every* d-d transition is forbidden. Unweighted, Mn(II) draws
+    the densest column on the chart. It is famously the palest ion there is.
+
+    The default stays unweighted -- it is an honest density of states, and
+    changing what an existing call returns would be worse than the gap. The
+    weighting is opt-in and says so in the payload.
+    """
+
+    @staticmethod
+    def _cells(**kwargs) -> dict[int, dict[float, float]]:
+        result = call_tool("ts_oxidation_landscape_app", style="density", **kwargs)
+        assert not result.is_error, result.content[0].text
+        payload = json.loads(result.content[0].text)
+        grid: dict[int, dict[float, float]] = {}
+        for cell in payload["cells"]:
+            grid.setdefault(int(cell["x"]), {})[cell["y"]] = cell["v"]
+        return grid
+
+    def test_high_spin_d5_is_uniformly_suppressed(self) -> None:
+        """d5's every level is forbidden, so its whole column scales by 0.05.
+
+        The oracle here is group theory, not a fixture: d5 holds exactly one
+        sextet (6S -> 6A1g), so no excited level shares the ground
+        multiplicity and there is nothing for the weighting to leave alone.
+        Every cell in the column must therefore come back at exactly the
+        forbidden intensity times its unweighted value -- an exact ratio, not
+        an approximate one, because no allowed level dilutes it.
+
+        Observed failure before the feature::
+
+            TypeError: ts_oxidation_landscape_app() got an unexpected keyword
+            argument 'weight_by_selection_rule'
+        """
+        from tanabesugano.mcp._compute import SPIN_FORBIDDEN_INTENSITY
+
+        plain = self._cells()
+        weighted = self._cells(weight_by_selection_rule=True)
+
+        compared = 0
+        for energy, value in plain[5].items():
+            if value <= 0.0:
+                continue
+            assert weighted[5][energy] == pytest.approx(
+                value * SPIN_FORBIDDEN_INTENSITY, rel=1e-3
+            ), f"d5 at {energy} cm^-1: every transition is spin-forbidden"
+            compared += 1
+        assert compared > 10, f"only {compared} non-empty d5 cells compared; oracle too weak"
+
+    def test_configurations_with_allowed_bands_are_not_uniformly_scaled(self) -> None:
+        """d3 keeps three allowed transitions, so its column cannot scale flat.
+
+        The counterpart to the test above: if weighting were applied as one
+        blanket factor rather than per level, d3 would scale by 0.05 too and
+        the first test would still pass. This is what tells the two apart.
+
+        Observed failure before the feature::
+
+            TypeError: ts_oxidation_landscape_app() got an unexpected keyword
+            argument 'weight_by_selection_rule'
+        """
+        from tanabesugano.mcp._compute import SPIN_FORBIDDEN_INTENSITY
+
+        plain = self._cells()
+        weighted = self._cells(weight_by_selection_rule=True)
+
+        ratios = [weighted[3][energy] / value for energy, value in plain[3].items() if value > 1e-6]
+        assert ratios, "no non-empty d3 cells to compare"
+        assert max(ratios) > SPIN_FORBIDDEN_INTENSITY * 1.5, (
+            "every d3 cell was scaled by the forbidden intensity, but d3 has "
+            "three spin-allowed quartet transitions that must keep full weight"
+        )
+
+    def test_weighting_is_off_by_default(self) -> None:
+        """An existing call must return exactly what it returned before.
+
+        Passes today and must keep passing: the feature is opt-in, and this is
+        the assertion that stops it quietly becoming opt-out.
+        """
+        assert self._cells() == self._cells(weight_by_selection_rule=False)
+
+    def test_payload_declares_whether_it_was_weighted(self) -> None:
+        """A chart that may or may not be a spectrum has to say which it is.
+
+        Observed failure before the feature::
+
+            KeyError: 'weighted'
+        """
+        plain = call_tool("ts_oxidation_landscape_app", style="density")
+        weighted = call_tool(
+            "ts_oxidation_landscape_app", style="density", weight_by_selection_rule=True
+        )
+        assert json.loads(plain.content[0].text)["weighted"] is False
+        assert json.loads(weighted.content[0].text)["weighted"] is True
+
+    def test_scatter_marks_forbidden_levels_when_weighted(self) -> None:
+        """Scatter needs the channel too, or only the heatmap answers W10.
+
+        Multiplicity colour alone cannot say whether a transition is allowed:
+        allowedness is relative to each d-count's own ground term, so a single
+        multiplicity series is allowed at one d-count and forbidden at the
+        next. The radius carries it per point.
+
+        Observed failure before the feature::
+
+            KeyError: 'pointRadius'
+        """
+        result = call_tool(
+            "ts_oxidation_landscape_app", style="scatter", weight_by_selection_rule=True
+        )
+        assert not result.is_error, result.content[0].text
+        series = json.loads(result.content[0].text)["series"]
+        radii = {r for s in series for r in s["pointRadius"]}
+        assert len(radii) == 2, f"expected an allowed and a forbidden radius, got {radii}"
+        for s in series:
+            assert len(s["pointRadius"]) == len(s["data"]), (
+                f"series {s['label']!r} has {len(s['pointRadius'])} radii for "
+                f"{len(s['data'])} points"
+            )

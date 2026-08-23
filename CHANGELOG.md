@@ -3,6 +3,19 @@
 ## [Unreleased]
 ### Added
 
+- `ts_oxidation_landscape_app` takes `weight_by_selection_rule`. Off by default,
+  where every eigenvalue counts the same and the chart is an honest density of
+  *states*. On, each level is weighted by whether a transition to it from that
+  d-count's own ground term is spin allowed — full weight if so, 5% if not —
+  turning the chart into an approximate simulated *absorption* density. The
+  difference is not cosmetic: high-spin d5 holds exactly one sextet, so every
+  one of its d-d transitions is forbidden and its column drops by exactly that
+  factor. Unweighted, Mn(II) draws among the densest columns on the chart; it is
+  the palest ion there. Scatter mode carries the weight as point radius, because
+  multiplicity colour cannot express it — allowedness is relative to each
+  d-count's own ground term, so one multiplicity is allowed at one d-count and
+  forbidden at the next. Both modes' docstrings, and the density payload, now
+  say which of the two things the chart is
 - `ts_plot_png` and `ts_diagram_app` take `x_min` / `x_max` / `y_min` / `y_max`,
   in the units of the axis as drawn. Comparing two ions on a normalised diagram
   previously meant back-solving a `dq_max` per ion until `10*dq_max/B` matched,

@@ -217,6 +217,20 @@ def transition_candidates(
     return ground_key, sorted(candidates)
 
 
+SPIN_ALLOWED_INTENSITY = 1.0
+SPIN_FORBIDDEN_INTENSITY = 0.05
+"""Relative oscillator strength of a spin-forbidden vs a spin-allowed d-d band.
+
+A crude single number for a real selection rule, but the right order of
+magnitude and the one this package already drew with: spin-forbidden bands run
+one to two orders of magnitude weaker, which is why high-spin d5 -- whose every
+d-d transition is forbidden, there being exactly one sextet in the whole
+configuration -- gives Mn(II) its famously pale pink.
+
+Named here rather than inline so the spectrum and landscape surfaces cannot
+drift apart on what "weak" means.
+"""
+
 C_PROBE_FRACTION = 0.05
 """How far Racah C is nudged either way when testing whether it matters."""
 

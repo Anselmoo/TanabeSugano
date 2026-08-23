@@ -33,6 +33,12 @@ from tanabesugano.plot_style import color_for_multiplicity
 log = logging.getLogger(__name__)
 
 DIAGRAM_URI = "ui://tanabesugano/diagram.html"
+
+# Scatter point sizes used to carry spin-allowedness when the landscape is
+# weighted. Sizes, not colours: `plot_style` owns colour, and allowedness is
+# not a property a multiplicity palette can express.
+_ALLOWED_POINT_RADIUS = 5.0
+_FORBIDDEN_POINT_RADIUS = 1.5
 SPECTRUM_URI = "ui://tanabesugano/spectrum.html"
 
 # ── Optional Prefab / FastMCP apps API ───────────────────────────────────
@@ -1966,6 +1972,7 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
         style: str = "scatter",
         broadening_cm: float = 800.0,
         n_energy_points: int = 200,
+        weight_by_selection_rule: bool = False,
     ) -> ToolResult:
         """Plot every eigenvalue of d² – d⁸ at the same (Dq, B, C) on one chart.
 
@@ -2007,13 +2014,31 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
                 Ignored when style="scatter".
             n_energy_points: Vertical resolution of the density grid
                 (default 200 cells per d-count). Ignored when style="scatter".
+            weight_by_selection_rule: Off by default, in which case every
+                eigenvalue counts the same and the chart is a density of
+                *states*. Turn it on to weight each level by whether a
+                transition to it from that d-count's own ground term is spin
+                allowed — full weight if it is, 5% if it is not — which turns
+                the chart into an approximate simulated *absorption* density.
+                The difference is not cosmetic: high-spin d5 holds exactly one
+                sextet, so every one of its d-d transitions is forbidden and
+                its whole column drops by the same factor. Unweighted, Mn(II)
+                draws among the densest columns here; it is the palest ion on
+                the chart. In scatter mode the weight is carried by point
+                radius, because multiplicity colour cannot express it —
+                allowedness is relative to each d-count's own ground term, so
+                one multiplicity is allowed at one d-count and forbidden at
+                the next.
 
         """
         import json as _json
         import math
 
+        from tanabesugano.mcp._compute import SPIN_ALLOWED_INTENSITY
+        from tanabesugano.mcp._compute import SPIN_FORBIDDEN_INTENSITY
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
         from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._compute import ground_term
 
         if style not in ("scatter", "density"):
             return ToolResult(
@@ -2034,19 +2059,37 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
                 is_error=True,
             )
 
-        # Per-d-count list of (raw) eigenvalues above the ground manifold,
-        # within the visible energy window. Used by both modes.
-        per_d_energies: dict[int, list[float]] = {}
+        # Per-d-count (energy, weight) above the ground manifold and within the
+        # visible window. Weight is 1.0 unless the caller asked for the spin
+        # selection rule, in which case a transition from this d-count's own
+        # ground term carries SPIN_ALLOWED_INTENSITY or SPIN_FORBIDDEN_INTENSITY.
+        #
+        # The ground term is taken at the Dq actually being plotted, via
+        # `ground_term`, not at a reference field: allowedness is a property of
+        # this chart's own point. Only its multiplicity is read, which is what
+        # makes that safe at Dq = 0 -- every octahedral component of a free-ion
+        # term is degenerate there and the tie-break picks an arbitrary one, but
+        # they all share a multiplicity, so the answer is the same either way.
+        per_d_levels: dict[int, list[tuple[float, float]]] = {}
         for d in SUPPORTED_D_COUNTS:
             terms = compute_point(d, Dq, B, C)
-            es: list[float] = []
-            for eigs in terms.values():
+            ground_mult = _multiplicity_of(ground_term(terms)[0])
+            levels: list[tuple[float, float]] = []
+            for term_key, eigs in terms.items():
+                if weight_by_selection_rule:
+                    weight = (
+                        SPIN_ALLOWED_INTENSITY
+                        if _multiplicity_of(term_key) == ground_mult
+                        else SPIN_FORBIDDEN_INTENSITY
+                    )
+                else:
+                    weight = 1.0
                 for e in eigs:
                     e_f = float(e)
                     if e_f <= 1.0 or e_f > max_energy_cm:
                         continue
-                    es.append(e_f)
-            per_d_energies[d] = es
+                    levels.append((e_f, weight))
+            per_d_levels[d] = levels
 
         title = f"d²–d⁸ energy landscape at Dq={Dq:g}, B={B:g}, C={C:g} cm⁻¹" + (
             f"  [density σ={broadening_cm:g}]" if style == "density" else ""
@@ -2062,16 +2105,23 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
             energies_grid = [max_energy_cm * i / (n_y - 1) for i in range(n_y)]
             cells: list[dict[str, float]] = []
             for d in SUPPORTED_D_COUNTS:
-                eigs = per_d_energies[d]
+                levels = per_d_levels[d]
                 for e_grid in energies_grid:
-                    if eigs:
+                    if levels:
                         density = sum(
-                            math.exp(-((e_grid - e_i) ** 2) / two_sigma_sq) for e_i in eigs
+                            w_i * math.exp(-((e_grid - e_i) ** 2) / two_sigma_sq)
+                            for e_i, w_i in levels
                         )
                     else:
                         density = 0.0
                     cells.append(
-                        {"x": float(d), "y": round(e_grid, 1), "v": round(density, 4)},
+                        # Significant figures, not decimal places: a weighted
+                        # density is 20x smaller than an unweighted one, and a
+                        # fixed 4 dp rounded the whole spin-forbidden end of
+                        # the scale to a flat zero. The consumer normalises by
+                        # the observed min/max, so what has to survive is
+                        # relative precision, not absolute.
+                        {"x": float(d), "y": round(e_grid, 1), "v": float(f"{density:.6g}")},
                     )
             payload: dict[str, object] = {
                 "title": title,
@@ -2083,36 +2133,52 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
                 # from whichever cells happen to carry density.
                 "y_min": 0.0,
                 "y_max": float(max_energy_cm),
+                # Whether this is an absorption density or a density of states.
+                # A chart that can be either has to say which it is.
+                "weighted": bool(weight_by_selection_rule),
                 "cells": cells,
             }
         else:
             # Scatter: one Chart.js series per spin multiplicity, each
             # series tagged style="scatter" so the renderer disables line
             # interpolation between independent d-counts.
-            buckets: dict[int, list[dict[str, float]]] = {}
+            # (point, radius) pairs, kept together so the sort below cannot
+            # separate a point from its own radius.
+            buckets: dict[int, list[tuple[dict[str, float], float]]] = {}
             for d in SUPPORTED_D_COUNTS:
                 terms = compute_point(d, Dq, B, C)
+                ground_mult = _multiplicity_of(ground_term(terms)[0])
                 for term_name, eigs in terms.items():
                     mult = _multiplicity_of(term_name)
                     if mult <= 0:
                         continue
+                    allowed = mult == ground_mult
                     for e in eigs:
                         e_f = float(e)
                         if e_f <= 1.0 or e_f > max_energy_cm:
                             continue
+                        # Radius, not colour: colour already carries
+                        # multiplicity, and allowedness cannot be folded into
+                        # it because it is relative to each d-count's own
+                        # ground term -- one multiplicity series is allowed at
+                        # one d-count and forbidden at the next.
+                        radius = _ALLOWED_POINT_RADIUS if allowed else _FORBIDDEN_POINT_RADIUS
                         buckets.setdefault(mult, []).append(
-                            {"x": float(d), "y": round(e_f, 1)},
+                            ({"x": float(d), "y": round(e_f, 1)}, radius),
                         )
 
-            series = [
-                {
+            series = []
+            for mult, pairs in sorted(buckets.items()):
+                ordered = sorted(pairs, key=lambda pair: (pair[0]["x"], pair[0]["y"]))
+                entry: dict[str, object] = {
                     "label": f"{mult}·(2S+1)",
                     "color": color_for_multiplicity(mult),
                     "style": "scatter",
-                    "data": sorted(pts, key=lambda p: (p["x"], p["y"])),
+                    "data": [point for point, _radius in ordered],
                 }
-                for mult, pts in sorted(buckets.items())
-            ]
+                if weight_by_selection_rule:
+                    entry["pointRadius"] = [radius for _point, radius in ordered]
+                series.append(entry)
             payload = {
                 "title": title,
                 "x_label": "d-electron count",
@@ -2503,7 +2569,9 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
           borderColor: s.color || '#888',
           backgroundColor: isScatter ? (s.color || '#888') : 'transparent',
           borderWidth: 1.5,
-          pointRadius: isScatter ? 4 : 0,
+          // A weighted landscape sends one radius per point to carry spin
+          // allowedness; everything else sends none and gets the flat default.
+          pointRadius: isScatter ? (s.pointRadius ?? 4) : 0,
           showLine: !isScatter,
           borderDash: s.borderDash || [],
           tension: 0.3,
