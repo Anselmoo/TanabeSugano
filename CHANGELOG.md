@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-23
+
+General availability release. No functional changes since
+`2.0.0-beta.2` — see the `alpha.1` through `beta.2` entries below for
+everything that shipped on the way to 2.0.
+
 ## [2.0.0-beta.2] - 2026-08-23
 ### Fixed
 
