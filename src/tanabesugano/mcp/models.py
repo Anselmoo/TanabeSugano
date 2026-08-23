@@ -63,6 +63,25 @@ class FitResult(BaseModel):
     fitted_Dq: float = Field(description="Optimized ligand field parameter (cm^-1).")
     fitted_B: float = Field(description="Optimized Racah B parameter (cm^-1).")
     fitted_C: float = Field(description="Racah C parameter used (typically fixed or default).")
+    c_is_default: bool = Field(
+        default=True,
+        description=(
+            "True when fitted_C came from the per-configuration defaults rather "
+            "than from the caller. Bookkeeping only -- see c_constrained for "
+            "whether the value means anything."
+        ),
+    )
+    c_constrained: bool = Field(
+        default=False,
+        description=(
+            "True when the observed bands could actually pin Racah C -- i.e. the "
+            "fitted manifold's band energies move when C moves. False means "
+            "fitted_C is an assumption carried through the fit, not a result of "
+            "it, and must not be reported as a fitted quantity. Typically False "
+            "for spin-allowed fits of d2/d3/d8, and for d4-d7 below the spin "
+            "crossover; True for spin-forbidden fits and above the crossover."
+        ),
+    )
     r_squared: float | None = Field(
         default=None,
         description=(

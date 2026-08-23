@@ -46,6 +46,10 @@ def register(mcp: FastMCP) -> None:
         normalize: bool = True,
         dpi: int = 144,
         format: str = "png",  # noqa: A002 - the user-facing name for this concept
+        x_min: float | None = None,
+        x_max: float | None = None,
+        y_min: float | None = None,
+        y_max: float | None = None,
     ) -> ToolResult:
         """Render a publication-style matplotlib figure of a Tanabe-Sugano diagram.
 
@@ -54,6 +58,13 @@ def register(mcp: FastMCP) -> None:
         render an in-chat Prefab LineChart with per-term legend toggling.
 
         Args:
+            x_min, x_max, y_min, y_max: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
+                identical axes: their normalised extents differ with B, so
+                matching them by tuning ``dq_max`` per ion is arithmetic that
+                cannot work for the y-axis at all. Cropping does not re-sweep --
+                the curves run through the window rather than stopping at it.
             format: ``"png"`` (default) returns an inline image block, which is
                 what chat surfaces render. ``"pdf"`` and ``"svg"`` return true
                 vector output as an embedded resource the client can save --
@@ -103,6 +114,10 @@ def register(mcp: FastMCP) -> None:
                 normalize=normalize,
                 dpi=dpi,
                 fmt=format,
+                x_min=x_min,
+                x_max=x_max,
+                y_min=y_min,
+                y_max=y_max,
             )
         except (ValueError, RuntimeError) as exc:
             return ToolResult(content=[types.TextContent(type="text", text=str(exc))])

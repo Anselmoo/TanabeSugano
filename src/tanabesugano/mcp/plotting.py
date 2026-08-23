@@ -125,6 +125,10 @@ def build_diagram(
     normalize: bool = True,
     energy_unit: str = "cm1",
     dpi: int = 144,
+    x_min: float | None = None,
+    x_max: float | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
 ) -> Figure:
     """Build a Tanabe-Sugano (or DD-energy) diagram as a matplotlib Figure.
 
@@ -157,6 +161,17 @@ def build_diagram(
         energy_unit: "cm1", "eV", or "nm". Only affects the y-axis when
             normalize=False.  "nm" inverts the energy axis.
         dpi: Output resolution.
+        x_min, x_max, y_min, y_max: Crop the drawn axes, in the units of the
+            axis as drawn -- 10Dq/B and E/B when ``normalize=True``, otherwise
+            10Dq in cm^-1 and ``energy_unit``. Each is independent; omitting
+            one leaves that bound on matplotlib's own choice.
+
+            These crop, they do not re-sweep. Two ions with different B cover
+            different spans of a normalised axis for the same Dq range, so
+            putting them side by side used to mean back-solving a ``dq_max``
+            per ion until ``10*dq_max/B`` matched -- which cannot work at all
+            for the y-axis, whose extent is not a function of the sweep bounds.
+            Set the window instead and leave the sweep alone.
 
     """
     apply_scientific_rcparams()
@@ -262,6 +277,13 @@ def build_diagram(
         secax.set_xlabel(r"$10\,Dq$ (cm$^{-1}$)", fontsize=9)
         secax.tick_params(direction="in", labelsize=8)
 
+    # Last, so no later artist can autoscale over the requested window. The
+    # secondary axis above is a transform of this one and follows it.
+    if x_min is not None or x_max is not None:
+        ax.set_xlim(left=x_min, right=x_max)
+    if y_min is not None or y_max is not None:
+        ax.set_ylim(bottom=y_min, top=y_max)
+
     return fig
 
 
@@ -277,6 +299,10 @@ def render_diagram(
     energy_unit: str = "cm1",
     dpi: int = 144,
     fmt: str = "png",
+    x_min: float | None = None,
+    x_max: float | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
 ) -> bytes:
     """Render a diagram and return encoded bytes.
 
@@ -300,6 +326,10 @@ def render_diagram(
         normalize=normalize,
         energy_unit=energy_unit,
         dpi=dpi,
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
     )
     buf = io.BytesIO()
     fig.savefig(buf, format=fmt)

@@ -19,12 +19,12 @@ None of these are produced by, or knowable from, the code under test.
 
 from __future__ import annotations
 
-import asyncio
 import base64
 
 import pytest
 
 from tanabesugano.mcp.server import create_server
+from tanabesugano.test._loop import run_loop_free
 
 
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"  # RFC 2083 section 3.1
@@ -36,7 +36,7 @@ def call_plot(**kwargs):
         tool = await server.get_tool("ts_plot_png")
         return tool.fn(**kwargs)
 
-    return asyncio.run(go())
+    return run_loop_free(go)
 
 
 def payload_bytes(result) -> bytes:

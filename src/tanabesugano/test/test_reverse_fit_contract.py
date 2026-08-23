@@ -14,12 +14,12 @@ safely; without them a return-type change is unverifiable.
 
 from __future__ import annotations
 
-import asyncio
 import json
 
 import pytest
 
 from tanabesugano.mcp.server import create_server
+from tanabesugano.test._loop import run_loop_free
 
 
 BANDS = [8500.0, 13800.0, 25300.0]  # [Ni(H2O)6]2+
@@ -31,7 +31,7 @@ def call_reverse_fit(**kwargs):
         tool = await server.get_tool("ts_reverse_fit_app")
         return tool.fn(**kwargs)
 
-    return asyncio.run(go())
+    return run_loop_free(go)
 
 
 def rendered_payload(app) -> str:

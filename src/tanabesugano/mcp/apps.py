@@ -32,8 +32,13 @@ from tanabesugano.plot_style import color_for_multiplicity
 
 log = logging.getLogger(__name__)
 
-HEATMAP_URI = "ui://tanabesugano/heatmap.html"
 DIAGRAM_URI = "ui://tanabesugano/diagram.html"
+
+# Scatter point sizes used to carry spin-allowedness when the landscape is
+# weighted. Sizes, not colours: `plot_style` owns colour, and allowedness is
+# not a property a multiplicity palette can express.
+_ALLOWED_POINT_RADIUS = 5.0
+_FORBIDDEN_POINT_RADIUS = 1.5
 SPECTRUM_URI = "ui://tanabesugano/spectrum.html"
 
 # ── Optional Prefab / FastMCP apps API ───────────────────────────────────
@@ -129,14 +134,23 @@ def _sweep_payload(
     *,
     normalize: bool,
     energy_unit: str = "cm1",
-) -> tuple[list[dict], list[ChartSeries], str, str, str, str, float]:
+) -> tuple[list[dict], list[ChartSeries], str, str, str, str]:
     """Compute one sweep and return Prefab-shaped data: rows + ChartSeries list.
 
     Returns:
-        (rows, series, title, x_axis_key, x_label, y_label, ground_y) where
-        `rows` is a list of dicts keyed by x-axis value and one column per
-        unique term (level-0 only, so Prefab LineChart doesn't collapse).
-        `ground_y` is in the requested energy unit.
+        (rows, series, title, x_axis_key, x_label, y_label) where `rows` is a
+        list of dicts keyed by x-axis value and one column per unique term
+        (level-0 only, so Prefab LineChart doesn't collapse).
+
+    There is deliberately no ground-state y value here. It used to be derived
+    by taking ``min(points[0], ...)`` -- the Dq = 0 sample, where every
+    octahedral component of the free-ion ground term is exactly degenerate, so
+    the tie-break named an arbitrary one (``5_E`` for d6, whose weak-field
+    ground term is ``5_T_2``; also wrong for d2 and d7). Every one of the seven
+    call sites discarded it, which is why a wrong value survived the pass that
+    corrected three sibling call sites. Anything that needs a ground term must
+    call :func:`_compute.reference_ground_term`, which probes a field strong
+    enough to have lifted the degeneracy.
 
     """
     from tanabesugano.mcp._compute import sweep_dq
@@ -145,14 +159,9 @@ def _sweep_payload(
 
     dq_values, points = sweep_dq(d_count, dq_min, dq_max, steps, b_val, c_val)
     if not points:
-        return [], [], "", "x", "x", "y", 0.0
+        return [], [], "", "x", "x", "y"
     if normalize and b_val <= 0:
         raise ValueError(f"normalize=True requires positive Racah B, got B={b_val!r}")
-
-    ground_term = min(
-        points[0],
-        key=lambda t: min(points[0][t]) if points[0][t] else float("inf"),
-    )
 
     x_key = "x"
     rows: list[dict] = []
@@ -196,8 +205,7 @@ def _sweep_payload(
     title = f"Tanabe-Sugano d{d_count} (B={b_val:g}, C={c_val:g} cm⁻¹)"
     x_label = "10Dq/B" if normalize else "10Dq (cm⁻¹)"
     y_label = "E/B" if normalize else _Y_LABEL.get(energy_unit, "E (cm⁻¹)")
-    ground_y = min((row.get(f"{ground_term}_0", float("inf")) for row in rows), default=0.0)
-    return rows, series, title, x_key, x_label, y_label, ground_y
+    return rows, series, title, x_key, x_label, y_label
 
 
 def _chartjs_series_payload(
@@ -208,6 +216,7 @@ def _chartjs_series_payload(
     title: str,
     x_label: str,
     y_label: str,
+    bounds: dict[str, float] | None = None,
 ) -> str:
     """Build the JSON payload for the Chart.js diagram / overlay HTML views.
 
@@ -216,10 +225,14 @@ def _chartjs_series_payload(
         series: list of ChartSeries with data_key, label, color.
         x_key: the dict key for x values.
         title, x_label, y_label: display strings.
+        bounds: optional axis crop, any subset of ``x_min``/``x_max``/
+            ``y_min``/``y_max``. Only the keys actually supplied are emitted,
+            so a renderer keeps autoscaling on every axis nobody pinned.
 
     Returns:
-        JSON string with ``{title, x_label, y_label, series}`` where each
-        series entry is ``{label, color, data: [{x, y}]}``.
+        JSON string with ``{title, x_label, y_label, series}`` plus whichever
+        bounds were given, where each series entry is
+        ``{label, color, data: [{x, y}]}``.
 
     """
     import json as _json
@@ -230,9 +243,14 @@ def _chartjs_series_payload(
         chart_series.append(
             {"label": s.label or s.data_key, "color": s.color or "#888", "data": data},
         )
-    return _json.dumps(
-        {"title": title, "x_label": x_label, "y_label": y_label, "series": chart_series},
-    )
+    payload: dict[str, object] = {
+        "title": title,
+        "x_label": x_label,
+        "y_label": y_label,
+        "series": chart_series,
+    }
+    payload.update(bounds or {})
+    return _json.dumps(payload)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -291,7 +309,7 @@ def _register_plot_view(mcp: FastMCP) -> None:
                 ],
             )
         b_val, c_val = resolve_bc(d_count, B, C)
-        rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
+        rows, series, title, x_key, x_label, y_label = _sweep_payload(
             d_count,
             dq_min,
             dq_max,
@@ -369,6 +387,10 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         C: float | None = None,
         normalize: bool = True,
         energy_unit: str = "cm1",
+        x_min: float | None = None,
+        x_max: float | None = None,
+        y_min: float | None = None,
+        y_max: float | None = None,
     ) -> ToolResult:
         """Render a Tanabe-Sugano diagram as a Chart.js line plot.
 
@@ -385,13 +407,21 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             B, C: Racah parameters in cm⁻¹; defaults per d_count.
             normalize: Plot E/B on y, 10Dq/B on x (standard Tanabe-Sugano).
             energy_unit: Used only when ``normalize=False`` (cm1 / eV / nm).
+            x_min, x_max, y_min, y_max: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm⁻¹ and ``energy_unit``. Use these to put
+                two ions on identical axes: their normalised extents differ
+                with B, so matching them by tuning ``dq_max`` per ion is
+                arithmetic that cannot work for the y-axis at all. Cropping
+                does not re-sweep -- the curves run through the window rather
+                than stopping at it. Any axis left unset keeps autoscaling.
 
         """
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
 
         b_val, c_val = resolve_bc(d_count, B, C)
-        rows, series, _title, x_key, x_label, y_label, _ground_y = _sweep_payload(
+        rows, series, _title, x_key, x_label, y_label = _sweep_payload(
             d_count,
             dq_min,
             dq_max,
@@ -413,8 +443,65 @@ def _register_diagram_app(mcp: FastMCP) -> None:
             title=title_with_context,
             x_label=x_label,
             y_label=y_label,
+            bounds={
+                key: value
+                for key, value in (
+                    ("x_min", x_min),
+                    ("x_max", x_max),
+                    ("y_min", y_min),
+                    ("y_max", y_max),
+                )
+                if value is not None
+            },
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
+
+
+def _first_excited_curve(
+    d_count: int,
+    B: float,
+    C: float,
+    *,
+    dq_min: float | None = None,
+    dq_max: float = 1500.0,
+    steps: int = 30,
+    ground_eps: float = 1.0,
+) -> list[float]:
+    """Lowest eigenvalue above the ground manifold at each Dq of a sweep.
+
+    Extracted from ``ts_dashboard_app`` so the curve can be asserted on
+    directly; the tool body renders whatever this returns.
+
+    ``ground_eps`` is the threshold above which an eigenvalue counts as a real
+    excited state -- the solvers zero the ground manifold, so anything at or
+    below it is the ground state itself rather than a band.
+
+    ``dq_min`` defaults to one grid step, **not** to zero, and that is the
+    whole point of the parameter. At Dq = 0 the ligand field vanishes and every
+    octahedral component of the free-ion ground term is exactly degenerate, so
+    the entire ground manifold sits inside ``ground_eps``; the search for "the
+    first level above it" then falls through to the next free-ion term
+    altogether and reports a gap tens of thousands of cm-1 above the curve it
+    belongs to. Measured at the defaults, that put the first point 26x-48x
+    above the second for every configuration except d5 -- whose 6S ground term
+    is an orbital singlet, has nothing to split, and never spiked.
+
+    Deriving the offset as ``dq_max / steps`` rather than hardcoding it keeps
+    the grid uniform for any sweep: with the defaults the points fall on
+    50, 100, ... 1500, the same lattice the old sweep used with the singular
+    point at its origin simply omitted. Dropping that sample afterwards would
+    have silenced the symptom too, but it would hand the caller one point fewer
+    than they asked for.
+    """
+    from tanabesugano.mcp._compute import sweep_dq
+
+    start = dq_max / steps if dq_min is None else dq_min
+    _dq_values, points = sweep_dq(d_count, start, dq_max, steps, B, C)
+    curve: list[float] = []
+    for point in points:
+        all_e = sorted(float(e) for term in point.values() for e in term)
+        curve.append(round(next((e for e in all_e if e > ground_eps), 0.0), 1))
+    return curve
 
 
 def _register_dashboard(mcp: FastMCP) -> None:
@@ -434,13 +521,14 @@ def _register_dashboard(mcp: FastMCP) -> None:
 
         For each d-count card: ground term symbol, matrix size, default Racah
         parameters, representative free ions, a one-line chemical note, and a
-        Sparkline of the **first excited state energy** across a 0–1500 cm⁻¹
+        Sparkline of the **first excited state energy** across a 50–1500 cm⁻¹
         Dq sweep — the band that an absorption spectrum would actually show.
+        The sweep starts one grid step above zero, not at zero: see
+        :func:`_first_excited_curve` for why Dq = 0 cannot be sampled.
         Useful as a 'home page' before drilling into one configuration with
         `ts_diagram_app`.
         """
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
-        from tanabesugano.mcp._compute import sweep_dq
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp._defaults import GROUND_STATE_NOTES
         from tanabesugano.mcp._defaults import ION_BY_D_COUNT
@@ -460,16 +548,11 @@ def _register_dashboard(mcp: FastMCP) -> None:
             cfg = DEFAULTS[d]
             b = cfg["default_B"]
             c = cfg["default_C"]
-            _, points = sweep_dq(d, 0.0, 1500.0, 30, b, c)
             # First excited state energy at each Dq step: the lowest eigenvalue
             # above the ground manifold across all term symbols. This gives a
             # curve that meaningfully tracks the lowest d-d absorption band as
             # crystal-field strength grows.
-            spark: list[float] = []
-            for p in points:
-                all_e = sorted(float(e) for term in p.values() for e in term)
-                first_excited = next((e for e in all_e if e > ground_eps), 0.0)
-                spark.append(round(first_excited, 1))
+            spark = _first_excited_curve(d, b, c, ground_eps=ground_eps)
 
             # At a fixed reference Dq, name the lowest excited term so the
             # card reports a concrete assignable transition, not just an
@@ -500,7 +583,7 @@ def _register_dashboard(mcp: FastMCP) -> None:
                 content=(
                     "Per configuration: ground term, matrix size, default Racah "
                     "B/C, representative free ions, and a sparkline of the first "
-                    "excited state energy from Dq = 0 to 1500 cm⁻¹ — the lowest "
+                    "excited state energy from Dq = 50 to 1500 cm⁻¹ — the lowest "
                     "d-d band an absorption spectrum will show. Use "
                     "`ts_diagram_app` with d_count = N for the full diagram."
                 ),
@@ -606,7 +689,7 @@ def _register_compare(mcp: FastMCP) -> None:
         x_label = y_label = ""
         for d in valid:
             b_val, c_val = resolve_bc(d, None, None)
-            rows, series, _title, x_key, x_label, y_label, _ = _sweep_payload(
+            rows, series, _title, x_key, x_label, y_label = _sweep_payload(
                 d,
                 dq_min,
                 dq_max,
@@ -647,10 +730,15 @@ def _register_compare(mcp: FastMCP) -> None:
 #   * ts_orgel_diagram_app    — Orgel diagram (E vs Δ, unnormalised)
 #   * ts_spin_crossover_app   — HS↔LS critical-Dq map for d⁴–d⁷
 #   * ts_correlation_diagram_app — free-ion → weak field → strong field
-# The HEATMAP_URI / _HEATMAP_HTML resource is left in the module as
-# dead-but-harmless code so external clients that may still reference the
-# URI receive a clean "not found" rather than an import error; it is no
-# longer registered with the FastMCP server.
+# HEATMAP_URI / _HEATMAP_HTML went with it. They were kept on the theory that
+# an external client still referencing the URI would get "a clean not found
+# rather than an import error", but that does not survive testing: an
+# unregistered URI and one that never existed both raise
+# `NotFoundError: Unknown resource`, byte for byte. Resource lookup never
+# consults a module-level constant, and a client does not import this module,
+# so "import error" was never among the outcomes. What the dead copy did carry
+# was its own un-oriented y-axis -- the F7 bug, one re-registration away from
+# coming back.
 
 
 def _register_orgel(mcp: FastMCP) -> None:
@@ -700,7 +788,7 @@ def _register_orgel(mcp: FastMCP) -> None:
         from tanabesugano.mcp.tools._shared import resolve_bc
 
         b_val, c_val = resolve_bc(d_count, B, C)
-        rows, series, _title, x_key, _x_label, _y_label, _ = _sweep_payload(
+        rows, series, _title, x_key, _x_label, _y_label = _sweep_payload(
             d_count,
             dq_min,
             dq_max,
@@ -775,7 +863,11 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
             d_count: must be 4, 5, 6, or 7.
             B, C: Racah parameters (cm⁻¹); per-configuration defaults if
                 omitted.
-            dq_max: Upper Dq bound for the sweep (cm⁻¹). At the default
+            dq_max: Upper **Dq** bound for the sweep (cm⁻¹) -- that is
+                Δ/10, not Δ. The chart's own x-axis is Δ = 10·Dq, so a value
+                read off a published Δ must be divided by ten before it is
+                passed here; do it the other way and the sweep covers ten
+                times the intended range without complaint. At the default
                 Racah parameters the crossing sits at Dq ≈ 2106 (d⁷),
                 2135 (d⁶), 2433 (d⁵) and 2639 (d⁴) cm⁻¹, so 3500 clears
                 the highest by ~30%. The previous default of 2500 put d⁴'s
@@ -1238,7 +1330,7 @@ def _register_overlay(mcp: FastMCP) -> None:
 
         for d in valid:
             b_val, c_val = resolve_bc(d, None, None)
-            rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
+            rows, series, title, x_key, x_label, y_label = _sweep_payload(
                 d,
                 dq_min,
                 dq_max,
@@ -1664,7 +1756,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         dq_hi = best_dq * 1.6
 
         try:
-            rows, series, title, x_key, x_label, y_label, _ = _sweep_payload(
+            rows, series, title, x_key, x_label, y_label = _sweep_payload(
                 d_count,
                 dq_lo,
                 dq_hi,
@@ -1880,6 +1972,7 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
         style: str = "scatter",
         broadening_cm: float = 800.0,
         n_energy_points: int = 200,
+        weight_by_selection_rule: bool = False,
     ) -> ToolResult:
         """Plot every eigenvalue of d² – d⁸ at the same (Dq, B, C) on one chart.
 
@@ -1896,6 +1989,21 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
             max_energy_cm: Clip points above this energy so the visible
                 window stays within typical UV-Vis range (default 40 000
                 cm⁻¹, just past the UV cutoff).
+
+        Both modes plot **excited states only**. Every level at or below
+        1 cm⁻¹ is dropped, which is each d-count's whole ground manifold: the
+        solvers zero the ground state by construction, so it would otherwise
+        draw as a row of points along E = 0 carrying no information. The
+        consequence worth knowing is that a reader counting levels here
+        against a term table will come up one manifold short per
+        configuration, and that this is a display choice rather than a
+        property of the calculation.
+
+        No selection rule is applied either. Every eigenvalue counts the same,
+        whether or not a transition to it from the ground state is spin
+        allowed, so neither mode is a simulated spectrum: the density is a
+        density of *states*, not of absorption. In scatter mode the
+        multiplicity colouring is bookkeeping, not intensity.
             style: "scatter" (default) draws each eigenvalue as a discrete
                 dot — independent d-counts are *not* joined by lines. Use
                 "density" to render a Gaussian-broadened 2D heatmap where
@@ -1906,13 +2014,31 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
                 Ignored when style="scatter".
             n_energy_points: Vertical resolution of the density grid
                 (default 200 cells per d-count). Ignored when style="scatter".
+            weight_by_selection_rule: Off by default, in which case every
+                eigenvalue counts the same and the chart is a density of
+                *states*. Turn it on to weight each level by whether a
+                transition to it from that d-count's own ground term is spin
+                allowed — full weight if it is, 5% if it is not — which turns
+                the chart into an approximate simulated *absorption* density.
+                The difference is not cosmetic: high-spin d5 holds exactly one
+                sextet, so every one of its d-d transitions is forbidden and
+                its whole column drops by the same factor. Unweighted, Mn(II)
+                draws among the densest columns here; it is the palest ion on
+                the chart. In scatter mode the weight is carried by point
+                radius, because multiplicity colour cannot express it —
+                allowedness is relative to each d-count's own ground term, so
+                one multiplicity is allowed at one d-count and forbidden at
+                the next.
 
         """
         import json as _json
         import math
 
+        from tanabesugano.mcp._compute import SPIN_ALLOWED_INTENSITY
+        from tanabesugano.mcp._compute import SPIN_FORBIDDEN_INTENSITY
         from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
         from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._compute import ground_term
 
         if style not in ("scatter", "density"):
             return ToolResult(
@@ -1933,19 +2059,37 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
                 is_error=True,
             )
 
-        # Per-d-count list of (raw) eigenvalues above the ground manifold,
-        # within the visible energy window. Used by both modes.
-        per_d_energies: dict[int, list[float]] = {}
+        # Per-d-count (energy, weight) above the ground manifold and within the
+        # visible window. Weight is 1.0 unless the caller asked for the spin
+        # selection rule, in which case a transition from this d-count's own
+        # ground term carries SPIN_ALLOWED_INTENSITY or SPIN_FORBIDDEN_INTENSITY.
+        #
+        # The ground term is taken at the Dq actually being plotted, via
+        # `ground_term`, not at a reference field: allowedness is a property of
+        # this chart's own point. Only its multiplicity is read, which is what
+        # makes that safe at Dq = 0 -- every octahedral component of a free-ion
+        # term is degenerate there and the tie-break picks an arbitrary one, but
+        # they all share a multiplicity, so the answer is the same either way.
+        per_d_levels: dict[int, list[tuple[float, float]]] = {}
         for d in SUPPORTED_D_COUNTS:
             terms = compute_point(d, Dq, B, C)
-            es: list[float] = []
-            for eigs in terms.values():
+            ground_mult = _multiplicity_of(ground_term(terms)[0])
+            levels: list[tuple[float, float]] = []
+            for term_key, eigs in terms.items():
+                if weight_by_selection_rule:
+                    weight = (
+                        SPIN_ALLOWED_INTENSITY
+                        if _multiplicity_of(term_key) == ground_mult
+                        else SPIN_FORBIDDEN_INTENSITY
+                    )
+                else:
+                    weight = 1.0
                 for e in eigs:
                     e_f = float(e)
                     if e_f <= 1.0 or e_f > max_energy_cm:
                         continue
-                    es.append(e_f)
-            per_d_energies[d] = es
+                    levels.append((e_f, weight))
+            per_d_levels[d] = levels
 
         title = f"d²–d⁸ energy landscape at Dq={Dq:g}, B={B:g}, C={C:g} cm⁻¹" + (
             f"  [density σ={broadening_cm:g}]" if style == "density" else ""
@@ -1954,59 +2098,87 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
         if style == "density":
             # Build a regular (d, E) grid and sum a Gaussian over every
             # eigenvalue for that d-count. The cell value is unitless
-            # density; the consumer (heatmap.html) colour-maps it.
+            # density; the chart resource colour-maps it.
             sigma = max(broadening_cm, 1.0)
             two_sigma_sq = 2.0 * sigma * sigma
             n_y = max(n_energy_points, 2)
             energies_grid = [max_energy_cm * i / (n_y - 1) for i in range(n_y)]
             cells: list[dict[str, float]] = []
             for d in SUPPORTED_D_COUNTS:
-                eigs = per_d_energies[d]
+                levels = per_d_levels[d]
                 for e_grid in energies_grid:
-                    if eigs:
+                    if levels:
                         density = sum(
-                            math.exp(-((e_grid - e_i) ** 2) / two_sigma_sq) for e_i in eigs
+                            w_i * math.exp(-((e_grid - e_i) ** 2) / two_sigma_sq)
+                            for e_i, w_i in levels
                         )
                     else:
                         density = 0.0
                     cells.append(
-                        {"x": float(d), "y": round(e_grid, 1), "v": round(density, 4)},
+                        # Significant figures, not decimal places: a weighted
+                        # density is 20x smaller than an unweighted one, and a
+                        # fixed 4 dp rounded the whole spin-forbidden end of
+                        # the scale to a flat zero. The consumer normalises by
+                        # the observed min/max, so what has to survive is
+                        # relative precision, not absolute.
+                        {"x": float(d), "y": round(e_grid, 1), "v": float(f"{density:.6g}")},
                     )
             payload: dict[str, object] = {
                 "title": title,
                 "x_label": "d-electron count",
                 "y_label": "Energy E (cm⁻¹)",
                 "chart_type": "heatmap",
+                # The extent the grid was actually built over, sent explicitly
+                # so the axis is pinned by the request rather than inferred
+                # from whichever cells happen to carry density.
+                "y_min": 0.0,
+                "y_max": float(max_energy_cm),
+                # Whether this is an absorption density or a density of states.
+                # A chart that can be either has to say which it is.
+                "weighted": bool(weight_by_selection_rule),
                 "cells": cells,
             }
         else:
             # Scatter: one Chart.js series per spin multiplicity, each
             # series tagged style="scatter" so the renderer disables line
             # interpolation between independent d-counts.
-            buckets: dict[int, list[dict[str, float]]] = {}
+            # (point, radius) pairs, kept together so the sort below cannot
+            # separate a point from its own radius.
+            buckets: dict[int, list[tuple[dict[str, float], float]]] = {}
             for d in SUPPORTED_D_COUNTS:
                 terms = compute_point(d, Dq, B, C)
+                ground_mult = _multiplicity_of(ground_term(terms)[0])
                 for term_name, eigs in terms.items():
                     mult = _multiplicity_of(term_name)
                     if mult <= 0:
                         continue
+                    allowed = mult == ground_mult
                     for e in eigs:
                         e_f = float(e)
                         if e_f <= 1.0 or e_f > max_energy_cm:
                             continue
+                        # Radius, not colour: colour already carries
+                        # multiplicity, and allowedness cannot be folded into
+                        # it because it is relative to each d-count's own
+                        # ground term -- one multiplicity series is allowed at
+                        # one d-count and forbidden at the next.
+                        radius = _ALLOWED_POINT_RADIUS if allowed else _FORBIDDEN_POINT_RADIUS
                         buckets.setdefault(mult, []).append(
-                            {"x": float(d), "y": round(e_f, 1)},
+                            ({"x": float(d), "y": round(e_f, 1)}, radius),
                         )
 
-            series = [
-                {
+            series = []
+            for mult, pairs in sorted(buckets.items()):
+                ordered = sorted(pairs, key=lambda pair: (pair[0]["x"], pair[0]["y"]))
+                entry: dict[str, object] = {
                     "label": f"{mult}·(2S+1)",
                     "color": color_for_multiplicity(mult),
                     "style": "scatter",
-                    "data": sorted(pts, key=lambda p: (p["x"], p["y"])),
+                    "data": [point for point, _radius in ordered],
                 }
-                for mult, pts in sorted(buckets.items())
-            ]
+                if weight_by_selection_rule:
+                    entry["pointRadius"] = [radius for _point, radius in ordered]
+                series.append(entry)
             payload = {
                 "title": title,
                 "x_label": "d-electron count",
@@ -2372,7 +2544,13 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
             },
             scales: {
               x: { type: 'linear', title: { display: true, text: p.x_label || '', font: { size: 12 } } },
-              y: { type: 'linear', title: { display: true, text: p.y_label || '', font: { size: 12 } } },
+              // `reverse: false` is load-bearing, not decoration: the matrix
+              // controller lays cells out row-major like a spreadsheet, so an
+              // unconstrained scale puts 0 cm-1 at the TOP and the figure then
+              // asserts that energy decreases upward. Bounds come from the
+              // payload so the extent tracks max_energy_cm, not the cells.
+              y: { type: 'linear', reverse: false, min: p.y_min, max: p.y_max,
+                   title: { display: true, text: p.y_label || '', font: { size: 12 } } },
             },
           },
         });
@@ -2391,7 +2569,9 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
           borderColor: s.color || '#888',
           backgroundColor: isScatter ? (s.color || '#888') : 'transparent',
           borderWidth: 1.5,
-          pointRadius: isScatter ? 4 : 0,
+          // A weighted landscape sends one radius per point to carry spin
+          // allowedness; everything else sends none and gets the flat default.
+          pointRadius: isScatter ? (s.pointRadius ?? 4) : 0,
           showLine: !isScatter,
           borderDash: s.borderDash || [],
           tension: 0.3,
@@ -2412,103 +2592,21 @@ _DIAGRAM_HTML = """<!DOCTYPE html>
           scales: {
             x: {
               type: 'linear',
+              min: p.x_min, max: p.x_max,
               title: { display: true, text: p.x_label || '', font: { size: 12 } },
               ticks: { maxTicksLimit: 10 },
             },
             y: {
+              // Already correct by default; stated so it cannot drift, and so
+              // both branches of this file answer the question the same way.
+              reverse: false,
+              // Undefined when the caller pinned nothing, which Chart.js reads
+              // as "autoscale" -- so this scale stays shared with every other
+              // line/scatter tool, none of which send bounds.
+              min: p.y_min, max: p.y_max,
               title: { display: true, text: p.y_label || '', font: { size: 12 } },
               ticks: { maxTicksLimit: 8 },
             },
-          },
-        },
-      });
-    };
-    await app.connect();
-  </script>
-</body>
-</html>
-"""
-
-
-# Chart.js + chartjs-chart-matrix heatmap renderer.  No Plotly anywhere.
-_HEATMAP_HTML = """<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="color-scheme" content="light dark">
-  <title>Tanabe-Sugano heatmap</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
-  <style>
-    html, body { margin: 0; padding: 0; background: transparent; }
-    #wrap { padding: 10px; }
-    canvas { max-height: 460px; }
-    .hint { font-family: -apple-system, system-ui, sans-serif; color: #888;
-            padding: 12px; font-size: 13px; }
-  </style>
-</head>
-<body>
-  <div id="wrap">
-    <canvas id="hm"></canvas>
-    <div id="hint" class="hint">Waiting for ts_parameter_heatmap_app result…</div>
-  </div>
-  <script type="module">
-    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.0/app-with-deps";
-    const app = new App({ name: "TS Heatmap", version: "1.0.0" });
-    let chart = null;
-    app.ontoolresult = ({ content }) => {
-      // The Prefab Column emits a hidden Text with the heatmap JSON payload.
-      const txt = (content || []).find(c => c.type === 'text');
-      if (!txt) return;
-      let payload;
-      try { payload = JSON.parse(txt.text); }
-      catch (e) {
-        document.getElementById('hint').textContent = 'Invalid payload: ' + e.message;
-        return;
-      }
-      document.getElementById('hint').style.display = 'none';
-      const vs = payload.cells.map(c => c.v).filter(v => Number.isFinite(v));
-      const vmin = Math.min(...vs);
-      const vmax = Math.max(...vs);
-      const colorAt = (v) => {
-        if (!Number.isFinite(v)) return 'rgba(0,0,0,0.05)';
-        const t = (v - vmin) / (vmax - vmin || 1);
-        // viridis-ish: dark purple -> teal -> yellow
-        const r = Math.round(68 + (253 - 68) * t);
-        const g = Math.round(1  + (231 - 1)  * t);
-        const b = Math.round(84 + (37  - 84) * t);
-        return `rgb(${r},${g},${b})`;
-      };
-      const ctx = document.getElementById('hm').getContext('2d');
-      if (chart) chart.destroy();
-      const xWidth = payload.x_values.length > 1
-        ? (payload.x_values[1] - payload.x_values[0]) : 1;
-      const yHeight = payload.y_values.length > 1
-        ? (payload.y_values[1] - payload.y_values[0]) : 1;
-      chart = new Chart(ctx, {
-        type: 'matrix',
-        data: {
-          datasets: [{
-            label: payload.title,
-            data: payload.cells,
-            backgroundColor: (ctx) => colorAt(ctx.raw.v),
-            width: ({chart}) =>
-              (chart.chartArea?.width || 1) / payload.x_values.length - 1,
-            height: ({chart}) =>
-              (chart.chartArea?.height || 1) / payload.y_values.length - 1,
-          }],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: (i) =>
-              `B=${i.raw.x}, C=${i.raw.y}: ${i.raw.v} cm⁻¹` } },
-            title: { display: true, text: payload.title },
-          },
-          scales: {
-            x: { type: 'linear', title: { display: true, text: payload.x_label } },
-            y: { type: 'linear', title: { display: true, text: payload.y_label } },
           },
         },
       });
