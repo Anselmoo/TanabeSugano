@@ -15,12 +15,12 @@ nothing. Plotting computed - observed puts the disagreement on its own scale.
 
 from __future__ import annotations
 
-import asyncio
 import json
 
 import pytest
 
 from tanabesugano.mcp.server import create_server
+from tanabesugano.test._loop import run_loop_free
 
 
 BANDS = [8500.0, 13800.0, 25300.0]  # [Ni(H2O)6]2+
@@ -32,7 +32,7 @@ def call_fit_plot(**kwargs):
         tool = await server.get_tool("ts_fit_plot_app")
         return tool.fn(**kwargs)
 
-    return asyncio.run(go())
+    return run_loop_free(go)
 
 
 @pytest.fixture(scope="module")

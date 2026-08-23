@@ -21,6 +21,7 @@ import pytest
 
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.script_export import fit_figure_script
+from tanabesugano.test._loop import run_loop_free
 
 
 BANDS = [8500.0, 13800.0, 25300.0]  # [Ni(H2O)6]2+
@@ -143,7 +144,6 @@ class TestTheMcpTool:
 
     @staticmethod
     def _call(**kwargs):
-        import asyncio
 
         from tanabesugano.mcp.server import create_server
 
@@ -152,7 +152,7 @@ class TestTheMcpTool:
             tool = await server.get_tool("ts_fit_script")
             return tool.fn(**kwargs)
 
-        return asyncio.run(go())
+        return run_loop_free(go)
 
     def test_it_returns_runnable_source_as_text(self) -> None:
         result = self._call(d_count=8, observed_peaks=BANDS)

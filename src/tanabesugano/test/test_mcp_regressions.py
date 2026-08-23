@@ -36,8 +36,6 @@ Deliberately NOT guarded here, to keep one claim in one place
 from __future__ import annotations
 
 import ast
-import asyncio
-import concurrent.futures
 import inspect
 import json
 import pathlib
@@ -58,6 +56,7 @@ from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
 from tanabesugano.mcp._compute import compute_point
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.mcp.server import create_server
+from tanabesugano.test._loop import run_loop_free
 
 
 if TYPE_CHECKING:
@@ -79,22 +78,14 @@ def defaults_for(d_count: int) -> tuple[float, float]:
 
 
 def call_tool(name: str, **kwargs):
-    """Invoke a registered MCP tool by name and return its raw result.
-
-    Dispatched through a worker thread for the reason ``test_screenshots.py``
-    documents: ``asyncio.run()`` raises ``RuntimeError: asyncio.run() cannot be
-    called from a running event loop`` on the main thread once anyio's pytest
-    plugin has started a loop there. A pool worker always starts loop-free, so
-    this module does not depend on which other test files ran first.
-    """
+    """Invoke a registered MCP tool by name and return its raw result."""
 
     async def go():
         server = create_server()
         tool = await server.get_tool(name)
         return tool.fn(**kwargs)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(lambda: asyncio.run(go())).result()
+    return run_loop_free(go)
 
 
 @pytest.fixture(scope="module")

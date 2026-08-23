@@ -10,9 +10,7 @@ Screenshots are saved to test-screenshots/ at the project root.
 
 from __future__ import annotations
 
-import asyncio
 import base64
-import concurrent.futures
 import contextlib
 import json
 import tempfile
@@ -27,6 +25,9 @@ pytest.importorskip("playwright", reason="install with `uv sync --group screensh
 
 pytestmark = pytest.mark.screenshot
 
+from tanabesugano.test._loop import run_loop_free  # noqa: E402
+
+
 _SCREENSHOTS_DIR = Path(__file__).parents[3] / "test-screenshots"
 
 
@@ -34,11 +35,11 @@ _SCREENSHOTS_DIR = Path(__file__).parents[3] / "test-screenshots"
 
 
 def _call(tool: str, args: dict) -> object:
-    """Call an MCP tool via a worker thread (owns a fresh event loop).
+    """Call an MCP tool without depending on the main thread's event loop.
 
-    Running asyncio.run() from the main thread fails when anyio's pytest
-    plugin has already started a loop there.  A ThreadPoolExecutor worker
-    always starts loop-free, so asyncio.run() works unconditionally.
+    This module's own fixtures are what start that loop, so it was the first
+    place to need :func:`run_loop_free` and carried the only copy of it for a
+    while. The helper is shared now; the reasoning lives with it.
     """
     from fastmcp import Client
 
@@ -49,8 +50,7 @@ def _call(tool: str, args: dict) -> object:
         async with Client(server) as client:
             return await client.call_tool(tool, args)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(lambda: asyncio.run(_go())).result()
+    return run_loop_free(_go)
 
 
 def _prefab_html(structured_content: dict) -> str:

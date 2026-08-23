@@ -5,8 +5,6 @@ Skips cleanly when the optional `[mcp]` extra (fastmcp) is not installed.
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 
@@ -17,6 +15,7 @@ pytestmark = pytest.mark.mcp
 from tanabesugano.mcp._compute import compute_point  # noqa: E402
 from tanabesugano.mcp._compute import sweep_dq  # noqa: E402
 from tanabesugano.mcp.server import create_server  # noqa: E402
+from tanabesugano.test._loop import run_loop_free  # noqa: E402
 
 
 # ─────────────────────────── core numeric tools ──────────────────────────
@@ -53,7 +52,7 @@ def test_sweep_dq_shapes() -> None:
 
 def test_create_server_registers_expected_tools() -> None:
     server = create_server()
-    tools = asyncio.run(server.list_tools())
+    tools = run_loop_free(server.list_tools)
     tool_names = {t.name for t in tools}
 
     expected = {
@@ -81,7 +80,7 @@ def test_generative_ui_tools_are_absent() -> None:
     pins that decision.
     """
     server = create_server()
-    tools = asyncio.run(server.list_tools())
+    tools = run_loop_free(server.list_tools)
     names = {t.name for t in tools}
     assert "generate_prefab_ui" not in names
     assert "search_prefab_components" not in names
@@ -89,7 +88,7 @@ def test_generative_ui_tools_are_absent() -> None:
 
 def test_interactive_resources_present() -> None:
     server = create_server()
-    resources = asyncio.run(server.list_resources())
+    resources = run_loop_free(server.list_resources)
     uris = {str(r.uri) for r in resources}
     # Chart.js diagram resource serves every Chart.js-backed app tool
     # (ts_diagram_app, ts_plot_view, ts_overlay_app, ts_compare_app,
@@ -112,7 +111,7 @@ def test_ui_resources_advertise_mcp_app_profile_mime() -> None:
         async with Client(server) as client:
             return await client.list_resources()
 
-    resources = asyncio.run(go())
+    resources = run_loop_free(go)
     ui_resources = [r for r in resources if str(r.uri).startswith("ui://tanabesugano/")]
     assert ui_resources, "no ui://tanabesugano/* resources registered"
     for r in ui_resources:
@@ -148,7 +147,7 @@ def test_ui_resources_request_clipboard_write_permission() -> None:
                 out[str(r.uri)] = list(read)
             return out
 
-    contents_by_uri = asyncio.run(read_each())
+    contents_by_uri = run_loop_free(read_each)
     assert contents_by_uri, "no ui://tanabesugano/* resources registered"
     for uri, contents in contents_by_uri.items():
         # FastMCP exposes the resource _meta on each ResourceContents entry.
@@ -239,7 +238,7 @@ def _call(tool: str, args: dict) -> object:
         async with Client(server) as client:
             return await client.call_tool(tool, args)
 
-    return asyncio.run(go())
+    return run_loop_free(go)
 
 
 def test_ts_compute_app_returns_sorted_table_and_chart() -> None:
@@ -388,7 +387,7 @@ def test_heatmap_tool_was_removed() -> None:
     with ts_orgel_diagram_app, ts_spin_crossover_app, ts_correlation_diagram_app.
     """
     server = create_server()
-    tools = asyncio.run(server.list_tools())
+    tools = run_loop_free(server.list_tools)
     names = {t.name for t in tools}
     assert "ts_parameter_heatmap_app" not in names
 
@@ -673,7 +672,7 @@ def test_explore_app_is_removed() -> None:
     not come back via an accidental re-registration.
     """
     server = create_server()
-    tools = asyncio.run(server.list_tools())
+    tools = run_loop_free(server.list_tools)
     names = {t.name for t in tools}
     assert "ts_explore_app" not in names
 
