@@ -1,21 +1,26 @@
-"""Regression guards for defects found while driving the MCP server by hand.
+"""Regression guards for the MCP layer's presentation and reporting surfaces.
 
-Scope note. A session against ``2.0.0-alpha.1`` reported eleven defects; on
-re-verification against this tree four had already been fixed and one was never
-ours. Only what still reproduces is guarded here:
+What these have in common is that none of them could fail a solver test. The
+numbers were right in every case; what was wrong was which number got picked,
+which way an axis pointed, what a docstring promised, or what a result claimed
+about itself. That is the class of defect this module exists to catch:
 
 ``TestZeroFieldIsNotASamplePoint``
-    root cause A -- the ground term is read off the Dq = 0 sample point.
+    Nothing may decide *which* term is lowest by reading the Dq = 0 sample,
+    where the whole ground manifold is exactly degenerate.
 ``TestDashboardSparkline``
-    W6 -- the dashboard's first-excited-state curve spikes at the origin.
+    The dashboard's first-excited-state curve must not spike at the origin.
 ``TestHeatmapEnergyAxis``
-    F7 -- the density heatmap's energy axis is not explicitly oriented, so
-    it renders inverted: 0 at the top, 40,000 at the bottom.
+    Every chart in the module must state which way its energy axis runs.
 ``TestDocumentedBehaviour``
-    W8 -- the landscape silently drops every d-count's ground manifold.
-    W3 -- ``dq_max`` is in Dq, while the same chart's axis is Delta = 10*Dq.
+    Behaviour a caller cannot discover from a signature has to be written
+    down: dropped ground manifolds, and Dq-vs-Delta units.
 ``TestFitReportsWhetherCWasConstrained``
-    W1 -- a fit reports C with no way to tell a fitted value from a default.
+    A fit must say whether the data could pin Racah C at all.
+``TestAxisLimitsAreSettable``
+    Two ions must be placeable on identical axes without back-solving a sweep.
+``TestSelectionRuleWeighting``
+    A density of states must not be mistakable for an absorption spectrum.
 
 Deliberately NOT guarded here, to keep one claim in one place
 (CLAUDE.md Testing rule 3):
@@ -303,7 +308,7 @@ class TestZeroFieldIsNotASamplePoint:
 
 
 class TestDashboardSparkline:
-    """W6 -- the dashboard's 'first excited state vs Dq' curve.
+    """The dashboard's "first excited state vs Dq" curve.
 
     ``ground_eps`` correctly excludes the ground manifold, but at exactly
     Dq = 0 the first *excited* component is inside that same degenerate
@@ -365,7 +370,7 @@ class TestDashboardSparkline:
 
 
 class TestHeatmapEnergyAxis:
-    """F7 -- ``ts_oxidation_landscape_app(style='density')`` renders y inverted.
+    """The density heatmap's energy axis, which once rendered inverted.
 
     ``chartjs-chart-matrix`` lays cells out row-major like a spreadsheet, so an
     unconstrained linear y-scale puts the first row at the top: 0 cm-1 at the
@@ -443,13 +448,13 @@ class TestHeatmapEnergyAxis:
     def test_every_chart_renderer_orients_its_energy_axis(self) -> None:
         """No y-scale anywhere in this module may leave its direction unstated.
 
-        The two tests above name their branch, so they only see the renderer
-        they were written against. That is how a *second* Chart.js renderer sat
-        in this module for the whole of the F7 investigation carrying the
-        identical un-oriented y-scale: ``_HEATMAP_HTML``, kept for the removed
-        ``ts_parameter_heatmap_app``. It was unreachable, so it broke nothing --
-        but it was one re-registration away from reintroducing the bug, and no
-        anchored test would have noticed.
+        The two tests above name their branch, so they only ever see the
+        renderer they were written against. That is how a *second* Chart.js
+        renderer once sat in this module carrying the identical un-oriented
+        y-scale -- ``_HEATMAP_HTML``, left behind by the removed
+        ``ts_parameter_heatmap_app``. Being unregistered it broke nothing, but
+        it was one re-registration away from restoring the bug, and no anchored
+        test would ever have found it.
 
         This one is not anchored. Every ``y:`` inside every ``scales:`` inside
         every chart-constructing ``<script>`` has to say which way energy goes.
@@ -487,7 +492,7 @@ class TestHeatmapEnergyAxis:
 
 
 class TestDocumentedBehaviour:
-    """W8 and W3 -- behaviour a caller cannot discover from the signature."""
+    """Behaviour a caller cannot discover from the signature."""
 
     def test_landscape_documents_the_ground_state_exclusion(self) -> None:
         """Both landscape modes drop every level at or below 1 cm-1.
@@ -538,7 +543,7 @@ class TestDocumentedBehaviour:
 
 
 class TestFitReportsWhetherCWasConstrained:
-    """W1 -- a fitted C that the data never constrained looks like a result.
+    """A fitted C that the data never constrained looks like a result.
 
     ``SpectrumFit`` reports C beside Dq and B with nothing to separate them, so
     two unrelated complexes come back with byte-identical C and a reader has no
@@ -627,7 +632,7 @@ class TestFitReportsWhetherCWasConstrained:
         kwargs: dict,
         constrained: bool,
     ) -> None:
-        """``c_constrained`` is the flag that answers the question W1 asked.
+        """``c_constrained`` is the flag that answers the real question.
 
         ``c_is_default`` only says where the number came from. This says
         whether it could have been pinned by the data at all, and the two
@@ -654,7 +659,7 @@ class TestFitReportsWhetherCWasConstrained:
 
 
 class TestAxisLimitsAreSettable:
-    """W4 -- two complexes cannot be put on the same axes without arithmetic.
+    """Two complexes could not be put on the same axes without arithmetic.
 
     A normalised Tanabe-Sugano diagram plots E/B against 10Dq/B, so the extent
     of both axes depends on B. Comparing two ions therefore meant back-solving
@@ -758,7 +763,7 @@ class TestAxisLimitsAreSettable:
 
 
 class TestSelectionRuleWeighting:
-    """W9 / W10 -- the landscape counts every eigenvalue the same.
+    """By default the landscape counts every eigenvalue the same.
 
     A Gaussian-broadened band of levels looks like an absorption spectrum, and
     a reader who takes it for one will be badly wrong: a spin-forbidden
@@ -858,7 +863,7 @@ class TestSelectionRuleWeighting:
         assert json.loads(weighted.content[0].text)["weighted"] is True
 
     def test_scatter_marks_forbidden_levels_when_weighted(self) -> None:
-        """Scatter needs the channel too, or only the heatmap answers W10.
+        """Scatter needs the channel too, or only the heatmap carries it.
 
         Multiplicity colour alone cannot say whether a transition is allowed:
         allowedness is relative to each d-count's own ground term, so a single
