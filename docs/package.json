@@ -15,7 +15,7 @@
   "dependencies": {
     "@vitejs/plugin-react": "^6.0.5",
     "papaparse": "^5.5.3",
-    "plotly.js-dist-min": "^3.2.0",
+    "plotly.js-dist-min": "^4.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-plotly.js": "^4.1.0",
