@@ -48,7 +48,7 @@ dependencies = [
 
 [project.optional-dependencies]
 plotly = ["plotly>=6.0,<8"]
-mcp = ["fastmcp[apps]>=3.4.2,<4.0.0"]
+mcp = ["fastmcp[apps]>=3.4.2,<5.0.0"]
 
 [project.scripts]
 tanabesugano = "tanabesugano.cmd:cmd_line"
