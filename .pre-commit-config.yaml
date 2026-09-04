@@ -19,7 +19,7 @@ repos:
         - id: trailing-whitespace
           exclude: *generated_artifacts
   -   repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.16.3
+      rev: v0.16.5
       hooks:
         # No --select override. It used to pin this hook to D100,E,F,W, a far
         # narrower gate than [tool.ruff.lint] in pyproject.toml -- so `poe lint`
@@ -34,7 +34,7 @@ repos:
   - repo: https://github.com/astral-sh/ty-pre-commit
     # Keep in lockstep with the `ty` pin in [dependency-groups].dev, so this
     # hook and `poe types` cannot disagree about what passes.
-    rev: v0.0.73
+    rev: v0.0.77
     hooks:
       # Scoped to match `poe types`. Test files carry ~200 diagnostics that are
       # deliberately out of scope -- `**dict` unpacking into Literal fields and
@@ -46,7 +46,7 @@ repos:
       # unpacks).
       - id: ty
   -   repo: https://github.com/Anselmoo/repo-release-tools
-      rev: v1.15.0
+      rev: v1.17.1
       hooks:
         - id: rrt-branch-name
         - id: rrt-commit-subject
