@@ -80,7 +80,7 @@ dev = [
     # Keep in lockstep with the rev in .pre-commit-config.yaml and the
     # Anselmoo/repo-release-tools action pin in .github/workflows/cicd.yml.
     "repo-release-tools>=1.15,<2.0.0",
-    "ruff>=0.14,<0.17",
+    "ruff>=0.14,<0.18",
     # `poe types` needs this in the project env, not via uvx: run in isolation
     # ty cannot resolve scipy/numpy stubs and silently checks less. That is how
     # a genuine eigensolver return-type mismatch went unseen.
