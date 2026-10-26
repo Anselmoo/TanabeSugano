@@ -92,8 +92,8 @@ class TestOracleGroup:
         assert Counter(cls for cls, _ in group) == {"E": 1, "C3": 8, "C2": 3, "C4": 6, "C2'": 6}
         v = orc.crystal_field_matrix()
         for _, g in group:
-            np.testing.assert_allclose(g.conj().T @ g, np.eye(5), atol=1e-12)
-            np.testing.assert_allclose(g @ v, v @ g, atol=1e-12)
+            np.testing.assert_allclose(g.conj().T @ g, np.eye(5), atol=1e-12, rtol=0)
+            np.testing.assert_allclose(g @ v, v @ g, atol=1e-12, rtol=0)
 
     def test_d_orbitals_span_e_plus_t2(self) -> None:
         """chi(D^2(g)) per class equals chi(E) + chi(T_2) = (5, -1, 1, -1, 1).
@@ -144,7 +144,7 @@ class TestOracleFreeIon:
         got = orc.relative_term_levels(2, 0.0, b, c)
         assert set(got) == set(expected)
         for key, levels in expected.items():
-            np.testing.assert_allclose(got[key], sorted(levels), atol=1e-8, err_msg=key)
+            np.testing.assert_allclose(got[key], sorted(levels), atol=1e-8, rtol=0, err_msg=key)
 
 
 class TestOracleLimits:
@@ -179,7 +179,11 @@ class TestOracleLimits:
             assert set(a) == set(h)
             for key in a:
                 np.testing.assert_allclose(
-                    a[key], h[key], atol=1e-8, err_msg=f"d{n} vs d{10 - n} {key} at {dq, b, c}"
+                    a[key],
+                    h[key],
+                    atol=1e-8,
+                    rtol=0,
+                    err_msg=f"d{n} vs d{10 - n} {key} at {dq, b, c}",
                 )
 
 
@@ -195,14 +199,16 @@ class TestOracleCompleteness:
         dq, b, c = 1234.5, 811.0, 3507.0
         ops = orc.operators(n)
         h = dq * ops.dq + b * ops.b + c * ops.c
-        np.testing.assert_allclose(h @ ops.s2, ops.s2 @ h, atol=1e-8)
+        np.testing.assert_allclose(h @ ops.s2, ops.s2 @ h, atol=1e-8, rtol=0)
 
         rebuilt: list[float] = []
         for blk in orc.blocks(n):
             for e in blk.levels(dq, b, c):
                 rebuilt += [float(e)] * (blk.multiplicity * orc.IRREP_DIM[blk.irrep])
         assert len(rebuilt) == math.comb(10, n)
-        np.testing.assert_allclose(sorted(rebuilt), orc.full_spectrum(n, dq, b, c), atol=1e-7)
+        np.testing.assert_allclose(
+            sorted(rebuilt), orc.full_spectrum(n, dq, b, c), atol=1e-7, rtol=0
+        )
 
 
 class TestOracleSecondOpinion:
@@ -241,7 +247,8 @@ def _mismatches(
 ) -> dict[str, float]:
     """``{term: max |package - oracle|}`` over ``points``, only where it exceeds TOL_CM1.
 
-    A term present on one side only, or with a different level count, is ``inf``.
+    A term present on one side only, with a different level count, or with a
+    non-finite level on either side, is ``inf``.
     """
     worst: dict[str, float] = {}
     for dq, b, c in points:
@@ -252,6 +259,8 @@ def _mismatches(
                 dev = math.inf
             else:
                 dev = float(np.max(np.abs(ref[key] - pkg[key])))
+                if not math.isfinite(dev):  # NaN compares False against TOL_CM1
+                    dev = math.inf
             if dev > TOL_CM1:
                 worst[key] = max(worst.get(key, 0.0), dev)
     return worst
