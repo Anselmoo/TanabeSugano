@@ -1,23 +1,28 @@
 [meta]
-generated_at = "2026-06-05T14:04:56+00:00"
-rrt_version = "1.8.1"
+generated_at = "2026-10-26T07:25:28+00:00"
+rrt_version = "1.18.0"
 
 [checks.pre_commit]
 status = "ok"
 message = ".pre-commit-config.yaml includes repo-release-tools hooks"
-updated_at = "2026-06-05T14:04:56+00:00"
+updated_at = "2026-10-26T07:25:28+00:00"
 
 [checks.lefthook]
-status = "warning"
-message = "lefthook.yml not configured"
-updated_at = "2026-06-05T14:04:56+00:00"
+status = "obsolete"
+message = "lefthook.yml not configured (obsolete: pre_commit already configured)"
+updated_at = "2026-10-26T07:25:28+00:00"
 
 [checks.husky]
-status = "warning"
-message = ".husky not configured"
-updated_at = "2026-06-05T14:04:56+00:00"
+status = "obsolete"
+message = ".husky not configured (obsolete: pre_commit already configured)"
+updated_at = "2026-10-26T07:25:28+00:00"
 
 [checks.workflows]
 status = "ok"
 message = ".github/workflows includes repo-release-tools policy checks (cicd.yml)"
-updated_at = "2026-06-05T14:04:56+00:00"
+updated_at = "2026-10-26T07:25:28+00:00"
+
+[checks.artifact_protection]
+status = "warning"
+message = "No cross-pipeline artifact fetches found in CI config; [tool.rrt.artifact_protection] not configured"
+updated_at = "2026-10-26T07:25:28+00:00"
