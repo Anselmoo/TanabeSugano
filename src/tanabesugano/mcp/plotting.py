@@ -14,6 +14,7 @@ import math
 from typing import TYPE_CHECKING
 
 import matplotlib as mpl
+import numpy as np
 
 
 # Force headless backend BEFORE importing pyplot.
@@ -33,6 +34,8 @@ from tanabesugano.plot_style import style_axes
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
+    from numpy.typing import ArrayLike
+    from numpy.typing import NDArray
 
 
 _Y_LABEL_MATHTEXT: dict[str, str] = {
@@ -270,10 +273,14 @@ def build_diagram(
 
     # Secondary x-axis: when normalized show raw 10Dq in cm^-1 on top.
     if normalize:
-        secax = ax.secondary_xaxis(
-            "top",
-            functions=(lambda v: v * B, lambda v: v / B),
-        )
+
+        def to_cm1(v: ArrayLike) -> NDArray[np.float64]:
+            return np.asarray(v, dtype=float) * B
+
+        def from_cm1(v: ArrayLike) -> NDArray[np.float64]:
+            return np.asarray(v, dtype=float) / B
+
+        secax = ax.secondary_xaxis("top", functions=(to_cm1, from_cm1))
         secax.set_xlabel(r"$10\,Dq$ (cm$^{-1}$)", fontsize=9)
         secax.tick_params(direction="in", labelsize=8)
 
