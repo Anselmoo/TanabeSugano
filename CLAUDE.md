@@ -129,6 +129,11 @@ Three rules, each earned the hard way:
    tolerances means the looser one masks what the tighter one catches (already fixed once, for the
    Cr(III) fixtures). The module boundary is in the `test_ion_case_studies.py` docstring; keep it.
 
+`test_determinant_oracle.py` is the T1a check on `matrices.py` itself: `_determinant_oracle.py`
+rebuilds the full d^n Hamiltonian in all `C(10, n)` Slater determinants and imports nothing from the
+package. Its only `free_ion.py` use is a self-check of the oracle (not the solver), so the
+one-claim-one-place rule above still holds. Findings: `ORACLE-REPORT.md`.
+
 Literature fixtures are admissible only as `IonFixture` records in `test_ion_case_studies.py`:
 `published_quantity` (Dq vs 10Dq vs Delta_o), `estimator` (closed-form and least-squares disagree
 legitimately), `degrees_of_freedom`, `expected_outcome` (fit / raises / warns), `source_tier` and a
