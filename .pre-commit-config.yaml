@@ -19,7 +19,7 @@ repos:
         - id: trailing-whitespace
           exclude: *generated_artifacts
   -   repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.17.2
+      rev: v0.17.3
       hooks:
         # No --select override. It used to pin this hook to D100,E,F,W, a far
         # narrower gate than [tool.ruff.lint] in pyproject.toml -- so `poe lint`
