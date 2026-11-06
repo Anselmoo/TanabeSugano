@@ -34,7 +34,7 @@ repos:
   - repo: https://github.com/astral-sh/ty-pre-commit
     # Keep in lockstep with the `ty` pin in [dependency-groups].dev, so this
     # hook and `poe types` cannot disagree about what passes.
-    rev: v0.0.92
+    rev: v0.0.96
     hooks:
       # Scoped to match `poe types`. Test files carry ~200 diagnostics that are
       # deliberately out of scope -- `**dict` unpacking into Literal fields and
