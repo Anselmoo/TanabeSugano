@@ -5,6 +5,9 @@ Values were typed from the PDF; column placement of rows with empty cells was ch
 rendered page (pages 2 and 4). The script then re-checks every row against `pdftotext -layout`
 output: each row's numbers must appear on the source line in the same order, else it aborts.
 
+Table 2 "graphical" values are the authors' readings from their auxiliary TS diagrams (steps
+0.05 in Dq/B, 0.25 in C/B); they are not literature values.
+
 Usage: python3 extract_jce2023.py <paper.pdf> <outdir>
 """
 import csv, json, re, subprocess, sys
@@ -58,8 +61,7 @@ T1 = {
    ("LiGa5O8:Ni2+", [9770, 16050, 26740, 12987], "ref 38"),
    ("[Ni(NH3)6]2+", [10600, 17500, 27600, N], "ref 1")]),
 }
-# Table 2: Dq, Dq/B reported (graphical), C/B reported (graphical). Graphical = read by the authors
-# from their auxiliary TS diagrams (steps 0.05 in Dq/B, 0.25 in C/B; not literature values).
+# Table 2: Dq, Dq/B reported (graphical), C/B reported (graphical); see the module docstring.
 T2 = [
  ("d2(Oh)/d8(Td)", "ZnO:Ni2+", 405, "0.509", "0.60", N, N, "ref 24"),
  ("d2(Oh)/d8(Td)", "Al2O3:V3+", 1823, "3.198", "3.20", "4.561", "5.00", "ref 25"),
@@ -96,11 +98,12 @@ T2 = [
  ("d8(Oh)/d2(Td)", "[Ni(NH3)6]2+", 1030, N, "1.20", N, N, "ref 1"),
 ]
 
-# --- check against the PDF text --------------------------------------------------------------
 lines = text.splitlines()
 def tokens(line):
+    """Return the numeric tokens of one pdftotext line, keeping a leading ≈."""
     return re.findall(r"≈?\d+(?:\.\d+)?", line)
 def check(name, expected):
+    """Abort unless some PDF line naming ``name`` carries ``expected`` in order."""
     exp = [str(v).replace("~", "≈") for v in expected if v is not None]
     key = name.replace("-", "−")[:6]
     for ln in lines:
@@ -116,11 +119,12 @@ for r in T2:
     check(r[1], [r[2], r[3], r[4], r[5], r[6]])
 assert sum(len(r) for _, r in T1.values()) == 33 and len(T2) == 33
 
-# --- write ------------------------------------------------------------------------------------
 def term(lbl):
+    """Split a printed term label like ``2^3T1`` into ordinal, multiplicity and irrep."""
     m = re.fullmatch(r"(\d)?\^(\d)([ATE]\d?)", lbl)
     return {"printed": f"E({lbl})", "ordinal": int(m[1]) if m[1] else None, "multiplicity": int(m[2]), "irrep": m[3]}
 def num(v):
+    """Return ``(value, approx)`` for a cell; ``~`` marks an approximate value."""
     if v is None: return None, False
     if isinstance(v, str) and v.startswith("~"): return float(v[1:]), True
     return float(v), False
@@ -145,7 +149,7 @@ for blk, (hdr, rows) in T1.items():
 f = lambda s: None if s is None else float(s)
 t2 = [{"block": b, "system": n, "Dq_cm1": float(dq), "Dq_over_B_reported": f(r1), "Dq_over_B_graphical": f(g1),
        "C_over_B_reported": f(r2), "C_over_B_graphical": f(g2), "refs": ref} for b, n, dq, r1, g1, r2, g2, ref in T2]
-(out / "jce2023_tables.json").write_text(json.dumps({"source": source, "table1": t1, "table2": t2}, ensure_ascii=False, indent=1))
+(out / "jce2023_tables.json").write_text(json.dumps({"source": source, "table1": t1, "table2": t2}, ensure_ascii=False, indent=1) + "\n")
 
 with open(out / "jce2023_table1_bands.csv", "w", newline="") as fh:
     w = csv.writer(fh); w.writerow(["block", "system", "band_col", "term_printed", "ordinal", "multiplicity", "irrep", "wavenumber_cm1", "approx", "refs"])
