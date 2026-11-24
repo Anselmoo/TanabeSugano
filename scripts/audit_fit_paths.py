@@ -223,7 +223,7 @@ WARNING_KINDS = (
 NON_PERTINENT_KINDS = frozenset({"c-note"})
 
 FIX_CLASSES = {
-    "a": "precondition, not a cause: seed obs[0]/10 outside d3/d8 (_compute.py L465)",
+    "a": "seed obs[0]/10 outside d3/d8 (_compute.py L465)",
     "bounds-exclude-truth": "default dq_bounds (0.2, 5) x seed exclude the truth (L474-475)",
     "b": "5 local starts around the seed (L555-561)",
     "c": "unlabelled non-injective NN matching incl. doublets (L302, L541-553)",
@@ -233,8 +233,8 @@ FIX_CLASSES = {
     "app-hs": "app hard-codes the high-spin reference and default C",
     "app-sf": "app has no include_spin_forbidden and fits forbidden bands as allowed",
     "app-lattice": (
-        "ratio app: the Dq grid has no node at nu1/10 for d3/d8, so Dq lands one lattice "
-        "offset high and B compensates one node high"
+        "ratio app: the Dq grid has no node at nu1/10 for d3/d8, so the returned Dq is the "
+        "node nearest nu1/10, not nu1/10 itself"
     ),
     "app-grid": (
         "app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600 "
@@ -274,7 +274,8 @@ CLASS_RULES = {
     "app-hs": "app row with spin=low",
     "app-sf": "reverse-app row with spin-forbidden bands in its input",
     "app-lattice": (
-        "ratio-app row, d3 or d8 (nu1 = 10Dq), and no Dq grid node within rounding of nu1/10"
+        "ratio-app row, d3 or d8 (nu1 = 10Dq), no Dq grid node within rounding of nu1/10, "
+        "and the returned Dq is the node nearest nu1/10"
     ),
     "app-grid": (
         "app row whose returned (Dq, B) is the grid node nearest the truth on both axes, "
@@ -345,9 +346,10 @@ MULTISTART_B_SEEDS = 5
 FINDINGS_STATIC = {
     "M": (
         "**M. The d5 mechanism.** High-spin d5 with spin-forbidden bands fails for two "
-        "separable reasons (Section 1). With C right, the minimum exists and a start grid "
-        "over Dq and B chosen without the reference reaches it, while the default seed and "
-        "five local starts do not. With C at the default, the published point is not a "
+        "separable reasons (Section 1). With C right, the minimum exists: on the Mn bands a "
+        "start grid over Dq and B chosen without the reference reaches it, while the "
+        "default seed and five local starts do not (one system, and R1-tainted as a "
+        "comparator). With C at the default, the published point is not a "
         "minimum of the objective at all, so no seed can fix it; that needs C fitted as "
         "well, and whether three bands determine C is not measured here. Noisy bands are "
         "not measured either."
@@ -358,11 +360,12 @@ FINDINGS_STATIC = {
         "residual, B-pinned, single-transition and too-few-bands warnings count as pertinent."
     ),
     "S2": (
-        "**S2. Estimator disagreement explains only a few JCE misses.** A miss is charged to "
-        "the published values rather than the fitter only where the reverse app's answer "
-        "beats the published (Dq, B, C) on the app's own objective with every band assigned, "
-        "more than two bands and a reported C. A looser rule fires on most OK rows too, and "
-        "for fit_spectrum it would only repeat class (f)."
+        "**S2. Estimator disagreement does not explain the JCE misses.** The tag applies "
+        "only where the reverse app's answer beats the published (Dq, B, C) on the app's own "
+        "objective with every band assigned, more than two bands and a reported C. Even so "
+        "narrowed it holds on OK rows about as often as on failing ones (Section 6), so it "
+        "marks a disagreement between estimators, not the cause of a miss. A looser rule "
+        "fires on most OK rows, and for fit_spectrum it would only repeat class (f)."
     ),
     "S3": (
         "**S3. C-misspecification is a continuous bias.** Holding C at the default shifts Dq "
@@ -372,9 +375,8 @@ FINDINGS_STATIC = {
     "S4": (
         "**S4. Infeasible-at-C runs come mostly from the low-B truth points, not from the "
         "near-crossover ones.** At the default C their truth Dq lies in the other spin "
-        "regime, so no fit pinned to the requested regime can reach it; the tag says so, but "
-        "the run stays a failure, because some of them also miss the regime boundary by far "
-        "more than the regime forces."
+        "regime, so no fit pinned to the requested regime can reach it. The tag explains "
+        "the failure; it does not excuse it, so the run stays a failure."
     ),
     "design": (
         "**Design note for the fix.** Scope by ablation -- {grid multistart vs current seed} "
@@ -1121,7 +1123,12 @@ def app_classes(row: Row) -> list[str]:
     if run.path == "ratio_app" and case.d in CLOSED_FORM_CONFIGS:
         dq_nodes, _ = app_grids(case, run.path)
         nu1 = ratio_inputs(case)[0]
-        if not any(abs(g - nu1 / 10.0) <= APP_ROUNDING_CM1 for g in dq_nodes):
+        nearest = min(dq_nodes, key=lambda g: abs(g - nu1 / 10.0))
+        if (
+            abs(nearest - nu1 / 10.0) > APP_ROUNDING_CM1
+            and run.fit_dq is not None
+            and abs(run.fit_dq - nearest) <= APP_ROUNDING_CM1
+        ):
             found.append("app-lattice")
     if run.fit_dq is not None and run.fit_b is not None and case.truth_b is not None:
         dq_grid, b_grid = app_grids(case, run.path)
@@ -1315,7 +1322,7 @@ def run_case(case: Case, reverse: Callable[..., Any], ratio: Callable[..., Any])
 
 
 def known_defect() -> list[tuple[str, str, str, str, str, str, str]]:
-    """Regenerate the [Mn(H2O)6]2+ known-defect rows, counterfactual included."""
+    """Regenerate the [Mn(H2O)6]2+ known-defect rows, hand-picked illustration included."""
     b = KNOWN_DEFECT_DQ / KNOWN_DEFECT_DQ_OVER_B
     c = KNOWN_DEFECT_C_OVER_B * b
     bands = list(KNOWN_DEFECT_BANDS)
@@ -1587,7 +1594,8 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             f"{APP_GRID['ratio_app']} (ratio) are checked at start-up against the tool "
             "signatures (apps.py L1719-1721, L1959-1961); Dq max = 3 x obs[0]/10 was read off "
             "apps.py L1779 (reverse) and L2013 (ratio). The reverse app's Dq grid contains "
-            "obs[0]/10 exactly at node 8."
+            "obs[0]/10 exactly at node 8; the ratio app's does not (obs[0]/10 falls at index "
+            "(steps - 1)/3, a node only when steps - 1 is divisible by 3), hence app-lattice."
         ),
         "- **Not applicable cells.**",
     ]
@@ -1747,6 +1755,50 @@ def section_jce(rows: list[Row], jce_labels: list[str]) -> list[str]:
     return lines
 
 
+def class_applies(key: str, row: Row) -> bool:
+    """Return whether rule ``key`` can fire on ``row`` at all (its eligible population)."""
+    case, run = row.case, row.run
+    fit = run.path == "fit_spectrum"
+    eligible = {
+        "a": fit and run.c_mode != "seed-displaced",
+        "bounds-exclude-truth": fit and run.c_mode != "seed-displaced",
+        "b": fit,
+        "e": fit and run.c_mode == "default",
+        "f": fit,
+        "app-hs": not fit,
+        "app-grid": not fit,
+        "app-sf": run.path == "reverse_app",
+        "app-lattice": run.path == "ratio_app" and case.d in CLOSED_FORM_CONFIGS,
+        "estimator-disagreement": case.source == "jce2023" and run.path == "reverse_app",
+    }
+    return eligible.get(key, True)
+
+
+def discrimination(key: str, rows: list[Row]) -> str:
+    """Compare a class's firing rate on eligible failing vs eligible OK rows (non-R1).
+
+    A class counts as discriminating only if it fires on OK rows at under a quarter of its
+    rate on failing rows (the B1 decision rule); otherwise it is a precondition.
+    """
+    if key == "unclassified":
+        return "-"
+    pools = {"failing": [0, 0], "OK": [0, 0]}
+    for row in rows:
+        status = "failing" if is_failure(row) else "OK" if base_verdict(row) == "OK" else ""
+        if not status or row.case.r1 or not class_applies(key, row):
+            continue
+        pools[status][1] += 1
+        pools[status][0] += key in row.classes
+    (ff, nf), (fo, no) = pools["failing"], pools["OK"]
+    rates = f"{ff}/{nf} vs {fo}/{no}"
+    if nf == 0 or ff == 0:
+        return f"{rates}: never fires on a failure"
+    if no == 0:
+        return f"{rates}: untested (no eligible OK row)"
+    verdict = "discriminates" if fo / no < (ff / nf) / 4 else "precondition"
+    return f"{rates}: {verdict}"
+
+
 def section_scope(rows: list[Row]) -> list[str]:
     """Render section 6."""
     fires: Counter[tuple[str, str, str]] = Counter()
@@ -1766,6 +1818,7 @@ def section_scope(rows: list[Row]) -> list[str]:
                 for src in ("synthetic", "jce2023")
                 for status in ("failing", "OK")
             ),
+            discrimination(key, rows),
         )
         for key in FIX_CLASSES
     ]
@@ -1785,10 +1838,16 @@ def section_scope(rows: list[Row]) -> list[str]:
             "or not (a)/(b) also apply. Not failures, so not classified: "
             f"OK-B-UNIDENTIFIED {excluded['OK-B-UNIDENTIFIED']}. "
             f"{tagged} "
-            "of the failing rows carry the infeasible_at_c tag. Classes (a), (b), (e), (f) "
-            "apply to fit_spectrum only; app rows get (c), (d) and the app-* classes. "
-            "The OK columns apply the same rules to rows graded OK: a class that fires on OK "
-            "rows about as often as on failing ones marks a precondition, not a cause."
+            "of the failing rows carry the infeasible_at_c tag (R1 rows excluded; Section 7 "
+            "S4 counts them too). Classes (a), bounds-exclude-truth, (b) and (f) apply to "
+            "fit_spectrum only, (e) to its C=default runs; app-hs and app-grid to app rows, "
+            "app-sf to reverse-app rows, app-lattice to d3/d8 ratio-app rows; "
+            "estimator-disagreement to JCE reverse-app rows; (c), (d) and single-band to "
+            "every row. The OK columns apply the same rules to rows graded OK. The last "
+            "column pools both sources over the rows each rule can fire on (failing vs OK) "
+            "and calls a class discriminating only if its OK rate is under a quarter of its "
+            "failing rate; a precondition co-occurs with failures but does not separate them "
+            "from successes, so it alone does not size a fix."
         ),
         "",
         (
@@ -1799,7 +1858,7 @@ def section_scope(rows: list[Row]) -> list[str]:
         "",
     ]
     header = ("class", "proposed fix", "rule", "synthetic failing", "synthetic OK")
-    lines.extend(md_table((*header, "JCE failing", "JCE OK"), body))
+    lines.extend(md_table((*header, "JCE failing", "JCE OK", "failing vs OK rate"), body))
     lines.append("")
     return lines
 
@@ -1927,7 +1986,9 @@ def findings_s4(rows: list[Row]) -> str:
     origin = ", ".join(f"{n} at {f:g} x default B" for f, n in sorted(factors.items()))
     jce = sorted({r.case.system for r in tagged if r.case.source == "jce2023"})
     return (
-        f"Live: {len(tagged)} failing runs carry the tag ({len(fit)} synthetic fit_spectrum: "
+        f"Live: {len(tagged)} failing runs carry the tag, "
+        f"{sum(1 for r in tagged if r.case.r1)} of them R1 rows that Section 6 leaves out "
+        f"({len(fit)} synthetic fit_spectrum: "
         f"{origin}, {near} near-crossover). JCE systems with tagged runs: "
         f"{', '.join(jce) or 'none'}."
     )
