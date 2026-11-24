@@ -158,6 +158,7 @@ CLOSED_FORM_BANDS = 3
 RATIO_MIN_BANDS = 2
 RATIO_MAX_BANDS = 3
 SPEARMAN_MIN_N = 3
+EXACT_BANDS = 2  # two bands fix (Dq, B) exactly, so any estimator reproduces them
 
 SEVERITY = (
     "N/A",
@@ -235,7 +236,10 @@ FIX_CLASSES = {
         "(25 steps reverse, 30 ratio)"
     ),
     "single-band": "one observed band for two free parameters: B is not identifiable",
-    "estimator-disagreement": "published values are not the minimum of this objective",
+    "estimator-disagreement": (
+        "published values are not the minimum of this objective (reverse app; fit_spectrum "
+        "is covered by (f))"
+    ),
     "unclassified": "matches no rule",
 }
 CLASS_RULES = {
@@ -270,8 +274,8 @@ CLASS_RULES = {
     ),
     "single-band": "n_bands == 1",
     "estimator-disagreement": (
-        "JCE, sf=False, fit_spectrum or reverse app (both minimise the nearest-line RMSE): "
-        "rmse_at_fit < rmse_at_reported"
+        "JCE, sf=False, reverse app, every band assigned, more than two bands, reported C "
+        "given: RMSE at the returned point < RMSE at the reported (Dq, B, C)"
     ),
     "unclassified": "a failing row no rule above matched",
 }
@@ -342,10 +346,11 @@ FINDINGS_STATIC = {
         "residual, B-pinned, single-transition and too-few-bands warnings count as pertinent."
     ),
     "S2": (
-        "**S2. The JCE spin-allowed misses are estimator disagreement, not a fitter "
-        "defect.** Where the fitter's own objective is lower at its answer than at the "
-        "published point, the published values are not the minimum of this objective "
-        "(class estimator-disagreement)."
+        "**S2. Estimator disagreement explains only a few JCE misses.** A miss is charged to "
+        "the published values rather than the fitter only where the reverse app's answer "
+        "beats the published (Dq, B, C) on the app's own objective with every band assigned, "
+        "more than two bands and a reported C. A looser rule fires on most OK rows too, and "
+        "for fit_spectrum it would only repeat class (f)."
     ),
     "S3": (
         "**S3. C-misspecification is a continuous bias.** Holding C at the default shifts Dq "
@@ -963,7 +968,9 @@ def grade(case: Case, run: Run) -> Row:
         "dC_pct": fmt(d_c),
         "rmse": fmt(run.rmse),
         "r2": "n/a" if r2 is None else f"{r2:.4f}",
-        "rmse_at_reported": fmt(obj_truth_c_used) if jce else "n/a",
+        "rmse_at_reported": fmt(obj_truth if obj_truth is not None else obj_truth_c_used)
+        if jce
+        else "n/a",
         "rmse_at_fit": fmt(obj_fit) if jce else "n/a",
         "ground_reached": ground_reached,
         "n_bands": str(len(case.bands)),
@@ -1020,16 +1027,25 @@ def shared_classes(row: Row) -> list[str]:
         found.append("d")
     if len(case.bands) == 1:
         found.append("single-band")
-    if (
-        case.source == "jce2023"
-        and not case.sf
-        and row.run.path in {"fit_spectrum", "reverse_app"}
-        and row.obj_fit is not None
-        and row.obj_truth_c_used is not None
-        and row.obj_fit < row.obj_truth_c_used
-    ):
+    if estimator_disagrees(row):
         found.append("estimator-disagreement")
     return found
+
+
+def estimator_disagrees(row: Row) -> bool:
+    """Return whether a JCE reverse-app row beats the published point on its own objective."""
+    case = row.case
+    return (
+        case.source == "jce2023"
+        and not case.sf
+        and row.run.path == "reverse_app"
+        and row.values["assignment_ok"] == "True"
+        and len(case.bands) > EXACT_BANDS
+        and case.truth_c is not None
+        and row.obj_fit is not None
+        and row.obj_truth is not None
+        and row.obj_fit < row.obj_truth
+    )
 
 
 def fit_classes(row: Row, paired_truth_ok: bool) -> list[str]:
@@ -1641,8 +1657,9 @@ def section_jce(rows: list[Row], jce_labels: list[str]) -> list[str]:
             "`approx=True` marks a system with a band the paper flags as approximate. "
             "ZnO:Ni2+ is Ni2+ (d8) in Td, fitted on the d2(Oh) diagram (geometry="
             "Td-equivalent); d5 cannot be told apart by d-count and is recorded as Oh. "
-            "rmse_at_reported / rmse_at_fit are the path's nearest-line RMSE at the reported "
-            "and at the returned (Dq, B), both with the C the run used."
+            "rmse_at_reported is the path's nearest-line RMSE at the reported (Dq, B, C), "
+            "falling back to the C the run used only where the paper reports no C/B; "
+            "rmse_at_fit is the same RMSE at the returned (Dq, B) with the C the run used."
         ),
         "",
         (
@@ -1766,6 +1783,20 @@ def findings_s1(rows: list[Row]) -> str:
     )
 
 
+def findings_s2(rows: list[Row]) -> str:
+    """Live numbers for S2: estimator-disagreement on failing vs OK JCE reverse-app rows."""
+    rev = [r for r in rows if r.case.source == "jce2023" and r.run.path == "reverse_app"]
+    rev = [r for r in rev if not r.case.r1]
+    failing = [r for r in rev if is_failure(r) and estimator_disagrees(r)]
+    ok = [r for r in rev if base_verdict(r) == "OK"]
+    ok_hits = sum(1 for r in ok if estimator_disagrees(r))
+    systems = ", ".join(sorted({r.case.system for r in failing})) or "none"
+    return (
+        f"Live: {len(failing)} failing non-R1 JCE reverse-app rows qualify ({systems}); the "
+        f"same rule holds on {ok_hits} of {len(ok)} OK ones."
+    )
+
+
 def findings_s3(rows: list[Row]) -> str:
     """Live numbers for S3: per-cell Spearman(dC, dDq) and OK-run bias, low-spin default C."""
     cells: dict[tuple[int, bool], list[Row]] = defaultdict(list)
@@ -1845,6 +1876,7 @@ def section_findings(rows: list[Row]) -> list[str]:
         findings_s1(rows),
         "",
         FINDINGS_STATIC["S2"],
+        findings_s2(rows),
         "",
         FINDINGS_STATIC["S3"],
         findings_s3(rows),

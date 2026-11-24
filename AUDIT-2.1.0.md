@@ -479,7 +479,7 @@ Headline counts (synthetic runs):
 
 ## 5. JCE 2023 systems
 
-Source: García Rojas & Pérez Torres, J. Chem. Educ. 2023, 100, 251-258, doi:10.1021/acs.jchemed.2c00885. Reference = the `_reported` columns of Table 2 only (B = Dq / (Dq/B), C = (C/B) B). Rows ending in `-R1` are d5/d6 and R1-tainted: a comparison, never a pass or fail. [Mn(CN)6]3- is fitted low-spin, as are the Co(III) rows. `approx=True` marks a system with a band the paper flags as approximate. ZnO:Ni2+ is Ni2+ (d8) in Td, fitted on the d2(Oh) diagram (geometry=Td-equivalent); d5 cannot be told apart by d-count and is recorded as Oh. rmse_at_reported / rmse_at_fit are the path's nearest-line RMSE at the reported and at the returned (Dq, B), both with the C the run used.
+Source: García Rojas & Pérez Torres, J. Chem. Educ. 2023, 100, 251-258, doi:10.1021/acs.jchemed.2c00885. Reference = the `_reported` columns of Table 2 only (B = Dq / (Dq/B), C = (C/B) B). Rows ending in `-R1` are d5/d6 and R1-tainted: a comparison, never a pass or fail. [Mn(CN)6]3- is fitted low-spin, as are the Co(III) rows. `approx=True` marks a system with a band the paper flags as approximate. ZnO:Ni2+ is Ni2+ (d8) in Td, fitted on the d2(Oh) diagram (geometry=Td-equivalent); d5 cannot be told apart by d-count and is recorded as Oh. rmse_at_reported is the path's nearest-line RMSE at the reported (Dq, B, C), falling back to the C the run used only where the paper reports no C/B; rmse_at_fit is the same RMSE at the returned (Dq, B) with the C the run used.
 
 Co(III) rows without a reported C/B: 3 of 4 ([Co(H2O)6]3+, [Co(NO2)6]3-, [Co(oxalate)3]3-); they have only the C=default run.
 
@@ -503,15 +503,15 @@ Counts (non-R1 rows):
 
 | system | d | spin | sf | geometry | path | c_mode | truth_Dq | truth_B | truth_C | fit_Dq | fit_B | dDq_pct | dB_pct | rmse_at_reported | rmse_at_fit | assignment_ok | approx | verdict | failure_classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| ZnO:Ni2+ | 2 | high | False | Td-equivalent | fit_spectrum | default | 405.0 | 795.7 | n/a | 515.1 | 790.1 | 27.2 | -0.7 | 882.8 | 0.0 | True | False | WRONG-WARNED | estimator-disagreement |
-| ZnO:Ni2+ | 2 | high | False | Td-equivalent | reverse_app | app-default | 405.0 | 795.7 | n/a | 495.0 | 800.0 | 22.2 | 0.5 | 882.8 | 129.5 | True | False | WRONG-SILENT | estimator-disagreement |
+| ZnO:Ni2+ | 2 | high | False | Td-equivalent | fit_spectrum | default | 405.0 | 795.7 | n/a | 515.1 | 790.1 | 27.2 | -0.7 | 882.8 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| ZnO:Ni2+ | 2 | high | False | Td-equivalent | reverse_app | app-default | 405.0 | 795.7 | n/a | 495.0 | 800.0 | 22.2 | 0.5 | 882.8 | 129.5 | True | False | WRONG-SILENT | unclassified |
 | ZnO:Ni2+ | 2 | high | False | Td-equivalent | ratio_app | app-default | 405.0 | 795.7 | n/a | 546.2 | 1600.0 | 34.9 | 101.1 | 882.8 | 3886.5 | False | False | WRONG-SILENT | c |
-| Al2O3:V3+ | 2 | high | False | Oh | fit_spectrum | truth | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | estimator-disagreement |
-| Al2O3:V3+ | 2 | high | False | Oh | fit_spectrum | default | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | estimator-disagreement |
-| Al2O3:V3+ | 2 | high | False | Oh | reverse_app | app-default | 1823.0 | 570.0 | 2600.0 | 1312.5 | 400.0 | -28.0 | -29.8 | 580.3 | 283.0 | False | False | WRONG-SILENT | c;estimator-disagreement |
+| Al2O3:V3+ | 2 | high | False | Oh | fit_spectrum | truth | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| Al2O3:V3+ | 2 | high | False | Oh | fit_spectrum | default | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| Al2O3:V3+ | 2 | high | False | Oh | reverse_app | app-default | 1823.0 | 570.0 | 2600.0 | 1312.5 | 400.0 | -28.0 | -29.8 | 580.3 | 283.0 | False | False | WRONG-SILENT | c |
 | Al2O3:V3+ | 2 | high | False | Oh | ratio_app | app-default | 1823.0 | 570.0 | 2600.0 | 1810.3 | 565.5 | -0.7 | -0.8 | 580.3 | 730.1 | True | False | OK |  |
 | Al2O3:V3+ | 2 | high | True | Oh | fit_spectrum | truth | 1823.0 | 570.0 | 2600.0 | 696.2 | 800.1 | -61.8 | 40.4 | 640.2 | 453.5 | False | False | WRONG-SILENT | a;c;f |
-| Al2O3:V3+ | 2 | high | True | Oh | fit_spectrum | default | 1823.0 | 570.0 | 2600.0 | 1085.4 | 602.3 | -40.5 | 5.7 | 1010.9 | 274.6 | False | False | WRONG-SILENT | a;c;f |
+| Al2O3:V3+ | 2 | high | True | Oh | fit_spectrum | default | 1823.0 | 570.0 | 2600.0 | 1085.4 | 602.3 | -40.5 | 5.7 | 640.2 | 274.6 | False | False | WRONG-SILENT | a;c;f |
 | Al2O3:V3+ | 2 | high | True | Oh | reverse_app | app-default | 1823.0 | 570.0 | 2600.0 | 974.8 | 1200.0 | -46.5 | 110.5 | 4219.6 | 859.9 | False | False | WRONG-SILENT | app-sf;c |
 | [V(H2O)6]3+ | 2 | high | False | Oh | fit_spectrum | default | 1860.0 | 664.3 | n/a | 1854.1 | 649.4 | -0.3 | -2.2 | 171.0 | 0.0 | True | False | OK |  |
 | [V(H2O)6]3+ | 2 | high | False | Oh | reverse_app | app-default | 1860.0 | 664.3 | n/a | 1290.0 | 400.0 | -30.6 | -39.8 | 171.0 | 465.4 | False | False | WRONG-SILENT | c |
@@ -519,83 +519,83 @@ Counts (non-R1 rows):
 | [V(H2O)6]2+ | 3 | high | False | Oh | fit_spectrum | default | 1230.0 | 633.4 | n/a | 1228.4 | 627.8 | -0.1 | -0.9 | 271.8 | 266.1 | True | False | OK |  |
 | [V(H2O)6]2+ | 3 | high | False | Oh | reverse_app | app-default | 1230.0 | 633.4 | n/a | 1230.0 | 600.0 | 0.0 | -5.3 | 271.8 | 310.3 | True | False | WRONG-SILENT | unclassified |
 | [V(H2O)6]2+ | 3 | high | False | Oh | ratio_app | app-default | 1230.0 | 633.4 | n/a | 1272.4 | 648.3 | 3.4 | 2.4 | 271.8 | 772.7 | True | False | WRONG-SILENT | app-grid |
-| [Cr(H2O)6]3+ | 3 | high | False | Oh | fit_spectrum | truth | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | estimator-disagreement;f |
-| [Cr(H2O)6]3+ | 3 | high | False | Oh | fit_spectrum | default | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | estimator-disagreement;f |
+| [Cr(H2O)6]3+ | 3 | high | False | Oh | fit_spectrum | truth | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | f |
+| [Cr(H2O)6]3+ | 3 | high | False | Oh | fit_spectrum | default | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | f |
 | [Cr(H2O)6]3+ | 3 | high | False | Oh | reverse_app | app-default | 1720.0 | 765.1 | 3060.5 | 1740.0 | 600.0 | 1.2 | -21.6 | 1070.8 | 856.0 | True | True | WRONG-SILENT | estimator-disagreement |
 | [Cr(H2O)6]3+ | 3 | high | False | Oh | ratio_app | app-default | 1720.0 | 765.1 | 3060.5 | 1800.0 | 648.3 | 4.7 | -15.3 | 1070.8 | 1474.8 | True | True | WRONG-SILENT | unclassified |
 | [Cr(H2O)6]3+ | 3 | high | True | Oh | fit_spectrum | truth | 1720.0 | 765.1 | 3060.5 | 1482.2 | 204.4 | -13.8 | -73.3 | 486.9 | 142.1 | False | True | WRONG-SILENT | a;c;f |
-| [Cr(H2O)6]3+ | 3 | high | True | Oh | fit_spectrum | default | 1720.0 | 765.1 | 3060.5 | 1745.5 | 445.2 | 1.5 | -41.8 | 1316.1 | 724.2 | False | True | WRONG-SILENT | a;c |
+| [Cr(H2O)6]3+ | 3 | high | True | Oh | fit_spectrum | default | 1720.0 | 765.1 | 3060.5 | 1745.5 | 445.2 | 1.5 | -41.8 | 486.9 | 724.2 | False | True | WRONG-SILENT | a;c |
 | [Cr(H2O)6]3+ | 3 | high | True | Oh | reverse_app | app-default | 1720.0 | 765.1 | 3060.5 | 1665.0 | 750.0 | -3.2 | -2.0 | 1516.6 | 1127.4 | False | True | WRONG-SILENT | app-grid;app-sf;c |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | truth | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | reverse_app | app-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 700.0 | 0.0 | -3.3 | 4.8 | 125.1 | True | False | OK |  |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | ratio_app | app-default | 1724.0 | 724.1 | 2484.3 | 1782.9 | 731.0 | 3.4 | 1.0 | 4.8 | 653.6 | True | False | WRONG-SILENT | app-grid |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | truth | 1724.0 | 724.1 | 2484.3 | 818.9 | 400.6 | -52.5 | -44.7 | 435.3 | 7.1 | False | False | WRONG-SILENT | a;c;f |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | default | 1724.0 | 724.1 | 2484.3 | 1197.5 | 670.5 | -30.5 | -7.4 | 3039.8 | 1.8 | False | False | WRONG-SILENT | a;c;f |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | default | 1724.0 | 724.1 | 2484.3 | 1197.5 | 670.5 | -30.5 | -7.4 | 435.3 | 1.8 | False | False | WRONG-SILENT | a;c;f |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | reverse_app | app-default | 1724.0 | 724.1 | 2484.3 | 1197.5 | 400.0 | -30.5 | -44.8 | 3039.8 | 1029.4 | False | False | WRONG-SILENT | app-sf;c |
-| [Cr(oxalate)3]3- | 3 | high | False | Oh | fit_spectrum | default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.0 | True | False | WRONG-WARNED | estimator-disagreement |
-| [Cr(oxalate)3]3- | 3 | high | False | Oh | reverse_app | app-default | 1750.0 | 659.9 | n/a | 1750.0 | 600.0 | 0.0 | -9.1 | 277.6 | 63.7 | True | False | WRONG-SILENT | estimator-disagreement |
+| [Cr(oxalate)3]3- | 3 | high | False | Oh | fit_spectrum | default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| [Cr(oxalate)3]3- | 3 | high | False | Oh | reverse_app | app-default | 1750.0 | 659.9 | n/a | 1750.0 | 600.0 | 0.0 | -9.1 | 277.6 | 63.7 | True | False | WRONG-SILENT | unclassified |
 | [Cr(oxalate)3]3- | 3 | high | False | Oh | ratio_app | app-default | 1750.0 | 659.9 | n/a | 1810.3 | 648.3 | 3.4 | -1.8 | 277.6 | 797.6 | True | False | WRONG-SILENT | app-grid |
 | [Cr(oxalate)3]3- | 3 | high | True | Oh | fit_spectrum | default | 1750.0 | 659.9 | n/a | 821.2 | 250.5 | -53.1 | -62.0 | 1775.8 | 60.5 | False | False | WRONG-SILENT | a;c |
 | [Cr(oxalate)3]3- | 3 | high | True | Oh | reverse_app | app-default | 1750.0 | 659.9 | n/a | 1608.8 | 850.0 | -8.1 | 28.8 | 1861.4 | 1316.4 | False | False | WRONG-SILENT | app-sf;c |
 | Al2O3:Cr3+ | 3 | high | False | Oh | fit_spectrum | truth | 1810.0 | 649.9 | 3119.6 | 1814.9 | 619.9 | 0.3 | -4.6 | 140.8 | 0.0 | True | False | OK |  |
 | Al2O3:Cr3+ | 3 | high | False | Oh | fit_spectrum | default | 1810.0 | 649.9 | 3119.6 | 1814.9 | 619.9 | 0.3 | -4.6 | 140.8 | 0.0 | True | False | OK |  |
-| Al2O3:Cr3+ | 3 | high | False | Oh | reverse_app | app-default | 1810.0 | 649.9 | 3119.6 | 1814.9 | 600.0 | 0.3 | -7.7 | 140.8 | 118.3 | True | False | WRONG-SILENT | estimator-disagreement |
+| Al2O3:Cr3+ | 3 | high | False | Oh | reverse_app | app-default | 1810.0 | 649.9 | 3119.6 | 1814.9 | 600.0 | 0.3 | -7.7 | 140.8 | 118.3 | True | False | WRONG-SILENT | unclassified |
 | Al2O3:Cr3+ | 3 | high | False | Oh | ratio_app | app-default | 1810.0 | 649.9 | 3119.6 | 1877.5 | 648.3 | 3.7 | -0.2 | 140.8 | 778.3 | True | False | WRONG-SILENT | app-grid |
 | Al2O3:Cr3+ | 3 | high | True | Oh | fit_spectrum | truth | 1810.0 | 649.9 | 3119.6 | 651.7 | 288.1 | -64.0 | -55.7 | 163.5 | 99.2 | False | False | WRONG-SILENT | a;c;f |
-| Al2O3:Cr3+ | 3 | high | True | Oh | fit_spectrum | default | 1810.0 | 649.9 | 3119.6 | 856.5 | 237.2 | -52.7 | -63.5 | 1667.1 | 11.7 | False | False | WRONG-SILENT | a;c;f |
+| Al2O3:Cr3+ | 3 | high | True | Oh | fit_spectrum | default | 1810.0 | 649.9 | 3119.6 | 856.5 | 237.2 | -52.7 | -63.5 | 163.5 | 11.7 | False | False | WRONG-SILENT | a;c;f |
 | Al2O3:Cr3+ | 3 | high | True | Oh | reverse_app | app-default | 1810.0 | 649.9 | 3119.6 | 1622.2 | 950.0 | -10.4 | 46.2 | 2127.8 | 1523.2 | False | False | WRONG-SILENT | app-sf;c |
 | [Cr(NH3)6]3+ | 3 | high | False | Oh | fit_spectrum | default | 2170.0 | 657.0 | n/a | 2155.0 | 657.4 | -0.7 | 0.1 | 152.1 | 0.0 | True | False | OK |  |
 | [Cr(NH3)6]3+ | 3 | high | False | Oh | reverse_app | app-default | 2170.0 | 657.0 | n/a | 2155.0 | 650.0 | -0.7 | -1.1 | 152.1 | 46.3 | True | False | OK |  |
 | [Cr(NH3)6]3+ | 3 | high | False | Oh | ratio_app | app-default | 2170.0 | 657.0 | n/a | 2229.3 | 689.7 | 2.7 | 5.0 | 152.1 | 919.5 | True | False | WRONG-SILENT | unclassified |
 | [Cr(NH3)6]3+ | 3 | high | True | Oh | fit_spectrum | default | 2170.0 | 657.0 | n/a | 1216.7 | 325.3 | -43.9 | -50.5 | 1293.8 | 42.5 | False | False | WRONG-SILENT | a;c |
 | [Cr(NH3)6]3+ | 3 | high | True | Oh | reverse_app | app-default | 2170.0 | 657.0 | n/a | 1330.0 | 650.0 | -38.7 | -1.1 | 3754.8 | 1919.1 | False | False | WRONG-SILENT | app-sf;c |
-| K3Cr(CN)6 | 3 | high | False | Oh | fit_spectrum | truth | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | estimator-disagreement |
-| K3Cr(CN)6 | 3 | high | False | Oh | fit_spectrum | default | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | estimator-disagreement |
-| K3Cr(CN)6 | 3 | high | False | Oh | reverse_app | app-default | 2660.0 | 480.0 | 2670.1 | 2660.0 | 550.0 | 0.0 | 14.6 | 358.2 | 147.2 | True | False | WRONG-SILENT | estimator-disagreement |
+| K3Cr(CN)6 | 3 | high | False | Oh | fit_spectrum | truth | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| K3Cr(CN)6 | 3 | high | False | Oh | fit_spectrum | default | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| K3Cr(CN)6 | 3 | high | False | Oh | reverse_app | app-default | 2660.0 | 480.0 | 2670.1 | 2660.0 | 550.0 | 0.0 | 14.6 | 358.2 | 147.2 | True | False | WRONG-SILENT | unclassified |
 | K3Cr(CN)6 | 3 | high | False | Oh | ratio_app | app-default | 2660.0 | 480.0 | 2670.1 | 2751.7 | 565.5 | 3.4 | 17.8 | 358.2 | 1125.5 | True | False | WRONG-SILENT | unclassified |
 | K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | truth | 2660.0 | 480.0 | 2670.1 | 1280.3 | 843.0 | -51.9 | 75.6 | 485.8 | 30.3 | False | False | WRONG-SILENT | a;c;f |
-| K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | default | 2660.0 | 480.0 | 2670.1 | 1281.8 | 936.1 | -51.8 | 95.0 | 2008.3 | 2.5 | False | False | WRONG-SILENT | a;c;f |
+| K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | default | 2660.0 | 480.0 | 2670.1 | 1281.8 | 936.1 | -51.8 | 95.0 | 485.8 | 2.5 | False | False | WRONG-SILENT | a;c;f |
 | K3Cr(CN)6 | 3 | high | True | Oh | reverse_app | app-default | 2660.0 | 480.0 | 2670.1 | 1282.0 | 650.0 | -51.8 | 35.4 | 7961.3 | 2415.0 | False | False | WRONG-SILENT | app-sf;c |
-| [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | truth | 3400.0 | 659.9 | 3279.9 | 3236.0 | 972.5 | -4.8 | 47.4 | 261.4 | 0.0 | False | False | WRONG-WARNED | c;estimator-disagreement |
-| [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | default | 3400.0 | 659.9 | 3279.9 | 3511.3 | 668.5 | 3.3 | 1.3 | 412.8 | 0.0 | False | False | WRONG-WARNED | c;estimator-disagreement |
-| [Mn(CN)6]3- | 4 | low | False | Oh | reverse_app | app-default | 3400.0 | 659.9 | 3279.9 | 2721.2 | 1150.0 | -20.0 | 74.3 | 412.8 | 5018.8 | False | False | WRONG-SILENT | app-hs;c;d |
-| [Mn(CN)6]3- | 4 | low | False | Oh | ratio_app | app-default | 3400.0 | 659.9 | 3279.9 | n/a | n/a | n/a | n/a | 412.8 | n/a | n/a | False | RAISED | app-hs |
+| [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | truth | 3400.0 | 659.9 | 3279.9 | 3236.0 | 972.5 | -4.8 | 47.4 | 261.4 | 0.0 | False | False | WRONG-WARNED | c |
+| [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | default | 3400.0 | 659.9 | 3279.9 | 3511.3 | 668.5 | 3.3 | 1.3 | 261.4 | 0.0 | False | False | WRONG-WARNED | c |
+| [Mn(CN)6]3- | 4 | low | False | Oh | reverse_app | app-default | 3400.0 | 659.9 | 3279.9 | 2721.2 | 1150.0 | -20.0 | 74.3 | 261.4 | 5018.8 | False | False | WRONG-SILENT | app-hs;c;d |
+| [Mn(CN)6]3- | 4 | low | False | Oh | ratio_app | app-default | 3400.0 | 659.9 | 3279.9 | n/a | n/a | n/a | n/a | 261.4 | n/a | n/a | False | RAISED | app-hs |
 | [Mn(CN)6]3- | 4 | low | True | Oh | fit_spectrum | truth | 3400.0 | 659.9 | 3279.9 | 2374.5 | 1268.2 | -30.2 | 92.2 | 246.6 | 27.3 | False | False | WRONG-SILENT | a;c;f |
-| [Mn(CN)6]3- | 4 | low | True | Oh | fit_spectrum | default | 3400.0 | 659.9 | 3279.9 | 2385.6 | 454.0 | -29.8 | -31.2 | 2862.9 | 122.8 | False | False | WRONG-SILENT | a;c;f |
-| [Mn(CN)6]3- | 4 | low | True | Oh | reverse_app | app-default | 3400.0 | 659.9 | 3279.9 | 2887.5 | 1500.0 | -15.1 | 127.3 | 5212.8 | 5330.5 | False | False | WRONG-SILENT | app-hs;app-sf;c;d |
+| [Mn(CN)6]3- | 4 | low | True | Oh | fit_spectrum | default | 3400.0 | 659.9 | 3279.9 | 2385.6 | 454.0 | -29.8 | -31.2 | 246.6 | 122.8 | False | False | WRONG-SILENT | a;c;f |
+| [Mn(CN)6]3- | 4 | low | True | Oh | reverse_app | app-default | 3400.0 | 659.9 | 3279.9 | 2887.5 | 1500.0 | -15.1 | 127.3 | 5722.1 | 5330.5 | False | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | MnI2 | 5 | high | True | Oh | fit_spectrum | truth | 550.0 | 689.2 | 3022.9 | 2118.0 | 1343.7 | 285.1 | 95.0 | 5.1 | 168.6 | False | False | WRONG-SILENT-R1 | a;b;c |
-| MnI2 | 5 | high | True | Oh | fit_spectrum | default | 550.0 | 689.2 | 3022.9 | 2266.6 | 599.3 | 312.1 | -13.0 | 2980.1 | 345.7 | False | False | WRONG-SILENT-R1 | a;c |
+| MnI2 | 5 | high | True | Oh | fit_spectrum | default | 550.0 | 689.2 | 3022.9 | 2266.6 | 599.3 | 312.1 | -13.0 | 5.1 | 345.7 | False | False | WRONG-SILENT-R1 | a;c |
 | MnI2 | 5 | high | True | Oh | reverse_app | app-default | 550.0 | 689.2 | 3022.9 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | RAISED-R1 | app-sf |
 | MnBr2 | 5 | high | True | Oh | fit_spectrum | truth | 580.0 | 721.4 | 3159.7 | 1929.5 | 599.7 | 232.7 | -16.9 | 12.1 | 82.8 | False | False | WRONG-SILENT-R1 | a;b;c |
-| MnBr2 | 5 | high | True | Oh | fit_spectrum | default | 580.0 | 721.4 | 3159.7 | 2333.1 | 714.6 | 302.3 | -0.9 | 2335.6 | 341.3 | False | False | WRONG-SILENT-R1 | a;c |
+| MnBr2 | 5 | high | True | Oh | fit_spectrum | default | 580.0 | 721.4 | 3159.7 | 2333.1 | 714.6 | 302.3 | -0.9 | 12.1 | 341.3 | False | False | WRONG-SILENT-R1 | a;c |
 | MnBr2 | 5 | high | True | Oh | reverse_app | app-default | 580.0 | 721.4 | 3159.7 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | RAISED-R1 | app-sf |
 | MnCl2 | 5 | high | True | Oh | fit_spectrum | truth | 620.0 | 770.2 | 3133.1 | 1933.5 | 626.4 | 211.9 | -18.7 | 9.9 | 132.8 | False | False | WRONG-SILENT-R1 | a;b;c |
-| MnCl2 | 5 | high | True | Oh | fit_spectrum | default | 620.0 | 770.2 | 3133.1 | 2366.5 | 755.0 | 281.7 | -2.0 | 2411.8 | 371.2 | False | False | WRONG-SILENT-R1 | a;c |
+| MnCl2 | 5 | high | True | Oh | fit_spectrum | default | 620.0 | 770.2 | 3133.1 | 2366.5 | 755.0 | 281.7 | -2.0 | 9.9 | 371.2 | False | False | WRONG-SILENT-R1 | a;c |
 | MnCl2 | 5 | high | True | Oh | reverse_app | app-default | 620.0 | 770.2 | 3133.1 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | RAISED-R1 | app-sf |
 | MnF2 | 5 | high | True | Oh | fit_spectrum | truth | 750.0 | 825.1 | 3356.4 | 2008.8 | 817.8 | 167.8 | -0.9 | 55.7 | 62.1 | False | False | WRONG-SILENT-R1 | a;b;c |
-| MnF2 | 5 | high | True | Oh | fit_spectrum | default | 750.0 | 825.1 | 3356.4 | 2131.5 | 576.5 | 184.2 | -30.1 | 1771.1 | 72.9 | False | False | WRONG-SILENT-R1 | a;c |
+| MnF2 | 5 | high | True | Oh | fit_spectrum | default | 750.0 | 825.1 | 3356.4 | 2131.5 | 576.5 | 184.2 | -30.1 | 55.7 | 72.9 | False | False | WRONG-SILENT-R1 | a;c |
 | MnF2 | 5 | high | True | Oh | reverse_app | app-default | 750.0 | 825.1 | 3356.4 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | RAISED-R1 | app-sf |
 | [Mn(H2O)6]2+ | 5 | high | True | Oh | fit_spectrum | truth | 760.0 | 827.9 | 3242.8 | 1978.7 | 828.3 | 160.4 | 0.1 | 5.6 | 7.7 | False | False | WRONG-SILENT-R1 | a;b;c |
-| [Mn(H2O)6]2+ | 5 | high | True | Oh | fit_spectrum | default | 760.0 | 827.9 | 3242.8 | 1327.8 | 1006.6 | 74.7 | 21.6 | 2137.8 | 147.7 | False | False | WRONG-SILENT-R1 | a;c |
+| [Mn(H2O)6]2+ | 5 | high | True | Oh | fit_spectrum | default | 760.0 | 827.9 | 3242.8 | 1327.8 | 1006.6 | 74.7 | 21.6 | 5.6 | 147.7 | False | False | WRONG-SILENT-R1 | a;c |
 | [Mn(H2O)6]2+ | 5 | high | True | Oh | reverse_app | app-default | 760.0 | 827.9 | 3242.8 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | RAISED-R1 | app-sf |
 | LiGa5O8:Fe3+ | 5 | high | True | Oh | fit_spectrum | truth | 906.0 | 594.1 | 3736.3 | 2071.4 | 493.3 | 128.6 | -17.0 | 3.7 | 55.8 | False | False | WRONG-SILENT-R1 | a;b;c |
-| LiGa5O8:Fe3+ | 5 | high | True | Oh | fit_spectrum | default | 906.0 | 594.1 | 3736.3 | 2165.9 | 485.7 | 139.1 | -18.2 | 597.6 | 71.1 | False | False | WRONG-SILENT-R1 | a;c |
+| LiGa5O8:Fe3+ | 5 | high | True | Oh | fit_spectrum | default | 906.0 | 594.1 | 3736.3 | 2165.9 | 485.7 | 139.1 | -18.2 | 3.7 | 71.1 | False | False | WRONG-SILENT-R1 | a;c |
 | LiGa5O8:Fe3+ | 5 | high | True | Oh | reverse_app | app-default | 906.0 | 594.1 | 3736.3 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | RAISED-R1 | app-sf |
-| [Co(oxalate)3]3- | 6 | low | False | Oh | fit_spectrum | default | 1815.0 | 535.6 | n/a | 2012.4 | 495.3 | 10.9 | -7.5 | 3956.1 | 264.9 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
-| [Co(oxalate)3]3- | 6 | low | False | Oh | reverse_app | app-default | 1815.0 | 535.6 | n/a | 2076.4 | 800.0 | 14.4 | 49.4 | 3956.1 | 3527.9 | False | False | WRONG-SILENT-R1 | app-hs;c;d;estimator-disagreement |
+| [Co(oxalate)3]3- | 6 | low | False | Oh | fit_spectrum | default | 1815.0 | 535.6 | n/a | 2012.4 | 495.3 | 10.9 | -7.5 | 3956.1 | 264.9 | True | False | WRONG-WARNED-R1 | unclassified |
+| [Co(oxalate)3]3- | 6 | low | False | Oh | reverse_app | app-default | 1815.0 | 535.6 | n/a | 2076.4 | 800.0 | 14.4 | 49.4 | 3956.1 | 3527.9 | False | False | WRONG-SILENT-R1 | app-hs;c;d |
 | [Co(oxalate)3]3- | 6 | low | False | Oh | ratio_app | app-default | 1815.0 | 535.6 | n/a | n/a | n/a | n/a | n/a | 3956.1 | n/a | n/a | False | RAISED-R1 | app-hs |
-| [Co(H2O)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | 5115.8 | 615.0 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
-| [Co(H2O)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 1841.0 | 705.1 | n/a | 2059.3 | 750.0 | 11.9 | 6.4 | 5115.8 | 4466.0 | False | False | WRONG-SILENT-R1 | app-hs;c;d;estimator-disagreement |
+| [Co(H2O)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | 5115.8 | 615.0 | True | False | WRONG-WARNED-R1 | unclassified |
+| [Co(H2O)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 1841.0 | 705.1 | n/a | 2059.3 | 750.0 | 11.9 | 6.4 | 5115.8 | 4466.0 | False | False | WRONG-SILENT-R1 | app-hs;c;d |
 | [Co(H2O)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 1841.0 | 705.1 | n/a | n/a | n/a | n/a | n/a | 5115.8 | n/a | n/a | False | RAISED-R1 | app-hs |
-| [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | truth | 2293.0 | 635.0 | 3886.9 | 2359.2 | 635.4 | 2.9 | 0.1 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
-| [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 2293.0 | 635.0 | 3886.9 | 2428.6 | 643.8 | 5.9 | 1.4 | 1415.1 | 0.0 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
-| [Co(NH3)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 2293.0 | 635.0 | 3886.9 | 2105.3 | 950.0 | -8.2 | 49.6 | 1415.1 | 5972.2 | False | False | WRONG-SILENT-R1 | app-hs;c;d |
-| [Co(NH3)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 2293.0 | 635.0 | 3886.9 | n/a | n/a | n/a | n/a | 1415.1 | n/a | n/a | False | RAISED-R1 | app-hs |
+| [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | truth | 2293.0 | 635.0 | 3886.9 | 2359.2 | 635.4 | 2.9 | 0.1 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
+| [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 2293.0 | 635.0 | 3886.9 | 2428.6 | 643.8 | 5.9 | 1.4 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
+| [Co(NH3)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 2293.0 | 635.0 | 3886.9 | 2105.3 | 950.0 | -8.2 | 49.6 | 671.4 | 5972.2 | False | False | WRONG-SILENT-R1 | app-hs;c;d |
+| [Co(NH3)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 2293.0 | 635.0 | 3886.9 | n/a | n/a | n/a | n/a | 671.4 | n/a | n/a | False | RAISED-R1 | app-hs |
 | [Co(NH3)6]3+ | 6 | low | True | Oh | fit_spectrum | truth | 2293.0 | 635.0 | 3886.9 | 2387.2 | 611.2 | 4.1 | -3.8 | 665.2 | 166.9 | True | False | WRONG-SILENT-R1 | a;f |
-| [Co(NH3)6]3+ | 6 | low | True | Oh | fit_spectrum | default | 2293.0 | 635.0 | 3886.9 | 2118.8 | 989.7 | -7.6 | 55.9 | 1426.7 | 612.4 | False | False | WRONG-SILENT-R1 | a;c;f |
-| [Co(NH3)6]3+ | 6 | low | True | Oh | reverse_app | app-default | 2293.0 | 635.0 | 3886.9 | 2010.0 | 500.0 | -12.3 | -21.3 | 3557.1 | 5966.1 | False | False | WRONG-SILENT-R1 | app-hs;app-sf;c;d |
-| [Co(NO2)6]3- | 6 | low | False | Oh | fit_spectrum | default | 2900.0 | 438.7 | n/a | 3094.6 | 502.1 | 6.7 | 14.5 | 2406.8 | 0.0 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
+| [Co(NH3)6]3+ | 6 | low | True | Oh | fit_spectrum | default | 2293.0 | 635.0 | 3886.9 | 2118.8 | 989.7 | -7.6 | 55.9 | 665.2 | 612.4 | False | False | WRONG-SILENT-R1 | a;c;f |
+| [Co(NH3)6]3+ | 6 | low | True | Oh | reverse_app | app-default | 2293.0 | 635.0 | 3886.9 | 2010.0 | 500.0 | -12.3 | -21.3 | 3878.5 | 5966.1 | False | False | WRONG-SILENT-R1 | app-hs;app-sf;c;d |
+| [Co(NO2)6]3- | 6 | low | False | Oh | fit_spectrum | default | 2900.0 | 438.7 | n/a | 3094.6 | 502.1 | 6.7 | 14.5 | 2406.8 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NO2)6]3- | 6 | low | False | Oh | reverse_app | app-default | 2900.0 | 438.7 | n/a | 2054.8 | 700.0 | -29.1 | 59.6 | 2406.8 | 10979.4 | False | False | WRONG-SILENT-R1 | app-hs;c;d |
 | [Co(NO2)6]3- | 6 | low | False | Oh | ratio_app | app-default | 2900.0 | 438.7 | n/a | n/a | n/a | n/a | n/a | 2406.8 | n/a | n/a | False | RAISED-R1 | app-hs |
 | AgCl:Co2+ | 7 | high | False | Oh | fit_spectrum | truth | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
@@ -603,33 +603,33 @@ Counts (non-R1 rows):
 | AgCl:Co2+ | 7 | high | False | Oh | reverse_app | app-default | 680.0 | 789.8 | 3319.4 | 691.9 | 800.0 | 1.7 | 1.3 | 225.2 | 336.2 | True | False | OK |  |
 | AgCl:Co2+ | 7 | high | False | Oh | ratio_app | app-default | 680.0 | 789.8 | 3319.4 | 699.8 | 772.4 | 2.9 | -2.2 | 225.2 | 397.9 | True | False | WRONG-SILENT | app-grid |
 | AgCl:Co2+ | 7 | high | True | Oh | fit_spectrum | truth | 680.0 | 789.8 | 3319.4 | 678.1 | 668.6 | -0.3 | -15.3 | 195.1 | 301.8 | False | False | WRONG-SILENT | b;c |
-| AgCl:Co2+ | 7 | high | True | Oh | fit_spectrum | default | 680.0 | 789.8 | 3319.4 | 664.0 | 513.7 | -2.3 | -35.0 | 495.0 | 154.0 | False | False | WRONG-SILENT | c;f |
+| AgCl:Co2+ | 7 | high | True | Oh | fit_spectrum | default | 680.0 | 789.8 | 3319.4 | 664.0 | 513.7 | -2.3 | -35.0 | 195.1 | 154.0 | False | False | WRONG-SILENT | c;f |
 | AgCl:Co2+ | 7 | high | True | Oh | reverse_app | app-default | 680.0 | 789.8 | 3319.4 | 691.9 | 850.0 | 1.7 | 7.6 | 1102.3 | 810.3 | False | False | WRONG-SILENT | app-sf;c |
-| CoCl2 | 7 | high | False | Oh | fit_spectrum | truth | 690.0 | 779.7 | 3430.5 | 720.3 | 788.3 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | estimator-disagreement;f |
-| CoCl2 | 7 | high | False | Oh | fit_spectrum | default | 690.0 | 779.7 | 3430.5 | 720.3 | 788.3 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | estimator-disagreement;f |
+| CoCl2 | 7 | high | False | Oh | fit_spectrum | truth | 690.0 | 779.7 | 3430.5 | 720.3 | 788.3 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | f |
+| CoCl2 | 7 | high | False | Oh | fit_spectrum | default | 690.0 | 779.7 | 3430.5 | 720.3 | 788.3 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | f |
 | CoCl2 | 7 | high | False | Oh | reverse_app | app-default | 690.0 | 779.7 | 3430.5 | 742.5 | 800.0 | 7.6 | 2.6 | 479.8 | 400.0 | True | False | WRONG-SILENT | estimator-disagreement |
 | CoCl2 | 7 | high | False | Oh | ratio_app | app-default | 690.0 | 779.7 | 3430.5 | 751.0 | 772.4 | 8.8 | -0.9 | 479.8 | 440.3 | True | False | WRONG-SILENT | unclassified |
 | CoCl2 | 7 | high | True | Oh | fit_spectrum | truth | 690.0 | 779.7 | 3430.5 | 713.8 | 640.0 | 3.4 | -17.9 | 454.3 | 180.2 | False | False | WRONG-SILENT | c;f |
-| CoCl2 | 7 | high | True | Oh | fit_spectrum | default | 690.0 | 779.7 | 3430.5 | 717.0 | 809.3 | 3.9 | 3.8 | 642.7 | 474.8 | False | False | WRONG-SILENT | c |
+| CoCl2 | 7 | high | True | Oh | fit_spectrum | default | 690.0 | 779.7 | 3430.5 | 717.0 | 809.3 | 3.9 | 3.8 | 454.3 | 474.8 | False | False | WRONG-SILENT | c |
 | CoCl2 | 7 | high | True | Oh | reverse_app | app-default | 690.0 | 779.7 | 3430.5 | 742.5 | 850.0 | 7.6 | 9.0 | 1204.2 | 730.7 | False | False | WRONG-SILENT | app-sf;c |
-| KCoF3 | 7 | high | False | Oh | fit_spectrum | truth | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | estimator-disagreement;f |
-| KCoF3 | 7 | high | False | Oh | fit_spectrum | default | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | estimator-disagreement;f |
+| KCoF3 | 7 | high | False | Oh | fit_spectrum | truth | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | f |
+| KCoF3 | 7 | high | False | Oh | fit_spectrum | default | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | f |
 | KCoF3 | 7 | high | False | Oh | reverse_app | app-default | 770.0 | 880.0 | 3872.0 | 804.4 | 900.0 | 4.5 | 2.3 | 582.9 | 189.1 | True | False | WRONG-SILENT | app-grid;estimator-disagreement |
 | KCoF3 | 7 | high | False | Oh | ratio_app | app-default | 770.0 | 880.0 | 3872.0 | 813.6 | 855.2 | 5.7 | -2.8 | 582.9 | 195.6 | True | False | WRONG-SILENT | unclassified |
 | KCoF3 | 7 | high | True | Oh | fit_spectrum | truth | 770.0 | 880.0 | 3872.0 | 812.7 | 889.4 | 5.5 | 1.1 | 534.3 | 136.3 | True | False | WRONG-SILENT | f |
-| KCoF3 | 7 | high | True | Oh | fit_spectrum | default | 770.0 | 880.0 | 3872.0 | 817.9 | 1012.0 | 6.2 | 15.0 | 917.0 | 48.5 | False | False | WRONG-SILENT | c;f |
+| KCoF3 | 7 | high | True | Oh | fit_spectrum | default | 770.0 | 880.0 | 3872.0 | 817.9 | 1012.0 | 6.2 | 15.0 | 534.3 | 48.5 | False | False | WRONG-SILENT | c;f |
 | KCoF3 | 7 | high | True | Oh | reverse_app | app-default | 770.0 | 880.0 | 3872.0 | 804.4 | 950.0 | 4.5 | 8.0 | 1244.7 | 695.8 | False | False | WRONG-SILENT | app-sf;c |
 | [Co(H2O)6]2+ | 7 | high | False | Oh | fit_spectrum | default | 920.0 | 850.3 | n/a | 921.5 | 827.7 | 0.2 | -2.7 | 213.4 | 0.0 | True | False | OK |  |
 | [Co(H2O)6]2+ | 7 | high | False | Oh | reverse_app | app-default | 920.0 | 850.3 | n/a | 911.2 | 850.0 | -1.0 | 0.0 | 213.4 | 174.3 | True | False | OK |  |
 | [Co(H2O)6]2+ | 7 | high | False | Oh | ratio_app | app-default | 920.0 | 850.3 | n/a | 921.7 | 1600.0 | 0.2 | 88.2 | 213.4 | 1677.1 | False | False | WRONG-SILENT | c |
 | [Co(H2O)6]2+ | 7 | high | True | Oh | fit_spectrum | default | 920.0 | 850.3 | n/a | 923.6 | 989.4 | 0.4 | 16.4 | 560.5 | 155.0 | False | False | WRONG-SILENT | c |
 | [Co(H2O)6]2+ | 7 | high | True | Oh | reverse_app | app-default | 920.0 | 850.3 | n/a | 1012.5 | 950.0 | 10.1 | 11.7 | 1110.4 | 529.3 | False | False | WRONG-SILENT | app-sf;c |
-| CoSiF6·6H2O | 7 | high | False | Oh | fit_spectrum | truth | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | estimator-disagreement;f |
-| CoSiF6·6H2O | 7 | high | False | Oh | fit_spectrum | default | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | estimator-disagreement;f |
-| CoSiF6·6H2O | 7 | high | False | Oh | reverse_app | app-default | 965.0 | 870.2 | 3915.7 | 1060.0 | 500.0 | 9.8 | -42.5 | 1053.7 | 692.0 | False | False | WRONG-SILENT | c;estimator-disagreement |
+| CoSiF6·6H2O | 7 | high | False | Oh | fit_spectrum | truth | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | f |
+| CoSiF6·6H2O | 7 | high | False | Oh | fit_spectrum | default | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | f |
+| CoSiF6·6H2O | 7 | high | False | Oh | reverse_app | app-default | 965.0 | 870.2 | 3915.7 | 1060.0 | 500.0 | 9.8 | -42.5 | 1053.7 | 692.0 | False | False | WRONG-SILENT | c |
 | CoSiF6·6H2O | 7 | high | False | Oh | ratio_app | app-default | 965.0 | 870.2 | 3915.7 | 965.0 | 855.2 | 0.0 | -1.7 | 1053.7 | 1065.2 | True | False | OK |  |
 | CoSiF6·6H2O | 7 | high | True | Oh | fit_spectrum | truth | 965.0 | 870.2 | 3915.7 | 965.1 | 869.9 | 0.0 | 0.0 | 2.6 | 1.0 | False | False | OK |  |
-| CoSiF6·6H2O | 7 | high | True | Oh | fit_spectrum | default | 965.0 | 870.2 | 3915.7 | 1071.0 | 659.8 | 11.0 | -24.2 | 932.8 | 300.9 | False | False | WRONG-SILENT | c;e |
+| CoSiF6·6H2O | 7 | high | True | Oh | fit_spectrum | default | 965.0 | 870.2 | 3915.7 | 1071.0 | 659.8 | 11.0 | -24.2 | 2.6 | 300.9 | False | False | WRONG-SILENT | c;e |
 | CoSiF6·6H2O | 7 | high | True | Oh | reverse_app | app-default | 965.0 | 870.2 | 3915.7 | 848.0 | 950.0 | -12.1 | 9.2 | 966.8 | 659.7 | False | False | WRONG-SILENT | app-sf;c |
 | Co(bipy)3Br2·6H2O | 7 | high | False | Oh | fit_spectrum | default | 1267.0 | 790.9 | n/a | 1259.7 | 799.8 | -0.6 | 1.1 | 66.1 | 0.0 | True | False | OK |  |
 | Co(bipy)3Br2·6H2O | 7 | high | False | Oh | reverse_app | app-default | 1267.0 | 790.9 | n/a | 1271.2 | 800.0 | 0.3 | 1.2 | 66.1 | 107.0 | True | False | OK |  |
@@ -641,7 +641,7 @@ Counts (non-R1 rows):
 | AgCl:Ni2+ | 8 | high | False | Oh | reverse_app | app-default | 670.0 | 805.3 | 3131.0 | 668.0 | 800.0 | -0.3 | -0.7 | 12.7 | 57.8 | True | False | OK |  |
 | AgCl:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 670.0 | 805.3 | 3131.0 | 691.0 | 855.2 | 3.1 | 6.2 | 12.7 | 635.1 | True | False | WRONG-SILENT | unclassified |
 | AgCl:Ni2+ | 8 | high | True | Oh | fit_spectrum | truth | 670.0 | 805.3 | 3131.0 | 644.6 | 200.0 | -3.8 | -75.2 | 147.4 | 460.5 | False | False | WRONG-WARNED | a;b;c |
-| AgCl:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 670.0 | 805.3 | 3131.0 | 429.3 | 282.9 | -35.9 | -64.9 | 610.0 | 431.7 | False | False | WRONG-SILENT | a;c |
+| AgCl:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 670.0 | 805.3 | 3131.0 | 429.3 | 282.9 | -35.9 | -64.9 | 147.4 | 431.7 | False | False | WRONG-SILENT | a;c |
 | AgCl:Ni2+ | 8 | high | True | Oh | reverse_app | app-default | 670.0 | 805.3 | 3131.0 | 668.0 | 800.0 | -0.3 | -0.7 | 610.0 | 630.5 | False | False | OK |  |
 | [NiF6]4- | 8 | high | False | Oh | fit_spectrum | default | 740.0 | 948.7 | n/a | 748.1 | 933.7 | 1.1 | -1.6 | 110.4 | 57.2 | True | False | OK |  |
 | [NiF6]4- | 8 | high | False | Oh | reverse_app | app-default | 740.0 | 948.7 | n/a | 740.0 | 950.0 | 0.0 | 0.1 | 110.4 | 115.3 | True | False | OK |  |
@@ -653,21 +653,21 @@ Counts (non-R1 rows):
 | MgO:Ni2+ | 8 | high | False | Oh | reverse_app | app-default | 815.0 | 889.7 | 3914.8 | 801.0 | 900.0 | -1.7 | 1.2 | 141.1 | 184.6 | True | True | OK |  |
 | MgO:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 815.0 | 889.7 | 3914.8 | 828.6 | 937.9 | 1.7 | 5.4 | 141.1 | 618.1 | True | True | WRONG-SILENT | unclassified |
 | MgO:Ni2+ | 8 | high | True | Oh | fit_spectrum | truth | 815.0 | 889.7 | 3914.8 | 799.2 | 1242.9 | -1.9 | 39.7 | 141.1 | 12.9 | False | True | WRONG-SILENT | c;f |
-| MgO:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 815.0 | 889.7 | 3914.8 | 813.9 | 904.5 | -0.1 | 1.7 | 107.5 | 97.1 | False | True | OK |  |
+| MgO:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 815.0 | 889.7 | 3914.8 | 813.9 | 904.5 | -0.1 | 1.7 | 141.1 | 97.1 | False | True | OK |  |
 | MgO:Ni2+ | 8 | high | True | Oh | reverse_app | app-default | 815.0 | 889.7 | 3914.8 | 801.0 | 900.0 | -1.7 | 1.2 | 141.1 | 184.6 | True | True | OK |  |
-| [Ni(H2O)6]2+ | 8 | high | False | Oh | fit_spectrum | truth | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | estimator-disagreement;f |
-| [Ni(H2O)6]2+ | 8 | high | False | Oh | fit_spectrum | default | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | estimator-disagreement;f |
+| [Ni(H2O)6]2+ | 8 | high | False | Oh | fit_spectrum | truth | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | f |
+| [Ni(H2O)6]2+ | 8 | high | False | Oh | fit_spectrum | default | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | f |
 | [Ni(H2O)6]2+ | 8 | high | False | Oh | reverse_app | app-default | 860.0 | 939.9 | 3853.6 | 850.0 | 900.0 | -1.2 | -4.2 | 499.5 | 413.4 | True | False | OK |  |
 | [Ni(H2O)6]2+ | 8 | high | False | Oh | ratio_app | app-default | 860.0 | 939.9 | 3853.6 | 879.3 | 937.9 | 2.2 | -0.2 | 499.5 | 727.7 | True | False | WRONG-SILENT | app-grid |
 | [Ni(H2O)6]2+ | 8 | high | True | Oh | fit_spectrum | truth | 860.0 | 939.9 | 3853.6 | 1210.9 | 200.0 | 40.8 | -78.7 | 569.4 | 619.3 | False | False | WRONG-WARNED | a;b;c |
-| [Ni(H2O)6]2+ | 8 | high | True | Oh | fit_spectrum | default | 860.0 | 939.9 | 3853.6 | 831.7 | 650.8 | -3.3 | -30.8 | 696.1 | 495.0 | False | False | WRONG-SILENT | a;c;f |
+| [Ni(H2O)6]2+ | 8 | high | True | Oh | fit_spectrum | default | 860.0 | 939.9 | 3853.6 | 831.7 | 650.8 | -3.3 | -30.8 | 569.4 | 495.0 | False | False | WRONG-SILENT | a;c;f |
 | [Ni(H2O)6]2+ | 8 | high | True | Oh | reverse_app | app-default | 860.0 | 939.9 | 3853.6 | 850.0 | 950.0 | -1.2 | 1.1 | 696.1 | 712.7 | False | False | OK |  |
 | LiGa5O8:Ni2+ | 8 | high | False | Oh | fit_spectrum | truth | 977.0 | 899.6 | 3148.7 | 983.5 | 882.6 | 0.7 | -1.9 | 95.9 | 50.5 | True | False | OK |  |
 | LiGa5O8:Ni2+ | 8 | high | False | Oh | fit_spectrum | default | 977.0 | 899.6 | 3148.7 | 983.5 | 882.6 | 0.7 | -1.9 | 95.9 | 50.5 | True | False | OK |  |
 | LiGa5O8:Ni2+ | 8 | high | False | Oh | reverse_app | app-default | 977.0 | 899.6 | 3148.7 | 977.0 | 900.0 | 0.0 | 0.0 | 95.9 | 97.6 | True | False | OK |  |
 | LiGa5O8:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 977.0 | 899.6 | 3148.7 | 1010.7 | 937.9 | 3.4 | 4.3 | 95.9 | 736.9 | True | False | WRONG-SILENT | unclassified |
 | LiGa5O8:Ni2+ | 8 | high | True | Oh | fit_spectrum | truth | 977.0 | 899.6 | 3148.7 | 1256.2 | 404.2 | 28.6 | -55.1 | 85.2 | 287.9 | False | False | WRONG-SILENT | a;b;c |
-| LiGa5O8:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 977.0 | 899.6 | 3148.7 | 637.4 | 452.6 | -34.8 | -49.7 | 1478.8 | 158.7 | False | False | WRONG-SILENT | a;c |
+| LiGa5O8:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 977.0 | 899.6 | 3148.7 | 637.4 | 452.6 | -34.8 | -49.7 | 85.2 | 158.7 | False | False | WRONG-SILENT | a;c |
 | LiGa5O8:Ni2+ | 8 | high | True | Oh | reverse_app | app-default | 977.0 | 899.6 | 3148.7 | 1099.1 | 700.0 | 12.5 | -22.2 | 1478.8 | 1252.9 | False | False | WRONG-SILENT | app-sf;c |
 | [Ni(NH3)6]2+ | 8 | high | False | Oh | fit_spectrum | default | 1030.0 | n/a | n/a | 1084.6 | 823.9 | 5.3 | n/a | n/a | 222.0 | True | False | WRONG-SILENT | unclassified |
 | [Ni(NH3)6]2+ | 8 | high | False | Oh | reverse_app | app-default | 1030.0 | n/a | n/a | 1060.0 | 850.0 | 2.9 | n/a | n/a | 308.5 | True | False | WRONG-SILENT | unclassified |
@@ -692,8 +692,8 @@ Class (e) measures the bias of holding C at the default. Whether a free C would 
 | app-sf | app has no include_spin_forbidden and fits forbidden bands as allowed | reverse-app row with spin-forbidden bands in its input | 97 | 7 | 16 | 2 |
 | app-grid | app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600 (25 steps reverse, 30 ratio) | app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 13 | 56 | 8 | 14 |
 | single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 14 | 0 | 0 | 0 |
-| estimator-disagreement | published values are not the minimum of this objective | JCE, sf=False, fit_spectrum or reverse app (both minimise the nearest-line RMSE): rmse_at_fit < rmse_at_reported | 0 | 0 | 27 | 21 |
-| unclassified | matches no rule | a failing row no rule above matched | 35 | - | 14 | - |
+| estimator-disagreement | published values are not the minimum of this objective (reverse app; fit_spectrum is covered by (f)) | JCE, sf=False, reverse app, every band assigned, more than two bands, reported C given: RMSE at the returned point < RMSE at the reported (Dq, B, C) | 0 | 0 | 3 | 1 |
+| unclassified | matches no rule | a failing row no rule above matched | 35 | - | 24 | - |
 
 ## 7. Findings
 
@@ -702,7 +702,8 @@ Class (e) measures the bias of holding C at the default. Whether a free C would 
 **S1. WRONG-WARNED should not be read as 'flagged'.** The C-not-constrained note fires on most OK runs too, so it carries no information about a wrong answer; only residual, B-pinned, single-transition and too-few-bands warnings count as pertinent.
 Live: 45 of 168 synthetic fit_spectrum runs with |dDq| > 2 % carry a pertinent warning; the c-note fires on 130 of 213 OK runs.
 
-**S2. The JCE spin-allowed misses are estimator disagreement, not a fitter defect.** Where the fitter's own objective is lower at its answer than at the published point, the published values are not the minimum of this objective (class estimator-disagreement).
+**S2. Estimator disagreement explains only a few JCE misses.** A miss is charged to the published values rather than the fitter only where the reverse app's answer beats the published (Dq, B, C) on the app's own objective with every band assigned, more than two bands and a reported C. A looser rule fires on most OK rows too, and for fit_spectrum it would only repeat class (f).
+Live: 3 failing non-R1 JCE reverse-app rows qualify (CoCl2, KCoF3, [Cr(H2O)6]3+); the same rule holds on 1 of 13 OK ones.
 
 **S3. C-misspecification is a continuous bias.** Holding C at the default shifts Dq in a direction set by the sign of the C error; passing low-spin default-C runs are still off by 1-2 % in the predicted direction.
 Live, low-spin fit_spectrum C=default, Spearman between signed dC and dDq: d4 sf=False: rho +0.94 (n=7); d4 sf=True: rho +1.00 (n=6); d5 sf=False: rho +0.97 (n=9); d5 sf=True: rho +0.92 (n=9); d6 sf=False: rho +0.94 (n=7); d6 sf=True: rho +0.90 (n=7); d7 sf=False: rho +0.94 (n=7); d7 sf=True: rho +1.00 (n=6). Among the 10 of those runs graded OK, mean |dDq| = 1.1 %. dC is set by the B factor and C/B together, so the pooled rho alone could be a B effect; holding B fixed, the C/B change moves dDq the same way as dC in 25 of 26 pairs.
