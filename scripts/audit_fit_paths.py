@@ -517,7 +517,7 @@ def synthetic_bands(
     ground_label, excited = levels[0][1], levels[1:]
     gm = multiplicity(ground_label)
     allowed = cluster_levels([lv for lv in excited if multiplicity(lv[1]) == gm])[:MAX_ALLOWED]
-    # Spin-forbidden = |dS| = 1: high-spin ground sees the manifold below, low-spin the one above.
+    # Spin-forbidden = |dS| = 1: HS grounds see the manifold below, LS (d5-d7) mainly above.
     forbidden = cluster_levels([lv for lv in excited if multiplicity(lv[1]) in (gm - 2, gm + 2)])
     forbidden = forbidden[:MAX_FORBIDDEN]
 
@@ -1367,8 +1367,9 @@ def section_known_defect(
             f"Bands {', '.join(fmt(e) for e in KNOWN_DEFECT_BANDS)} cm^-1, "
             f"`include_spin_forbidden=True`. Reference ({JCE_CITATION}, Table 2, reported): "
             f"Dq {fmt(KNOWN_DEFECT_DQ)}, B {fmt(b)}, C {fmt(KNOWN_DEFECT_C_OVER_B * b)} cm^-1. "
-            "This reference is d5 and therefore R1-tainted (Hormann & Shaw 1987): the table is "
-            "a comparison, not a grade. Regenerated live; the counterfactual monkeypatches "
+            "This reference is d5 and therefore R1-tainted "
+            "(Hormann & Shaw, J. Chem. Educ. 1987, 64, 918): the table is a comparison, not a "
+            "grade. Regenerated live; the counterfactual monkeypatches "
             "`tanabesugano.mcp._compute.closed_form_dq_b` inside this process only."
         ),
         "",

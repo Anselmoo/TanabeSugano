@@ -1,4 +1,4 @@
-"""Transcribe Tables 1 and 2 of Garcia Rojas & Perez Torres, J. Chem. Educ. 2023, 100, 251-258
+"""Transcribe Tables 1 and 2 of García Rojas & Pérez Torres, J. Chem. Educ. 2023, 100, 251-258
 (DOI 10.1021/acs.jchemed.2c00885) into JSON and CSV.
 
 Values were typed from the PDF; column placement of rows with empty cells was checked against the
@@ -129,7 +129,7 @@ def num(v):
     if isinstance(v, str) and v.startswith("~"): return float(v[1:]), True
     return float(v), False
 
-source = {"citation": "García Rojas, V.; Pérez Torres, J. F. J. Chem. Educ. 2023, 100, 251-258",
+source = {"citation": "García Rojas, V.; Pérez Torres, J. F. Derivation of Dq/B and C/B from Electronic Spectra of Transition Metal Ions in Cubic Fields Using Auxiliary Tanabe–Sugano Diagrams. J. Chem. Educ. 2023, 100, 251-258",
           "doi": "10.1021/acs.jchemed.2c00885",
           "transcribed": "2026-11-24, from the PDF; checked against pdftotext -layout and the rendered pages",
           "notes": ["Wavenumbers in cm-1; term labels as printed (cubic, no g subscript); '^3E' carries no ordinal in the source.",
