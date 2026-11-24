@@ -26,7 +26,8 @@ Band rule.  All excited levels of the ground multiplicity are first merged
 (levels within 50 cm^-1 chain into one band at their mean energy, every label
 kept), and the lowest k <= 3 merged bands are the spin-allowed set.  The
 spin-forbidden variant adds the lowest 3 merged bands of multiplicity
-(2S+1) - 2.  Merging BEFORE truncating keeps degenerate partners together
+(2S+1) +/- 2 (|dS| = 1; low-spin d5-d7 have only the manifold above).
+Merging BEFORE truncating keeps degenerate partners together
 (d5 4A1/4E at 10B + 5C).  A band additionally carries the label of any other
 excited level within 50 cm^-1 of one of its members, since such a level is
 observationally indistinguishable.  A label is ``<term>#<index>`` with a
@@ -512,7 +513,9 @@ def synthetic_bands(
     ground_label, excited = levels[0][1], levels[1:]
     gm = multiplicity(ground_label)
     allowed = cluster_levels([lv for lv in excited if multiplicity(lv[1]) == gm])[:MAX_ALLOWED]
-    forbidden = cluster_levels([lv for lv in excited if multiplicity(lv[1]) == gm - 2])
+    # Spin-forbidden = |dS| = 1 in either direction: a high-spin ground state only has the
+    # manifold below it, a low-spin one (d5-d7) mainly the manifold above it.
+    forbidden = cluster_levels([lv for lv in excited if multiplicity(lv[1]) in (gm - 2, gm + 2)])
     forbidden = forbidden[:MAX_FORBIDDEN]
 
     def to_bands(clusters: list[list[tuple[float, str]]]) -> tuple[Band, ...]:
@@ -572,6 +575,13 @@ def expected_ground_mult(d: int, spin: SpinState) -> int:
     return multiplicity(oracle_ground(d, dq, DEFAULTS[d]["default_B"], DEFAULTS[d]["default_C"]))
 
 
+def has_forbidden_manifold(d: int, spin: SpinState, gm: int) -> bool:
+    """Return whether d^n has any level of multiplicity ``gm +/- 2`` (|dS| = 1)."""
+    dq = ORACLE_WEAK_DQ if spin == "high" else ORACLE_STRONG_DQ
+    levels = oracle_levels(d, dq, DEFAULTS[d]["default_B"], DEFAULTS[d]["default_C"])
+    return any(multiplicity(lab) in (gm - 2, gm + 2) for _e, lab in levels)
+
+
 def synthetic_cases() -> tuple[list[Case], list[str]]:
     """Build every synthetic case, and the reasons for cells left N/A.
 
@@ -588,10 +598,10 @@ def synthetic_cases() -> tuple[list[Case], list[str]]:
                 continue
             gm = expected_ground_mult(d, spin)
             for sf in (False, True):
-                if sf and gm - 2 < 1:
+                if sf and not has_forbidden_manifold(d, spin, gm):
                     na_cells.append(
                         f"d{d} {spin}-spin sf=True: ground multiplicity {gm} has no "
-                        "(2S+1)-2 manifold, so the band set equals sf=False",
+                        "(2S+1) +/- 2 manifold, so the band set equals sf=False",
                     )
                     continue
                 for dq, b, c, near in truth_points(d, spin):
@@ -771,6 +781,24 @@ def predicted_levels(
     return ground_key, levels
 
 
+def r_squared(energies: list[float], residuals: list[float]) -> float | None:
+    """Return 1 - SS_res / SS_tot of nearest-line residuals, None when SS_tot is 0."""
+    if len(energies) < 2:  # noqa: PLR2004  one band has no variance to explain
+        return None
+    mean = sum(energies) / len(energies)
+    ss_tot = sum((e - mean) ** 2 for e in energies)
+    if ss_tot == 0:
+        return None
+    return 1.0 - sum(r * r for r in residuals) / ss_tot
+
+
+def nearest_residuals(bands: tuple[Band, ...], levels: list[tuple[float, str]]) -> list[float]:
+    """Return each band's energy minus its nearest predicted level's energy."""
+    return [
+        band.energy - min(levels, key=lambda lv, e=band.energy: abs(lv[0] - e))[0] for band in bands
+    ]
+
+
 def assignment_ok(bands: tuple[Band, ...], levels: list[tuple[float, str]]) -> bool:
     """Return whether every band's nearest predicted level carries one of its labels."""
     return all(
@@ -891,11 +919,15 @@ def grade(case: Case, run: Run) -> Row:
     ground_reached = "n/a"
     assignment = "n/a"
     obj_fit = obj_truth_c_used = obj_truth = None
+    r2: float | None = None
     if run.fit_dq is not None and run.fit_b is not None:
         ground_key, levels = predicted_levels(case, run.path, run.fit_dq, run.fit_b, run.c_used)
         ground_reached = str(ground_key == case.ground_key)
         if levels:
             assignment = str(assignment_ok(case.bands, levels))
+            r2 = r_squared(
+                [band.energy for band in case.bands], nearest_residuals(case.bands, levels)
+            )
         obj_fit = objective_at(case, run.path, run.fit_dq, run.fit_b, run.c_used)
     if case.truth_b is not None:
         obj_truth_c_used = objective_at(case, run.path, case.truth_dq, case.truth_b, run.c_used)
@@ -923,7 +955,7 @@ def grade(case: Case, run: Run) -> Row:
         "dB_pct": fmt(d_b),
         "dC_pct": fmt(d_c),
         "rmse": fmt(run.rmse),
-        "r2": "n/a",
+        "r2": "n/a" if r2 is None else f"{r2:.4f}",
         "rmse_at_reported": fmt(obj_truth_c_used) if jce else "n/a",
         "rmse_at_fit": fmt(obj_fit) if jce else "n/a",
         "ground_reached": ground_reached,
@@ -1229,19 +1261,19 @@ def run_case(case: Case, reverse: Callable[..., Any], ratio: Callable[..., Any])
     return [grade(case, run) for run in runs]
 
 
-def known_defect() -> list[tuple[str, str, str, str, str, str]]:
+def known_defect() -> list[tuple[str, str, str, str, str, str, str]]:
     """Regenerate the [Mn(H2O)6]2+ known-defect rows, counterfactual included."""
     b = KNOWN_DEFECT_DQ / KNOWN_DEFECT_DQ_OVER_B
     c = KNOWN_DEFECT_C_OVER_B * b
     bands = list(KNOWN_DEFECT_BANDS)
-    results: list[tuple[str, str, str, str, str, str]] = []
+    results: list[tuple[str, str, str, str, str, str, str]] = []
 
     def record(name: str, call: Callable[[], Any]) -> None:
         """Run one fit and append its formatted row, or the raise message."""
         try:
             fit = call()
         except ValueError as exc:
-            results.append((name, "raised", "", "", "", str(exc)))
+            results.append((name, "raised", "", "", "", "", str(exc)))
             return
         results.append(
             (
@@ -1250,6 +1282,7 @@ def known_defect() -> list[tuple[str, str, str, str, str, str]]:
                 fmt(fit.B),
                 fmt(fit.C),
                 fmt(fit.rmse_cm1),
+                "n/a" if (r2 := r_squared(bands, fit.residuals_cm1)) is None else f"{r2:.4f}",
                 " | ".join(fit.warnings) or "none",
             ),
         )
@@ -1319,7 +1352,7 @@ def d5_minimum_evidence(rows: list[Row]) -> tuple[int, int, float]:
 
 
 def section_known_defect(
-    defect: list[tuple[str, str, str, str, str, str]], rows: list[Row]
+    defect: list[tuple[str, str, str, str, str, str, str]], rows: list[Row]
 ) -> list[str]:
     """Render section 1."""
     b = KNOWN_DEFECT_DQ / KNOWN_DEFECT_DQ_OVER_B
@@ -1338,7 +1371,9 @@ def section_known_defect(
         "",
     ]
     lines.extend(
-        md_table(("run", "Dq", "B", "C", "rmse", "warnings / raised"), [tuple(r) for r in defect])
+        md_table(
+            ("run", "Dq", "B", "C", "rmse", "r2", "warnings / raised"), [tuple(r) for r in defect]
+        )
     )
     lines.extend(
         [
@@ -1373,7 +1408,9 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             f"- **Band rule.** Excited levels are merged first (chained within "
             f"{fmt(MERGE_CM1)} cm^-1, mean energy, all labels kept), then the lowest "
             f"{MAX_ALLOWED} merged ground-multiplicity bands are taken; the sf variant adds the "
-            f"lowest {MAX_FORBIDDEN} merged (2S+1)-2 bands. A band also carries the label of "
+            f"lowest {MAX_FORBIDDEN} merged bands of multiplicity (2S+1) +/- 2 (|dS| = 1: the "
+            "manifold below for high-spin, mainly the one above for low-spin d5-d7). A band "
+            "also carries the label of "
             "any other excited level within the merge window. JCE input is merged the same "
             "way (MgO:Ni2+ has 3T1 and 1E both at 13670); a JCE band keeps its table labels "
             "plus any oracle level within the merge window of the labelled level at the "
@@ -1426,6 +1463,13 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             "band's nearest predicted level by `Level.uid` must carry one of its labels. "
             "fit_spectrum with `include_spin_forbidden` matches every level; all other runs "
             "only the ground multiplicity. A blank JCE ordinal matches any index of the term."
+        ),
+        (
+            "- **r2.** Computed by this grader; no fit path returns it. Over the same levels "
+            "as assignment_ok, r2 = 1 - sum(res^2) / sum((E - mean E)^2), where res is each "
+            "band's distance to its nearest predicted line -- the measure the fitters "
+            "minimise. A high r2 beside a wrong Dq is therefore the silent-failure signature, "
+            "not evidence of a good fit. n/a with no fitted point or fewer than two bands."
         ),
         (
             "- **Apps.** Neither app accepts `spin_state`, `include_spin_forbidden` or C: both "
@@ -1757,7 +1801,7 @@ def section_findings(rows: list[Row]) -> list[str]:
 def render_md(
     rows: list[Row],
     na_cells: list[str],
-    defect: list[tuple[str, str, str, str, str, str]],
+    defect: list[tuple[str, str, str, str, str, str, str]],
     self_test: int,
     jce_labels: list[str],
 ) -> str:
