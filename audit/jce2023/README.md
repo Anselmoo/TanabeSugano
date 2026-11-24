@@ -2,7 +2,7 @@
 
 Numeric transcription of Tables 1 and 2 of
 
-> M. García Rojas and A. Pérez Torres, *J. Chem. Educ.* **2023**, 100, 251–258.
+> V. García Rojas and J. F. Pérez Torres, *J. Chem. Educ.* **2023**, 100, 251–258.
 > DOI: [10.1021/acs.jchemed.2c00885](https://doi.org/10.1021/acs.jchemed.2c00885)
 
 Transcribed 2026-11-24. Only numeric values (band positions, Dq, Dq/B, C/B), the term

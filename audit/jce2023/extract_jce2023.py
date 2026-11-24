@@ -125,7 +125,7 @@ def num(v):
     if isinstance(v, str) and v.startswith("~"): return float(v[1:]), True
     return float(v), False
 
-source = {"citation": "García Rojas, J. M.; Pérez Torres, A. F. J. Chem. Educ. 2023, 100, 251-258",
+source = {"citation": "García Rojas, V.; Pérez Torres, J. F. J. Chem. Educ. 2023, 100, 251-258",
           "doi": "10.1021/acs.jchemed.2c00885",
           "transcribed": "2026-11-24, from the PDF; checked against pdftotext -layout and the rendered pages",
           "notes": ["Wavenumbers in cm-1; term labels as printed (cubic, no g subscript); '^3E' carries no ordinal in the source.",
