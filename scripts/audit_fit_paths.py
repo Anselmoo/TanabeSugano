@@ -517,8 +517,7 @@ def synthetic_bands(
     ground_label, excited = levels[0][1], levels[1:]
     gm = multiplicity(ground_label)
     allowed = cluster_levels([lv for lv in excited if multiplicity(lv[1]) == gm])[:MAX_ALLOWED]
-    # Spin-forbidden = |dS| = 1 in either direction: a high-spin ground state only has the
-    # manifold below it, a low-spin one (d5-d7) mainly the manifold above it.
+    # Spin-forbidden = |dS| = 1: high-spin ground sees the manifold below, low-spin the one above.
     forbidden = cluster_levels([lv for lv in excited if multiplicity(lv[1]) in (gm - 2, gm + 2)])
     forbidden = forbidden[:MAX_FORBIDDEN]
 
