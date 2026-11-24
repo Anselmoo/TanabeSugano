@@ -221,7 +221,7 @@ WARNING_KINDS = (
 )
 NON_PERTINENT_KINDS = frozenset({"c-note"})
 
-PHASE1_CLASSES = {
+FIX_CLASSES = {
     "a": "seed obs[0]/10 outside d3/d8 (_compute.py L465)",
     "b": "5 local starts around the seed (L555-561)",
     "c": "unlabelled non-injective NN matching incl. doublets (L302, L541-553)",
@@ -1650,8 +1650,8 @@ def section_scope(rows: list[Row]) -> list[str]:
         for cls in row.classes:
             target[cls] += 1
     body = [
-        (key, PHASE1_CLASSES[key], CLASS_RULES[key], str(synthetic[key]), str(jce[key]))
-        for key in PHASE1_CLASSES
+        (key, FIX_CLASSES[key], CLASS_RULES[key], str(synthetic[key]), str(jce[key]))
+        for key in FIX_CLASSES
     ]
     excluded = Counter(
         base_verdict(r)
