@@ -206,8 +206,8 @@ Headline counts (synthetic runs):
 | 4 | high | True | reverse_app | app-default | 1351.6 | 1109.8 | 4439.2 | 1898.7 | 1050.0 | 40.5 | -5.4 |  | False | WRONG-SILENT | app-sf;c |
 | 4 | high | True | fit_spectrum | default | 1568.6 | 1109.8 | 5327.0 | 1107.4 | 1162.1 | -29.4 | 4.7 |  | False | WRONG-SILENT | c;e |
 | 4 | high | True | reverse_app | app-default | 1568.6 | 1109.8 | 5327.0 | 2208.1 | 400.0 | 40.8 | -64.0 |  | False | WRONG-SILENT | app-sf;c |
-| 4 | high | True | fit_spectrum | truth | 1675.0 | 723.8 | 2895.2 | 83.5 | 869.3 | -95.0 | 20.1 |  | False | WRONG-SILENT | a;b;c;d |
-| 4 | high | True | fit_spectrum | default | 1675.0 | 723.8 | 2895.2 | 328.8 | 200.0 | -80.4 | -72.4 | b-pinned;residual | False | WRONG-WARNED | a;c;d |
+| 4 | high | True | fit_spectrum | truth | 1675.0 | 723.8 | 2895.2 | 83.5 | 869.3 | -95.0 | 20.1 |  | False | WRONG-SILENT | a;b;bounds-exclude-truth;c;d |
+| 4 | high | True | fit_spectrum | default | 1675.0 | 723.8 | 2895.2 | 328.8 | 200.0 | -80.4 | -72.4 | b-pinned;residual | False | WRONG-WARNED | a;bounds-exclude-truth;c;d |
 | 4 | high | True | reverse_app | app-default | 1675.0 | 723.8 | 2895.2 | 252.3 | 400.0 | -84.9 | -44.7 |  | False | WRONG-SILENT | app-sf;c;d |
 | 4 | low | False | fit_spectrum | default | 2821.0 | 723.8 | 2895.2 | 2940.4 | 214.9 | 4.2 | -70.3 |  | False | WRONG-SILENT | c;e |
 | 4 | low | False | reverse_app | app-default | 2821.0 | 723.8 | 2895.2 | 2552.0 | 800.0 | -9.5 | 10.5 |  | False | WRONG-SILENT | app-hs;c;d |
@@ -232,7 +232,7 @@ Headline counts (synthetic runs):
 | 4 | low | True | fit_spectrum | truth | 5019.6 | 1109.8 | 5327.0 | 4016.7 | 1275.0 | -20.0 | 14.9 |  | False | WRONG-SILENT | a;b;c |
 | 4 | low | True | fit_spectrum | default | 5019.6 | 1109.8 | 5327.0 | 2909.6 | 1500.0 | -42.0 | 35.2 | b-pinned | False | WRONG-WARNED | a;c |
 | 4 | low | True | reverse_app | app-default | 5019.6 | 1109.8 | 5327.0 | 2856.0 | 1450.0 | -43.1 | 30.7 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
-| 4 | low | True | fit_spectrum | truth | 1851.3 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | a;d |
+| 4 | low | True | fit_spectrum | truth | 1851.3 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | a;bounds-exclude-truth;d |
 | 5 | high | True | fit_spectrum | default | 502.1 | 387.0 | 1548.0 | 1706.1 | 370.7 | 239.8 | -4.2 |  | False | WRONG-SILENT | a;c;e |
 | 5 | high | True | reverse_app | app-default | 502.1 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
 | 5 | high | True | fit_spectrum | default | 578.1 | 387.0 | 1857.6 | 1716.9 | 477.0 | 197.0 | 23.2 |  | False | WRONG-SILENT | a;c;e |
@@ -344,8 +344,8 @@ Headline counts (synthetic runs):
 | 7 | high | True | fit_spectrum | default | 811.4 | 728.2 | 3495.4 | 814.5 | 539.8 | 0.4 | -25.9 |  | False | WRONG-SILENT | c |
 | 7 | high | True | reverse_app | app-default | 811.4 | 728.2 | 3495.4 | 891.5 | 500.0 | 9.9 | -31.3 |  | False | WRONG-SILENT | app-sf;c |
 | 7 | high | True | fit_spectrum | default | 1244.1 | 1116.6 | 5359.7 | 958.2 | 1002.3 | -23.0 | -10.2 |  | False | WRONG-SILENT | c;e |
-| 7 | high | True | fit_spectrum | truth | 1343.7 | 728.2 | 2912.8 | 347.9 | 1248.0 | -74.1 | 71.4 | residual | False | WRONG-WARNED | a;b;c;d |
-| 7 | high | True | fit_spectrum | default | 1343.7 | 728.2 | 2912.8 | 173.0 | 773.8 | -87.1 | 6.3 |  | False | WRONG-SILENT | a;c;d |
+| 7 | high | True | fit_spectrum | truth | 1343.7 | 728.2 | 2912.8 | 347.9 | 1248.0 | -74.1 | 71.4 | residual | False | WRONG-WARNED | a;b;bounds-exclude-truth;c;d |
+| 7 | high | True | fit_spectrum | default | 1343.7 | 728.2 | 2912.8 | 173.0 | 773.8 | -87.1 | 6.3 |  | False | WRONG-SILENT | a;bounds-exclude-truth;c;d |
 | 7 | high | True | reverse_app | app-default | 1343.7 | 728.2 | 2912.8 | 78.3 | 1100.0 | -94.2 | 51.1 |  | False | WRONG-SILENT | app-sf;c;d |
 | 7 | low | False | fit_spectrum | default | 2263.2 | 728.2 | 2912.8 | 2335.6 | 762.9 | 3.2 | 4.8 |  | True | WRONG-SILENT | e |
 | 7 | low | False | reverse_app | app-default | 2263.2 | 728.2 | 2912.8 | 1286.2 | 700.0 | -43.2 | -3.9 |  | False | WRONG-SILENT | app-hs;c;d |
@@ -367,7 +367,7 @@ Headline counts (synthetic runs):
 | 7 | low | True | fit_spectrum | truth | 3981.0 | 1116.6 | 5359.7 | 3504.9 | 759.8 | -12.0 | -32.0 |  | False | WRONG-SILENT | a;b;c |
 | 7 | low | True | fit_spectrum | default | 3981.0 | 1116.6 | 5359.7 | 3361.7 | 884.7 | -15.6 | -20.8 |  | False | WRONG-SILENT | a;c |
 | 7 | low | True | reverse_app | app-default | 3981.0 | 1116.6 | 5359.7 | 2386.4 | 1550.0 | -40.1 | 38.8 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
-| 7 | low | True | fit_spectrum | truth | 1485.2 | 728.2 | 2912.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | a;d |
+| 7 | low | True | fit_spectrum | truth | 1485.2 | 728.2 | 2912.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | a;bounds-exclude-truth;d |
 | 8 | high | False | ratio_app | app-default | 700.0 | 463.5 | 1854.0 | 724.1 | 482.8 | 3.4 | 4.2 |  | True | WRONG-SILENT | app-grid |
 | 8 | high | False | ratio_app | app-default | 1200.0 | 463.5 | 1854.0 | 1241.4 | 482.8 | 3.5 | 4.2 |  | True | WRONG-SILENT | app-grid |
 | 8 | high | False | ratio_app | app-default | 700.0 | 463.5 | 2224.8 | 724.1 | 482.8 | 3.4 | 4.2 |  | True | WRONG-SILENT | app-grid |
@@ -615,24 +615,25 @@ Counts (non-R1 rows):
 
 ## 6. Follow-up scope
 
-Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 28, INFEASIBLE-AT-C 60. Classes (a), (b), (e), (f) apply to fit_spectrum only; app rows get (c), (d) and the app-* classes.
+Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 28, INFEASIBLE-AT-C 60. Classes (a), (b), (e), (f) apply to fit_spectrum only; app rows get (c), (d) and the app-* classes. The OK columns apply the same rules to rows graded OK: a class that fires on OK rows about as often as on failing ones marks a precondition, not a cause.
 
 Class (e) measures the bias of holding C at the default. Whether a free C would be identifiable is NOT measured by this audit; a fix that fits C must establish that per configuration and band set.
 
-| class | proposed fix | rule | synthetic rows | JCE rows |
-|---|---|---|---|---|
-| a | seed obs[0]/10 outside d3/d8 (_compute.py L465) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, or <3 bands) and seed Dq / truth Dq outside the local-start span [0.8, 1.25]; or d3/d8 with a spin-forbidden band among the three lowest (closed form fed a forbidden band) | 123 | 21 |
-| b | 5 local starts around the seed (L555-561) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 74 | 4 |
-| c | unlabelled non-injective NN matching incl. doublets (L302, L541-553) | assignment_ok is False | 236 | 53 |
-| d | regime penalty / crossover proximity (L547) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 46 | 2 |
-| e | C-misspecification bias: C never fitted (L455-457, L612) | fit_spectrum only: c_mode=default and the same case with c_mode=truth is OK | 35 | 1 |
-| f | no ambiguity check | fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C) | 1 | 27 |
-| app-hs | app hard-codes the high-spin reference and default C | app row with spin=low | 54 | 3 |
-| app-sf | app has no include_spin_forbidden and fits forbidden bands as allowed | reverse-app row with spin-forbidden bands in its input | 85 | 16 |
-| app-grid | app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600 (25 steps reverse, 30 ratio) | app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 13 | 8 |
-| single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 14 | 0 |
-| estimator-disagreement | published values are not the minimum of this objective | JCE, sf=False, fit_spectrum or reverse app (both minimise the nearest-line RMSE): rmse_at_fit < rmse_at_reported | 0 | 27 |
-| unclassified | matches no rule | a failing row no rule above matched | 35 | 14 |
+| class | proposed fix | rule | synthetic failing | synthetic OK | JCE failing | JCE OK |
+|---|---|---|---|---|---|---|
+| a | precondition, not a cause: seed obs[0]/10 outside d3/d8 (_compute.py L465) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, or <3 bands) and seed Dq / truth Dq outside the local-start span [0.8, 1.25]; or d3/d8 with a spin-forbidden band among the three lowest (closed form fed a forbidden band) | 123 | 17 | 21 | 0 |
+| bounds-exclude-truth | default dq_bounds (0.2, 5) x seed exclude the truth (L474-475) | fit_spectrum only, not seed-displaced: the truth Dq lies outside (0.2, 5) x the seed fit_spectrum computes (closed form for d3/d8 with >=3 bands, else obs[0]/10) | 6 | 0 | 0 | 0 |
+| b | 5 local starts around the seed (L555-561) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 74 | 1 | 4 | 0 |
+| c | unlabelled non-injective NN matching incl. doublets (L302, L541-553) | assignment_ok is False | 236 | 16 | 53 | 5 |
+| d | regime penalty / crossover proximity (L547) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 46 | 9 | 2 | 0 |
+| e | C-misspecification bias: C never fitted (L455-457, L612) | fit_spectrum only: c_mode=default and the same case with c_mode=truth is OK | 35 | 65 | 1 | 6 |
+| f | no ambiguity check | fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C) | 1 | 0 | 27 | 0 |
+| app-hs | app hard-codes the high-spin reference and default C | app row with spin=low | 54 | 0 | 3 | 0 |
+| app-sf | app has no include_spin_forbidden and fits forbidden bands as allowed | reverse-app row with spin-forbidden bands in its input | 85 | 7 | 16 | 2 |
+| app-grid | app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600 (25 steps reverse, 30 ratio) | app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 13 | 56 | 8 | 14 |
+| single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 14 | 0 | 0 | 0 |
+| estimator-disagreement | published values are not the minimum of this objective | JCE, sf=False, fit_spectrum or reverse app (both minimise the nearest-line RMSE): rmse_at_fit < rmse_at_reported | 0 | 0 | 27 | 21 |
+| unclassified | matches no rule | a failing row no rule above matched | 35 | - | 14 | - |
 
 ## 7. Findings
 

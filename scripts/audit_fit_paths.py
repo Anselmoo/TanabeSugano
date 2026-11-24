@@ -222,7 +222,8 @@ WARNING_KINDS = (
 NON_PERTINENT_KINDS = frozenset({"c-note"})
 
 FIX_CLASSES = {
-    "a": "seed obs[0]/10 outside d3/d8 (_compute.py L465)",
+    "a": "precondition, not a cause: seed obs[0]/10 outside d3/d8 (_compute.py L465)",
+    "bounds-exclude-truth": "default dq_bounds (0.2, 5) x seed exclude the truth (L474-475)",
     "b": "5 local starts around the seed (L555-561)",
     "c": "unlabelled non-injective NN matching incl. doublets (L302, L541-553)",
     "d": "regime penalty / crossover proximity (L547)",
@@ -243,6 +244,10 @@ CLASS_RULES = {
         "fit_spectrum only, not seed-displaced: generic seed (not d3/d8, or <3 bands) and "
         "seed Dq / truth Dq outside the local-start span [0.8, 1.25]; or d3/d8 with a "
         "spin-forbidden band among the three lowest (closed form fed a forbidden band)"
+    ),
+    "bounds-exclude-truth": (
+        "fit_spectrum only, not seed-displaced: the truth Dq lies outside (0.2, 5) x the seed "
+        "fit_spectrum computes (closed form for d3/d8 with >=3 bands, else obs[0]/10)"
     ),
     "b": (
         "fit_spectrum only: objective (C used) at the returned point exceeds the objective "
@@ -1040,6 +1045,10 @@ def fit_classes(row: Row, paired_truth_ok: bool) -> list[str]:
     generic_off = not closed_form and not SEED_SPAN[0] <= seed_ratio <= SEED_SPAN[1]
     if run.c_mode != "seed-displaced" and (generic_off or forbidden_in_closed_form):
         found.append("a")
+    if run.c_mode != "seed-displaced" and not 0.2 * seed_dq(case) < case.truth_dq < 5.0 * seed_dq(
+        case
+    ):
+        found.append("bounds-exclude-truth")
     fit, at_truth = row.obj_fit, row.obj_truth_c_used
     better_exists = fit is not None and at_truth is not None and fit > at_truth + RMSE_EPS_CM1
     if better_exists or "converge" in run.raised.lower():
@@ -1050,6 +1059,15 @@ def fit_classes(row: Row, paired_truth_ok: bool) -> list[str]:
     if base_verdict(row) == "WRONG-SILENT" and as_good:
         found.append("f")
     return found
+
+
+def seed_dq(case: Case) -> float:
+    """Return the Dq seed ``fit_spectrum`` derives its default ``dq_bounds`` from."""
+    energies = sorted(band.energy for band in case.bands)
+    try:
+        return closed_form_dq_b(case.d, energies)[0]
+    except ValueError:
+        return energies[0] / 10.0
 
 
 def app_grids(case: Case, path: str) -> tuple[list[float], list[float]]:
@@ -1103,8 +1121,8 @@ def attach_classes(rows: list[Row]) -> None:
         if row.run.path == "fit_spectrum" and row.run.c_mode == "truth":
             truth_ok[row.case] = base_verdict(row) == "OK"
     for row in rows:
+        row.classes = classify(row, truth_ok.get(row.case, False))
         if is_failure(row):
-            row.classes = classify(row, truth_ok.get(row.case, False))
             row.values["failure_classes"] = ";".join(row.classes)
 
 
@@ -1646,16 +1664,24 @@ def section_jce(rows: list[Row], jce_labels: list[str]) -> list[str]:
 
 def section_scope(rows: list[Row]) -> list[str]:
     """Render section 6."""
-    synthetic: Counter[str] = Counter()
-    jce: Counter[str] = Counter()
+    fires: Counter[tuple[str, str, str]] = Counter()
     for row in rows:
-        if not is_failure(row) or row.case.r1:
+        status = "failing" if is_failure(row) else "OK" if base_verdict(row) == "OK" else ""
+        if not status or row.case.r1:
             continue
-        target = synthetic if row.case.source == "synthetic" else jce
         for cls in row.classes:
-            target[cls] += 1
+            fires[row.case.source, status, cls] += 1
     body = [
-        (key, FIX_CLASSES[key], CLASS_RULES[key], str(synthetic[key]), str(jce[key]))
+        (
+            key,
+            FIX_CLASSES[key],
+            CLASS_RULES[key],
+            *(
+                "-" if key == "unclassified" and status == "OK" else str(fires[src, status, key])
+                for src in ("synthetic", "jce2023")
+                for status in ("failing", "OK")
+            ),
+        )
         for key in FIX_CLASSES
     ]
     excluded = Counter(
@@ -1673,7 +1699,9 @@ def section_scope(rows: list[Row]) -> list[str]:
             "or not (a)/(b) also apply. Not failures, so not classified: "
             f"OK-B-UNIDENTIFIED {excluded['OK-B-UNIDENTIFIED']}, "
             f"INFEASIBLE-AT-C {excluded['INFEASIBLE-AT-C']}. Classes (a), (b), (e), (f) "
-            "apply to fit_spectrum only; app rows get (c), (d) and the app-* classes."
+            "apply to fit_spectrum only; app rows get (c), (d) and the app-* classes. "
+            "The OK columns apply the same rules to rows graded OK: a class that fires on OK "
+            "rows about as often as on failing ones marks a precondition, not a cause."
         ),
         "",
         (
@@ -1683,7 +1711,8 @@ def section_scope(rows: list[Row]) -> list[str]:
         ),
         "",
     ]
-    lines.extend(md_table(("class", "proposed fix", "rule", "synthetic rows", "JCE rows"), body))
+    header = ("class", "proposed fix", "rule", "synthetic failing", "synthetic OK")
+    lines.extend(md_table((*header, "JCE failing", "JCE OK"), body))
     lines.append("")
     return lines
 
