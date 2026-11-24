@@ -312,6 +312,10 @@ LOW_SPIN_SYSTEMS = frozenset(
 )
 JCE_IRREPS = {"A1": "A_1", "A2": "A_2", "E": "E", "T1": "T_1", "T2": "T_2"}
 R1_CONFIGS = (5, 6)
+JCE_CITATION = (
+    "García Rojas & Pérez Torres, J. Chem. Educ. 2023, 100, 251-258, "
+    "doi:10.1021/acs.jchemed.2c00885"
+)
 
 KNOWN_DEFECT_BANDS = (19070.0, 22710.0, 24500.0)
 KNOWN_DEFECT_DQ = 760.0
@@ -1362,7 +1366,7 @@ def section_known_defect(
         "",
         (
             f"Bands {', '.join(fmt(e) for e in KNOWN_DEFECT_BANDS)} cm^-1, "
-            "`include_spin_forbidden=True`. Reference (JCE 2023 Table 2, reported): "
+            f"`include_spin_forbidden=True`. Reference ({JCE_CITATION}, Table 2, reported): "
             f"Dq {fmt(KNOWN_DEFECT_DQ)}, B {fmt(b)}, C {fmt(KNOWN_DEFECT_C_OVER_B * b)} cm^-1. "
             "This reference is d5 and therefore R1-tainted (Hormann & Shaw 1987): the table is "
             "a comparison, not a grade. Regenerated live; the counterfactual monkeypatches "
@@ -1612,6 +1616,7 @@ def section_jce(rows: list[Row], jce_labels: list[str]) -> list[str]:
         "## 5. JCE 2023 systems",
         "",
         (
+            f"Source: {JCE_CITATION}. "
             "Reference = the `_reported` columns of Table 2 only (B = Dq / (Dq/B), "
             "C = (C/B) B). Rows ending in `-R1` are d5/d6 and R1-tainted: a comparison, never "
             "a pass or fail. [Mn(CN)6]3- is fitted low-spin, as are the Co(III) rows. "
