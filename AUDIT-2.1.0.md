@@ -21,7 +21,7 @@ The claim that the right minimum exists rests on the oracle, not on this referen
 - **Truth self-test.** All 199 synthetic cases assign every band correctly at their own truth (Dq, B, C) under fit_spectrum's matching rule; the script aborts otherwise. At the JCE reported points, 6 band(s) are not nearest to their table label (listed in section 5); those are properties of the published data, not of the grader.
 - **Truth points.** B in (0.45, 0.75, 1.15, 1.6) x default B, dropped when outside fit_spectrum's b_bounds (200.0, 1500.0): d4 1.6 x 965 = 1544.0, d6 1.6 x 1065 = 1704.0, d7 1.6 x 971 = 1553.6, d8 1.6 x 1030 = 1648.0. C/B in (4.0, 4.8), +0.2 when within 0.05 of the default C/B (d6: 4.8 -> 5.0). Dq = 0.5 x (HS) / 1.6 x (LS) the oracle crossover for d4-d7, fixed {2: (900.0, 1800.0), 3: (1200.0, 2000.0), 8: (700.0, 1200.0)} for d2/d3/d8; one near-crossover point per d4-d7 cell at 0.95 x / 1.05 x the crossover (B factor 0.75). Truth B below 400 (d2, d5 at 0.45 x) lies outside both apps' B grid.
 - **seed-displaced.** For d3/d8 spin-allowed points the closed form is exact on oracle bands (nu1 = 10Dq, nu2 + nu3 = 15B + 3 nu1), so fit_spectrum starts AT the answer. Each such point gets an extra C = truth run with `closed_form_dq_b` patched to return (0.7 x Dq_cf, 1.4 x B_cf). JCE d3/d8 reported Dq is nu1/10 by construction, equal to both the closed-form seed and reverse-app grid node 8 -- hence the many dDq = 0.0 rows.
-- **Verdict.** OK if |dDq| <= 2 % and |dB| <= 5 %: the oracle is exact (eigenvalues of the full determinant Hamiltonian), so a correct continuous optimiser recovers Dq and B to well under 0.1 %; the slack exists only for the two grid paths, whose cells are several percent wide. That tolerance was set for the exact oracle; on JCE rows it is applied only as a comparator. OK-B-UNIDENTIFIED: Dq within tolerance, B not, and the 'only one spin-allowed transition' warning fired. Otherwise WRONG-WARNED only if a pertinent warning fired (warning_kinds residual, b-pinned, single-transition, too-few-bands; the c-note alone does not count), else WRONG-SILENT; RAISED on an exception or error payload. A failure whose truth Dq lies in the other spin regime at the C the run used becomes INFEASIBLE-AT-C (design-forced). OK-B-UNIDENTIFIED and INFEASIBLE-AT-C are not failures. RAISED-EXPECTED only for fit_spectrum on high-spin d5 spin-allowed-only, fed the quartet bands, when the message says `no spin-allowed`. Where no B reference exists (JCE [Ni(NH3)6]2+) the verdict uses dDq only. Severity for 'worst': N/A < OK < RAISED-EXPECTED < OK-B-UNIDENTIFIED < INFEASIBLE-AT-C < RAISED < WRONG-WARNED < WRONG-SILENT.
+- **Verdict.** OK if |dDq| <= 2 % and |dB| <= 5 %: the oracle is exact (eigenvalues of the full determinant Hamiltonian), so a correct continuous optimiser recovers Dq and B to well under 0.1 %; the slack exists only for the two grid paths, whose cells are several percent wide. That tolerance was set for the exact oracle; on JCE rows it is applied only as a comparator. OK-B-UNIDENTIFIED: Dq within tolerance, B not, and the 'only one spin-allowed transition' warning fired. Otherwise WRONG-WARNED only if a pertinent warning fired (warning_kinds residual, b-pinned, single-transition, too-few-bands; the c-note alone does not count), else WRONG-SILENT; RAISED on an exception or error payload. A run whose truth Dq lies in the other spin regime at the C it used keeps its verdict and is tagged `infeasible_at_c=True`: the tag explains, it does not excuse. OK-B-UNIDENTIFIED is not a failure. RAISED-EXPECTED only for fit_spectrum on high-spin d5 spin-allowed-only, fed the quartet bands, when the message says `no spin-allowed`. Where no B reference exists (JCE [Ni(NH3)6]2+) the verdict uses dDq only. Severity for 'worst': N/A < OK < RAISED-EXPECTED < OK-B-UNIDENTIFIED < RAISED < WRONG-WARNED < WRONG-SILENT.
 - **assignment_ok.** At the returned point (with the C the path used), each band's nearest predicted level by `Level.uid` must carry one of its labels. fit_spectrum with `include_spin_forbidden` matches every level; all other runs only the ground multiplicity. A blank JCE ordinal matches any index of the term.
 - **r2.** Computed by this grader; no fit path returns it. Over the same levels as assignment_ok, r2 = 1 - sum(res^2) / sum((E - mean E)^2), where res is each band's distance to its nearest predicted line -- the measure the fitters minimise. A high r2 beside a wrong Dq is therefore the silent-failure signature, not evidence of a good fit. n/a with no fitted point or fewer than two bands.
 - **Apps.** Neither app accepts `spin_state`, `include_spin_forbidden` or C: both pin the high-spin reference at the default C, so their low-spin rows fail by construction; they are recorded as `c_mode=app-default`. The reverse app receives every band of the case; the ratio app the lowest three, spin-allowed cases only. The app-grid classifier rebuilds each app's grid from mirrored constants: grid_steps/b_min/b_max {'grid_steps': 25, 'b_min': 400.0, 'b_max': 1600.0} (reverse) and {'grid_steps': 30, 'b_min': 400.0, 'b_max': 1600.0} (ratio) are checked at start-up against the tool signatures (apps.py L1719-1721, L1959-1961); Dq max = 3 x obs[0]/10 was read off apps.py L1779 (reverse) and L2013 (ratio). The reverse app's Dq grid contains obs[0]/10 exactly at node 8.
@@ -40,36 +40,36 @@ Worst verdict per cell and how many of the cell's runs carry it.
 | d3 | high | True | WRONG-SILENT 14/16 | WRONG-SILENT 15/16 | N/A | WRONG-SILENT 15/16 | N/A |
 | d4 | high | False | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | WRONG-SILENT 7/7 | N/A |
 | d4 | high | True | WRONG-SILENT 1/7 | WRONG-SILENT 2/7 | N/A | WRONG-SILENT 7/7 | N/A |
-| d4 | low | False | OK 7/7 | WRONG-SILENT 3/7 | N/A | WRONG-SILENT 4/7 | RAISED 4/7 |
-| d4 | low | True | WRONG-SILENT 4/7 | WRONG-SILENT 2/7 | N/A | WRONG-SILENT 4/7 | N/A |
+| d4 | low | False | OK 7/7 | WRONG-SILENT 3/7 | N/A | WRONG-SILENT 7/7 | RAISED 7/7 |
+| d4 | low | True | WRONG-SILENT 4/7 | WRONG-SILENT 2/7 | N/A | WRONG-SILENT 7/7 | N/A |
 | d5 | high | False | RAISED-EXPECTED 9/9 | RAISED-EXPECTED 9/9 | N/A | N/A | N/A |
 | d5 | high | True | WRONG-SILENT 6/9 | WRONG-SILENT 7/9 | N/A | RAISED 9/9 | N/A |
-| d5 | low | False | WRONG-SILENT 2/9 | WRONG-SILENT 3/9 | N/A | RAISED 6/9 | RAISED 6/9 |
-| d5 | low | True | WRONG-SILENT 6/9 | WRONG-SILENT 6/9 | N/A | RAISED 6/9 | N/A |
+| d5 | low | False | WRONG-SILENT 2/9 | WRONG-SILENT 3/9 | N/A | RAISED 9/9 | RAISED 9/9 |
+| d5 | low | True | WRONG-SILENT 6/9 | WRONG-SILENT 8/9 | N/A | RAISED 9/9 | N/A |
 | d6 | high | False | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | WRONG-SILENT 7/7 | N/A |
 | d6 | high | True | WRONG-WARNED 1/7 | WRONG-SILENT 2/7 | N/A | WRONG-SILENT 7/7 | N/A |
-| d6 | low | False | OK 7/7 | WRONG-SILENT 2/7 | N/A | WRONG-SILENT 4/7 | RAISED 4/7 |
-| d6 | low | True | WRONG-SILENT 4/7 | WRONG-SILENT 3/7 | N/A | WRONG-SILENT 4/7 | N/A |
+| d6 | low | False | OK 7/7 | WRONG-SILENT 2/7 | N/A | WRONG-SILENT 7/7 | RAISED 7/7 |
+| d6 | low | True | WRONG-SILENT 4/7 | WRONG-SILENT 4/7 | N/A | WRONG-SILENT 7/7 | N/A |
 | d7 | high | False | OK 7/7 | OK 7/7 | N/A | OK 7/7 | WRONG-SILENT 1/7 |
 | d7 | high | True | WRONG-SILENT 3/7 | WRONG-SILENT 5/7 | N/A | WRONG-SILENT 2/7 | N/A |
-| d7 | low | False | OK 7/7 | WRONG-SILENT 1/7 | N/A | WRONG-SILENT 4/7 | WRONG-SILENT 4/7 |
-| d7 | low | True | WRONG-SILENT 3/7 | WRONG-SILENT 3/7 | N/A | WRONG-SILENT 4/7 | N/A |
+| d7 | low | False | OK 7/7 | WRONG-SILENT 2/7 | N/A | WRONG-SILENT 7/7 | WRONG-SILENT 7/7 |
+| d7 | low | True | WRONG-SILENT 3/7 | WRONG-SILENT 3/7 | N/A | WRONG-SILENT 7/7 | N/A |
 | d8 | high | False | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | WRONG-SILENT 12/12 |
 | d8 | high | True | WRONG-SILENT 9/12 | WRONG-SILENT 9/12 | N/A | WRONG-SILENT 12/12 | N/A |
 
 Headline counts (synthetic runs):
 
-| path | OK | RAISED-EXPECTED | OK-B-UNIDENTIFIED | INFEASIBLE-AT-C | RAISED | WRONG-WARNED | WRONG-SILENT | total |
-|---|---|---|---|---|---|---|---|---|
-| fit_spectrum (default) | 67 | 9 | 14 | 24 | 1 | 21 | 72 | 208 |
-| fit_spectrum (seed-displaced) | 28 | 0 | 0 | 0 | 0 | 0 | 0 | 28 |
-| fit_spectrum (truth) | 118 | 9 | 14 | 0 | 2 | 6 | 59 | 208 |
-| ratio_app (app-default) | 14 | 0 | 0 | 12 | 14 | 0 | 41 | 81 |
-| reverse_app (app-default) | 48 | 0 | 0 | 24 | 21 | 0 | 106 | 199 |
+| path | OK | RAISED-EXPECTED | OK-B-UNIDENTIFIED | RAISED | WRONG-WARNED | WRONG-SILENT | total |
+|---|---|---|---|---|---|---|---|
+| fit_spectrum (default) | 67 | 9 | 14 | 3 | 39 | 76 | 208 |
+| fit_spectrum (seed-displaced) | 28 | 0 | 0 | 0 | 0 | 0 | 28 |
+| fit_spectrum (truth) | 118 | 9 | 14 | 2 | 6 | 59 | 208 |
+| ratio_app (app-default) | 14 | 0 | 0 | 23 | 0 | 44 | 81 |
+| reverse_app (app-default) | 48 | 0 | 0 | 27 | 0 | 124 | 199 |
 
 ## 4. Failing synthetic rows
 
-343 rows.
+403 rows.
 
 | d | spin | sf | path | c_mode | truth_Dq | truth_B | truth_C | fit_Dq | fit_B | dDq_pct | dB_pct | warning_kinds | assignment_ok | verdict | failure_classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -209,6 +209,12 @@ Headline counts (synthetic runs):
 | 4 | high | True | fit_spectrum | truth | 1675.0 | 723.8 | 2895.2 | 83.5 | 869.3 | -95.0 | 20.1 |  | False | WRONG-SILENT | a;b;bounds-exclude-truth;c;d |
 | 4 | high | True | fit_spectrum | default | 1675.0 | 723.8 | 2895.2 | 328.8 | 200.0 | -80.4 | -72.4 | b-pinned;residual | False | WRONG-WARNED | a;bounds-exclude-truth;c;d |
 | 4 | high | True | reverse_app | app-default | 1675.0 | 723.8 | 2895.2 | 252.3 | 400.0 | -84.9 | -44.7 |  | False | WRONG-SILENT | app-sf;c;d |
+| 4 | low | False | fit_spectrum | default | 1691.9 | 434.2 | 1736.8 | 2252.7 | 200.0 | 33.1 | -53.9 | b-pinned;residual | False | WRONG-WARNED | b;c;e |
+| 4 | low | False | reverse_app | app-default | 1691.9 | 434.2 | 1736.8 | 1530.5 | 1150.0 | -9.5 | 164.9 |  | False | WRONG-SILENT | app-hs;c;d |
+| 4 | low | False | ratio_app | app-default | 1691.9 | 434.2 | 1736.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 4 | low | False | fit_spectrum | default | 1963.8 | 434.2 | 2084.2 | 2252.7 | 200.0 | 14.7 | -53.9 | b-pinned | False | WRONG-WARNED | c;e |
+| 4 | low | False | reverse_app | app-default | 1963.8 | 434.2 | 2084.2 | 1770.5 | 400.0 | -9.8 | -7.9 |  | False | WRONG-SILENT | app-hs;c;d |
+| 4 | low | False | ratio_app | app-default | 1963.8 | 434.2 | 2084.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | fit_spectrum | default | 2821.0 | 723.8 | 2895.2 | 2940.4 | 214.9 | 4.2 | -70.3 |  | False | WRONG-SILENT | c;e |
 | 4 | low | False | reverse_app | app-default | 2821.0 | 723.8 | 2895.2 | 2552.0 | 800.0 | -9.5 | 10.5 |  | False | WRONG-SILENT | app-hs;c;d |
 | 4 | low | False | ratio_app | app-default | 2821.0 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
@@ -220,7 +226,14 @@ Headline counts (synthetic runs):
 | 4 | low | False | fit_spectrum | default | 5019.6 | 1109.8 | 5327.0 | 4844.6 | 972.3 | -3.5 | -12.4 |  | False | WRONG-SILENT | c;e |
 | 4 | low | False | reverse_app | app-default | 5019.6 | 1109.8 | 5327.0 | 2828.4 | 1400.0 | -43.7 | 26.1 |  | False | WRONG-SILENT | app-hs;c;d |
 | 4 | low | False | ratio_app | app-default | 5019.6 | 1109.8 | 5327.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 4 | low | False | fit_spectrum | default | 1851.3 | 723.8 | 2895.2 | 2252.7 | 200.0 | 21.7 | -72.4 | b-pinned;residual | False | WRONG-WARNED | b;c;d;e |
+| 4 | low | False | reverse_app | app-default | 1851.3 | 723.8 | 2895.2 | 1606.7 | 1150.0 | -13.2 | 58.9 |  | False | WRONG-SILENT | app-hs;c;d |
+| 4 | low | False | ratio_app | app-default | 1851.3 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
+| 4 | low | True | fit_spectrum | default | 1691.9 | 434.2 | 1736.8 | 2587.5 | 510.5 | 52.9 | 17.6 | residual | False | WRONG-WARNED | a;b;c;e |
+| 4 | low | True | reverse_app | app-default | 1691.9 | 434.2 | 1736.8 | 1099.7 | 400.0 | -35.0 | -7.9 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 4 | low | True | fit_spectrum | truth | 1963.8 | 434.2 | 2084.2 | 1432.9 | 629.1 | -27.0 | 44.9 |  | False | WRONG-SILENT | a;b;c |
+| 4 | low | True | fit_spectrum | default | 1963.8 | 434.2 | 2084.2 | 2252.7 | 200.0 | 14.7 | -53.9 | b-pinned;residual | False | WRONG-WARNED | a;b;c |
+| 4 | low | True | reverse_app | app-default | 1963.8 | 434.2 | 2084.2 | 1266.4 | 400.0 | -35.5 | -7.9 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 4 | low | True | fit_spectrum | truth | 2821.0 | 723.8 | 2895.2 | 2090.8 | 859.9 | -25.9 | 18.8 |  | False | WRONG-SILENT | a;b;c |
 | 4 | low | True | fit_spectrum | default | 2821.0 | 723.8 | 2895.2 | 3029.5 | 200.0 | 7.4 | -72.4 | b-pinned | False | WRONG-WARNED | a;c |
 | 4 | low | True | reverse_app | app-default | 2821.0 | 723.8 | 2895.2 | 1833.2 | 400.0 | -35.0 | -44.7 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
@@ -233,6 +246,8 @@ Headline counts (synthetic runs):
 | 4 | low | True | fit_spectrum | default | 5019.6 | 1109.8 | 5327.0 | 2909.6 | 1500.0 | -42.0 | 35.2 | b-pinned | False | WRONG-WARNED | a;c |
 | 4 | low | True | reverse_app | app-default | 5019.6 | 1109.8 | 5327.0 | 2856.0 | 1450.0 | -43.1 | 30.7 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 4 | low | True | fit_spectrum | truth | 1851.3 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | a;bounds-exclude-truth;d |
+| 4 | low | True | fit_spectrum | default | 1851.3 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | a;bounds-exclude-truth;d |
+| 4 | low | True | reverse_app | app-default | 1851.3 | 723.8 | 2895.2 | 254.1 | 400.0 | -86.3 | -44.7 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 5 | high | True | fit_spectrum | default | 502.1 | 387.0 | 1548.0 | 1706.1 | 370.7 | 239.8 | -4.2 |  | False | WRONG-SILENT | a;c;e |
 | 5 | high | True | reverse_app | app-default | 502.1 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
 | 5 | high | True | fit_spectrum | default | 578.1 | 387.0 | 1857.6 | 1716.9 | 477.0 | 197.0 | 23.2 |  | False | WRONG-SILENT | a;c;e |
@@ -257,7 +272,13 @@ Headline counts (synthetic runs):
 | 5 | high | True | fit_spectrum | truth | 1590.1 | 645.0 | 2580.0 | 1281.4 | 474.8 | -19.4 | -26.4 |  | False | WRONG-SILENT | a;b;c;d |
 | 5 | high | True | fit_spectrum | default | 1590.1 | 645.0 | 2580.0 | 1785.6 | 293.8 | 12.3 | -54.4 |  | False | WRONG-SILENT | a;c;d |
 | 5 | high | True | reverse_app | app-default | 1590.1 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf;d |
+| 5 | low | False | fit_spectrum | default | 1606.7 | 387.0 | 1548.0 | 2001.5 | 200.0 | 24.6 | -48.3 | b-pinned;residual | False | WRONG-WARNED | c;e |
+| 5 | low | False | reverse_app | app-default | 1606.7 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 5 | low | False | ratio_app | app-default | 1606.7 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | fit_spectrum | truth | 1850.0 | 387.0 | 1857.6 | 1710.1 | 619.3 | -7.6 | 60.0 |  | False | WRONG-SILENT | b;c |
+| 5 | low | False | fit_spectrum | default | 1850.0 | 387.0 | 1857.6 | 2001.5 | 200.0 | 8.2 | -48.3 | b-pinned | False | WRONG-WARNED | c |
+| 5 | low | False | reverse_app | app-default | 1850.0 | 387.0 | 1857.6 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 5 | low | False | ratio_app | app-default | 1850.0 | 387.0 | 1857.6 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | fit_spectrum | default | 2678.0 | 645.0 | 2580.0 | 2765.9 | 639.6 | 3.3 | -0.8 |  | True | WRONG-SILENT | e |
 | 5 | low | False | reverse_app | app-default | 2678.0 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | ratio_app | app-default | 2678.0 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
@@ -274,7 +295,14 @@ Headline counts (synthetic runs):
 | 5 | low | False | fit_spectrum | default | 6578.1 | 1376.0 | 6604.8 | 6373.4 | 1385.0 | -3.1 | 0.7 |  | True | WRONG-SILENT | unclassified |
 | 5 | low | False | reverse_app | app-default | 6578.1 | 1376.0 | 6604.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | ratio_app | app-default | 6578.1 | 1376.0 | 6604.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 5 | low | False | fit_spectrum | default | 1757.4 | 645.0 | 2580.0 | 2001.5 | 200.0 | 13.9 | -69.0 | b-pinned;residual | False | WRONG-WARNED | c;d;e |
+| 5 | low | False | reverse_app | app-default | 1757.4 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
+| 5 | low | False | ratio_app | app-default | 1757.4 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
+| 5 | low | True | fit_spectrum | default | 1606.7 | 387.0 | 1548.0 | 2722.9 | 584.8 | 69.5 | 51.1 |  | False | WRONG-SILENT | a;c;e |
+| 5 | low | True | reverse_app | app-default | 1606.7 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
 | 5 | low | True | fit_spectrum | truth | 1850.0 | 387.0 | 1857.6 | 1912.5 | 551.8 | 3.4 | 42.6 |  | False | WRONG-SILENT | a;b;c |
+| 5 | low | True | fit_spectrum | default | 1850.0 | 387.0 | 1857.6 | 2883.4 | 733.3 | 55.9 | 89.5 |  | False | WRONG-SILENT | a;c |
+| 5 | low | True | reverse_app | app-default | 1850.0 | 387.0 | 1857.6 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
 | 5 | low | True | fit_spectrum | default | 2678.0 | 645.0 | 2580.0 | 2494.2 | 956.8 | -6.9 | 48.3 |  | False | WRONG-SILENT | a;c;e |
 | 5 | low | True | reverse_app | app-default | 2678.0 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
 | 5 | low | True | fit_spectrum | truth | 3083.5 | 645.0 | 3096.0 | 2075.7 | 812.1 | -32.7 | 25.9 |  | False | WRONG-SILENT | a;b;c |
@@ -292,6 +320,8 @@ Headline counts (synthetic runs):
 | 5 | low | True | fit_spectrum | truth | 6578.1 | 1376.0 | 6604.8 | 3907.7 | 454.5 | -40.6 | -67.0 |  | False | WRONG-SILENT | a;b;c |
 | 5 | low | True | fit_spectrum | default | 6578.1 | 1376.0 | 6604.8 | 3888.8 | 882.0 | -40.9 | -35.9 |  | False | WRONG-SILENT | a;c |
 | 5 | low | True | reverse_app | app-default | 6578.1 | 1376.0 | 6604.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
+| 5 | low | True | fit_spectrum | default | 1757.4 | 645.0 | 2580.0 | 2679.6 | 804.2 | 52.5 | 24.7 | residual | False | WRONG-WARNED | a;c;d;e |
+| 5 | low | True | reverse_app | app-default | 1757.4 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf;d |
 | 6 | high | False | reverse_app | app-default | 408.0 | 479.2 | 1916.8 | 408.0 | 400.0 | 0.0 | -16.5 |  | True | WRONG-SILENT | single-band |
 | 6 | high | False | reverse_app | app-default | 497.5 | 479.2 | 2396.0 | 497.5 | 400.0 | 0.0 | -16.5 |  | True | WRONG-SILENT | single-band |
 | 6 | high | False | reverse_app | app-default | 680.2 | 798.8 | 3195.2 | 680.2 | 400.0 | 0.0 | -49.9 |  | True | WRONG-SILENT | single-band |
@@ -314,6 +344,12 @@ Headline counts (synthetic runs):
 | 6 | high | True | fit_spectrum | truth | 1292.5 | 798.8 | 3195.2 | 543.6 | 200.0 | -57.9 | -75.0 | b-pinned | False | WRONG-WARNED | a;b;c;d |
 | 6 | high | True | fit_spectrum | default | 1292.5 | 798.8 | 3195.2 | 869.5 | 200.0 | -32.7 | -75.0 | b-pinned;residual | False | WRONG-WARNED | a;c;d |
 | 6 | high | True | reverse_app | app-default | 1292.5 | 798.8 | 3195.2 | 1092.7 | 1400.0 | -15.5 | 75.3 |  | False | WRONG-SILENT | app-sf;c;d |
+| 6 | low | False | fit_spectrum | default | 1305.6 | 479.2 | 1916.8 | 2018.7 | 524.1 | 54.6 | 9.4 | residual | False | WRONG-WARNED | c;e |
+| 6 | low | False | reverse_app | app-default | 1305.6 | 479.2 | 1916.8 | 1779.7 | 400.0 | 36.3 | -16.5 |  | False | WRONG-SILENT | app-hs;c;d |
+| 6 | low | False | ratio_app | app-default | 1305.6 | 479.2 | 1916.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 6 | low | False | fit_spectrum | default | 1592.1 | 479.2 | 2396.0 | 2113.9 | 966.5 | 32.8 | 101.7 | residual | False | WRONG-WARNED | c;e |
+| 6 | low | False | reverse_app | app-default | 1592.1 | 479.2 | 2396.0 | 2155.5 | 1200.0 | 35.4 | 150.4 |  | False | WRONG-SILENT | app-hs;c;d |
+| 6 | low | False | ratio_app | app-default | 1592.1 | 479.2 | 2396.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 6 | low | False | fit_spectrum | default | 2176.8 | 798.8 | 3195.2 | 2283.1 | 819.1 | 4.9 | 2.5 |  | True | WRONG-SILENT | e |
 | 6 | low | False | reverse_app | app-default | 2176.8 | 798.8 | 3195.2 | 2225.4 | 1500.0 | 2.2 | 87.8 |  | False | WRONG-SILENT | app-hs;c;d |
 | 6 | low | False | ratio_app | app-default | 2176.8 | 798.8 | 3195.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
@@ -324,7 +360,14 @@ Headline counts (synthetic runs):
 | 6 | low | False | ratio_app | app-default | 3338.0 | 1224.8 | 4899.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 6 | low | False | reverse_app | app-default | 4069.1 | 1224.8 | 6124.0 | 1836.3 | 400.0 | -54.9 | -67.3 |  | False | WRONG-SILENT | app-hs;c;d |
 | 6 | low | False | ratio_app | app-default | 4069.1 | 1224.8 | 6124.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 6 | low | False | fit_spectrum | default | 1428.5 | 798.8 | 3195.2 | 2012.4 | 495.1 | 40.9 | -38.0 | residual | False | WRONG-WARNED | c;d;e |
+| 6 | low | False | reverse_app | app-default | 1428.5 | 798.8 | 3195.2 | 2038.9 | 650.0 | 42.7 | -18.6 |  | False | WRONG-SILENT | app-hs;c;d |
+| 6 | low | False | ratio_app | app-default | 1428.5 | 798.8 | 3195.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
 | 6 | low | True | fit_spectrum | truth | 1305.6 | 479.2 | 1916.8 | 938.0 | 755.0 | -28.2 | 57.5 |  | False | WRONG-SILENT | a;b;c |
+| 6 | low | True | fit_spectrum | default | 1305.6 | 479.2 | 1916.8 | 2174.1 | 523.9 | 66.5 | 9.3 |  | False | WRONG-SILENT | a;c |
+| 6 | low | True | reverse_app | app-default | 1305.6 | 479.2 | 1916.8 | 1539.8 | 400.0 | 17.9 | -16.5 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
+| 6 | low | True | fit_spectrum | default | 1592.1 | 479.2 | 2396.0 | 2214.3 | 901.0 | 39.1 | 88.0 | residual | False | WRONG-WARNED | a;c;e |
+| 6 | low | True | reverse_app | app-default | 1592.1 | 479.2 | 2396.0 | 1856.0 | 400.0 | 16.6 | -16.5 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 6 | low | True | fit_spectrum | truth | 2176.8 | 798.8 | 3195.2 | 1439.8 | 946.8 | -33.9 | 18.5 |  | False | WRONG-SILENT | a;b;c |
 | 6 | low | True | fit_spectrum | default | 2176.8 | 798.8 | 3195.2 | 2199.8 | 695.9 | 1.1 | -12.9 |  | False | WRONG-SILENT | a;c |
 | 6 | low | True | reverse_app | app-default | 2176.8 | 798.8 | 3195.2 | 2246.7 | 1600.0 | 3.2 | 100.3 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
@@ -335,6 +378,8 @@ Headline counts (synthetic runs):
 | 6 | low | True | fit_spectrum | truth | 4069.1 | 1224.8 | 6124.0 | 2754.4 | 1255.3 | -32.3 | 2.5 |  | False | WRONG-SILENT | a;b;c |
 | 6 | low | True | fit_spectrum | default | 4069.1 | 1224.8 | 6124.0 | 2607.3 | 678.3 | -35.9 | -44.6 |  | False | WRONG-SILENT | a;c |
 | 6 | low | True | reverse_app | app-default | 4069.1 | 1224.8 | 6124.0 | 2075.3 | 800.0 | -49.0 | -34.7 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
+| 6 | low | True | fit_spectrum | default | 1428.5 | 798.8 | 3195.2 | 2068.1 | 727.6 | 44.8 | -8.9 | residual | False | WRONG-WARNED | a;c;d;e |
+| 6 | low | True | reverse_app | app-default | 1428.5 | 798.8 | 3195.2 | 1577.1 | 1300.0 | 10.4 | 62.7 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 7 | high | False | ratio_app | app-default | 1343.7 | 728.2 | 2912.8 | 1384.4 | 731.0 | 3.0 | 0.4 |  | True | WRONG-SILENT | app-grid;d |
 | 7 | high | True | fit_spectrum | truth | 424.2 | 436.9 | 1747.6 | 210.2 | 734.2 | -50.5 | 68.1 |  | False | WRONG-SILENT | b;c |
 | 7 | high | True | fit_spectrum | truth | 486.8 | 436.9 | 2097.1 | 246.0 | 801.0 | -49.5 | 83.3 |  | False | WRONG-SILENT | b;c |
@@ -347,6 +392,12 @@ Headline counts (synthetic runs):
 | 7 | high | True | fit_spectrum | truth | 1343.7 | 728.2 | 2912.8 | 347.9 | 1248.0 | -74.1 | 71.4 | residual | False | WRONG-WARNED | a;b;bounds-exclude-truth;c;d |
 | 7 | high | True | fit_spectrum | default | 1343.7 | 728.2 | 2912.8 | 173.0 | 773.8 | -87.1 | 6.3 |  | False | WRONG-SILENT | a;bounds-exclude-truth;c;d |
 | 7 | high | True | reverse_app | app-default | 1343.7 | 728.2 | 2912.8 | 78.3 | 1100.0 | -94.2 | 51.1 |  | False | WRONG-SILENT | app-sf;c;d |
+| 7 | low | False | fit_spectrum | default | 1357.6 | 436.9 | 1747.6 | 1737.9 | 200.0 | 28.0 | -54.2 | b-pinned;residual | False | WRONG-WARNED | c;e |
+| 7 | low | False | reverse_app | app-default | 1357.6 | 436.9 | 1747.6 | 771.5 | 400.0 | -43.2 | -8.4 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 1357.6 | 436.9 | 1747.6 | 1404.7 | 400.0 | 3.5 | -8.4 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | fit_spectrum | default | 1557.7 | 436.9 | 2097.1 | 1770.8 | 276.7 | 13.7 | -36.7 |  | False | WRONG-SILENT | c;e |
+| 7 | low | False | reverse_app | app-default | 1557.7 | 436.9 | 2097.1 | 879.7 | 500.0 | -43.5 | 14.4 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 1557.7 | 436.9 | 2097.1 | 1456.1 | 400.0 | -6.5 | -8.4 |  | False | WRONG-SILENT | app-hs;c;d |
 | 7 | low | False | fit_spectrum | default | 2263.2 | 728.2 | 2912.8 | 2335.6 | 762.9 | 3.2 | 4.8 |  | True | WRONG-SILENT | e |
 | 7 | low | False | reverse_app | app-default | 2263.2 | 728.2 | 2912.8 | 1286.2 | 700.0 | -43.2 | -3.9 |  | False | WRONG-SILENT | app-hs;c;d |
 | 7 | low | False | ratio_app | app-default | 2263.2 | 728.2 | 2912.8 | 1703.1 | 400.0 | -24.7 | -45.1 |  | False | WRONG-SILENT | app-hs;c;d |
@@ -356,6 +407,13 @@ Headline counts (synthetic runs):
 | 7 | low | False | ratio_app | app-default | 3469.8 | 1116.6 | 4466.4 | 1631.9 | 400.0 | -53.0 | -64.2 |  | False | WRONG-SILENT | app-hs;c;d |
 | 7 | low | False | reverse_app | app-default | 3981.0 | 1116.6 | 5359.7 | 2248.3 | 1250.0 | -43.5 | 11.9 |  | False | WRONG-SILENT | app-hs;c;d |
 | 7 | low | False | ratio_app | app-default | 3981.0 | 1116.6 | 5359.7 | 1860.7 | 482.8 | -53.3 | -56.8 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | fit_spectrum | default | 1485.2 | 728.2 | 2912.8 | 1761.5 | 255.4 | 18.6 | -64.9 | residual | False | WRONG-WARNED | c;d;e |
+| 7 | low | False | reverse_app | app-default | 1485.2 | 728.2 | 2912.8 | 1467.4 | 400.0 | -1.2 | -45.1 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 1485.2 | 728.2 | 2912.8 | 1484.2 | 400.0 | -0.1 | -45.1 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | True | fit_spectrum | default | 1357.6 | 436.9 | 1747.6 | 1767.9 | 200.0 | 30.2 | -54.2 | b-pinned;residual | False | WRONG-WARNED | a;b;c;e |
+| 7 | low | True | reverse_app | app-default | 1357.6 | 436.9 | 1747.6 | 755.1 | 1200.0 | -44.4 | 174.7 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
+| 7 | low | True | fit_spectrum | default | 1557.7 | 436.9 | 2097.1 | 1929.8 | 200.0 | 23.9 | -54.2 | b-pinned;residual | False | WRONG-WARNED | a;b;c;e |
+| 7 | low | True | reverse_app | app-default | 1557.7 | 436.9 | 2097.1 | 790.1 | 1150.0 | -49.3 | 163.2 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 7 | low | True | fit_spectrum | default | 2263.2 | 728.2 | 2912.8 | 2522.7 | 575.6 | 11.5 | -21.0 | residual | False | WRONG-WARNED | a;c;e |
 | 7 | low | True | reverse_app | app-default | 2263.2 | 728.2 | 2912.8 | 1259.2 | 1600.0 | -44.4 | 119.7 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 7 | low | True | fit_spectrum | truth | 2596.3 | 728.2 | 3495.4 | 2267.4 | 435.9 | -12.7 | -40.1 |  | False | WRONG-SILENT | a;b;c |
@@ -368,6 +426,8 @@ Headline counts (synthetic runs):
 | 7 | low | True | fit_spectrum | default | 3981.0 | 1116.6 | 5359.7 | 3361.7 | 884.7 | -15.6 | -20.8 |  | False | WRONG-SILENT | a;c |
 | 7 | low | True | reverse_app | app-default | 3981.0 | 1116.6 | 5359.7 | 2386.4 | 1550.0 | -40.1 | 38.8 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 7 | low | True | fit_spectrum | truth | 1485.2 | 728.2 | 2912.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | a;bounds-exclude-truth;d |
+| 7 | low | True | fit_spectrum | default | 1485.2 | 728.2 | 2912.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | a;bounds-exclude-truth;d |
+| 7 | low | True | reverse_app | app-default | 1485.2 | 728.2 | 2912.8 | 104.7 | 1050.0 | -93.0 | 44.2 |  | False | WRONG-SILENT | app-hs;app-sf;c;d |
 | 8 | high | False | ratio_app | app-default | 700.0 | 463.5 | 1854.0 | 724.1 | 482.8 | 3.4 | 4.2 |  | True | WRONG-SILENT | app-grid |
 | 8 | high | False | ratio_app | app-default | 1200.0 | 463.5 | 1854.0 | 1241.4 | 482.8 | 3.5 | 4.2 |  | True | WRONG-SILENT | app-grid |
 | 8 | high | False | ratio_app | app-default | 700.0 | 463.5 | 2224.8 | 724.1 | 482.8 | 3.4 | 4.2 |  | True | WRONG-SILENT | app-grid |
@@ -434,12 +494,12 @@ Bands not nearest to their table label at the reported point:
 
 Counts (non-R1 rows):
 
-| path | OK | RAISED-EXPECTED | OK-B-UNIDENTIFIED | INFEASIBLE-AT-C | RAISED | WRONG-WARNED | WRONG-SILENT | total |
-|---|---|---|---|---|---|---|---|---|
-| fit_spectrum (default) | 14 | 0 | 0 | 0 | 0 | 5 | 23 | 42 |
-| fit_spectrum (truth) | 7 | 0 | 0 | 0 | 0 | 5 | 16 | 28 |
-| ratio_app (app-default) | 3 | 0 | 0 | 0 | 1 | 0 | 19 | 23 |
-| reverse_app (app-default) | 13 | 0 | 0 | 0 | 0 | 0 | 29 | 42 |
+| path | OK | RAISED-EXPECTED | OK-B-UNIDENTIFIED | RAISED | WRONG-WARNED | WRONG-SILENT | total |
+|---|---|---|---|---|---|---|---|
+| fit_spectrum (default) | 14 | 0 | 0 | 0 | 5 | 23 | 42 |
+| fit_spectrum (truth) | 7 | 0 | 0 | 0 | 5 | 16 | 28 |
+| ratio_app (app-default) | 3 | 0 | 0 | 1 | 0 | 19 | 23 |
+| reverse_app (app-default) | 13 | 0 | 0 | 0 | 0 | 29 | 42 |
 
 | system | d | spin | sf | geometry | path | c_mode | truth_Dq | truth_B | truth_C | fit_Dq | fit_B | dDq_pct | dB_pct | rmse_at_reported | rmse_at_fit | assignment_ok | approx | verdict | failure_classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -522,12 +582,12 @@ Counts (non-R1 rows):
 | LiGa5O8:Fe3+ | 5 | high | True | Oh | fit_spectrum | truth | 906.0 | 594.1 | 3736.3 | 2071.4 | 493.3 | 128.6 | -17.0 | 3.7 | 55.8 | False | False | WRONG-SILENT-R1 | a;b;c |
 | LiGa5O8:Fe3+ | 5 | high | True | Oh | fit_spectrum | default | 906.0 | 594.1 | 3736.3 | 2165.9 | 485.7 | 139.1 | -18.2 | 597.6 | 71.1 | False | False | WRONG-SILENT-R1 | a;c |
 | LiGa5O8:Fe3+ | 5 | high | True | Oh | reverse_app | app-default | 906.0 | 594.1 | 3736.3 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | RAISED-R1 | app-sf |
-| [Co(oxalate)3]3- | 6 | low | False | Oh | fit_spectrum | default | 1815.0 | 535.6 | n/a | 2012.4 | 495.3 | 10.9 | -7.5 | 3956.1 | 264.9 | True | False | INFEASIBLE-AT-C-R1 |  |
-| [Co(oxalate)3]3- | 6 | low | False | Oh | reverse_app | app-default | 1815.0 | 535.6 | n/a | 2076.4 | 800.0 | 14.4 | 49.4 | 3956.1 | 3527.9 | False | False | INFEASIBLE-AT-C-R1 |  |
-| [Co(oxalate)3]3- | 6 | low | False | Oh | ratio_app | app-default | 1815.0 | 535.6 | n/a | n/a | n/a | n/a | n/a | 3956.1 | n/a | n/a | False | INFEASIBLE-AT-C-R1 |  |
-| [Co(H2O)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | 5115.8 | 615.0 | True | False | INFEASIBLE-AT-C-R1 |  |
-| [Co(H2O)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 1841.0 | 705.1 | n/a | 2059.3 | 750.0 | 11.9 | 6.4 | 5115.8 | 4466.0 | False | False | INFEASIBLE-AT-C-R1 |  |
-| [Co(H2O)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 1841.0 | 705.1 | n/a | n/a | n/a | n/a | n/a | 5115.8 | n/a | n/a | False | INFEASIBLE-AT-C-R1 |  |
+| [Co(oxalate)3]3- | 6 | low | False | Oh | fit_spectrum | default | 1815.0 | 535.6 | n/a | 2012.4 | 495.3 | 10.9 | -7.5 | 3956.1 | 264.9 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
+| [Co(oxalate)3]3- | 6 | low | False | Oh | reverse_app | app-default | 1815.0 | 535.6 | n/a | 2076.4 | 800.0 | 14.4 | 49.4 | 3956.1 | 3527.9 | False | False | WRONG-SILENT-R1 | app-hs;c;d;estimator-disagreement |
+| [Co(oxalate)3]3- | 6 | low | False | Oh | ratio_app | app-default | 1815.0 | 535.6 | n/a | n/a | n/a | n/a | n/a | 3956.1 | n/a | n/a | False | RAISED-R1 | app-hs |
+| [Co(H2O)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | 5115.8 | 615.0 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
+| [Co(H2O)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 1841.0 | 705.1 | n/a | 2059.3 | 750.0 | 11.9 | 6.4 | 5115.8 | 4466.0 | False | False | WRONG-SILENT-R1 | app-hs;c;d;estimator-disagreement |
+| [Co(H2O)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 1841.0 | 705.1 | n/a | n/a | n/a | n/a | n/a | 5115.8 | n/a | n/a | False | RAISED-R1 | app-hs |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | truth | 2293.0 | 635.0 | 3886.9 | 2359.2 | 635.4 | 2.9 | 0.1 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 2293.0 | 635.0 | 3886.9 | 2428.6 | 643.8 | 5.9 | 1.4 | 1415.1 | 0.0 | True | False | WRONG-WARNED-R1 | estimator-disagreement |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 2293.0 | 635.0 | 3886.9 | 2105.3 | 950.0 | -8.2 | 49.6 | 1415.1 | 5972.2 | False | False | WRONG-SILENT-R1 | app-hs;c;d |
@@ -615,21 +675,21 @@ Counts (non-R1 rows):
 
 ## 6. Follow-up scope
 
-Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 28, INFEASIBLE-AT-C 60. Classes (a), (b), (e), (f) apply to fit_spectrum only; app rows get (c), (d) and the app-* classes. The OK columns apply the same rules to rows graded OK: a class that fires on OK rows about as often as on failing ones marks a precondition, not a cause.
+Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 28. 60 of the failing rows carry the infeasible_at_c tag. Classes (a), (b), (e), (f) apply to fit_spectrum only; app rows get (c), (d) and the app-* classes. The OK columns apply the same rules to rows graded OK: a class that fires on OK rows about as often as on failing ones marks a precondition, not a cause.
 
 Class (e) measures the bias of holding C at the default. Whether a free C would be identifiable is NOT measured by this audit; a fix that fits C must establish that per configuration and band set.
 
 | class | proposed fix | rule | synthetic failing | synthetic OK | JCE failing | JCE OK |
 |---|---|---|---|---|---|---|
-| a | precondition, not a cause: seed obs[0]/10 outside d3/d8 (_compute.py L465) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, or <3 bands) and seed Dq / truth Dq outside the local-start span [0.8, 1.25]; or d3/d8 with a spin-forbidden band among the three lowest (closed form fed a forbidden band) | 123 | 17 | 21 | 0 |
-| bounds-exclude-truth | default dq_bounds (0.2, 5) x seed exclude the truth (L474-475) | fit_spectrum only, not seed-displaced: the truth Dq lies outside (0.2, 5) x the seed fit_spectrum computes (closed form for d3/d8 with >=3 bands, else obs[0]/10) | 6 | 0 | 0 | 0 |
-| b | 5 local starts around the seed (L555-561) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 74 | 1 | 4 | 0 |
-| c | unlabelled non-injective NN matching incl. doublets (L302, L541-553) | assignment_ok is False | 236 | 16 | 53 | 5 |
-| d | regime penalty / crossover proximity (L547) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 46 | 9 | 2 | 0 |
-| e | C-misspecification bias: C never fitted (L455-457, L612) | fit_spectrum only: c_mode=default and the same case with c_mode=truth is OK | 35 | 65 | 1 | 6 |
+| a | precondition, not a cause: seed obs[0]/10 outside d3/d8 (_compute.py L465) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, or <3 bands) and seed Dq / truth Dq outside the local-start span [0.8, 1.25]; or d3/d8 with a spin-forbidden band among the three lowest (closed form fed a forbidden band) | 135 | 17 | 21 | 0 |
+| bounds-exclude-truth | default dq_bounds (0.2, 5) x seed exclude the truth (L474-475) | fit_spectrum only, not seed-displaced: the truth Dq lies outside (0.2, 5) x the seed fit_spectrum computes (closed form for d3/d8 with >=3 bands, else obs[0]/10) | 8 | 0 | 0 | 0 |
+| b | 5 local starts around the seed (L555-561) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 80 | 1 | 4 | 0 |
+| c | unlabelled non-injective NN matching incl. doublets (L302, L541-553) | assignment_ok is False | 279 | 16 | 53 | 5 |
+| d | regime penalty / crossover proximity (L547) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 80 | 9 | 2 | 0 |
+| e | C-misspecification bias: C never fitted (L455-457, L612) | fit_spectrum only: c_mode=default and the same case with c_mode=truth is OK | 53 | 65 | 1 | 6 |
 | f | no ambiguity check | fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C) | 1 | 0 | 27 | 0 |
-| app-hs | app hard-codes the high-spin reference and default C | app row with spin=low | 54 | 0 | 3 | 0 |
-| app-sf | app has no include_spin_forbidden and fits forbidden bands as allowed | reverse-app row with spin-forbidden bands in its input | 85 | 7 | 16 | 2 |
+| app-hs | app hard-codes the high-spin reference and default C | app row with spin=low | 90 | 0 | 3 | 0 |
+| app-sf | app has no include_spin_forbidden and fits forbidden bands as allowed | reverse-app row with spin-forbidden bands in its input | 97 | 7 | 16 | 2 |
 | app-grid | app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600 (25 steps reverse, 30 ratio) | app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 13 | 56 | 8 | 14 |
 | single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 14 | 0 | 0 | 0 |
 | estimator-disagreement | published values are not the minimum of this objective | JCE, sf=False, fit_spectrum or reverse app (both minimise the nearest-line RMSE): rmse_at_fit < rmse_at_reported | 0 | 0 | 27 | 21 |
@@ -645,9 +705,9 @@ Live: 45 of 168 synthetic fit_spectrum runs with |dDq| > 2 % carry a pertinent w
 **S2. The JCE spin-allowed misses are estimator disagreement, not a fitter defect.** Where the fitter's own objective is lower at its answer than at the published point, the published values are not the minimum of this objective (class estimator-disagreement).
 
 **S3. C-misspecification is a continuous bias.** Holding C at the default shifts Dq in a direction set by the sign of the C error; passing low-spin default-C runs are still off by 1-2 % in the predicted direction.
-Live, low-spin fit_spectrum C=default, Spearman between signed dC and dDq: d4 sf=False: rho +0.94 (n=7); d4 sf=True: rho +1.00 (n=6); d5 sf=False: rho +0.97 (n=9); d5 sf=True: rho +0.92 (n=9); d6 sf=False: rho +0.94 (n=7); d6 sf=True: rho +0.90 (n=7); d7 sf=False: rho +0.94 (n=7); d7 sf=True: rho +1.00 (n=6). Among the 10 of those runs graded OK, mean |dDq| = 1.1 %.
+Live, low-spin fit_spectrum C=default, Spearman between signed dC and dDq: d4 sf=False: rho +0.94 (n=7); d4 sf=True: rho +1.00 (n=6); d5 sf=False: rho +0.97 (n=9); d5 sf=True: rho +0.92 (n=9); d6 sf=False: rho +0.94 (n=7); d6 sf=True: rho +0.90 (n=7); d7 sf=False: rho +0.94 (n=7); d7 sf=True: rho +1.00 (n=6). Among the 10 of those runs graded OK, mean |dDq| = 1.1 %. dC is set by the B factor and C/B together, so the pooled rho alone could be a B effect; holding B fixed, the C/B change moves dDq the same way as dC in 25 of 26 pairs.
 
-**S4. The near-crossover default-C failures are forced by the design.** At the default C the truth Dq lies on the other side of the spin crossover, so no fit pinned to the requested regime can reach it.
-Live: 60 synthetic runs are INFEASIBLE-AT-C; JCE systems with such runs: [Co(H2O)6]3+, [Co(oxalate)3]3-.
+**S4. Infeasible-at-C runs come mostly from the low-B truth points, not from the near-crossover ones.** At the default C their truth Dq lies in the other spin regime, so no fit pinned to the requested regime can reach it; the tag says so, but the run stays a failure, because some of them also miss the regime boundary by far more than the regime forces.
+Live: 66 failing runs carry the tag (24 synthetic fit_spectrum: 16 at 0.45 x default B, 8 near-crossover). JCE systems with tagged runs: [Co(H2O)6]3+, [Co(oxalate)3]3-.
 
 **Design note for the fix.** Scope by ablation -- {grid multistart vs current seed} x {labelled vs unlabelled matching} x {C truth / default / free} -- rather than by row tags alone. This is a recommendation, not done here.

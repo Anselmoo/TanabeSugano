@@ -164,7 +164,6 @@ SEVERITY = (
     "OK",
     "RAISED-EXPECTED",
     "OK-B-UNIDENTIFIED",
-    "INFEASIBLE-AT-C",
     "RAISED",
     "WRONG-WARNED",
     "WRONG-SILENT",
@@ -354,9 +353,11 @@ FINDINGS_STATIC = {
         "still off by 1-2 % in the predicted direction."
     ),
     "S4": (
-        "**S4. The near-crossover default-C failures are forced by the design.** At the "
-        "default C the truth Dq lies on the other side of the spin crossover, so no fit "
-        "pinned to the requested regime can reach it."
+        "**S4. Infeasible-at-C runs come mostly from the low-B truth points, not from the "
+        "near-crossover ones.** At the default C their truth Dq lies in the other spin "
+        "regime, so no fit pinned to the requested regime can reach it; the tag says so, but "
+        "the run stays a failure, because some of them also miss the regime boundary by far "
+        "more than the regime forces."
     ),
     "design": (
         "**Design note for the fix.** Scope by ablation -- {grid multistart vs current seed} "
@@ -913,8 +914,6 @@ def decide_verdict(
             verdict = "OK-B-UNIDENTIFIED"
         else:
             verdict = "WRONG-WARNED" if pertinent else "WRONG-SILENT"
-    if verdict in FAILURES and infeasible_at_c(case, run):
-        verdict = "INFEASIBLE-AT-C"
     return verdict
 
 
@@ -1471,9 +1470,10 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             "and the 'only one spin-allowed transition' warning fired. Otherwise WRONG-WARNED "
             "only if a pertinent warning fired (warning_kinds residual, b-pinned, "
             "single-transition, too-few-bands; the c-note alone does not count), else "
-            "WRONG-SILENT; RAISED on an exception or error payload. A failure whose truth Dq "
-            "lies in the other spin regime at the C the run used becomes INFEASIBLE-AT-C "
-            "(design-forced). OK-B-UNIDENTIFIED and INFEASIBLE-AT-C are not failures. "
+            "WRONG-SILENT; RAISED on an exception or error payload. A run whose truth Dq lies "
+            "in the other spin regime at the C it used keeps its verdict and is tagged "
+            "`infeasible_at_c=True`: the tag explains, it does not excuse. OK-B-UNIDENTIFIED "
+            "is not a failure. "
             "RAISED-EXPECTED only for fit_spectrum on high-spin d5 spin-allowed-only, fed the "
             "quartet bands, when the message says `no spin-allowed`. Where no B reference "
             "exists (JCE [Ni(NH3)6]2+) the verdict uses dDq only. Severity for 'worst': "
@@ -1684,10 +1684,11 @@ def section_scope(rows: list[Row]) -> list[str]:
         )
         for key in FIX_CLASSES
     ]
+    tagged = sum(
+        1 for r in rows if is_failure(r) and r.values["infeasible_at_c"] == "True" and not r.case.r1
+    )
     excluded = Counter(
-        base_verdict(r)
-        for r in rows
-        if not r.case.r1 and base_verdict(r) in {"OK-B-UNIDENTIFIED", "INFEASIBLE-AT-C"}
+        base_verdict(r) for r in rows if not r.case.r1 and base_verdict(r) == "OK-B-UNIDENTIFIED"
     )
     lines = [
         "## 6. Follow-up scope",
@@ -1697,8 +1698,9 @@ def section_scope(rows: list[Row]) -> list[str]:
             "tested against each rule independently, so a row may carry several classes and "
             "columns do not sum to the failure count; in particular (e) is assigned whether "
             "or not (a)/(b) also apply. Not failures, so not classified: "
-            f"OK-B-UNIDENTIFIED {excluded['OK-B-UNIDENTIFIED']}, "
-            f"INFEASIBLE-AT-C {excluded['INFEASIBLE-AT-C']}. Classes (a), (b), (e), (f) "
+            f"OK-B-UNIDENTIFIED {excluded['OK-B-UNIDENTIFIED']}. "
+            f"{tagged} "
+            "of the failing rows carry the infeasible_at_c tag. Classes (a), (b), (e), (f) "
             "apply to fit_spectrum only; app rows get (c), (d) and the app-* classes. "
             "The OK columns apply the same rules to rows graded OK: a class that fires on OK "
             "rows about as often as on failing ones marks a precondition, not a cause."
@@ -1784,27 +1786,50 @@ def findings_s3(rows: list[Row]) -> str:
         parts.append(f"d{d} sf={sf}: rho {rho_text} (n={len(members)})")
     ok = [m for ms in cells.values() for m in ms if base_verdict(m) == "OK"]
     mean_abs = statistics.fmean(abs(m.d_dq or 0.0) for m in ok) if ok else None
+    concordant, pairs = within_b_concordance([m for ms in cells.values() for m in ms])
     return (
         "Live, low-spin fit_spectrum C=default, Spearman between signed dC and dDq: "
         + "; ".join(parts)
-        + f". Among the {len(ok)} of those runs graded OK, mean |dDq| = {fmt(mean_abs)} %."
+        + f". Among the {len(ok)} of those runs graded OK, mean |dDq| = {fmt(mean_abs)} %. "
+        "dC is set by the B factor and C/B together, so the pooled rho alone could be a B "
+        "effect; holding B fixed, the C/B change moves dDq the same way as dC in "
+        f"{concordant} of {pairs} pairs."
     )
+
+
+def within_b_concordance(members: list[Row]) -> tuple[int, int]:
+    """Count (d, sf, truth B) pairs whose two C/B points move dC and dDq the same way."""
+    groups: dict[tuple[int, bool, float | None], list[Row]] = defaultdict(list)
+    for m in members:
+        if not m.case.near_crossover:
+            groups[m.case.d, m.case.sf, m.case.truth_b].append(m)
+    concordant = pairs = 0
+    for group in groups.values():
+        if len(group) != len(CB_RATIOS):
+            continue
+        lo, hi = sorted(group, key=lambda m: m.case.truth_c or 0.0)
+        step_c = (hi.d_c or 0.0) - (lo.d_c or 0.0)
+        step_dq = (hi.d_dq or 0.0) - (lo.d_dq or 0.0)
+        pairs += 1
+        concordant += step_c * step_dq > 0
+    return concordant, pairs
 
 
 def findings_s4(rows: list[Row]) -> str:
-    """Live numbers for S4: the INFEASIBLE-AT-C count by source."""
-    synthetic = sum(
-        1 for r in rows if r.case.source == "synthetic" and base_verdict(r) == "INFEASIBLE-AT-C"
+    """Live numbers for S4: failing runs tagged infeasible_at_c, by origin."""
+    tagged = [r for r in rows if is_failure(r) and r.values["infeasible_at_c"] == "True"]
+    fit = [r for r in tagged if r.case.source == "synthetic" and r.run.path == "fit_spectrum"]
+    near = sum(1 for r in fit if r.case.near_crossover)
+    factors = Counter(
+        round((r.case.truth_b or 0.0) / DEFAULTS[r.case.d]["default_B"], 2)
+        for r in fit
+        if not r.case.near_crossover
     )
-    jce = sorted(
-        {
-            r.case.system
-            for r in rows
-            if r.case.source == "jce2023" and base_verdict(r) == "INFEASIBLE-AT-C"
-        }
-    )
+    origin = ", ".join(f"{n} at {f:g} x default B" for f, n in sorted(factors.items()))
+    jce = sorted({r.case.system for r in tagged if r.case.source == "jce2023"})
     return (
-        f"Live: {synthetic} synthetic runs are INFEASIBLE-AT-C; JCE systems with such runs: "
+        f"Live: {len(tagged)} failing runs carry the tag ({len(fit)} synthetic fit_spectrum: "
+        f"{origin}, {near} near-crossover). JCE systems with tagged runs: "
         f"{', '.join(jce) or 'none'}."
     )
 
