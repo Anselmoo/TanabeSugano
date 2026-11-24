@@ -105,6 +105,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Sequence
 
+    from tanabesugano.mcp._compute import SpectrumFit
     from tanabesugano.mcp._compute import SpinState
 
 
@@ -231,6 +232,10 @@ FIX_CLASSES = {
     "f": "no ambiguity check",
     "app-hs": "app hard-codes the high-spin reference and default C",
     "app-sf": "app has no include_spin_forbidden and fits forbidden bands as allowed",
+    "app-lattice": (
+        "ratio app: the Dq grid has no node at nu1/10 for d3/d8, so Dq lands one lattice "
+        "offset high and B compensates one node high"
+    ),
     "app-grid": (
         "app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600 "
         "(25 steps reverse, 30 ratio)"
@@ -268,6 +273,9 @@ CLASS_RULES = {
     ),
     "app-hs": "app row with spin=low",
     "app-sf": "reverse-app row with spin-forbidden bands in its input",
+    "app-lattice": (
+        "ratio-app row, d3 or d8 (nu1 = 10Dq), and no Dq grid node within rounding of nu1/10"
+    ),
     "app-grid": (
         "app row whose returned (Dq, B) is the grid node nearest the truth on both axes, "
         "i.e. the error is pure grid resolution"
@@ -331,14 +339,18 @@ KNOWN_DEFECT_DQ_OVER_B = 0.918
 KNOWN_DEFECT_C_OVER_B = 3.917
 COUNTERFACTUAL_SEED = (650.0, 750.0)
 COUNTERFACTUAL_DQ_BOUNDS = (130.0, 3250.0)
+MULTISTART_DQ_SEEDS = 25
+MULTISTART_B_SEEDS = 5
 
 FINDINGS_STATIC = {
     "M": (
-        "**M. The d5 mechanism.** High-spin d5 fails through three interacting causes: the "
-        "generic seed obs[0]/10, unlabelled non-injective nearest-neighbour matching against "
-        "a dense manifold that includes the doublets, and a fixed C. Section 1's "
-        "counterfactual shows that moving the seed alone fixes the exact-data case; whether "
-        "that holds under noisy bands, where the doublet basin may win, is not measured here."
+        "**M. The d5 mechanism.** High-spin d5 with spin-forbidden bands fails for two "
+        "separable reasons (Section 1). With C right, the minimum exists and a start grid "
+        "over Dq and B chosen without the reference reaches it, while the default seed and "
+        "five local starts do not. With C at the default, the published point is not a "
+        "minimum of the objective at all, so no seed can fix it; that needs C fitted as "
+        "well, and whether three bands determine C is not measured here. Noisy bands are "
+        "not measured either."
     ),
     "S1": (
         "**S1. WRONG-WARNED should not be read as 'flagged'.** The C-not-constrained note "
@@ -1106,6 +1118,11 @@ def app_classes(row: Row) -> list[str]:
         found.append("app-hs")
     if run.path == "reverse_app" and any(not band.spin_allowed for band in case.bands):
         found.append("app-sf")
+    if run.path == "ratio_app" and case.d in CLOSED_FORM_CONFIGS:
+        dq_nodes, _ = app_grids(case, run.path)
+        nu1 = ratio_inputs(case)[0]
+        if not any(abs(g - nu1 / 10.0) <= APP_ROUNDING_CM1 for g in dq_nodes):
+            found.append("app-lattice")
     if run.fit_dq is not None and run.fit_b is not None and case.truth_b is not None:
         dq_grid, b_grid = app_grids(case, run.path)
         truth_b = case.truth_b
@@ -1325,14 +1342,53 @@ def known_defect() -> list[tuple[str, str, str, str, str, str, str]]:
 
     record("C = default", lambda: fit_spectrum(5, bands, None, include_spin_forbidden=True))
     record("C = reference", lambda: fit_spectrum(5, bands, c, include_spin_forbidden=True))
+    record(
+        "reference-blind 25 x 5 start grid (Dq x B), C = reference",
+        lambda: reference_blind_fit(bands, c),
+    )
+    record(
+        "reference-blind 25 x 5 start grid (Dq x B), C = default",
+        lambda: reference_blind_fit(bands, None),
+    )
     with mock.patch.object(compute_module, "closed_form_dq_b", return_value=COUNTERFACTUAL_SEED):
         record(
-            "counterfactual: seed (650, 750), dq_bounds (130, 3250), C = reference",
+            "illustration (hand-picked): seed (650, 750), dq_bounds (130, 3250), C = reference",
             lambda: fit_spectrum(
                 5, bands, c, include_spin_forbidden=True, dq_bounds=COUNTERFACTUAL_DQ_BOUNDS
             ),
         )
     return results
+
+
+def reference_blind_fit(bands: list[float], c: float | None) -> SpectrumFit:
+    """Fit high-spin d5 from a Dq x B start grid chosen without the reference; keep the best.
+
+    Dq seeds span the default bounds (0.2, 5) x obs[0]/10 geometrically, B seeds span
+    ``FIT_B_BOUNDS``. Each start patches the seed ``fit_spectrum`` would derive.
+    """
+    lo, hi = 0.2 * bands[0] / 10.0, 5.0 * bands[0] / 10.0
+    best: SpectrumFit | None = None
+    for dq in np.geomspace(lo, hi, MULTISTART_DQ_SEEDS):
+        for b0 in np.geomspace(*FIT_B_BOUNDS, MULTISTART_B_SEEDS):
+            seed = (float(dq), float(b0))
+            with mock.patch.object(compute_module, "closed_form_dq_b", return_value=seed):
+                try:
+                    fit = fit_spectrum(5, bands, c, include_spin_forbidden=True, dq_bounds=(lo, hi))
+                except ValueError:
+                    continue
+            if best is None or fit.rmse_cm1 < best.rmse_cm1:
+                best = fit
+    if best is None:
+        msg = "every start raised"
+        raise ValueError(msg)
+    return best
+
+
+def nearest_line_rmse(d: int, bands: Sequence[float], dq: float, b: float, c: float) -> float:
+    """Return fit_spectrum's spin-forbidden nearest-line RMSE at one (Dq, B, C)."""
+    _, candidates = transition_candidates(compute_point(d, dq, b, c), spin_allowed_only=False)
+    predicted = np.asarray([e for e, _a, _s in candidates])
+    return peak_rmse(np.asarray(list(bands)), predicted)
 
 
 def render_csv(rows: list[Row]) -> str:
@@ -1392,6 +1448,8 @@ def section_known_defect(
 ) -> list[str]:
     """Render section 1."""
     b = KNOWN_DEFECT_DQ / KNOWN_DEFECT_DQ_OVER_B
+    ref_c = KNOWN_DEFECT_C_OVER_B * b
+    default_c = float(DEFAULTS[5]["default_C"])
     n, better, at_truth = d5_minimum_evidence(rows)
     lines = [
         "## 1. Known defect: [Mn(H2O)6]2+ (d5 high-spin, all bands spin-forbidden)",
@@ -1402,8 +1460,9 @@ def section_known_defect(
             f"Dq {fmt(KNOWN_DEFECT_DQ)}, B {fmt(b)}, C {fmt(KNOWN_DEFECT_C_OVER_B * b)} cm^-1. "
             "This reference is d5 and therefore R1-tainted "
             "(Hormann & Shaw, J. Chem. Educ. 1987, 64, 918): the table is a comparison, not a "
-            "grade. Regenerated live; the counterfactual monkeypatches "
-            "`tanabesugano.mcp._compute.closed_form_dq_b` inside this process only."
+            "grade. Regenerated live. The start-grid rows and the hand-picked illustration "
+            "monkeypatch `tanabesugano.mcp._compute.closed_form_dq_b` inside this process "
+            "only; the start grid never sees the reference."
         ),
         "",
     ]
@@ -1422,6 +1481,15 @@ def section_known_defect(
                 f"cm^-1, and in {better} of them fit_spectrum returns a point whose objective "
                 "is more than 1 cm^-1 higher (or raises). The minimum is there; the default "
                 "seed / local-start strategy does not reach it."
+            ),
+            "",
+            (
+                "At the default C the reference (Dq, B) is not a minimum of this objective: "
+                "the nearest-line RMSE there is "
+                f"{fmt(nearest_line_rmse(5, KNOWN_DEFECT_BANDS, KNOWN_DEFECT_DQ, b, default_c))} "
+                "cm^-1, against "
+                f"{fmt(nearest_line_rmse(5, KNOWN_DEFECT_BANDS, KNOWN_DEFECT_DQ, b, ref_c))} "
+                "cm^-1 at the reference C. No choice of seed can recover it at the default C."
             ),
             "",
         ],
