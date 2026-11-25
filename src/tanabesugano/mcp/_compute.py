@@ -98,6 +98,15 @@ against the 100 the surrounding sweep already pays to draw the curves.
 """
 
 SpinState = Literal["high", "low", "auto"]
+ParameterProvenance = Literal["fitted", "given", "default", "undetermined"]
+"""Where a reported Dq, B or C comes from.
+
+``fitted``: determined by the bands. ``given``: the caller's value, held.
+``default``: the per-configuration default, held. ``undetermined``: free in the fit,
+but minima that fit the bands equally well (:data:`BAND_RESOLUTION_CM1`) disagree on
+it beyond :data:`MINIMA_DISTINCT`; the reported value is one of them, for display.
+Same rule as free-ion parentage: where the data cannot decide, nothing guesses.
+"""
 
 
 def term_multiplicity(term_key: str) -> int:
@@ -388,11 +397,16 @@ class SpectrumFit:
     result, not an input.
 
     ``minima`` lists every distinct minimum the search converged to, as
-    ``(Dq, B, C, objective)`` sorted by objective (cm^-1, label penalties
-    included); the returned point is one of them. Two minima with near-zero
-    objective mean the bands are reproduced exactly by both and the data cannot
-    choose. It is a list, not a warning, because no threshold on the second
-    minimum separated wrong fits from right ones (plan C0m check 3).
+    ``(Dq, B, C, objective)``: the returned point first, then the others by
+    objective (cm^-1, label penalties included). It lists what the search reached,
+    not necessarily every minimum that exists.
+
+    ``dq_provenance``, ``b_provenance`` and ``c_provenance`` say where each value
+    comes from (:data:`ParameterProvenance`). A parameter is ``undetermined`` when
+    the minima within :data:`BAND_RESOLUTION_CM1` of the best objective disagree on
+    it by more than :data:`MINIMA_DISTINCT`. ``c_candidates`` then holds those tied
+    minima and ``c_range`` their (lowest, highest) C; when C is undetermined the
+    reported point is the best-objective one, a display value, not a result.
     """
 
     Dq: float
@@ -408,6 +422,11 @@ class SpectrumFit:
     c_constrained: bool
     c_fitted: bool = False
     minima: tuple[tuple[float, float, float, float], ...] = ()
+    dq_provenance: ParameterProvenance = "fitted"
+    b_provenance: ParameterProvenance = "fitted"
+    c_provenance: ParameterProvenance = "default"
+    c_candidates: tuple[tuple[float, float, float, float], ...] = ()
+    c_range: tuple[float, float] | None = None
 
 
 def crossover_dq(
@@ -452,8 +471,9 @@ SEARCH_GRID_NODES = (12, 4)
 """Dq x B nodes of the start grid, log-spaced over ``dq_bounds`` and ``b_bounds``.
 
 Every node is refined, none is ranked away. Measured on the 208-case synthetic
-audit matrix at the true C (plan C0m): 186 recovered with no previously
-recovered case lost. Keeping only the six best of a finer 24 x 6 grid recovered
+audit matrix at the true C (plan C0m, private prototype): 186 recovered with no
+previously recovered case lost; 185 in the shipped fit, whose nearest-seed
+tie-break returns the seed's B on one single-band case. Keeping only the six best of a finer 24 x 6 grid recovered
 174 and lost 7, because a coarse node's objective does not predict which basin
 holds the truth.
 """
@@ -484,13 +504,13 @@ def _pick_minimum(
     fit returned by accident (two-band [Co(H2O)6]2+), and it keeps the choice
     deterministic. It is not a physical argument.
     """
+    # A run that did not converge must not win over a converged one at a similar
+    # objective, which would make the fit raise although a converged run got there.
+    results = [r for r in results if r.success] or list(results)
     lowest = min(float(r.fun) for r in results)
     if determined:
         return min(results, key=lambda r: float(r.fun))
     tied = [r for r in results if float(r.fun) <= lowest + TIE_RMSE_CM1]
-    # A tie must not hand the win to a run that did not converge, which would make
-    # the fit raise although a converged run reached the same objective.
-    tied = [r for r in tied if r.success] or tied
     log_seed = np.log(np.asarray(seed, dtype=float))
 
     def distance(result: OptimizeResult) -> float:
@@ -518,11 +538,11 @@ def _distinct_minima(
     *,
     ceiling: float,
 ) -> tuple[tuple[float, float, float, float], ...]:
-    """Return ``(Dq, B, C, objective)`` of each distinct converged minimum, best first.
+    """Return ``(Dq, B, C, objective)`` of each distinct converged minimum.
 
     A run counts if it converged and escaped the penalty region (objective below
-    ``ceiling``). ``best`` is placed first, so a near-duplicate never displaces the
-    point actually returned.
+    ``ceiling``). ``best``, the point actually returned, comes first, so a
+    near-duplicate never displaces it; the others follow by objective.
     """
 
     def point(r: OptimizeResult) -> tuple[float, float, float, float]:
@@ -539,7 +559,24 @@ def _distinct_minima(
             for k in kept
         ):
             kept.append(candidate)
-    return tuple(sorted(kept, key=lambda m: m[3]))
+    return (kept[0], *sorted(kept[1:], key=lambda m: m[3]))
+
+
+def _undetermined(
+    minima: Sequence[tuple[float, float, float, float]],
+) -> tuple[list[tuple[float, float, float, float]], tuple[bool, bool, bool]]:
+    """Return the minima tied with the best, and per (Dq, B, C) whether they disagree.
+
+    Tied: objective within :data:`BAND_RESOLUTION_CM1` of the lowest, i.e. no
+    spectrum could tell them apart. Disagree: spread (max / min - 1) above
+    :data:`MINIMA_DISTINCT`.
+    """
+    lowest = min(m[3] for m in minima)
+    tied = [m for m in minima if m[3] <= lowest + BAND_RESOLUTION_CM1]
+    open_ = tuple(
+        max(m[k] for m in tied) / min(m[k] for m in tied) - 1 > MINIMA_DISTINCT[k] for k in range(3)
+    )
+    return tied, (open_[0], open_[1], open_[2])
 
 
 def _local_starts(dq_seed: float, b_seed: float) -> list[tuple[float, float]]:
@@ -569,8 +606,8 @@ def _search_starts(
         for b in np.geomspace(*b_bounds, n_b)
     ]
     starts += _local_starts(dq_seed, b_seed)
-    # Order matters only on exact objective ties (the first strictly lower minimum
-    # wins); it is the order the C0m measurement used.
+    # The order C0m measured with. With the tie-break in _pick_minimum it matters
+    # only between runs tied at the same distance from the seed.
     low_spin_ground = reference_ground_term(d_count, b_seed, C, "low")
     crossover = crossover_dq(d_count, b_seed, C, low_spin_ground)
     if crossover < STRONG_FIELD_DQ_CM1:
@@ -602,7 +639,8 @@ FREE_C_GRID_KEEP = 6
 Refining every node, as at held C, costs 3 x 151 Nelder-Mead runs in three
 dimensions (17.5 s worst case in plan C0m). Keeping the six best nodes pairwise
 more than one (Dq, B) step apart recovered 186 of the 208 audit cases with C free
-and labels given, lost none recovered at held C, and took at most 2.0 s. This is
+and labels given in the C0m prototype (184 in the shipped fit), lost none recovered
+at held C, and took at most 2.0 s. This is
 measured only for labelled fits, which is the only case that frees C by default.
 """
 
@@ -818,6 +856,12 @@ def fit_spectrum(
 BAND_RESOLUTION_CM1 = 100.0
 """How well a broad d-d band maximum is located; RMSE differences below it are not evidence.
 
+Two uses: minima within it of the best count as tied when deciding whether a
+parameter is undetermined (:data:`ParameterProvenance`), and the other spin regime
+counts as also fitting when it comes within it. On the 134 audit fits that free C,
+it marks C undetermined on 10, including both whose C is off by more than 5 %;
+1 cm^-1 marks 4.
+
 d-d bands run 2000-4000 cm^-1 wide, and their maxima are rarely quoted better
 than about +-100 cm^-1. A fit in the other spin regime whose RMSE is within this
 (or within this fit's own RMSE, if larger) fits as well as any spectrum can tell.
@@ -841,7 +885,8 @@ def _other_regime_fit(
     """Fit the same bands in the other spin regime, or return None where there is none.
 
     Only d4-d7 have two regimes, and only where the crossover lies below
-    ``STRONG_FIELD_DQ_CM1`` at the default B and C is the other one reachable.
+    ``STRONG_FIELD_DQ_CM1`` at the default B (and the caller's C, else the default)
+    is the other one reachable.
     The default ``dq_bounds`` are used, since the caller's were chosen for one regime.
     """
     from tanabesugano.mcp._defaults import DEFAULTS
@@ -917,8 +962,8 @@ def _fit_one_regime(
         )
 
     # --- Seed ---------------------------------------------------------------
-    # For d3/d8 the closed form gives BOTH parameters analytically, so the
-    # optimizer starts on (or beside) the answer instead of hunting for it.
+    # The seed adds local starts beside the grid. For d3/d8 spin-allowed fits it
+    # is the closed form, which gives both parameters analytically.
     dq_seed, b_seed = _initial_seed(
         d_count, observed.tolist(), include_spin_forbidden=include_spin_forbidden
     )
@@ -1019,10 +1064,10 @@ def _fit_one_regime(
         except (ValueError, KeyError, np.linalg.LinAlgError):
             return base * 3.0
         if found_ground != reference or len(levels) < observed.size:
-            # Crossed the spin crossover. Refuse it: the low-spin manifolds are
-            # far denser (d5: 31 lines vs 0), and a nearest-neighbour residual
-            # is minimised by a dense forest of candidates, so an unconstrained
-            # search is actively rewarded for ending up in the wrong regime.
+            # Crossed the spin crossover, or too few levels to carry every band.
+            # Refuse it: the low-spin manifolds are far denser (d5: 31 lines vs 0),
+            # and a dense forest of candidates fits any band list, so an
+            # unconstrained search is rewarded for ending up in the wrong regime.
             return base * 2.0
         return assign_bands(observed, levels, labels, penalty=base)[1]
 
@@ -1043,6 +1088,16 @@ def _fit_one_regime(
     ]
     free_parameters = 3 if free_c else 2
     best = _pick_minimum(results, (dq_seed, b_seed), determined=observed.size > free_parameters)
+    minima = _distinct_minima(results, best, C, ceiling=base)
+    tied, (dq_open, b_open, c_open) = (
+        _undetermined(minima) if minima else ([], (False, False, False))
+    )
+    c_open = c_open and free_c
+    if c_open:
+        # C is not decided by the bands: report the best-objective minimum, whole, as a
+        # display value, rather than the seed-nearest one the tie-break would pick.
+        best = min((r for r in results if r.success), key=lambda r: float(r.fun))
+        minima = _distinct_minima(results, best, C, ceiling=base)
 
     # --- Accept or refuse ---------------------------------------------------
     fitted_dq, fitted_b = float(best.x[0]), float(best.x[1])
@@ -1128,7 +1183,9 @@ def _fit_one_regime(
             "C was to be fitted, but the fitted bands do not move with C, so it was "
             f"held at its default {C:.0f} cm^-1 and the fit redone"
         )
-        return replace(held, c_is_default=True, warnings=[note, *held.warnings])
+        return replace(
+            held, c_is_default=True, c_provenance="default", warnings=[note, *held.warnings]
+        )
     if free_c:
         ratio = fitted_c / fitted_b
         if min(abs(ratio - edge) / edge for edge in C_OVER_B_WINDOW) < pinned_tol:
@@ -1137,6 +1194,18 @@ def _fit_one_regime(
                 f"(C/B = {ratio:.2f}); C was stopped by the window, not by the bands, "
                 "so C and B are suspect",
             )
+    names = [n for n, o in (("Dq", dq_open), ("B", b_open), ("C", c_open)) if o]
+    if names:
+        spans = ", ".join(
+            f"{n} {min(m[k] for m in tied):.0f}-{max(m[k] for m in tied):.0f}"
+            for k, n in enumerate(("Dq", "B", "C"))
+            if n in names
+        )
+        warnings.append(
+            f"{' and '.join(names)} undetermined: {len(tied)} minima fit these bands to within "
+            f"{BAND_RESOLUTION_CM1:.0f} cm^-1 of each other (the band resolution) but disagree "
+            f"({spans} cm^-1); the reported value is one of them, for display",
+        )
     if not c_constrained:
         warnings.append(
             f"C = {C:.0f} cm^-1 is reported but was not constrained by these bands: "
@@ -1155,10 +1224,19 @@ def _fit_one_regime(
         transitions=all_transitions,
         residuals_cm1=residuals,
         warnings=warnings,
-        c_is_default=c_is_default,
+        c_is_default=c_is_default and not free_c,
         c_constrained=c_constrained,
         c_fitted=free_c,
-        minima=_distinct_minima(results, best, C, ceiling=base),
+        minima=minima,
+        dq_provenance="undetermined" if dq_open else "fitted",
+        b_provenance="undetermined" if b_open else "fitted",
+        c_provenance=(
+            ("undetermined" if c_open else "fitted")
+            if free_c
+            else ("default" if c_is_default else "given")
+        ),
+        c_candidates=tuple(tied) if c_open else (),
+        c_range=(min(m[2] for m in tied), max(m[2] for m in tied)) if c_open else None,
     )
 
 

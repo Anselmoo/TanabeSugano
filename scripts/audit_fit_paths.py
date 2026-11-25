@@ -235,6 +235,7 @@ WARNING_KINDS = (
     ("regime also fits", "other-regime"),
     ("do not move with C", "c-refit"),
     ("fit_c=True", "c-forced"),
+    ("undetermined:", "undetermined"),
 )
 NON_PERTINENT_KINDS = frozenset({"c-note", "c-refit"})
 """Notes about C, not about Dq: neither says the returned Dq or B may be wrong."""

@@ -7,11 +7,13 @@ package. No expected value comes from ``fit_spectrum`` or ``compute_point``.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 
+from tanabesugano.mcp._compute import _pick_minimum
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.test._determinant_oracle import relative_term_levels
@@ -109,6 +111,7 @@ def test_closed_form_seed_skipped_with_spin_forbidden() -> None:
 
     The closed form reads the lowest three bands as nu1..nu3; with spin-forbidden
     bands included, one of them is 1_E, and the seed is built from the wrong level.
+    Observed red (e72032a): ``AssertionError: dDq -24.18 %``.
     """
     dq, b, c = 850.0, 907.0, 4850.0
     bands = oracle_bands(8, dq, b, c, spin_allowed_only=False)[:5]
@@ -187,6 +190,8 @@ def test_labels_pick_the_assigned_level() -> None:
     """d7 high-spin with the weak 4A2 band unobserved: labels pin nu3 to 4T1(P).
 
     Unlabelled, 19015 cm^-1 is free to read as 4A2 and the fit returns 1013 / 953.
+    Observed red (886f1b9): ``TypeError: fit_spectrum() got an unexpected keyword
+    argument 'band_labels'``.
     """
     dq, b, c = 1000.0, 750.0, 3450.0
     bands = [
@@ -199,7 +204,10 @@ def test_labels_pick_the_assigned_level() -> None:
 
 
 def test_labelled_band_list_is_sorted_with_its_labels() -> None:
-    """Labels travel with their band when the bands are given out of order."""
+    """Labels travel with their band when the bands are given out of order.
+
+    Observed red (886f1b9): ``TypeError: ... unexpected keyword argument 'band_labels'``.
+    """
     dq, b, c = 1000.0, 750.0, 3450.0
     bands = [
         x
@@ -211,7 +219,10 @@ def test_labelled_band_list_is_sorted_with_its_labels() -> None:
 
 
 def test_assign_bands_is_injective() -> None:
-    """Two bands 50 cm^-1 apart around one isolated level map to two levels."""
+    """Two bands 50 cm^-1 apart around one isolated level map to two levels.
+
+    Observed red (886f1b9): ``ImportError: cannot import name 'assign_bands'``.
+    """
     from tanabesugano.mcp._compute import assign_bands
 
     observed = np.array([10000.0, 10050.0])
@@ -234,6 +245,7 @@ def test_band_labels_are_validated(bands: list[float], labels: list[str], needle
     1_A_1 is a real d8 term but spin-forbidden; without include_spin_forbidden it is
     not a candidate. C0m: unvalidated, three such bands returned Dq -18 % with only
     generic warnings.
+    Observed red (886f1b9): ``TypeError: ... unexpected keyword argument 'band_labels'``.
     """
     with pytest.raises(ValueError, match=needle):
         fit_spectrum(8, bands, band_labels=labels)
@@ -308,6 +320,7 @@ def test_three_unlabelled_bands_keep_c_held() -> None:
     C0m: unlabelled, the d5 high-spin manifold has 37-60 exact minima in (Dq, B, C).
     The plan also asked for the "not constrained" warning here; it never fires,
     because the d5 high-spin bands do move with C. That assertion was dropped.
+    A guard, green before C4.
     """
     dq, b, c = D5_HS_POINTS[3]
     fit = fit_spectrum(5, merged_bands(5, dq, b, c, 3), include_spin_forbidden=True)
@@ -366,23 +379,30 @@ def test_missing_band_lists_both_exact_minima() -> None:
     fit = fit_spectrum(5, energies, c, include_spin_forbidden=True, band_labels=labels)
     exact = [m for m in fit.minima if m[3] < 1.0]
     assert len(exact) == 2
-    assert any(abs(m[0] / dq - 1) < 0.02 and abs(m[1] / b - 1) < 0.05 for m in exact)
+    assert any(
+        abs(m[0] / dq - 1) * 100 < DQ_TOL_PCT and abs(m[1] / b - 1) * 100 < B_TOL_PCT for m in exact
+    )
 
 
 def test_minima_are_distinct_and_sorted() -> None:
-    """``minima`` holds each converged minimum once, best first, returned one included."""
-    dq, b, c = 1200.0, 750.0, 3450.0
-    fit = fit_spectrum(7, [e for e, _u in oracle_bands(7, dq, b, c, spin_allowed_only=True)], c)
-    objectives = [m[3] for m in fit.minima]
-    assert objectives == sorted(objectives)
-    assert any(m[0] == fit.Dq and m[1] == fit.B for m in fit.minima)
-    for i, m in enumerate(fit.minima):
-        for n in fit.minima[:i]:
-            assert (
-                abs(m[0] / n[0] - 1) > 0.02
-                or abs(m[1] / n[1] - 1) > 0.05
-                or abs(m[2] / n[2] - 1) > 0.05
-            )
+    """``minima`` holds each converged minimum once: the returned point first, then by objective.
+
+    Observed red (31e352e, on the two-band tie): ``minima[0]`` was (616.4, 1179.2), not
+    the returned (1267.0, 791.0) -- the list was sorted by objective alone (Fable O4).
+    """
+    for d, dq, b, c in ((7, 1200.0, 750.0, 3450.0), *TWO_BAND_TIES):
+        bands = [e for e, _u in oracle_bands(d, dq, b, c, spin_allowed_only=True)]
+        fit = fit_spectrum(d, bands[:2] if (d, dq, b, c) in TWO_BAND_TIES else bands, c)
+        assert fit.minima[0][:2] == (fit.Dq, fit.B)
+        rest = [m[3] for m in fit.minima[1:]]
+        assert rest == sorted(rest)
+        for i, m in enumerate(fit.minima):
+            for n in fit.minima[:i]:
+                assert (
+                    abs(m[0] / n[0] - 1) * 100 > DQ_TOL_PCT
+                    or abs(m[1] / n[1] - 1) * 100 > B_TOL_PCT
+                    or abs(m[2] / n[2] - 1) * 100 > C_TOL_PCT
+                )
 
 
 def test_bounds_excluding_minimum_warns() -> None:
@@ -397,8 +417,8 @@ def test_bounds_excluding_minimum_warns() -> None:
     assert any("Dq pinned" in w for w in fit.warnings)
 
 
-# Audit near-crossover points (1.1 x crossover, spin-allowed bands) that the other
-# spin regime reproduces too (C5 scan): d6 one band, exactly; d7 three bands, to 10 cm^-1.
+# Audit near-crossover points (0.95 x crossover, high-spin side, spin-allowed bands) that
+# the other spin regime reproduces too (C5 scan): d6 one band exactly, d7 three to 10 cm^-1.
 OTHER_REGIME_CASES = [
     (6, 1292.5, 798.8, 3195.2, "low"),
     (7, 1343.7, 728.2, 2912.8, "low"),
@@ -421,8 +441,88 @@ def test_near_crossover_names_other_regime(
 
 
 def test_labels_settle_the_regime() -> None:
-    """With term labels the other regime cannot carry the bands, so nothing is said."""
+    """With term labels the other regime cannot carry the bands, so nothing is said.
+
+    A guard, green at 32a91a0 (before the regime check): labels already make the other regime raise.
+    """
     d, dq, b, c, _other = OTHER_REGIME_CASES[1]
     bands = oracle_bands(d, dq, b, c, spin_allowed_only=True)
     fit = fit_spectrum(d, [e for e, _u in bands], c, band_labels=term_labels(bands))
     assert not any("regime also fits" in w for w in fit.warnings)
+
+
+def test_c_valley_is_undetermined() -> None:
+    """d6 low-spin, three labelled spin-allowed bands: tied minima disagree on C, so C is
+    reported as undetermined, with the candidates and their range, not as fitted.
+
+    Fable review of plan C: truth (4069.1, 1224.8, 6124.0) has exact minima at
+    C 5451 and 4948, and the fit returned C 19 % off with ``c_fitted`` True and no
+    warning that C is open.
+    Observed red (31e352e): ``AttributeError: ... no attribute 'c_provenance'``;
+    numerically the fit returned C 4948 (-19.2 %) with no undetermined warning.
+    """
+    dq, b, c = 4069.1, 1224.8, 6124.0
+    bands = oracle_bands(6, dq, b, c, spin_allowed_only=True)[:3]
+    fit = fit_spectrum(6, [e for e, _u in bands], spin_state="low", band_labels=term_labels(bands))
+    assert fit.c_provenance == "undetermined"
+    assert len(fit.c_candidates) >= 2
+    lo, hi = fit.c_range
+    assert hi / lo - 1 > C_TOL_PCT / 100
+    assert lo <= fit.C <= hi
+    assert any("undetermined" in w for w in fit.warnings)
+
+
+def test_unique_free_c_is_fitted() -> None:
+    """d5 high-spin, three labelled bands: one tied minimum, C fitted (unchanged)."""
+    dq, b, c = D5_HS_POINTS[3]
+    energies, labels = merged_labelled_bands(5, dq, b, c, 3)
+    fit = fit_spectrum(5, energies, include_spin_forbidden=True, band_labels=labels)
+    assert (fit.dq_provenance, fit.b_provenance, fit.c_provenance) == ("fitted",) * 3
+    assert not fit.c_is_default
+
+
+@pytest.mark.parametrize(("c_arg", "expected"), [(4850.0, "given"), (None, "default")])
+def test_held_c_provenance(c_arg: float | None, expected: str) -> None:
+    """A held C is 'given' when the caller passed it, 'default' when it came from defaults."""
+    bands = [e for e, _u in oracle_bands(8, 850.0, 907.0, 4850.0, spin_allowed_only=True)]
+    fit = fit_spectrum(8, bands, c_arg)
+    assert fit.c_provenance == expected
+    assert fit.c_is_default == (expected == "default")
+
+
+def test_pick_minimum_prefers_a_converged_run() -> None:
+    """Over-determined fits too: a non-converged run must not win on a slightly lower objective.
+
+    Observed red (31e352e): ``_pick_minimum(..., determined=True)`` returned the
+    ``success=False`` run, which then makes the fit raise "did not converge" (Fable O5).
+    """
+    stalled = SimpleNamespace(fun=0.001, success=False, x=np.array([1000.0, 700.0]))
+    converged = SimpleNamespace(fun=0.002, success=True, x=np.array([1000.0, 700.0]))
+    for determined in (True, False):
+        picked = _pick_minimum([stalled, converged], (1000.0, 700.0), determined=determined)
+        assert picked is converged
+
+
+def test_fit_c_true_without_labels_warns() -> None:
+    """fit_c=True on unlabelled bands frees C anyway, and says the result is one of many.
+
+    Coverage for a branch no test reached; green at 31e352e, never red.
+    """
+    dq, b, c = D5_HS_POINTS[3]
+    fit = fit_spectrum(5, merged_bands(5, dq, b, c, 3), include_spin_forbidden=True, fit_c=True)
+    assert fit.c_fitted
+    assert any("fit_c=True" in w for w in fit.warnings)
+
+
+def test_c_free_but_irrelevant_is_held_at_default() -> None:
+    """d8 spin-allowed bands do not move with C: a requested C fit falls back to the default.
+
+    Observed red (31e352e): ``AttributeError: ... no attribute 'c_provenance'``;
+    the fallback itself already held C (its warning was green).
+    """
+    bands = oracle_bands(8, 850.0, 907.0, 4850.0, spin_allowed_only=True)
+    fit = fit_spectrum(8, [e for e, _u in bands], band_labels=term_labels(bands))
+    assert not fit.c_fitted
+    assert (fit.c_provenance, fit.c_is_default) == ("default", True)
+    assert DEFAULTS[8]["default_C"] == fit.C
+    assert any("do not move with C" in w for w in fit.warnings)
