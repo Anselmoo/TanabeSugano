@@ -18,9 +18,20 @@
   For [Mn(H2O)6]2+ the bands the JCE 2023 tables print (19070, 22710, 24500 cm⁻¹)
   are Foster & Gill's *calculated* column, so fitting them is a round-trip: 2.0.0
   missed even that (Dq 1328 against 760, RMSE 148 cm⁻¹, no warning), while 2.1.0
-  returns Dq 760.1 when C = 3242.8 is given. On the *observed* bands (18870,
-  23120, 24960) at the same C, 2.1.0 returns Dq 1113, B 1178, RMSE 31 cm⁻¹, so the
-  observed spectrum does not recover the published Dq. The reference is d5, so per
+  returns Dq 760.1 when C = 3242.8 is given. On the *observed* quartet bands
+  (18870, 23120, 24960) Dq is weakly determined: ⁴A₁/⁴E(G) sits at 10B + 5C and
+  does not move with Dq, so three bands leave Dq to the two ⁴T bands and to which
+  level each band is taken to be. 2.1.0 says so rather than answering silently.
+  Unlabelled, with C = 3242.8 given and `include_spin_forbidden=True`, it displays
+  Dq 1113, B 1178 (RMSE 31 cm⁻¹) with Dq and B `undetermined`: 9 minima fit within
+  the 100 cm⁻¹ band resolution (Dq 511–2015, B 200–1178), and a low-spin
+  alternative (Dq 2198, RMSE 50) is named. Labelled as the quartets they are
+  (`4_T_1`, `4_T_2`, `4_A_1`/`4_E`), the same bands give Dq 827 at the given C
+  (B 883, RMSE 94) or Dq 806 with C fitted (B 957, C 3078; exact, and flagged as
+  such). The published (760, 828, 3243) is not a minimum of the observed bands
+  under this model: its RMSE there is 377 cm⁻¹, against 5.6 on the calculated
+  column. The gap to 760 is the reference, which reproduces its own calculated
+  bands and not the observed ones, not the search. The reference is d5, so per
   Hormann & Shaw (1987) it is a comparison, not a grade. `AUDIT-2.1.0.md`
   Section 1 has the table.
 - The fit apps (`ts_reverse_fit_app`, `ts_ratio_fit_app`) answer with
@@ -53,6 +64,12 @@
   classes them as *identifiability*, not as a model limit.
 - `geometry="Td"` on `fit_spectrum` and `ts_fit_spectrum` fits a tetrahedral
   dⁿ as octahedral d¹⁰⁻ⁿ and reports `Dq_convention="Td"`. It is high-spin only.
+- J. Chem. Educ. 2023 reference values are graded only where the original was
+  read. Al2O3:V3+ is comparison-only until its ref 25 is read: its bands and
+  parameters both rest on it. For Al2O3:Cr3+ the bands are verified from the
+  ruby paper (ref 21: 551 and 407 nm, R line 694.2 nm), so only Dq is graded, as
+  ν₁/10 = 1814.9 of the observed band; the Dq, B and C JCE prints from ref 25
+  are comparison-only.
 - The determinant oracle (`tanabesugano.test._determinant_oracle`) ships in the
   wheel, with `ORACLE-REPORT.md` in the sdist. It rebuilds the full dⁿ
   Hamiltonian over all C(10, n) Slater determinants and imports nothing from the

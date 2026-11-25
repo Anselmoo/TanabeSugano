@@ -1243,6 +1243,10 @@ COMPARISON_SOURCES: dict[str, tuple[str, str]] = {
     "JCE2023 KCoF3 [allowed]": ("KCoF3", "Dq"),
     "JCE2023 CoSiF6·6H2O [allowed]": ("CoSiF6·6H2O", "Dq"),
     "JCE2023 [Ni(H2O)6]2+ [allowed]": ("[Ni(H2O)6]2+", "Dq"),
+    "JCE2023 Al2O3:Cr3+ [allowed]": ("Al2O3:Cr3+", "Dq"),
+    "JCE2023 Al2O3:Cr3+ [all]": ("Al2O3:Cr3+", "Dq"),
+    "JCE2023 Al2O3:V3+ [allowed]": ("Al2O3:V3+", "Dq"),
+    "JCE2023 Al2O3:V3+ [all]": ("Al2O3:V3+", "Dq"),
 }
 """Fixture or record id -> the ``primary_sources.csv`` row that says why it is comparison-only.
 
@@ -1497,7 +1501,8 @@ class TestJce2023Source:
     def test_every_graded_record_uses_no_calc_or_unverified_value(self) -> None:
         """A graded record never rests on a value its original does not report as measured.
 
-        Graded is SELF_CONSISTENT plus every inverse fixture. A value fails if its row in
+        Graded is SELF_CONSISTENT plus every inverse fixture, less COMPARISON_ONLY (never
+        graded on its printed values; it reports a delta). A value fails if its row in
         ``primary_sources.csv`` is ``calc``, ``CT`` or ``unverified``, or if the original
         prints a different number for it than the record uses.
 
@@ -1508,6 +1513,7 @@ class TestJce2023Source:
         """
         primary = {(p.system, p.quantity): p for p in primary_sources()}
         graded = SELF_CONSISTENT | {fx.label.removeprefix("JCE2023 ") for fx in JCE_FIXTURES}
+        graded -= {key.removeprefix("JCE2023 ") for key in COMPARISON_ONLY}
         bad: list[str] = []
         for record in jce_records():
             if record.record_id not in graded:
@@ -1552,6 +1558,38 @@ class TestJce2023Source:
 @JCE_SKIP
 class TestJce2023Inverse:
     """Inverse: the fitter recovers each self-consistent source within its oracle bound."""
+
+    @pytest.mark.parametrize("variant", ["allowed", "all"])
+    def test_al2o3_cr_dq_is_graded_as_nu1_over_ten(self, variant: str) -> None:
+        """Al2O3:Cr3+: the least-squares Dq is graded against nu1/10 of the ruby band.
+
+        JCE prints Dq 1810 from ref 25, which was not read, so the printed (Dq, B, C) are
+        comparison-only. The 4T2 band is verified independently (ref 21, 551 nm), and for
+        d3 nu1 = 10Dq exactly (T1a), so the expected Dq is that band over ten, read from
+        ``primary_sources.csv``, never from the fit. The tolerance is the record's own
+        propagated 2-sigma. This grades ``fit.Dq``, not the ``Dq_nu1`` field (which IS
+        nu1/10 of the same band and could not fail). The [allowed] record has two bands for
+        two parameters, so there the grade checks only that least squares honours the
+        identity; the [all] record adds the 2E line and is a real fit.
+
+        Observed red: ``StopIteration`` (no ref-21 primary row for band:4_T_2#0).
+        """
+        nu1 = next(
+            p.value
+            for p in primary_sources()
+            if (p.system, p.quantity, p.ref) == ("Al2O3:Cr3+", "band:4_T_2#0", "21")
+        )
+        assert nu1 is not None
+        fx = next(f for f in JCE_FIXTURES if f.label == f"JCE2023 Al2O3:Cr3+ [{variant}]")
+        assert f"JCE2023 Al2O3:Cr3+ [{variant}]" in COMPARISON_ONLY
+        fit = fit_spectrum(
+            fx.d_count,
+            list(fx.bands_cm1),
+            spin_state=fx.spin_state,
+            include_spin_forbidden=fx.include_spin_forbidden,
+            band_labels=list(fx.band_labels) if fx.band_labels is not None else None,
+        )
+        assert fit.Dq == fx.tol_Dq.approx(nu1 / 10.0), f"Dq={fit.Dq:.1f} vs nu1/10={nu1 / 10:.1f}"
 
     def test_unnormalised_sources_are_refused(self) -> None:
         """Self-consistent, but their Dq is more than 1 % off nu1/10: forward-only.

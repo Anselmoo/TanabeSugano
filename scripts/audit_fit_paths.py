@@ -2523,27 +2523,6 @@ _IDENT = (
     "Not code: fit RMSE {rmse} = the spin-allowed oracle minimum over the app's own box"
 )
 JCE_SILENT_CAUSES: dict[str, tuple[SilentCause, str]] = {
-    "Al2O3:V3+ | sf=True | fit_spectrum | truth": (
-        "reference unverified",
-        (
-            "ref 25 not read: the printed (Dq, B, C) misses its own spin-allowed bands "
-            "(nu1/nu2 at -2.8/-2.6 sigma; RMSE 640.2 at the printed point). Not code: fit RMSE "
-            "87.8 = the oracle global minimum (Hungarian, all multiplicities, C at the printed "
-            "value)"
-        ),
-    ),
-    "Al2O3:V3+ | sf=True | fit_spectrum | labelled-truth": (
-        "reference unverified",
-        (
-            "ref 25 not read: the printed (Dq, B, C) misses its own spin-allowed bands, so no "
-            "single (Dq, B) at the printed C places 1E, 3T2 and 3T1 together (B +8.1 %). Not "
-            "code: fit RMSE 304.4 = the labelled oracle minimum"
-        ),
-    ),
-    "Al2O3:V3+ | sf=True | reverse_app | app-default": (
-        "identifiability",
-        _IDENT.format(line="1E (9748)", rmse="857.5"),
-    ),
     "KZnClSO4·3H2O:Cr3+ | sf=True | fit_spectrum | labelled-truth": (
         "reference unverified",
         (
