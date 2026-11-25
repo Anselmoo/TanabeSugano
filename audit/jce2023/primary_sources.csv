@@ -1,0 +1,46 @@
+system,quantity,value,unit,ref,doi,page_or_table,status,note
+MnI2,band:4_T_1#0,18180,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,"JCE 18450 is the calc column; original max |calc-obs| over the three bands 820"
+MnI2,band:4_T_2#0,21110,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+MnI2,band:4_E#0,22420,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+MnBr2,band:4_T_1#0,18800,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,"JCE 19240 is the calc column; original max |calc-obs| over the three bands 440"
+MnBr2,band:4_T_2#0,21930,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+MnBr2,band:4_E#0,23420,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+MnCl2,band:4_T_1#0,18900,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,"JCE 19180 is the calc column; original max |calc-obs| over the three bands 500"
+MnCl2,band:4_T_2#0,22220,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+MnCl2,band:4_E#0,23870,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+MnF2,band:4_T_1#0,19440,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,"JCE 19720 is the calc column; original max |calc-obs| over the three bands 280"
+MnF2,band:4_T_2#0,23500,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+MnF2,band:4_E#0,25200,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+[Mn(H2O)6]2+,band:4_T_1#0,18870,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,"JCE 19070 is the calc column; original max |calc-obs| over the three bands 460"
+[Mn(H2O)6]2+,band:4_T_2#0,23120,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+[Mn(H2O)6]2+,band:4_E#0,24960,cm^-1,30,10.1039/j19680002625,Table 2 (observed column),observed,
+LiGa5O8:Fe3+,band:4_T_1#0,18350,cm^-1,15,10.1016/0022-2313(81)90001-6,Table 1,observed,"JCE 18349 is from the table headed Calculated values"
+LiGa5O8:Fe3+,band:4_T_2#0,21510,cm^-1,15,10.1016/0022-2313(81)90001-6,Table 1,observed,
+LiGa5O8:Fe3+,band:4_E#0,24630,cm^-1,15,10.1016/0022-2313(81)90001-6,Table 1,observed,
+LiGa5O8:Fe3+,band:4_T_2#1,26870,cm^-1,15,10.1016/0022-2313(81)90001-6,Table 1,observed,
+CoSiF6·6H2O,band:4_T_2#0,,cm^-1,35,10.1016/s0022-3697(71)80030-6,observed column,unverified,"JCE 8480 is the calc column; the original lists two observed candidates, 9042 and 8437"
+CoSiF6·6H2O,band:4_A_2#0,16221,cm^-1,35,10.1016/s0022-3697(71)80030-6,observed column,observed,"JCE 16305 is the calc column"
+CoSiF6·6H2O,band:4_T_1#1,20359,cm^-1,35,10.1016/s0022-3697(71)80030-6,observed column,observed,"JCE 20360 is the calc column"
+CoSiF6·6H2O,band:2_T_1#1,,cm^-1,35,10.1016/s0022-3697(71)80030-6,observed column,unverified,"JCE 21001 is the calc column; the original lists two observed candidates, 21487 and 21739"
+CoSiF6·6H2O,Dq,965,cm^-1,35,10.1016/s0022-3697(71)80030-6,parameters,assumed,"reproduces the calc bands of a different model, not these: the oracle at the published point misses 4A2 by +1825 cm^-1 (F1b); derivation not read"
+[Mn(CN)6]3-,band:3_E#0,31100,cm^-1,29,10.1021/ja01018a013,band assignment table,CT,"assigned to charge transfer (t1u -> t2g) in the original, not to 3E"
+[Mn(CN)6]3-,band:3_A_1#0,33150,cm^-1,29,10.1021/ja01018a013,band assignment table,observed,"assigned 3T1g -> 3Eg/3A1g in the original"
+[Cr(NH3)6]3+,Dq,2170,cm^-1,7,,Shriver & Atkins 5th ed. Example 20.8,graphical,"Delta/B = 33.0 read off the TS diagram; Tanabe & Sugano 1954 give 2140; in the model nu1 = 10Dq = 21550"
+[Co(NH3)6]3+,Dq,2293,cm^-1,20,10.1021/jacs.2c04945,Table 2,unverified,"matches neither Yarranton 2022 row (diagonal 24760/475/3710, full 23430/580/3550); probably ref 31, not checked"
+K3Cr(CN)6,C,2800,cm^-1,29,10.1021/ja01018a013,parameters,observed,"Delta 26600, B 485, C 2800: C/B 5.77, not JCE's 5.563"
+K3Cr(CN)6,band:2_E#0,12820,cm^-1,29,10.1021/ja01018a013,band table,observed,"an emission line in the original (2E -> 4A2), not an absorption band"
+MgO:Ni2+,Dq,815,cm^-1,24,10.1063/1.1732066,Section (d),assumed,"nu1 (8010) plus a predicted spin-orbit stabilisation, stated as an upper limit; the no-SO model gives nu1/10 = 801"
+MgO:Ni2+,C,,cm^-1,24,10.1063/1.1732066,Section (d),assumed,"C/B = 4.4 is assumed, not fitted"
+MgO:Ni2+,band:1_E#0,13670,cm^-1,24,10.1063/1.1732066,Section (d),unverified,"the 1E ~13670 is not a separate observed band (expected strongly mixed with 3T1a)"
+ZnO:Ni2+,Dq,405,cm^-1,24,10.1063/1.1732066,Section (d) and Fig. 15,assumed,"~900 cm^-1 spin-orbit ground-state stabilisation, C = 4.36B, multiplet barycentres; the no-SO model gives 515.1 (Td Dq)"
+ZnO:Ni2+,B,795,cm^-1,24,10.1063/1.1732066,Section (d) and Fig. 15,assumed,"derived with the same spin-orbit assumption; the no-SO model gives 790.1"
+[Cr(H2O)6]3+,Dq,1720,cm^-1,1,10.1143/jpsj.9.766,Table (KCr(SO4)2·12H2O),assumed,"TS Dq 1720 fitted to crystal bands 18.0/24.6/36.6 kK with C/B 4.0; JCE pairs it with solution bands"
+[Ni(NH3)6]2+,Dq,1030,cm^-1,1,10.1143/jpsj.9.766,Table,assumed,"B and C taken over from [Ni(H2O)6]2+; observed nu1 10.6 kK, calc 10.3"
+[V(H2O)6]2+,B,633,cm^-1,3,10.1021/ic50105a057,method (c),assumed,"Konig method (c), sum of 2nd + 3rd band; methods (a)/(b) give 693/596"
+[Cr(oxalate)3]3-,Dq,1750,cm^-1,22,10.1021/ed056p635,text,graphical,"Delta 17500, B 660 read off a TS diagram"
+[V(H2O)6]3+,Dq,1860,cm^-1,27,,Figgis & Hitchman 2000 Section 8.2,graphical,"Delta 18600, B 665 read off the TS diagram"
+[NiF6]4-,Dq,740,cm^-1,27,,Figgis & Hitchman 2000 Section 8.2,graphical,"Delta 7400, Delta/B 7.8 graphical, B 950"
+[Co(H2O)6]2+,Dq,920,cm^-1,27,,Figgis & Hitchman 2000 Section 8.2,graphical,"Delta 9200, B 850 read off the TS diagram"
+CoCl2,Dq,690,cm^-1,34,10.1063/1.1734387,parameters,assumed,"matches the source as printed; not consistent with the no-SO model (F1b: closed-form 670); derivation not read"
+KCoF3,Dq,770,cm^-1,34,10.1063/1.1734387,parameters,assumed,"matches the source as printed; not consistent with the no-SO model (F1b: closed-form 805, oracle optimum RMSE 41 vs 583 at the published point); derivation not read"
+[Ni(H2O)6]2+,Dq,860,cm^-1,39,10.1039/j19710003047,parameters,assumed,"matches the source as printed (860/940/4.1B); not consistent with the no-SO model (F1b: closed-form 850); derivation not read"

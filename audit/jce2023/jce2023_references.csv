@@ -1,0 +1,41 @@
+ref,data_use,doi,crossref_title,note
+1,"[Cr(H2O)6]3+, [Cr(NH3)6]3+, [Ni(NH3)6]2+",10.1143/jpsj.9.766,On the Absorption Spectra of Complex Ions II,
+3,[V(H2O)6]2+,10.1021/ic50105a057,Ligand field theory and the energy of the so-called third band in chromium(III) and vanadium(II) complexes,
+7,[Cr(NH3)6]3+,,Shriver and Atkins' Inorganic Chemistry 5th ed. (2010),book
+11,Al2O3:Cr3+,,Multiplets of Transition-Metal Ions in Crystals (1970),"book; JCE cites author as Sugano T. - check author list in the library copy"
+14,KZnClSO4·3H2O:Cr3+,10.1016/j.saa.2004.08.017,EPR and optical absorption studies on Cr3+ ions doped in KZnClSO4·3H2O single crystals,
+15,LiGa5O8:Fe3+,10.1016/0022-2313(81)90001-6,A comparative study of the optical properties of Fe3+ in ordered LiGa5O8 and LiAl5O8,
+20,[Co(NH3)6]3+ (Table 2),10.1021/jacs.2c04945,Ligand-Field Spectroscopy of Co(III) Complexes and the Development of a Spectrochemical Series for Low-Spin d6 Charge-Transfer Chromophores,
+21,Al2O3:Cr3+,10.1021/ed084p1316,Absorption and Emission Spectroscopy of a Lasing Material: Ruby,
+22,[Cr(oxalate)3]3-,10.1021/ed056p635,Allowed and forbidden d-d transitions in Cr(oxalate)3 3-,
+24,"ZnO:Ni2+, MgO:Ni2+",10.1063/1.1732066,Optical Absorption Spectra of Ni-Doped Oxide Systems. I,
+25,"Al2O3:V3+, Al2O3:Cr3+",10.1051/jphys:01976003705060300,Crystalline field parameters of Cr2+ and Cr4+ in corundum,title is about Cr2+/Cr4+ - check that it holds the V3+ and Cr3+ values
+26,"[V(H2O)6]3+, [Cr(H2O)6]3+, [Co(H2O)6]3+, [Ni(H2O)6]2+",10.3891/acta.chem.scand.09-1362,Comparative Crystal Field Studies of some Ligands and the Lowest Singlet State of Paramagnetic Nickel(II) Complexes,
+27,"[V(H2O)6]3+, [NiF6]4-, [Co(H2O)6]2+",,Figgis & Hitchman: Ligand Field Theory and its Applications (Wiley-VCH 2000),book
+28,[V(H2O)6]3+,10.1039/dt9880001393,Electronic spectrum and metal-ligand bonding parameters of the V(H2O)6 3+ ion,JCE pages 1393-1935 wrong; Crossref 1393-1395
+29,"K3Cr(CN)6, [Mn(CN)6]3-",10.1021/ja01018a013,Electronic structures of hexacyanometalate complexes,
+30,"MnI2, MnBr2, MnCl2, MnF2, [Mn(H2O)6]2+",10.1039/j19680002625,Complex halides of the transition metals. Part III ... manganese(II),
+31,Co(III) series,10.1333/s00897050867a,Spectrochemical Series of Cobalt(III). An Experiment for High School through College,
+32,[Co(NH3)6]3+ (Table 1),10.1524/zpch.1957.11.5_6.308,Über Komplexverbindungen XXII Lichtabsorption von Halogeno-pentammin-Co(III)-komplexen im Rot und nahen U.R.,
+33,"AgCl:Co2+, AgCl:Ni2+",10.1103/physrev.130.1749,Properties of Divalent Cobalt and Nickel as Impurities in Silver Chloride Single Crystals,
+34,"CoCl2, KCoF3",10.1063/1.1734387,"Crystal-Field Spectra of d3, d7 Ions. II. KCoF3, CoCl2, CoBr2, and CoWO4",
+35,CoSiF6·6H2O,10.1016/s0022-3697(71)80030-6,Absorption spectrum of cobalt fluosilicate hexahydrate,
+36,Co(bipy)3Br2·6H2O,10.1021/ic50039a034,"2,2'-Bipyridine Complexes. I. Polarized Crystal Spectra ...",
+37,[Ni(H2O)6]2+ (Table 1),10.3891/acta.chem.scand.09-0116,Studies of Absorption Spectra VIII. Three and More d-Electrons in Cubic Crystal Fields,
+38,LiGa5O8:Ni2+,10.1016/0022-2313(86)90008-6,The optical spectroscopy of LiGa5O8:Ni2+,
+39,[Ni(H2O)6]2+ (Table 2),10.1039/j19710003047,Magnetic circular dichroism spectra of some nickel(II) complexes. Part I ...,
+2,method,10.1021/ed045p711,Electronic spectra of some transition metal complexes: Derivation of Dq and B,
+4,method,10.1021/ed062p807,Hexaammine complexes of Cr(III) and Co(III): A spectra study,
+5,method,10.1021/ed067p134,Equations for calculating Dq and B,
+6,method,10.1021/ed040p135,Electronic spectra of transition metal complexes,
+8,method,10.1039/j19670002041,Haloacetate complexes of cobalt(II) nickel(II) and copper(II) ...,
+9,method,10.1021/ed047p371,Computer programs for calculation of energy level diagrams and spectra of transition metal complexes,
+10,method,10.1007/s00897010462a,Calculation of Tanabe-Sugano Diagrams by Matrix Diagonalization,
+12,method,,Huheey/Keiter/Keiter: Inorganic Chemistry (1993),book
+13,method,,House: Inorganic Chemistry (Elsevier 2008),book
+16,method,10.1149/2.0091601jss,Spin-Forbidden Transitions in the Spectra of Transition Metal Ions and Nephelauxetic Effect,JCE pages R3076-R3077 2016; Crossref R3067-R3077 (online 2015)
+17,method,10.1149/2.0281912jss,Review-Tanabe-Sugano Energy-Level Diagram and Racah Parameters in Mn4+-Activated Red and Deep Red-Emitting Phosphors,
+18,method,10.1149/2162-8777/ab8879,New Analysis Model for the Determination of Racah and Crystal-Field Splitting Parameters,
+19,method,10.1149/2162-8777/aba679,Racah Parameter Ratio C/B for the 3d3-Configuration Ions Like Mn4+ and Cr3+ in the Tanabe-Sugano Diagram,
+23,method,10.1021/ed072p886,Interpretation of the Emission Spectra of Trivalent Chromium-Doped Garnet Crystals Using Tanabe-Sugano Diagrams,
+40,method,10.1143/jpsj.9.753,On the Absorption Spectra of Complex Ions. I,

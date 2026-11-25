@@ -58,7 +58,10 @@ term); this is the specification the cases below are drawn from:
 from __future__ import annotations
 
 import csv
+import os
 import re
+import subprocess
+import sys
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -829,7 +832,19 @@ class TestNickelII:
 # ---------------------------------------------------------------------------
 
 
-JCE_DIR = Path(__file__).resolve().parents[3] / "audit" / "jce2023"
+JCE_DIR = Path(
+    os.environ.get(
+        "TANABESUGANO_JCE_DIR", Path(__file__).resolve().parents[3] / "audit" / "jce2023"
+    )
+)
+"""The JCE audit tables. Not shipped in the wheel; the env var points a test at a missing one."""
+JCE_SKIP = pytest.mark.skipif(
+    not JCE_DIR.exists(), reason="audit/jce2023 is not shipped in the wheel"
+)
+SourceStatus = Literal["observed", "calc", "CT", "graphical", "assumed", "unverified"]
+UNGRADABLE_STATUS = ("calc", "CT", "unverified")
+"""A value with one of these statuses in the original is never graded against."""
+PRIMARY_QUANTITY = re.compile(r"band:\d_[A-Z](_\d)?#\d+|Dq|B|C")
 JCE_SOURCE = (
     "García Rojas & Pérez Torres, J. Chem. Educ. 2023, 100, 251-258, Tables 1-2 "
     "(reported columns); primary refs not resolved"
@@ -848,6 +863,59 @@ B_GRADE_LIMIT = 0.05
 """Above this propagated 2-sigma, B is not determined by the bands and is not graded."""
 HUND_MULTIPLICITY = {2: 3, 3: 4, 4: 5, 7: 4, 8: 3}
 """High-spin ground multiplicity; an oracle ground below it means the source is low-spin."""
+
+
+@dataclass(frozen=True, slots=True)
+class PrimarySource:
+    """One value as the original paper (a JCE 2023 reference) reports it."""
+
+    system: str
+    quantity: str
+    """``band:<term>#<index>`` (0-based, as ``JceRecord.levels``), ``Dq``, ``B`` or ``C``."""
+    value: float | None
+    unit: str
+    ref: str
+    """The reference number in ``jce2023_references.csv``; books have no DOI, so this is the key."""
+    doi: str
+    page_or_table: str
+    status: SourceStatus
+    note: str
+
+
+def _read_jce_csv(name: str) -> list[dict[str, str]]:
+    with (JCE_DIR / name).open(encoding="utf-8") as fh:
+        return list(csv.DictReader(fh))
+
+
+def primary_sources() -> tuple[PrimarySource, ...]:
+    """Every row of ``audit/jce2023/primary_sources.csv`` (from SOURCE-CHECK.md)."""
+    statuses: tuple[SourceStatus, ...] = get_args(SourceStatus)
+    out: list[PrimarySource] = []
+    for row in _read_jce_csv("primary_sources.csv"):
+        status = next((s for s in statuses if s == row["status"]), None)
+        if status is None:
+            msg = f"{row['system']} {row['quantity']}: unknown status {row['status']!r}"
+            raise ValueError(msg)
+        out.append(
+            PrimarySource(
+                system=row["system"],
+                quantity=row["quantity"],
+                value=float(row["value"]) if row["value"] else None,
+                unit=row["unit"],
+                ref=row["ref"],
+                doi=row["doi"],
+                page_or_table=row["page_or_table"],
+                status=status,
+                note=row["note"],
+            )
+        )
+    return tuple(out)
+
+
+def _band_quantity(band: dict[str, str]) -> str:
+    """A Table 1 row's band as a ``primary_sources.csv`` quantity, ``band:3_T_1#1``."""
+    key = _jce_term_key(band["multiplicity"], band["irrep"])
+    return f"band:{key}#{int(band['ordinal'] or 1) - 1}"
 
 
 def _jce_term_key(multiplicity: str, irrep: str) -> str:
@@ -882,6 +950,7 @@ class JceRecord:
     """One JCE system with one band set: its spin-allowed bands, or all of them."""
 
     record_id: str
+    system: str
     d_count: int
     spin_state: SpinState
     Dq: float
@@ -891,12 +960,22 @@ class JceRecord:
     levels: tuple[tuple[str, int], ...]
     approx: tuple[bool, ...]
     spin_forbidden: bool
+    source_file: Literal["jce2023_table1_bands.csv", "primary_sources.csv"]
+    """``primary_sources.csv`` when any value was replaced, or any band dropped, from it."""
 
     @property
     def sigmas(self) -> np.ndarray:
         """1-sigma of each band, in cm^-1."""
         rel = [APPROX_BAND_SIGMA if a else BAND_SIGMA for a in self.approx]
         return np.array(rel) * np.array(self.bands_cm1)
+
+    def values(self) -> tuple[tuple[str, float], ...]:
+        """Every value the record uses, keyed as ``primary_sources.csv`` keys it."""
+        bands = tuple(
+            (f"band:{key}#{index}", value)
+            for (key, index), value in zip(self.levels, self.bands_cm1, strict=True)
+        )
+        return (*bands, ("Dq", self.Dq), ("B", self.B), ("C", self.C))
 
     @property
     def labels(self) -> tuple[str, ...]:
@@ -910,11 +989,16 @@ def jce_records() -> tuple[JceRecord, ...]:
     The selection reads Table 2 only, never a fit or an audit verdict. Each system
     gives a spin-allowed record and, when Table 1 lists a spin-forbidden band, an
     "all" record with every band.
+
+    Where ``primary_sources.csv`` has a row for a system and quantity, the original
+    wins: its value replaces the printed one, and a band it reports as ``calc``, ``CT``
+    or ``unverified`` is dropped. Without the audit directory (a wheel) there are none.
     """
-    with (JCE_DIR / "jce2023_table2_parameters.csv").open(encoding="utf-8") as fh:
-        params = list(csv.DictReader(fh))
-    with (JCE_DIR / "jce2023_table1_bands.csv").open(encoding="utf-8") as fh:
-        bands = list(csv.DictReader(fh))
+    if not JCE_DIR.exists():
+        return ()
+    params = _read_jce_csv("jce2023_table2_parameters.csv")
+    bands = _read_jce_csv("jce2023_table1_bands.csv")
+    primary = {(p.system, p.quantity): p for p in primary_sources()}
     out: list[JceRecord] = []
     for row in params:
         if not (row["Dq_cm1"] and row["Dq_over_B_reported"] and row["C_over_B_reported"]):
@@ -926,6 +1010,12 @@ def jce_records() -> tuple[JceRecord, ...]:
         dq = float(row["Dq_cm1"])
         b_val = dq / float(row["Dq_over_B_reported"])
         c_val = float(row["C_over_B_reported"]) * b_val
+        printed = {"Dq": dq, "B": b_val, "C": c_val}
+        chosen_params = {
+            q: _primary_value(primary, row["system"], q, v) for q, v in printed.items()
+        }
+        dq, b_val, c_val = (chosen_params[q] for q in ("Dq", "B", "C"))
+        params_changed = chosen_params != printed
         ground = min(
             (
                 (float(min(v)), k)
@@ -934,34 +1024,53 @@ def jce_records() -> tuple[JceRecord, ...]:
         )[1]
         ground_mult = ground.split("_", 1)[0]
         spin: SpinState = "low" if int(ground_mult) < HUND_MULTIPLICITY[d_count] else "high"
-        entries = [
-            (
-                float(b["wavenumber_cm1"]),
-                (_jce_term_key(b["multiplicity"], b["irrep"]), int(b["ordinal"] or 1) - 1),
-                b["approx"] == "True",
-            )
-            for b in rows
-        ]
+        # (value, level, approx, read from primary_sources.csv); a dropped band keeps value None.
+        entries: list[tuple[float | None, tuple[str, int], bool, bool]] = []
+        for b in rows:
+            level = (_jce_term_key(b["multiplicity"], b["irrep"]), int(b["ordinal"] or 1) - 1)
+            printed_band = float(b["wavenumber_cm1"])
+            src = primary.get((row["system"], _band_quantity(b)))
+            if src is not None and src.status in UNGRADABLE_STATUS:
+                entries.append((None, level, False, True))
+                continue
+            value = _primary_value(primary, row["system"], _band_quantity(b), printed_band)
+            entries.append((value, level, b["approx"] == "True", value != printed_band))
         allowed = [e for e in entries if e[1][0].split("_", 1)[0] == ground_mult]
         variants = [("allowed", allowed, False)]
-        if len(allowed) < len(entries):
+        if any(e[0] is not None for e in entries if e not in allowed):
             variants.append(("all", entries, True))
-        out.extend(
-            JceRecord(
-                record_id=f"{row['system']} [{tag}]",
-                d_count=d_count,
-                spin_state=spin,
-                Dq=dq,
-                B=b_val,
-                C=c_val,
-                bands_cm1=tuple(e[0] for e in chosen),
-                levels=tuple(e[1] for e in chosen),
-                approx=tuple(e[2] for e in chosen),
-                spin_forbidden=sf,
+        for tag, chosen, sf in variants:
+            kept = [(v, lvl, ap) for v, lvl, ap, _ in chosen if v is not None]
+            from_primary = params_changed or any(e[3] for e in chosen)
+            out.append(
+                JceRecord(
+                    record_id=f"{row['system']} [{tag}]",
+                    system=row["system"],
+                    d_count=d_count,
+                    spin_state=spin,
+                    Dq=dq,
+                    B=b_val,
+                    C=c_val,
+                    bands_cm1=tuple(v for v, _, _ in kept),
+                    levels=tuple(lvl for _, lvl, _ in kept),
+                    approx=tuple(ap for _, _, ap in kept),
+                    spin_forbidden=sf,
+                    source_file="primary_sources.csv"
+                    if from_primary
+                    else "jce2023_table1_bands.csv",
+                )
             )
-            for tag, chosen, sf in variants
-        )
     return tuple(out)
+
+
+def _primary_value(
+    primary: dict[tuple[str, str], PrimarySource], system: str, quantity: str, printed: float
+) -> float:
+    """The original's value where it reports one this record may use, else the printed one."""
+    src = primary.get((system, quantity))
+    if src is None or src.value is None or src.status in UNGRADABLE_STATUS:
+        return printed
+    return src.value
 
 
 def forward_consistent(record: JceRecord) -> bool:
@@ -987,7 +1096,6 @@ SELF_CONSISTENT = frozenset(
         "[Mn(CN)6]3- [all]",
         "AgCl:Ni2+ [allowed]",
         "MgO:Ni2+ [allowed]",
-        "MgO:Ni2+ [all]",
         "LiGa5O8:Ni2+ [allowed]",
         "LiGa5O8:Ni2+ [all]",
     }
@@ -995,10 +1103,15 @@ SELF_CONSISTENT = frozenset(
 """The records whose source reproduces its own bands within 2-sigma, from the oracle only.
 
 Pinned from the forward check before any inverse fit was run. Outside it: Al2O3:V3+
-(nu1, nu2 at -2.8 and -2.6 sigma), the four d7 Co(II) sources (nu1 or nu2 off by 4-11
-sigma -- a different Dq convention in the source, not checked here), [Ni(H2O)6]2+ (nu2
-+6 sigma), and the "all" records of KZnClSO4:Cr3+, K3Cr(CN)6 and AgCl:Ni2+ (their
-spin-forbidden line at +6.3, -7.6 and -2.4 sigma: C/B does not fit it)."""
+(nu1, nu2 at -2.8 and -2.6 sigma), the four d7 Co(II) sources (a band off by 4-12
+sigma; CoSiF6 now on the original's observed 4A2 and 4T1(P), its 4A2 at +11.8), [Ni(H2O)6]2+
+(nu2 +6 sigma), and the "all" records of KZnClSO4:Cr3+, K3Cr(CN)6 and AgCl:Ni2+ (their
+spin-forbidden line at +6.3, -4.6 and -2.4 sigma: C/B does not fit it).
+
+Re-pinned in plan F Task 4, when records began reading ``primary_sources.csv``, from the
+same forward check: 13 -> 12. MgO:Ni2+ [all] no longer exists -- its only spin-forbidden
+band, 1E ~13670, is not a separate observed band in the original. K3Cr(CN)6 [all] moved
+from -7.6 to -4.6 sigma on the original's C = 2800 and stays outside."""
 
 
 def oracle_tolerances(record: JceRecord) -> tuple[float, float]:
@@ -1067,16 +1180,21 @@ def jce_fixture(record: JceRecord) -> IonFixture:
 JCE_SOURCE_ERRATA: dict[str, str] = {
     "[Mn(CN)6]3- [allowed]": (
         "Alexander & Gray 1968 (JCE ref 29) assign 31100 cm^-1 to charge transfer "
-        "(t1u -> t2g), not to 3E: the band set fits a CT band as d-d"
+        "(t1u -> t2g), not to 3E; without it one band is left for two parameters"
     ),
-    "[Mn(CN)6]3- [all]": "as [allowed]: 31100 cm^-1 is charge transfer in the original",
+    "[Mn(CN)6]3- [all]": (
+        "as [allowed]: 31100 cm^-1 is charge transfer in the original; what is left is "
+        "two bands for two parameters, and JCE's (Dq, B, C) were derived with the CT band in"
+    ),
 }
 """Self-consistent records whose band set the original paper contradicts: no inverse fixture.
 
 From a check of the JCE tables against 18 of the 40 originals (2026-11-25). A source
 can reproduce its own numbers (forward) and still pair a band with the wrong level;
-fitting it would certify the mispairing. K3Cr(CN)6 [allowed] stays: the original's
-C/B is 5.77, not 5.563, but the d3 quartet bands do not depend on C."""
+fitting it would certify the mispairing. Since plan F Task 4 the record drops the CT band
+(``primary_sources.csv`` marks it ``CT``), so the erratum now names what is left. K3Cr(CN)6
+[allowed] stays: it reads the original's C = 2800 (C/B 5.77, not JCE's 5.563), and its d3
+quartet bands do not depend on C."""
 
 
 def _jce_inverse() -> tuple[tuple[IonFixture, ...], dict[str, str]]:
@@ -1104,6 +1222,7 @@ A miss is a finding about the fitter (the source already passed forward), so it 
 recorded here as a strict xfail and never answered by widening a bound."""
 
 
+@JCE_SKIP
 class TestJce2023Oracle:
     """T1a checks of the JCE helpers themselves, against nu1 == 10Dq."""
 
@@ -1118,6 +1237,7 @@ class TestJce2023Oracle:
         assert jac[0][1] == pytest.approx(0.0, abs=1e-6)
 
 
+@JCE_SKIP
 class TestJce2023Source:
     """Forward: does each source reproduce its own bands at its own parameters?"""
 
@@ -1129,7 +1249,105 @@ class TestJce2023Source:
         live = {r.record_id for r in jce_records() if forward_consistent(r)}
         assert live == SELF_CONSISTENT
 
+    def test_primary_sources_schema(self) -> None:
+        """Every row cites a reference of the paper, a place in it, a unit and a status.
 
+        Books have no DOI, so a row is tied to ``jce2023_references.csv`` by its ``ref``
+        number, and its DOI must then be that reference's DOI (empty for a book).
+
+        Observed red (602efa2): ``NameError: name '_read_jce_csv' is not defined``; with the
+        loader in and the CSV moved aside, ``FileNotFoundError: ... primary_sources.csv``.
+        """
+        refs = {r["ref"]: r for r in _read_jce_csv("jce2023_references.csv")}
+        table1 = {
+            (b["system"], _band_quantity(b)) for b in _read_jce_csv("jce2023_table1_bands.csv")
+        }
+        systems = {s for s, _ in table1} | {
+            r["system"] for r in _read_jce_csv("jce2023_table2_parameters.csv")
+        }
+        rows = primary_sources()
+        assert rows
+        bad: list[str] = []
+        for row in rows:
+            where = f"{row.system} {row.quantity}"
+            if row.ref not in refs:
+                bad.append(f"{where}: ref {row.ref!r} is not in jce2023_references.csv")
+            elif row.doi != refs[row.ref]["doi"]:
+                bad.append(
+                    f"{where}: doi {row.doi!r} is not ref {row.ref}'s {refs[row.ref]['doi']!r}"
+                )
+            if not (row.page_or_table and row.unit):
+                bad.append(f"{where}: no page_or_table or unit")
+            if row.status not in get_args(SourceStatus):
+                bad.append(f"{where}: status {row.status!r}")
+            if not PRIMARY_QUANTITY.fullmatch(row.quantity):
+                bad.append(f"{where}: quantity is not band:<term>#<index>, Dq, B or C")
+            if row.system not in systems:
+                bad.append(f"{where}: system is in neither JCE table")
+            elif row.quantity.startswith("band:") and (row.system, row.quantity) not in table1:
+                bad.append(f"{where}: Table 1 lists no such band for this system")
+            if row.value is None and row.status not in ("unverified", "assumed"):
+                bad.append(f"{where}: no value, but status {row.status!r}")
+        keys = [(r.system, r.quantity) for r in rows]
+        bad.extend(f"{s} {q}: duplicated" for s, q in set(keys) if keys.count((s, q)) > 1)
+        assert not bad, "\n".join(bad)
+
+    def test_every_graded_record_uses_no_calc_or_unverified_value(self) -> None:
+        """A graded record never rests on a value its original does not report as measured.
+
+        Graded is SELF_CONSISTENT plus every inverse fixture. A value fails if its row in
+        ``primary_sources.csv`` is ``calc``, ``CT`` or ``unverified``, or if the original
+        prints a different number for it than the record uses.
+
+        Observed red (602efa2, content red, loader in and records still on the printed
+        values): ``K3Cr(CN)6 [allowed] C = 2670.08: the original prints 2800 (observed)``,
+        ``[Mn(CN)6]3- [allowed] band:3_E#0 = 31100: CT``, the same for [all], and
+        ``MgO:Ni2+ [all] band:1_E#0 = 13670: unverified``.
+        """
+        primary = {(p.system, p.quantity): p for p in primary_sources()}
+        graded = SELF_CONSISTENT | {fx.label.removeprefix("JCE2023 ") for fx in JCE_FIXTURES}
+        bad: list[str] = []
+        for record in jce_records():
+            if record.record_id not in graded:
+                continue
+            for quantity, value in record.values():
+                src = primary.get((record.system, quantity))
+                if src is None:
+                    continue
+                if src.status in UNGRADABLE_STATUS:
+                    bad.append(
+                        f"{record.record_id} {quantity} = {value:g}: {src.status} ({src.note})"
+                    )
+                elif src.value is not None and abs(value - src.value) > 0.5:
+                    bad.append(
+                        f"{record.record_id} {quantity} = {value:g}: the original prints "
+                        f"{src.value:g} ({src.status})"
+                    )
+        assert not bad, "\n".join(bad)
+
+    def test_module_collects_without_audit_dir(self, tmp_path: Path) -> None:
+        """A wheel ships no audit/: the module still collects, and the JCE classes skip.
+
+        Observed red (602efa2): collection error, ``FileNotFoundError: ...
+        missing/jce2023_table2_parameters.csv`` raised at import by ``_jce_inverse()``.
+        """
+        env = {**os.environ, "TANABESUGANO_JCE_DIR": str(tmp_path / "missing")}
+        module = str(Path(__file__).resolve())
+        base = [sys.executable, "-m", "pytest", module, "-p", "no:cacheprovider", "-rs"]
+        collected = subprocess.run(  # noqa: S603
+            [*base, "--collect-only"], env=env, capture_output=True, text=True, check=False
+        )
+        assert collected.returncode == 0, collected.stdout[-2000:] + collected.stderr[-2000:]
+        assert "TestVanadiumIII" in collected.stdout
+        ran = subprocess.run(  # noqa: S603
+            [*base, "-k", "Jce2023"], env=env, capture_output=True, text=True, check=False
+        )
+        assert ran.returncode == 0, ran.stdout[-2000:]
+        assert "skipped" in ran.stdout
+        assert "passed" not in ran.stdout, ran.stdout[-2000:]
+
+
+@JCE_SKIP
 class TestJce2023Inverse:
     """Inverse: the fitter recovers each self-consistent source within its oracle bound."""
 
@@ -1143,7 +1361,6 @@ class TestJce2023Inverse:
             "[Cr(H2O)6]3+ [allowed]",
             "[Cr(H2O)6]3+ [all]",
             "MgO:Ni2+ [allowed]",
-            "MgO:Ni2+ [all]",
         }
 
     def test_errata_name_self_consistent_records(self) -> None:
