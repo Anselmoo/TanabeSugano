@@ -550,12 +550,13 @@ def nu1_floor(nu1: float) -> float:
     A band printed as 17400 is known to the hundred, so a nu1/10 that differs from the
     least-squares Dq by less than 50 cm^-1 in 10 Dq is round-off, not disagreement. A
     float carrying many digits (an oracle band) has no printing precision; the tie
-    threshold is then the floor.
+    threshold is then the floor. Trailing zeros cannot claim more than
+    :data:`BAND_RESOLUTION_CM1`: 20000 is not known only to the ten-thousand.
     """
     exponent = Decimal(repr(float(nu1))).normalize().as_tuple().exponent
     if not isinstance(exponent, int):
         return TIE_RMSE_CM1
-    return max(TIE_RMSE_CM1, 0.5 * 10.0**exponent)
+    return max(TIE_RMSE_CM1, min(BAND_RESOLUTION_CM1, 0.5 * 10.0**exponent))
 
 
 def _pick_minimum(
@@ -1012,7 +1013,11 @@ def fit_spectrum(
             "not decide the spin state"
         )
         fit = replace(fit, warnings=[*fit.warnings, note])
-    if C is None and band_labels is None:
+    labels = (
+        None if band_labels is None else _normalise_labels(band_labels, len(observed_peaks_cm1))
+    )
+    every_band_labelled = labels is not None and all(label is not None for label in labels)
+    if C is None and not every_band_labelled:
         fit = _held_c_check(
             manifold_d,
             observed_peaks_cm1,
@@ -1022,11 +1027,13 @@ def fit_spectrum(
             b_bounds=b_bounds,
             defaults_d=d_count,
         )
-    if band_labels is None and not include_spin_forbidden:
+    if not every_band_labelled and not include_spin_forbidden:
         fit = replace(fit, assumptions=(*fit.assumptions, SPIN_ALLOWED_ASSUMPTION))
     if td:
         fit = replace(fit, dq_convention="Td")
-    return _with_nu1(manifold_d, observed_peaks_cm1, fit, band_labels, include_spin_forbidden)
+    if labels is not None and all(label is None for label in labels):
+        labels = None
+    return _with_nu1(manifold_d, observed_peaks_cm1, fit, labels, include_spin_forbidden)
 
 
 NU1_TERM = {3: "4_T_2", 8: "3_T_2"}
@@ -1037,12 +1044,14 @@ def _with_nu1(
     d_count: int,
     observed: list[float],
     fit: SpectrumFit,
-    band_labels: Sequence[BandLabel] | None,
+    band_labels: Sequence[tuple[str, ...] | None] | None,
     include_spin_forbidden: bool,
 ) -> SpectrumFit:
     """Attach nu1/10 beside the least-squares Dq, and say when the two differ.
 
     ``d_count`` is the fitted manifold's (Td d7 is fitted as d3, whose 4T2 is 10 Dq_t).
+    ``band_labels`` are normalised, and None when no band carries a label. A band is
+    nu1 when its one label names the term, as a term key or a level uid.
     """
     term = NU1_TERM.get(d_count)
     if term is None:
@@ -1056,7 +1065,7 @@ def _with_nu1(
         named = [
             e
             for e, label in zip(observed, band_labels, strict=True)
-            if label == term or (not isinstance(label, str) and list(label or ()) == [term])
+            if label is not None and len(label) == 1 and label[0].split("#")[0] == term
         ]
         if not named:
             return replace(fit, dq_nu1_reason=f"no band is labelled {term}")

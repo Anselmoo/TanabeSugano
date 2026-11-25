@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
+from tanabesugano.mcp._compute import BAND_RESOLUTION_CM1
 from tanabesugano.mcp._compute import _pick_minimum
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import nu1_floor
@@ -732,6 +733,8 @@ LOWEST_BAND_NU1 = f"nu1 is the lowest band: {SPIN_ALLOWED_ASSUMPTION}"
         pytest.param(17235.0, 1.0, id="units-printed-floored"),
         pytest.param(17234.56789, 1.0, id="oracle-float-floored"),
         pytest.param(8500.0, 50.0, id="d8-hundreds"),
+        pytest.param(20000.0, BAND_RESOLUTION_CM1, id="trailing-zeros-capped"),
+        pytest.param(10000.0, BAND_RESOLUTION_CM1, id="ten-thousand-capped"),
     ],
 )
 def test_nu1_floor(nu1: float, floor: float) -> None:
@@ -739,9 +742,12 @@ def test_nu1_floor(nu1: float, floor: float) -> None:
 
     The expected values are read off the digits as printed, not from the code: 17400 is
     printed to the hundred (half = 50), 17235 to the unit (half = 0.5, floored to the
-    1 cm^-1 tie), and an oracle float carries no printing precision at all.
+    1 cm^-1 tie), and an oracle float carries no printing precision at all. Trailing
+    zeros cannot say more than ``BAND_RESOLUTION_CM1`` (how well a band maximum is
+    located): 20000 read as "known to the ten-thousand" would floor at 5000.
 
-    Observed red: ``ImportError: cannot import name 'nu1_floor'``.
+    Observed red: ``ImportError: cannot import name 'nu1_floor'``; the two capped
+    cases (final review): ``assert 5000.0 == 100.0``.
     """
     assert nu1_floor(nu1) == floor
 
@@ -831,6 +837,56 @@ def test_labelled_or_spin_forbidden_fit_states_no_assumption(labelled: bool) -> 
 
 
 @pytest.mark.parametrize(
+    "labels",
+    [[None, None, None], ["1_T_1", None, None]],
+    ids=["all-null", "partial"],
+)
+def test_null_labels_count_as_unlabelled(
+    labels: list[str | None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A band whose label is None is unlabelled: the held-C check runs, the assumption is stated.
+
+    ``_fit_one_regime`` frees C only when every band is labelled, so a None entry leaves
+    C held exactly as no labels do. Final review (Opus) and challenger (Fable) both found
+    the gates tested ``band_labels is None`` instead.
+    Observed red, both cases: ``AssertionError: assert () == ('all bands a... is present',)``.
+    """
+    from tanabesugano.mcp import _compute
+
+    real = _compute._fit_one_regime
+    refits: list[bool] = []
+
+    def spy(*args: object, **kw: object) -> object:
+        if kw.get("fit_c") is True:
+            refits.append(True)
+        return real(*args, **kw)  # ty: ignore[invalid-argument-type]
+
+    monkeypatch.setattr(_compute, "_fit_one_regime", spy)
+    bands = [e for e, _u in oracle_bands(6, *D6_LS_TIE, spin_allowed_only=True)[:3]]
+    fit = fit_spectrum(6, bands, spin_state="low", band_labels=labels)
+    assert fit.assumptions == (SPIN_ALLOWED_ASSUMPTION,)
+    assert refits == [True]
+
+
+def test_dq_nu1_accepts_a_uid_label() -> None:
+    """A band labelled by level uid (``4_T_2#0``, the form band_assignments returns) is nu1.
+
+    Observed red: ``assert None == 1740.0`` (reason "no band is labelled 4_T_2").
+    """
+    fit = fit_spectrum(3, [17400.0, 24600.0, 37800.0], band_labels=["4_T_2#0", "4_T_1", "4_T_1"])
+    assert fit.dq_nu1 == 17400.0 / 10.0
+
+
+def test_all_null_labels_take_the_lowest_band_as_nu1() -> None:
+    """All-None labels are the unlabelled path: nu1 is the lowest band, under the assumption.
+
+    Observed red: ``assert None == 1740.0`` (reason "no band is labelled 4_T_2").
+    """
+    fit = fit_spectrum(3, [17400.0, 24600.0, 37800.0], band_labels=[None, None, None])
+    assert fit.dq_nu1 == 17400.0 / 10.0
+
+
+@pytest.mark.parametrize(
     ("d_count", "kwargs", "reason"),
     [
         pytest.param(
@@ -897,22 +953,40 @@ TD_REFUSAL = (
 
 
 @pytest.mark.parametrize("n", [6, 7, 8])
-def test_td_fit_recovers_from_displaced_seed(n: int) -> None:
-    """T2: spin-allowed oracle Td bands give back Dq_t, reported in the Td convention.
+def test_td_fit_recovers_from_displaced_seed(n: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T2: spin-allowed oracle Td bands give back Dq_t (and B where it is determined).
 
-    Truth Dq_t = 0.5 B at each n's own default B; the oracle is d^n at -Dq_t. The bounds
-    (0.35, 1.4) x truth centre the search (geometric mean) on 0.7 x truth, away from it.
+    Truth B is 0.8 x each n's default B, so the default B is not the answer; truth Dq_t
+    is 0.5 x the default B. ``_initial_seed`` is displaced to (0.7 x, 1.4 x) its own
+    answer as the audit's seed-displaced runs are, because for n = 7 (fitted as d3) the
+    closed-form seed is exact on oracle bands and for n = 6 the one band is 10 Dq_t. n = 6
+    has a single spin-allowed band, so B is reported undetermined rather than asserted.
     d5 is excluded: high-spin d5 has no spin-allowed band.
 
     Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'geometry'``.
+    Strengthened after the Fable challenge (the earlier version seeded at the truth for
+    n = 6, 7 and never asserted B); green on arrival, the code was right.
     """
-    b = float(DEFAULTS[n]["default_B"])
+    from tanabesugano.mcp import _compute
+
+    real_seed = _compute._initial_seed
+
+    def displaced(*args: object, **kw: object) -> tuple[float, float]:
+        dq, b = real_seed(*args, **kw)  # ty: ignore[invalid-argument-type]
+        return 0.7 * dq, 1.4 * b
+
+    monkeypatch.setattr(_compute, "_initial_seed", displaced)
+    b = 0.8 * float(DEFAULTS[n]["default_B"])
     c = float(DEFAULTS[n]["default_C"])
-    dq_t = 0.5 * b
+    dq_t = 0.5 * float(DEFAULTS[n]["default_B"])
     bands = [e for e, _u in oracle_bands(n, -dq_t, b, c, spin_allowed_only=True)]
-    fit = fit_spectrum(n, bands, geometry="Td", dq_bounds=(0.35 * dq_t, 1.4 * dq_t))
+    fit = fit_spectrum(n, bands, geometry="Td")
     assert fit.dq_convention == "Td"
     assert fit.Dq == pytest.approx(dq_t, rel=0.005)
+    if len(bands) >= 2:
+        assert pytest.approx(b, rel=0.005) == fit.B
+    else:
+        assert fit.b_provenance == "undetermined"
 
 
 def test_td_d5_spin_forbidden_with_given_c() -> None:
