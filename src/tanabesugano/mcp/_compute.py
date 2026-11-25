@@ -14,6 +14,7 @@ from typing import TypedDict
 
 import numpy as np
 
+from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize
 
 from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
@@ -450,6 +451,47 @@ CROSSOVER_START_FACTORS = (0.9, 1.1)
 """Extra Dq starts either side of the spin crossover at the seed's B."""
 
 
+TIE_RMSE_CM1 = 1.0
+"""Minima whose objective is within this of the best count as tied.
+
+The scale of ``C_SENSITIVITY_TOL_CM1``: far above the optimizer's ``fatol`` and far
+below any band-position difference a spectrum can resolve.
+"""
+
+
+def _pick_minimum(
+    results: Sequence[OptimizeResult], seed: tuple[float, float], *, determined: bool
+) -> OptimizeResult:
+    """Return the lowest minimum; if the data cannot choose, the tied one nearest the seed.
+
+    ``determined`` is True when there are more bands than free parameters. Then the
+    lowest objective wins outright: on oracle d4 low-spin three bands the truth fits
+    to 0.001 cm^-1 and a seed-nearer point to 0.09, both inside ``TIE_RMSE_CM1``,
+    and the bands do discriminate. With as many bands as free parameters or fewer,
+    several assignments fit exactly and the data cannot choose. Nearest-to-seed (log distance in Dq and B) is a convention
+    chosen by the maintainer: it restores the textbook answer the old local-start
+    fit returned by accident (two-band [Co(H2O)6]2+), and it keeps the choice
+    deterministic. It is not a physical argument.
+    """
+    lowest = min(float(r.fun) for r in results)
+    if determined:
+        return min(results, key=lambda r: float(r.fun))
+    tied = [r for r in results if float(r.fun) <= lowest + TIE_RMSE_CM1]
+    # A tie must not hand the win to a run that did not converge, which would make
+    # the fit raise although a converged run reached the same objective.
+    tied = [r for r in tied if r.success] or tied
+    log_seed = np.log(np.asarray(seed, dtype=float))
+
+    def distance(result: OptimizeResult) -> float:
+        point = np.asarray(result.x[:2], dtype=float)
+        if np.any(point <= 0):
+            return float("inf")
+        return float(np.linalg.norm(np.log(point) - log_seed))
+
+    # min() keeps the first of equal distances, i.e. start order, so ties stay stable.
+    return min(tied, key=distance)
+
+
 def _search_starts(
     d_count: int,
     C: float,
@@ -646,17 +688,17 @@ def fit_spectrum(
         return peak_rmse(observed, np.array([e for e, _a, _s in candidates]))
 
     starts = _search_starts(d_count, C, dq_seed, b_seed, dq_bounds, b_bounds)
-    best = None
-    for start in starts:
-        result = minimize(
+    results = [
+        minimize(
             objective,
             np.array(start, dtype=float),
             method="Nelder-Mead",
             options={"maxiter": 800, "xatol": 1e-2, "fatol": 1e-2},
         )
-        if best is None or result.fun < best.fun:
-            best = result
-    assert best is not None  # noqa: S101 - starts is non-empty by construction
+        for start in starts
+    ]
+    free_parameters = 2  # Dq and B; C is held fixed
+    best = _pick_minimum(results, (dq_seed, b_seed), determined=observed.size > free_parameters)
 
     # --- Accept or refuse ---------------------------------------------------
     fitted_dq, fitted_b = float(best.x[0]), float(best.x[1])
@@ -696,7 +738,6 @@ def fit_spectrum(
         abs(fitted_b - b_bounds[1]) / b_bounds[1] < pinned_tol
     ):
         warnings.append(f"B pinned at its search bound ({fitted_b:.0f} cm^-1); result suspect")
-    free_parameters = 2  # Dq and B; C is held fixed
     if observed.size <= free_parameters:
         warnings.append(
             f"only {observed.size} band(s) for {free_parameters} free parameters: the fit is "

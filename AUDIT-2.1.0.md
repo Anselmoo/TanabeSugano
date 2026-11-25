@@ -42,7 +42,7 @@ Worst verdict per cell and how many of the cell's runs carry it.
 | d2 | high | True | OK 16/16 | WRONG-SILENT 9/16 | N/A | WRONG-SILENT 15/16 | N/A |
 | d3 | high | False | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | WRONG-SILENT 16/16 |
 | d3 | high | True | OK 16/16 | WRONG-SILENT 13/16 | N/A | WRONG-SILENT 15/16 | N/A |
-| d4 | high | False | OK-B-UNIDENTIFIED 6/7 | OK-B-UNIDENTIFIED 6/7 | N/A | WRONG-SILENT 7/7 | N/A |
+| d4 | high | False | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | WRONG-SILENT 7/7 | N/A |
 | d4 | high | True | OK 7/7 | WRONG-SILENT 4/7 | N/A | WRONG-SILENT 7/7 | N/A |
 | d4 | low | False | OK 7/7 | WRONG-SILENT 3/7 | N/A | WRONG-SILENT 7/7 | RAISED 7/7 |
 | d4 | low | True | OK 7/7 | WRONG-SILENT 4/7 | N/A | WRONG-SILENT 7/7 | N/A |
@@ -65,9 +65,9 @@ Headline counts (synthetic runs):
 
 | path | OK | RAISED-EXPECTED | OK-B-UNIDENTIFIED | RAISED | WRONG-WARNED | WRONG-SILENT | total |
 |---|---|---|---|---|---|---|---|
-| fit_spectrum (default) | 71 | 9 | 13 | 0 | 33 | 82 | 208 |
+| fit_spectrum (default) | 70 | 9 | 14 | 0 | 33 | 82 | 208 |
 | fit_spectrum (seed-displaced) | 28 | 0 | 0 | 0 | 0 | 0 | 28 |
-| fit_spectrum (truth) | 186 | 9 | 13 | 0 | 0 | 0 | 208 |
+| fit_spectrum (truth) | 185 | 9 | 14 | 0 | 0 | 0 | 208 |
 | ratio_app (app-default) | 14 | 0 | 0 | 23 | 0 | 44 | 81 |
 | reverse_app (app-default) | 48 | 0 | 0 | 27 | 0 | 124 | 199 |
 
@@ -430,7 +430,7 @@ Counts (non-R1 rows):
 
 | path | OK | RAISED-EXPECTED | OK-B-UNIDENTIFIED | RAISED | WRONG-WARNED | WRONG-SILENT | total |
 |---|---|---|---|---|---|---|---|
-| fit_spectrum (default) | 10 | 0 | 0 | 0 | 7 | 25 | 42 |
+| fit_spectrum (default) | 12 | 0 | 0 | 0 | 5 | 25 | 42 |
 | fit_spectrum (truth) | 9 | 0 | 0 | 0 | 3 | 16 | 28 |
 | ratio_app (app-default) | 3 | 0 | 0 | 1 | 0 | 19 | 23 |
 | reverse_app (app-default) | 13 | 0 | 0 | 0 | 0 | 29 | 42 |
@@ -491,8 +491,8 @@ Counts (non-R1 rows):
 | K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | truth | 2660.0 | 480.0 | 2670.1 | 1161.3 | 591.7 | -56.3 | 23.3 | 485.8 | 4.3 | False | False | WRONG-SILENT | a;c;f |
 | K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | default | 2660.0 | 480.0 | 2670.1 | 1281.8 | 936.1 | -51.8 | 95.0 | 485.8 | 2.5 | False | False | WRONG-SILENT | a;c;f |
 | K3Cr(CN)6 | 3 | high | True | Oh | reverse_app | app-default | 2660.0 | 480.0 | 2670.1 | 1282.0 | 650.0 | -51.8 | 35.4 | 7961.3 | 2415.0 | False | False | WRONG-SILENT | app-sf;c |
-| [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | truth | 3400.0 | 659.9 | 3279.9 | 3419.9 | 531.3 | 0.6 | -19.5 | 261.4 | 0.0 | True | False | WRONG-WARNED | unclassified |
-| [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | default | 3400.0 | 659.9 | 3279.9 | 3511.3 | 668.5 | 3.3 | 1.3 | 261.4 | 0.0 | False | False | WRONG-WARNED | c |
+| [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | truth | 3400.0 | 659.9 | 3279.9 | 3236.0 | 972.5 | -4.8 | 47.4 | 261.4 | 0.0 | False | False | WRONG-WARNED | c |
+| [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | default | 3400.0 | 659.9 | 3279.9 | 3267.6 | 1105.0 | -3.9 | 67.4 | 261.4 | 0.0 | False | False | WRONG-WARNED | c |
 | [Mn(CN)6]3- | 4 | low | False | Oh | reverse_app | app-default | 3400.0 | 659.9 | 3279.9 | 2721.2 | 1150.0 | -20.0 | 74.3 | 261.4 | 5018.8 | False | False | WRONG-SILENT | app-hs;c;d |
 | [Mn(CN)6]3- | 4 | low | False | Oh | ratio_app | app-default | 3400.0 | 659.9 | 3279.9 | n/a | n/a | n/a | n/a | 261.4 | n/a | n/a | False | RAISED | app-hs |
 | [Mn(CN)6]3- | 4 | low | True | Oh | fit_spectrum | truth | 3400.0 | 659.9 | 3279.9 | 2374.5 | 1268.2 | -30.2 | 92.2 | 246.6 | 27.3 | False | False | WRONG-SILENT | a;c;f |
@@ -522,7 +522,7 @@ Counts (non-R1 rows):
 | [Co(H2O)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | 5115.8 | 615.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(H2O)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 1841.0 | 705.1 | n/a | 2059.3 | 750.0 | 11.9 | 6.4 | 5115.8 | 4466.0 | False | False | WRONG-SILENT-R1 | app-hs;c;d |
 | [Co(H2O)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 1841.0 | 705.1 | n/a | n/a | n/a | n/a | n/a | 5115.8 | n/a | n/a | False | RAISED-R1 | app-hs |
-| [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | truth | 2293.0 | 635.0 | 3886.9 | 2359.2 | 635.4 | 2.9 | 0.1 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
+| [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | truth | 2293.0 | 635.0 | 3886.9 | 2359.2 | 635.5 | 2.9 | 0.1 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 2293.0 | 635.0 | 3886.9 | 2428.6 | 643.8 | 5.9 | 1.4 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 2293.0 | 635.0 | 3886.9 | 2105.3 | 950.0 | -8.2 | 49.6 | 671.4 | 5972.2 | False | False | WRONG-SILENT-R1 | app-hs;c;d |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 2293.0 | 635.0 | 3886.9 | n/a | n/a | n/a | n/a | 671.4 | n/a | n/a | False | RAISED-R1 | app-hs |
@@ -553,7 +553,7 @@ Counts (non-R1 rows):
 | KCoF3 | 7 | high | True | Oh | fit_spectrum | truth | 770.0 | 880.0 | 3872.0 | 778.5 | 206.1 | 1.1 | -76.6 | 534.3 | 99.9 | False | False | WRONG-SILENT | c;f |
 | KCoF3 | 7 | high | True | Oh | fit_spectrum | default | 770.0 | 880.0 | 3872.0 | 817.9 | 1012.0 | 6.2 | 15.0 | 534.3 | 48.5 | False | False | WRONG-SILENT | c;f |
 | KCoF3 | 7 | high | True | Oh | reverse_app | app-default | 770.0 | 880.0 | 3872.0 | 804.4 | 950.0 | 4.5 | 8.0 | 1244.7 | 695.8 | False | False | WRONG-SILENT | app-sf;c |
-| [Co(H2O)6]2+ | 7 | high | False | Oh | fit_spectrum | default | 920.0 | 850.3 | n/a | 441.0 | 1095.4 | -52.1 | 28.8 | 213.4 | 0.0 | False | False | WRONG-WARNED | c |
+| [Co(H2O)6]2+ | 7 | high | False | Oh | fit_spectrum | default | 920.0 | 850.3 | n/a | 921.5 | 827.7 | 0.2 | -2.7 | 213.4 | 0.0 | True | False | OK |  |
 | [Co(H2O)6]2+ | 7 | high | False | Oh | reverse_app | app-default | 920.0 | 850.3 | n/a | 911.2 | 850.0 | -1.0 | 0.0 | 213.4 | 174.3 | True | False | OK |  |
 | [Co(H2O)6]2+ | 7 | high | False | Oh | ratio_app | app-default | 920.0 | 850.3 | n/a | 921.7 | 1600.0 | 0.2 | 88.2 | 213.4 | 1677.1 | False | False | WRONG-SILENT | c |
 | [Co(H2O)6]2+ | 7 | high | True | Oh | fit_spectrum | default | 920.0 | 850.3 | n/a | 435.4 | 574.4 | -52.7 | -32.4 | 560.5 | 1.8 | False | False | WRONG-SILENT | c |
@@ -565,7 +565,7 @@ Counts (non-R1 rows):
 | CoSiF6·6H2O | 7 | high | True | Oh | fit_spectrum | truth | 965.0 | 870.2 | 3915.7 | 965.1 | 869.9 | 0.0 | 0.0 | 2.6 | 1.0 | False | False | OK |  |
 | CoSiF6·6H2O | 7 | high | True | Oh | fit_spectrum | default | 965.0 | 870.2 | 3915.7 | 443.6 | 249.4 | -54.0 | -71.3 | 2.6 | 62.0 | False | False | WRONG-SILENT | c;e |
 | CoSiF6·6H2O | 7 | high | True | Oh | reverse_app | app-default | 965.0 | 870.2 | 3915.7 | 848.0 | 950.0 | -12.1 | 9.2 | 966.8 | 659.7 | False | False | WRONG-SILENT | app-sf;c |
-| Co(bipy)3Br2·6H2O | 7 | high | False | Oh | fit_spectrum | default | 1267.0 | 790.9 | n/a | 612.4 | 1184.9 | -51.7 | 49.8 | 66.1 | 0.0 | False | False | WRONG-WARNED | c |
+| Co(bipy)3Br2·6H2O | 7 | high | False | Oh | fit_spectrum | default | 1267.0 | 790.9 | n/a | 1259.7 | 799.8 | -0.6 | 1.1 | 66.1 | 0.0 | True | False | OK |  |
 | Co(bipy)3Br2·6H2O | 7 | high | False | Oh | reverse_app | app-default | 1267.0 | 790.9 | n/a | 1271.2 | 800.0 | 0.3 | 1.2 | 66.1 | 107.0 | True | False | OK |  |
 | Co(bipy)3Br2·6H2O | 7 | high | False | Oh | ratio_app | app-default | 1267.0 | 790.9 | n/a | 1285.9 | 813.8 | 1.5 | 2.9 | 66.1 | 341.9 | True | False | OK |  |
 | Co(bipy)3Br2·6H2O | 7 | high | True | Oh | fit_spectrum | default | 1267.0 | 790.9 | n/a | 599.2 | 464.8 | -52.7 | -41.2 | 142.9 | 7.9 | False | False | WRONG-SILENT | c |
@@ -609,33 +609,33 @@ Counts (non-R1 rows):
 
 ## 6. Follow-up scope
 
-Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 26. 60 of the failing rows carry the infeasible_at_c tag (R1 rows excluded; Section 7 S4 counts them too). Classes (a), bounds-exclude-truth, (b) and (f) apply to fit_spectrum only, (e) to its C=default runs; app-hs and app-grid to app rows, app-sf to reverse-app rows, app-lattice to d3/d8 ratio-app rows; estimator-disagreement to JCE reverse-app rows; (c), (d) and single-band to every row. The OK columns apply the same rules to rows graded OK. The last column pools both sources over the rows each rule can fire on (failing vs OK) and calls a class discriminating only if its OK rate is under a quarter of its failing rate; a precondition co-occurs with failures but does not separate them from successes, so it alone does not size a fix.
+Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 28. 60 of the failing rows carry the infeasible_at_c tag (R1 rows excluded; Section 7 S4 counts them too). Classes (a), bounds-exclude-truth, (b) and (f) apply to fit_spectrum only, (e) to its C=default runs; app-hs and app-grid to app rows, app-sf to reverse-app rows, app-lattice to d3/d8 ratio-app rows; estimator-disagreement to JCE reverse-app rows; (c), (d) and single-band to every row. The OK columns apply the same rules to rows graded OK. The last column pools both sources over the rows each rule can fire on (failing vs OK) and calls a class discriminating only if its OK rate is under a quarter of its failing rate; a precondition co-occurs with failures but does not separate them from successes, so it alone does not size a fix.
 
 Class (e) measures the bias of holding C at the default. Whether a free C would be identifiable is NOT measured by this audit; a fix that fits C must establish that per configuration and band set.
 
 | class | proposed fix | rule | synthetic failing | synthetic OK | JCE failing | JCE OK | failing vs OK rate |
 |---|---|---|---|---|---|---|---|
-| a | generic seed obs[0]/10 (_initial_seed) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, <3 bands, or spin-forbidden bands included) and seed Dq / truth Dq outside the local-start span [0.8, 1.25] | 55 | 57 | 11 | 0 | 66/166 vs 57/276: precondition |
-| bounds-exclude-truth | default dq_bounds (default_dq_bounds) exclude the truth | fit_spectrum only, not seed-displaced: the truth Dq lies outside default_dq_bounds(bands, seed), the seed being _initial_seed's | 0 | 0 | 0 | 0 | 0/166 vs 0/276: never fires on a failure |
-| b | the start set misses the truth basin (_search_starts) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 5 | 0 | 0 | 0 | 5/166 vs 0/304: discriminates |
-| c | unlabelled non-injective NN matching incl. doublets (peak_rmse) | assignment_ok is False | 215 | 16 | 55 | 3 | 270/433 vs 19/382: discriminates |
-| d | regime penalty / crossover proximity (fit_spectrum objective) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 73 | 15 | 2 | 0 | 75/433 vs 15/382: discriminates |
-| e | C-misspecification bias: C never fitted | fit_spectrum only: c_mode=default and the same case with c_mode=truth is OK | 115 | 71 | 3 | 6 | 118/147 vs 77/81: precondition |
-| f | no ambiguity check | fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C) | 2 | 0 | 32 | 0 | 34/166 vs 0/304: discriminates |
+| a | generic seed obs[0]/10 (_initial_seed) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, <3 bands, or spin-forbidden bands included) and seed Dq / truth Dq outside the local-start span [0.8, 1.25] | 55 | 57 | 11 | 0 | 66/164 vs 57/276: precondition |
+| bounds-exclude-truth | default dq_bounds (default_dq_bounds) exclude the truth | fit_spectrum only, not seed-displaced: the truth Dq lies outside default_dq_bounds(bands, seed), the seed being _initial_seed's | 0 | 0 | 0 | 0 | 0/164 vs 0/276: never fires on a failure |
+| b | the start set misses the truth basin (_search_starts) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 5 | 0 | 0 | 0 | 5/164 vs 0/304: discriminates |
+| c | unlabelled non-injective NN matching incl. doublets (peak_rmse) | assignment_ok is False | 215 | 16 | 54 | 3 | 269/431 vs 19/382: discriminates |
+| d | regime penalty / crossover proximity (fit_spectrum objective) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 73 | 15 | 2 | 0 | 75/431 vs 15/382: discriminates |
+| e | C-misspecification bias: C never fitted | fit_spectrum only: c_mode=default and the same case with c_mode=truth is OK | 115 | 70 | 3 | 6 | 118/145 vs 76/82: precondition |
+| f | no ambiguity check | fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C) | 2 | 0 | 32 | 0 | 34/164 vs 0/304: discriminates |
 | app-hs | app hard-codes the high-spin reference and default C | app row with spin=low | 90 | 0 | 3 | 0 | 93/267 vs 0/78: discriminates |
 | app-sf | app has no include_spin_forbidden and fits forbidden bands as allowed | reverse-app row with spin-forbidden bands in its input | 97 | 7 | 16 | 2 | 113/180 vs 9/61: discriminates |
 | app-lattice | ratio app: the Dq grid has no node at nu1/10 for d3/d8, so the returned Dq is the node nearest nu1/10, not nu1/10 itself | ratio-app row, d3 or d8 (nu1 = 10Dq), no Dq grid node within rounding of nu1/10, and the returned Dq is the node nearest nu1/10 | 28 | 0 | 13 | 0 | 41/41 vs 0/0: untested (no eligible OK row) |
 | app-grid | app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600 (25 steps reverse, 30 ratio) | app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 13 | 56 | 8 | 14 | 21/267 vs 70/78: precondition |
-| single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 14 | 2 | 0 | 0 | 14/433 vs 2/382: discriminates |
+| single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 14 | 0 | 0 | 0 | 14/431 vs 0/382: discriminates |
 | estimator-disagreement | published values are not the minimum of this objective (reverse app; fit_spectrum is covered by (f)) | JCE, sf=False, reverse app, every band assigned, more than two bands, reported C given: RMSE at the returned point < RMSE at the reported (Dq, B, C) | 0 | 0 | 3 | 1 | 3/29 vs 1/13: precondition |
-| unclassified | matches no rule | a failing row no rule above matched | 10 | - | 17 | - | - |
+| unclassified | matches no rule | a failing row no rule above matched | 10 | - | 16 | - | - |
 
 ## 7. Findings
 
 **M. The d5 mechanism.** High-spin d5 with spin-forbidden bands fails for two separable reasons (Section 1). With C right, the minimum exists: on the Mn bands a start grid over Dq and B chosen without the reference reaches it, and since the fit-path fix so does fit_spectrum's own Dq x B start grid (one system, and R1-tainted as a comparator). With C at the default, the published point is not a minimum of the objective at all, so no seed can fix it; that needs C fitted as well, and whether three bands determine C is not measured here. Noisy bands are not measured either.
 
 **S1. WRONG-WARNED should not be read as 'flagged'.** The C-not-constrained note fires on most OK runs too, so it carries no information about a wrong answer; only residual, B-pinned, single-transition and too-few-bands warnings count as pertinent.
-Live: 33 of 104 synthetic fit_spectrum runs with |dDq| > 2 % carry a pertinent warning; the c-note fires on 132 of 285 OK runs.
+Live: 33 of 104 synthetic fit_spectrum runs with |dDq| > 2 % carry a pertinent warning; the c-note fires on 130 of 283 OK runs.
 
 **S2. Estimator disagreement does not explain the JCE misses.** The tag applies only where the reverse app's answer beats the published (Dq, B, C) on the app's own objective with every band assigned, more than two bands and a reported C. Even so narrowed it holds on OK rows about as often as on failing ones (Section 6), so it marks a disagreement between estimators, not the cause of a miss. A looser rule fires on most OK rows, and for fit_spectrum it would only repeat class (f).
 Live: 3 failing non-R1 JCE reverse-app rows qualify (CoCl2, KCoF3, [Cr(H2O)6]3+); the same rule holds on 1 of 13 OK ones.

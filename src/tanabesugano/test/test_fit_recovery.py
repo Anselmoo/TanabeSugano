@@ -155,3 +155,27 @@ def test_grid_search_recovers_unlabelled(
     """
     fit = fit_spectrum(d, merged_bands(d, dq, b, c, n_bands), c, include_spin_forbidden=True)
     assert_recovered(fit, dq, b)
+
+
+# Two spin-allowed bands, two parameters: several assignments fit exactly. The truth
+# is the exact minimum nearest the generic seed (obs[0] / 10, default B) in log
+# distance; the alternatives sit about three times farther. (d, Dq, B, C)
+TWO_BAND_TIES = [
+    (7, 1267.0, 791.0, 4499.0),
+    (2, 1800.0, 700.0, 3801.0),
+]
+
+
+@pytest.mark.parametrize(("d", "dq", "b", "c"), TWO_BAND_TIES)
+def test_exact_tie_prefers_minimum_nearest_seed(d: int, dq: float, b: float, c: float) -> None:
+    """Among equally exact minima, the fit returns the one nearest the seed.
+
+    A convention, not physics (the user's call, 2026-11-25): with two bands the data
+    cannot choose, and the pre-grid fit returned the seed-near minimum by accident.
+
+    Observed red at 107f967: ``AssertionError: dDq -51.35 %`` (d7, fit 616 / 1179) and
+    ``dDq -50.32 %`` (d2, fit 894 / 1289), both at RMSE 0.01 cm^-1.
+    """
+    bands = oracle_bands(d, dq, b, c, spin_allowed_only=True)[:2]
+    fit = fit_spectrum(d, [e for e, _u in bands], c)
+    assert_recovered(fit, dq, b)
