@@ -72,6 +72,13 @@ def register(mcp: FastMCP) -> None:
         Useful for agent workflows that need a flat tabular view ("which term
         is at ~17500 cm^-1 for Cr3+?") rather than a JSON blob keyed by term.
         Drives the DataTable surfaces in `ts_diagram_app` and friends.
+
+        Args:
+            d_count: d-electron count (2–8).
+            Dq: Crystal-field strength Dq in cm^-1 (10Dq = Delta_o).
+            B: Racah B in cm^-1; per-configuration default when omitted.
+            C: Racah C in cm^-1; per-configuration default when omitted.
+
         """
         b_val, c_val = resolve_bc(d_count, B, C)
         if b_val <= 0:

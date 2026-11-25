@@ -377,7 +377,7 @@ def default_dq_bounds(observed_peaks_cm1: Sequence[float], dq_seed: float) -> tu
 
 @dataclass(frozen=True)
 class SpectrumFit:
-    """Result of fitting observed absorption bands to (Dq, B).
+    """Result of fitting observed absorption bands to (Dq, B); all energies in cm^-1.
 
     ``transitions`` carries every term (not only the fitted spin-allowed ones)
     with an ``spin_allowed`` flag, so the assignment table loses no information.

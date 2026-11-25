@@ -58,7 +58,36 @@ def register(mcp: FastMCP) -> None:
         render an in-chat Prefab LineChart with per-term legend toggling.
 
         Args:
-            x_min, x_max, y_min, y_max: Crop the drawn axes, in the units of
+            d_count: d-electron count (2–8).
+            dq_min: Lower Dq of the sweep, in cm^-1.
+            dq_max: Upper Dq of the sweep, in cm^-1.
+            steps: Number of Dq grid points.
+            B: Racah B in cm^-1; per-configuration default when omitted.
+            C: Racah C in cm^-1; per-configuration default when omitted.
+            normalize: Plot E/B against 10Dq/B (standard Tanabe-Sugano).
+            dpi: Raster resolution for ``format="png"``.
+            x_min: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
+                identical axes: their normalised extents differ with B, so
+                matching them by tuning ``dq_max`` per ion is arithmetic that
+                cannot work for the y-axis at all. Cropping does not re-sweep --
+                the curves run through the window rather than stopping at it.
+            x_max: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
+                identical axes: their normalised extents differ with B, so
+                matching them by tuning ``dq_max`` per ion is arithmetic that
+                cannot work for the y-axis at all. Cropping does not re-sweep --
+                the curves run through the window rather than stopping at it.
+            y_min: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
+                identical axes: their normalised extents differ with B, so
+                matching them by tuning ``dq_max`` per ion is arithmetic that
+                cannot work for the y-axis at all. Cropping does not re-sweep --
+                the curves run through the window rather than stopping at it.
+            y_max: Crop the drawn axes, in the units of
                 the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
                 otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
                 identical axes: their normalised extents differ with B, so
@@ -184,6 +213,17 @@ def register(mcp: FastMCP) -> None:
 
         ``band_labels`` and ``fit_c`` mean exactly what they mean on
         ``ts_fit_spectrum``; the figure shows the assignment the fit made.
+
+        Args:
+            d_count: d-electron count (2–8).
+            observed_peaks: Measured band maxima in cm^-1.
+            C: Racah C in cm^-1; per-configuration default when omitted.
+            spin_state: Which side of a spin crossover to fit on.
+            include_spin_forbidden: Also fit against spin-forbidden transitions.
+            title: Figure title; a default naming the ion's fit is used when omitted.
+            band_labels: As on ``ts_fit_spectrum``, one label per band.
+            fit_c: As on ``ts_fit_spectrum``.
+
         """
         try:
             source = fit_figure_script(

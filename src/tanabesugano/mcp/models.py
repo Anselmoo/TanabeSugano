@@ -59,7 +59,7 @@ class SpectrumPeak(BaseModel):
 
 
 class FitMinimum(BaseModel):
-    """One distinct minimum the fit's search converged to."""
+    """One distinct minimum the fit's search converged to; all energies in cm^-1."""
 
     Dq: float = Field(description="Dq at this minimum (cm^-1).")
     B: float = Field(description="Racah B at this minimum (cm^-1).")
@@ -70,7 +70,7 @@ class FitMinimum(BaseModel):
 
 
 class BandAssignment(BaseModel):
-    """The level one observed band was fitted to, in the caller's band order."""
+    """The level one observed band was fitted to, in caller order; energies in cm^-1."""
 
     observed_cm1: float = Field(description="The band as given (cm^-1).")
     computed_cm1: float = Field(
@@ -84,7 +84,7 @@ class BandAssignment(BaseModel):
 
 
 class FitResult(BaseModel):
-    """Result of fitting a spectrum to find Dq and B parameters."""
+    """Result of fitting a spectrum to find Dq and B parameters; all energies in cm^-1."""
 
     d_count: int
     fitted_Dq: float = Field(description="Optimized ligand field parameter (cm^-1).")

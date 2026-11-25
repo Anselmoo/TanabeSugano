@@ -260,7 +260,9 @@ def _chartjs_series_payload(
         rows: list of dicts (x + per-term y values).
         series: list of ChartSeries with data_key, label, color.
         x_key: the dict key for x values.
-        title, x_label, y_label: display strings.
+        title: display strings.
+        x_label: display strings.
+        y_label: display strings.
         bounds: optional axis crop, any subset of ``x_min``/``x_max``/
             ``y_min``/``y_max``. Only the keys actually supplied are emitted,
             so a renderer keeps autoscaling on every axis nobody pinned.
@@ -331,6 +333,17 @@ def _register_plot_view(mcp: FastMCP) -> None:
         view at ui://tanabesugano/diagram.html renders with labelled x/y axes.
         Supports energy_unit = "cm1" | "eV" | "nm" for the y-axis.
         Note: "nm" inverts the energy axis (shorter wavelength = higher energy).
+
+        Args:
+            d_count: d-electron count (2–8).
+            dq_min: Lower Dq of the sweep, in cm⁻¹.
+            dq_max: Upper Dq of the sweep, in cm⁻¹.
+            steps: Number of Dq grid points.
+            B: Racah B in cm⁻¹; per-configuration default when omitted.
+            C: Racah C in cm⁻¹; per-configuration default when omitted.
+            normalize: Plot E/B against 10Dq/B (standard Tanabe-Sugano).
+            energy_unit: y-axis unit when ``normalize=False`` (cm1 / eV / nm).
+
         """
         from tanabesugano.mcp._defaults import DEFAULTS
         from tanabesugano.mcp.tools._shared import resolve_bc
@@ -438,12 +451,38 @@ def _register_diagram_app(mcp: FastMCP) -> None:
 
         Args:
             d_count: d-electron count (2–8).
-            dq_min, dq_max: Dq sweep bounds in cm⁻¹.
+            dq_min: Dq sweep bounds in cm⁻¹.
+            dq_max: Dq sweep bounds in cm⁻¹.
             steps: Number of Dq grid points.
-            B, C: Racah parameters in cm⁻¹; defaults per d_count.
+            B: Racah B in cm⁻¹; defaults per d_count.
+            C: Racah C in cm⁻¹; defaults per d_count.
             normalize: Plot E/B on y, 10Dq/B on x (standard Tanabe-Sugano).
             energy_unit: Used only when ``normalize=False`` (cm1 / eV / nm).
-            x_min, x_max, y_min, y_max: Crop the drawn axes, in the units of
+            x_min: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm⁻¹ and ``energy_unit``. Use these to put
+                two ions on identical axes: their normalised extents differ
+                with B, so matching them by tuning ``dq_max`` per ion is
+                arithmetic that cannot work for the y-axis at all. Cropping
+                does not re-sweep -- the curves run through the window rather
+                than stopping at it. Any axis left unset keeps autoscaling.
+            x_max: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm⁻¹ and ``energy_unit``. Use these to put
+                two ions on identical axes: their normalised extents differ
+                with B, so matching them by tuning ``dq_max`` per ion is
+                arithmetic that cannot work for the y-axis at all. Cropping
+                does not re-sweep -- the curves run through the window rather
+                than stopping at it. Any axis left unset keeps autoscaling.
+            y_min: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm⁻¹ and ``energy_unit``. Use these to put
+                two ions on identical axes: their normalised extents differ
+                with B, so matching them by tuning ``dq_max`` per ion is
+                arithmetic that cannot work for the y-axis at all. Cropping
+                does not re-sweep -- the curves run through the window rather
+                than stopping at it. Any axis left unset keeps autoscaling.
+            y_max: Crop the drawn axes, in the units of
                 the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
                 otherwise 10Dq in cm⁻¹ and ``energy_unit``. Use these to put
                 two ions on identical axes: their normalised extents differ
@@ -470,7 +509,7 @@ def _register_diagram_app(mcp: FastMCP) -> None:
         ground_term = DEFAULTS[d_count]["ground_term"]
         title_with_context = (
             f"d{d_count} ({ground_term}) — B={b_val:g}, C={c_val:g} cm⁻¹  "
-            f"[Dq {dq_min:g}–{dq_max:g}, {steps} pts]"
+            f"[Dq {dq_min:g}–{dq_max:g} cm⁻¹, {steps} pts]"
         )
         payload = _chartjs_series_payload(
             rows,
@@ -992,6 +1031,15 @@ def _register_compare(mcp: FastMCP) -> None:
         directly. For the side-by-side small-multiples view that the previous
         implementation attempted, use multiple separate ``ts_diagram_app``
         calls — both render correctly now they share the Chart.js path.
+
+        Args:
+            d_counts: d-electron counts to overlay (2–8).
+            dq_min: Lower Dq of the sweep, in cm⁻¹.
+            dq_max: Upper Dq of the sweep, in cm⁻¹.
+            steps: Number of Dq grid points.
+            normalize: Plot E/B against 10Dq/B (standard Tanabe-Sugano).
+            energy_unit: y-axis unit when ``normalize=False`` (cm1 / eV / nm).
+
         """
         import json as _json
 
@@ -1098,9 +1146,12 @@ def _register_orgel(mcp: FastMCP) -> None:
 
         Args:
             d_count: d-electron count (2–8).
-            dq_min, dq_max: Dq sweep bounds in cm⁻¹.
+            dq_min: Dq sweep bounds in cm⁻¹.
+            dq_max: Dq sweep bounds in cm⁻¹.
             steps: Number of Dq grid points.
-            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+            B: Racah B (cm⁻¹); per-configuration defaults if
+                omitted.
+            C: Racah C (cm⁻¹); per-configuration defaults if
                 omitted.
 
         """
@@ -1180,7 +1231,9 @@ def _register_spin_crossover(mcp: FastMCP) -> None:
 
         Args:
             d_count: must be 4, 5, 6, or 7.
-            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+            B: Racah B (cm⁻¹); per-configuration defaults if
+                omitted.
+            C: Racah C (cm⁻¹); per-configuration defaults if
                 omitted.
             dq_max: Upper **Dq** bound for the sweep (cm⁻¹) -- that is
                 Δ/10, not Δ. The chart's own x-axis is Δ = 10·Dq, so a value
@@ -1411,11 +1464,13 @@ def _register_fit_plot(mcp: FastMCP) -> None:
         Args:
             d_count: 2..8.
             observed_peaks: measured band maxima in cm⁻¹.
-            C: Racah C; per-configuration default when omitted.
+            C: Racah C in cm⁻¹; per-configuration default when omitted.
             spin_state: which side of a spin crossover to pin the fit to.
             include_spin_forbidden: required for high-spin d5, whose d-d bands
                 are all spin-forbidden.
-            band_labels, fit_c: as on ``ts_fit_spectrum``; each band is drawn
+            band_labels: as on ``ts_fit_spectrum``; each band is drawn
+                against the level the fit assigned it.
+            fit_c: as on ``ts_fit_spectrum``; each band is drawn
                 against the level the fit assigned it.
 
         """
@@ -1540,7 +1595,9 @@ def _register_correlation_diagram(mcp: FastMCP) -> None:
 
         Args:
             d_count: d-electron count (2–8).
-            B, C: Racah parameters (cm⁻¹); per-configuration defaults if
+            B: Racah B (cm⁻¹); per-configuration defaults if
+                omitted.
+            C: Racah C (cm⁻¹); per-configuration defaults if
                 omitted.
             strong_field_Dq: Dq value (cm⁻¹) defining the strong-field
                 column (default 2000 — well into the strong-field limit
@@ -1636,6 +1693,15 @@ def _register_overlay(mcp: FastMCP) -> None:
         the hole-particle symmetry pairs (d2/d8, d3/d7, d4/d6) directly comparable.
         Each d-count gets a distinct color tint; terms are distinguishable by line style.
         Use `energy_unit` to switch between cm1 / eV / nm on the y-axis.
+
+        Args:
+            d_counts: d-electron counts to overlay (2–8).
+            dq_min: Lower Dq of the sweep, in cm⁻¹.
+            dq_max: Upper Dq of the sweep, in cm⁻¹.
+            steps: Number of Dq grid points.
+            normalize: Plot E/B against 10Dq/B (standard Tanabe-Sugano).
+            energy_unit: y-axis unit when ``normalize=False`` (cm1 / eV / nm).
+
         """
         import json as _json
 
@@ -1746,14 +1812,18 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             dq_max_search: Upper Dq of the landscape grid in cm^-1. Defaults to 3x
                 min(peaks)/10. The fit itself is not capped by it; a warning says
                 when the fitted Dq lies beyond it.
-            b_min, b_max: Racah B range (cm^-1) for both the fit and the landscape.
+            b_min: Racah B range (cm^-1) for both the fit and the landscape.
+                Defaults match ``ts_fit_spectrum``.
+            b_max: Racah B range (cm^-1) for both the fit and the landscape.
                 Defaults match ``ts_fit_spectrum``.
             grid_steps: Landscape resolution per axis (grid_steps² evaluations).
             C: Racah C (cm^-1); per-configuration default when omitted.
             spin_state: which side of a spin crossover to fit on.
             include_spin_forbidden: also fit against spin-forbidden transitions;
                 required for high-spin d5.
-            band_labels, fit_c: as on ``ts_fit_spectrum``, one label per peak in
+            band_labels: as on ``ts_fit_spectrum``, one label per peak in
+                the order given.
+            fit_c: as on ``ts_fit_spectrum``, one label per peak in
                 the order given.
 
         """
@@ -1999,10 +2069,13 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
 
         Args:
             d_count: d-electron count (2–8).
-            v1, v2: First and second band positions.
-            v3: Optional third band position.
+            v1: First band position, in ``energy_unit`` (cm⁻¹ by default).
+            v2: Second band position, in ``energy_unit``.
+            v3: Optional third band position, in ``energy_unit``.
             energy_unit: Unit of v1/v2/v3 (cm1, eV, nm).
-            b_min, b_max: Racah B range (cm^-1) for the fit and the ratio grid;
+            b_min: Racah B range (cm^-1) for the fit and the ratio grid;
+                defaults match ``ts_fit_spectrum``.
+            b_max: Racah B range (cm^-1) for the fit and the ratio grid;
                 defaults match ``ts_fit_spectrum``.
             grid_steps: Ratio-grid resolution per axis.
             C: Racah C (cm^-1); per-configuration default when omitted.
@@ -2235,7 +2308,8 @@ def _register_spectrum(mcp: FastMCP) -> None:
         Args:
             d_count: d-electron count (2–8).
             Dq: Crystal-field strength (cm^-1).
-            B, C: Racah parameters (cm^-1); defaults to per-configuration values.
+            B: Racah B (cm^-1); defaults to per-configuration values.
+            C: Racah C (cm^-1); defaults to per-configuration values.
             energy_unit: x-axis unit (cm1, eV, nm). Note nm inverts the axis.
             broadening: Lorentzian FWHM in cm^-1.
             n_points: Number of points in the spectrum curve.
@@ -2388,11 +2462,14 @@ def _register_oxidation_landscape(mcp: FastMCP) -> None:
         Args:
             Dq: Octahedral crystal-field parameter (cm⁻¹). Default 1000 is
                 mid-range for first-row transition metals.
-            B, C: Racah parameters (cm⁻¹). Defaults give an "average" 3d
+            B: Racah B (cm⁻¹). Defaults give an "average" 3d
+                metal; pick values from `_defaults.py` for specific ions.
+            C: Racah C (cm⁻¹). Defaults give an "average" 3d
                 metal; pick values from `_defaults.py` for specific ions.
             max_energy_cm: Clip points above this energy so the visible
                 window stays within typical UV-Vis range (default 40 000
                 cm⁻¹, just past the UV cutoff).
+            broadening_cm: Gaussian σ of the density mode, in cm⁻¹ (see below).
 
         Both modes plot **excited states only**. Every level at or below
         1 cm⁻¹ is dropped, which is each d-count's whole ground manifold: the
@@ -2630,7 +2707,8 @@ def _register_compute_table(mcp: FastMCP) -> None:
         Args:
             d_count: d-electron count (2–8).
             Dq: Crystal-field parameter (cm⁻¹).
-            B, C: Racah parameters (cm⁻¹); per-configuration defaults if omitted.
+            B: Racah B (cm⁻¹); per-configuration defaults if omitted.
+            C: Racah C (cm⁻¹); per-configuration defaults if omitted.
             max_energy_cm: Clip table above this energy (default
                 60 000 cm⁻¹; raise it to see deep-UV high-multiplicity levels).
 
