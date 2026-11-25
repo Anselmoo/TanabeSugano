@@ -8,7 +8,8 @@ d2-d8, and when it does not, does it at least warn pertinently?  Paths graded:
   spin-allowed points, with a displaced closed-form seed (``seed-displaced``:
   ``_initial_seed`` patched to return 0.7 x Dq_cf, 1.4 x B_cf); and again at
   both C values with ``band_labels`` set to each band's term keys
-  (``labelled-truth``, ``labelled-default``);
+  (``labelled-truth``, ``labelled-default``; at C = None and three or more
+  labelled bands ``fit_spectrum`` fits C itself);
 * ``ts_reverse_fit_app`` and ``ts_ratio_fit_app``, called through the in-memory
   FastMCP server the way ``test_reverse_fit_contract.py`` does it
   (``create_server()`` + ``run_loop_free``).  The reverse app's numbers come
@@ -184,7 +185,7 @@ MATRIX_COLUMNS = (
     ("fit_spectrum", "default", "fit C=default"),
     ("fit_spectrum", "seed-displaced", "fit seed-displaced"),
     ("fit_spectrum", "labelled-truth", "fit labelled C=truth"),
-    ("fit_spectrum", "labelled-default", "fit labelled C=default"),
+    ("fit_spectrum", "labelled-default", "fit labelled C=None"),
     ("reverse_app", "app-default", "reverse app"),
     ("ratio_app", "app-default", "ratio app"),
 )
@@ -1647,9 +1648,12 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             "both apps' B grid."
         ),
         (
-            "- **labelled.** Every fit_spectrum case runs again at C = truth and C = default "
+            "- **labelled.** Every fit_spectrum case runs again at C = truth and C = None "
             "with `band_labels`: each band's term keys (`4_T_1`, never the oracle's `#index`), "
-            "the label a user can name. A merged band carries the terms of all its levels."
+            "the label a user can name. A merged band carries the terms of all its levels. "
+            "At C = None with three or more labelled bands, `fit_c=None` fits C inside "
+            "C/B (3, 6) (`labelled-default`); with fewer, C is held at the default. "
+            "Grading still reads Dq and B only; dC is reported in the CSV."
         ),
         (
             "- **seed-displaced.** For d3/d8 spin-allowed points the closed form is exact on "

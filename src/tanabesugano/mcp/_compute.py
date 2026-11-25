@@ -7,8 +7,10 @@ crunch numbers.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import dataclass
+from dataclasses import replace
 from typing import Literal
 from typing import TypedDict
 
@@ -381,6 +383,9 @@ class SpectrumFit:
     caller. ``c_constrained`` is the physical one -- whether the observed bands
     could have pinned C at all, measured per fit by
     :func:`c_constrains_manifold` rather than assumed from ``d_count``.
+    ``c_fitted`` says whether C was a free parameter of this fit (see the
+    ``fit_c`` argument of :func:`fit_spectrum`); when it is True, ``C`` is a
+    result, not an input.
     """
 
     Dq: float
@@ -394,6 +399,7 @@ class SpectrumFit:
     warnings: list[str]
     c_is_default: bool
     c_constrained: bool
+    c_fitted: bool = False
 
 
 def crossover_dq(
@@ -489,6 +495,17 @@ def _pick_minimum(
     return min(tied, key=distance)
 
 
+def _local_starts(dq_seed: float, b_seed: float) -> list[tuple[float, float]]:
+    """Return the five starts around the seed: itself, Dq x 0.8 / 1.25, B x 0.7 / 1.2."""
+    return [
+        (dq_seed, b_seed),
+        (0.8 * dq_seed, b_seed),
+        (1.25 * dq_seed, b_seed),
+        (dq_seed, 0.7 * b_seed),
+        (dq_seed, 1.2 * b_seed),
+    ]
+
+
 def _search_starts(
     d_count: int,
     C: float,
@@ -504,13 +521,7 @@ def _search_starts(
         for dq in np.geomspace(*dq_bounds, n_dq)
         for b in np.geomspace(*b_bounds, n_b)
     ]
-    starts += [
-        (dq_seed, b_seed),
-        (0.8 * dq_seed, b_seed),
-        (1.25 * dq_seed, b_seed),
-        (dq_seed, 0.7 * b_seed),
-        (dq_seed, 1.2 * b_seed),
-    ]
+    starts += _local_starts(dq_seed, b_seed)
     # Order matters only on exact objective ties (the first strictly lower minimum
     # wins); it is the order the C0m measurement used.
     low_spin_ground = reference_ground_term(d_count, b_seed, C, "low")
@@ -518,6 +529,60 @@ def _search_starts(
     if crossover < STRONG_FIELD_DQ_CM1:
         starts += [(f * crossover, b_seed) for f in CROSSOVER_START_FACTORS]
     return starts
+
+
+C_OVER_B_WINDOW = (3.0, 6.0)
+"""Admissible Racah C/B while C is fitted; outside it the objective is penalised.
+
+The per-configuration defaults in ``_defaults.py`` (free-ion C and B from
+Tanabe & Sugano's original parametrisation) put C/B at 4.42-4.81 for every d2-d8,
+and the window brackets that by a factor of about 1.5 either side. It was not
+tuned on the audit. Widening it is not free: at (2, 8) a labelled d5 high-spin
+spectrum near the crossover admits a second exact minimum at C/B 2.25 (plan B7,
+objection O2(iii)). A fit that lands on an edge is warned about, because there C
+was stopped by the window, not by the bands.
+"""
+
+FREE_C_GRID_NODES = (24, 6)
+"""Dq x B nodes of the free-C scan grid, log-spaced over the bounds."""
+
+FREE_C_GRID_RATIOS = (3.5, 4.5, 5.5)
+"""C/B values of the free-C scan grid: C = ratio * B at each (Dq, B) node."""
+
+FREE_C_GRID_KEEP = 6
+"""How many scan nodes are refined when C is free.
+
+Refining every node, as at held C, costs 3 x 151 Nelder-Mead runs in three
+dimensions (17.5 s worst case in plan C0m). Keeping the six best nodes pairwise
+more than one (Dq, B) step apart recovered 186 of the 208 audit cases with C free
+and labels given, lost none recovered at held C, and took at most 2.0 s. This is
+measured only for labelled fits, which is the only case that frees C by default.
+"""
+
+
+def _free_c_starts(
+    objective: Callable[[np.ndarray], float],
+    dq_bounds: tuple[float, float],
+    b_bounds: tuple[float, float],
+    local: Sequence[tuple[float, float, float]],
+) -> list[tuple[float, float, float]]:
+    """Return the free-C starts: the best spread-out scan nodes, then the local starts."""
+    n_dq, n_b = FREE_C_GRID_NODES
+    nodes = {
+        (i, j, k): (float(dq), float(b), float(ratio * b))
+        for i, dq in enumerate(np.geomspace(*dq_bounds, n_dq))
+        for j, b in enumerate(np.geomspace(*b_bounds, n_b))
+        for k, ratio in enumerate(FREE_C_GRID_RATIOS)
+    }
+    values = {key: objective(np.asarray(x)) for key, x in nodes.items()}
+    kept: list[tuple[int, int, int]] = []
+    # Separation is measured in (Dq, B) steps only: two ratios at one node are one start.
+    for key in sorted(nodes, key=lambda k: (values[k], k)):
+        if all(max(abs(key[0] - q[0]), abs(key[1] - q[1])) > 1 for q in kept):
+            kept.append(key)
+        if len(kept) == FREE_C_GRID_KEEP:
+            break
+    return [nodes[key] for key in kept] + list(local)
 
 
 def _initial_seed(
@@ -630,6 +695,7 @@ def fit_spectrum(
     dq_bounds: tuple[float, float] | None = None,
     b_bounds: tuple[float, float] = (200.0, 1500.0),
     band_labels: Sequence[BandLabel] | None = None,
+    fit_c: bool | None = None,
 ) -> SpectrumFit:
     """Fit observed absorption peaks to determine Dq and Racah B.
 
@@ -657,6 +723,17 @@ def fit_spectrum(
         ``(0.2, 5) * dq_seed`` widened to ``(0.005, 0.25) * max(observed)``. The lower bound must stay
         strictly positive: the solver silently returns corrupted energies for
         Dq < 0 (the ground level stops being the zero point) with no error.
+    band_labels:
+        One :data:`BandLabel` per observed band, in the order given.
+    fit_c:
+        Whether Racah C is fitted alongside Dq and B, inside
+        :data:`C_OVER_B_WINDOW`. An explicit ``C`` is always held. ``None`` (the
+        default) frees C when at least three bands are given and every one is
+        labelled: unlabelled, a high-spin d5 spectrum has 37-60 exact (Dq, B, C)
+        minima, and two labelled bands still leave a one-parameter family.
+        ``True`` frees C regardless and warns when that gate is not met. If C
+        turns out not to move the fitted bands, the fit is redone with C held at
+        its default and says so.
 
     """
     from tanabesugano.mcp._defaults import DEFAULTS
@@ -674,11 +751,23 @@ def fit_spectrum(
     labels = (
         None if band_labels is None else _normalise_labels(band_labels, len(observed_peaks_cm1))
     )
+    identified = (
+        len(observed_peaks_cm1) >= 3
+        and labels is not None
+        and all(label is not None for label in labels)
+    )
+    free_c = c_is_default and (identified if fit_c is None else fit_c)
     order = sorted(range(len(observed_peaks_cm1)), key=lambda i: float(observed_peaks_cm1[i]))
     observed = np.asarray([float(observed_peaks_cm1[i]) for i in order], dtype=float)
     if labels is not None:
         labels = [labels[i] for i in order]
     warnings: list[str] = []
+    if free_c and not identified:
+        warnings.append(
+            "C is fitted (fit_c=True) without three or more labelled bands: such a "
+            "spectrum is matched exactly by many (Dq, B, C), so the returned C is one "
+            "of them, not a determination",
+        )
 
     # --- Seed ---------------------------------------------------------------
     # For d3/d8 the closed form gives BOTH parameters analytically, so the
@@ -764,16 +853,21 @@ def fit_spectrum(
     def _relu(x: float) -> float:
         return x if x > 0 else 0.0
 
+    c_lo, c_hi = C_OVER_B_WINDOW
+
     def objective(params: np.ndarray) -> float:
         dq, b = float(params[0]), float(params[1])
+        c = float(params[2]) if free_c else C
         excess = (_relu(dq_bounds[0] - dq) + _relu(dq - dq_bounds[1])) / dq_bounds[1] + (
             _relu(b_bounds[0] - b) + _relu(b - b_bounds[1])
         ) / b_bounds[1]
-        if excess > 0 or dq <= 0 or b <= 0:
+        if free_c and b > 0:
+            excess += (_relu(c_lo - c / b) + _relu(c / b - c_hi)) / c_hi
+        if excess > 0 or dq <= 0 or b <= 0 or c <= 0:
             return base * (2.0 + excess)
         try:
             found_ground, levels = excited_levels(
-                compute_point(d_count, dq, b, C), spin_allowed_only=spin_allowed_only
+                compute_point(d_count, dq, b, c), spin_allowed_only=spin_allowed_only
             )
         except (ValueError, KeyError, np.linalg.LinAlgError):
             return base * 3.0
@@ -785,21 +879,27 @@ def fit_spectrum(
             return base * 2.0
         return assign_bands(observed, levels, labels, penalty=base)[1]
 
-    starts = _search_starts(d_count, C, dq_seed, b_seed, dq_bounds, b_bounds)
+    starts: Sequence[tuple[float, ...]]
+    if free_c:
+        local = [(dq, b, C) for dq, b in _local_starts(dq_seed, b_seed)]
+        starts = _free_c_starts(objective, dq_bounds, b_bounds, local)
+    else:
+        starts = _search_starts(d_count, C, dq_seed, b_seed, dq_bounds, b_bounds)
     results = [
         minimize(
             objective,
             np.array(start, dtype=float),
             method="Nelder-Mead",
-            options={"maxiter": 800, "xatol": 1e-2, "fatol": 1e-2},
+            options={"maxiter": 2000 if free_c else 800, "xatol": 1e-2, "fatol": 1e-2},
         )
         for start in starts
     ]
-    free_parameters = 2  # Dq and B; C is held fixed
+    free_parameters = 3 if free_c else 2
     best = _pick_minimum(results, (dq_seed, b_seed), determined=observed.size > free_parameters)
 
     # --- Accept or refuse ---------------------------------------------------
     fitted_dq, fitted_b = float(best.x[0]), float(best.x[1])
+    fitted_c = float(best.x[2]) if free_c else C
     if not best.success:
         msg = f"fit did not converge: {best.message}"
         raise ValueError(msg)
@@ -814,7 +914,7 @@ def fit_spectrum(
         msg = f"fit returned non-physical parameters Dq={fitted_dq}, B={fitted_b}"
         raise ValueError(msg)
 
-    fitted_terms = compute_point(d_count, fitted_dq, fitted_b, C)
+    fitted_terms = compute_point(d_count, fitted_dq, fitted_b, fitted_c)
     found_ground, fitted_candidates = transition_candidates(
         fitted_terms,
         spin_allowed_only=spin_allowed_only,
@@ -856,9 +956,35 @@ def fit_spectrum(
         d_count,
         fitted_dq,
         fitted_b,
-        C,
+        fitted_c,
         spin_allowed_only=spin_allowed_only,
     )
+    if free_c and not c_constrained:
+        # C was free but the fitted bands do not depend on it, so the returned C
+        # is arbitrary. Refit with it held, and say why.
+        held = fit_spectrum(
+            d_count,
+            observed_peaks_cm1,
+            C,
+            spin_state=spin_state,
+            include_spin_forbidden=include_spin_forbidden,
+            dq_bounds=dq_bounds,
+            b_bounds=b_bounds,
+            band_labels=band_labels,
+        )
+        note = (
+            "C was to be fitted, but the fitted bands do not move with C, so it was "
+            f"held at its default {C:.0f} cm^-1 and the fit redone"
+        )
+        return replace(held, c_is_default=True, warnings=[note, *held.warnings])
+    if free_c:
+        ratio = fitted_c / fitted_b
+        if min(abs(ratio - edge) / edge for edge in C_OVER_B_WINDOW) < pinned_tol:
+            warnings.append(
+                f"C/B pinned at the edge of its window {C_OVER_B_WINDOW} "
+                f"(C/B = {ratio:.2f}); C was stopped by the window, not by the bands, "
+                "so C and B are suspect",
+            )
     if not c_constrained:
         warnings.append(
             f"C = {C:.0f} cm^-1 is reported but was not constrained by these bands: "
@@ -870,7 +996,7 @@ def fit_spectrum(
     return SpectrumFit(
         Dq=fitted_dq,
         B=fitted_b,
-        C=C,
+        C=fitted_c,
         rmse_cm1=rmse,
         ground_term=found_ground,
         spin_state=spin_state,
@@ -879,6 +1005,7 @@ def fit_spectrum(
         warnings=warnings,
         c_is_default=c_is_default,
         c_constrained=c_constrained,
+        c_fitted=free_c,
     )
 
 

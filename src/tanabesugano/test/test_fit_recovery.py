@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from tanabesugano.mcp._compute import fit_spectrum
+from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.test._determinant_oracle import relative_term_levels
 
 
@@ -253,3 +254,96 @@ def test_merged_band_label_needs_only_one_known_term() -> None:
     labels[1] = (labels[1], "2_E")
     fit = fit_spectrum(3, [e for e, _u in bands], c, band_labels=labels)
     assert_recovered(fit, dq, b)
+
+
+def merged_labelled_bands(
+    d: int, dq: float, b: float, c: float, n_bands: int
+) -> tuple[list[float], list[tuple[str, ...]]]:
+    """As :func:`merged_bands`, with each band's term keys (all merged levels' terms)."""
+    groups: list[list[tuple[float, str]]] = []
+    for e, uid in oracle_bands(d, dq, b, c, spin_allowed_only=False):
+        if groups and e - groups[-1][-1][0] <= MERGE_CM1:
+            groups[-1].append((e, uid))
+        else:
+            groups.append([(e, uid)])
+    chosen = groups[:n_bands]
+    energies = [sum(e for e, _u in g) / len(g) for g in chosen]
+    labels = [tuple(sorted({uid.split("#", 1)[0] for _e, uid in g})) for g in chosen]
+    return energies, labels
+
+
+# The nine synthetic d5 high-spin spin-forbidden points of the audit: (Dq, B, C).
+D5_HS_POINTS = [
+    (502.1, 387.0, 1548.0),
+    (578.1, 387.0, 1857.6),
+    (836.9, 645.0, 2580.0),
+    (963.6, 645.0, 3096.0),
+    (1283.3, 989.0, 3956.0),
+    (1477.4, 989.0, 4747.2),
+    (1785.4, 1376.0, 5504.0),
+    (2055.7, 1376.0, 6604.8),
+    (1590.1, 645.0, 2580.0),
+]
+
+
+@pytest.mark.parametrize(("dq", "b", "c"), D5_HS_POINTS)
+def test_labelled_hs_d5_recovers_c(dq: float, b: float, c: float) -> None:
+    """Three labelled bands, C not given: C is fitted and Dq, B, C all recovered.
+
+    Before free C, eight of the nine come back wrong at the default C (audit at
+    eef709b, labelled-default): the default C misplaces every level, and no (Dq, B)
+    can compensate. The ninth (1283.3 / 989 / 3956) sits next to the default C/B.
+    Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'c_fitted'``
+    on all nine.
+    """
+    energies, labels = merged_labelled_bands(5, dq, b, c, 3)
+    fit = fit_spectrum(5, energies, include_spin_forbidden=True, band_labels=labels)
+    assert fit.c_fitted
+    assert_recovered(fit, dq, b, c)
+
+
+def test_three_unlabelled_bands_keep_c_held() -> None:
+    """Guard, green before C4: three unlabelled bands do not free C.
+
+    C0m: unlabelled, the d5 high-spin manifold has 37-60 exact minima in (Dq, B, C).
+    The plan also asked for the "not constrained" warning here; it never fires,
+    because the d5 high-spin bands do move with C. That assertion was dropped.
+    """
+    dq, b, c = D5_HS_POINTS[3]
+    fit = fit_spectrum(5, merged_bands(5, dq, b, c, 3), include_spin_forbidden=True)
+    assert not getattr(fit, "c_fitted", False)
+    assert DEFAULTS[5]["default_C"] == fit.C
+
+
+def test_two_labelled_bands_keep_c_held() -> None:
+    """Guard: two labelled bands cannot fix three parameters (C0m: 19 exact minima)."""
+    dq, b, c = 2500.0, 700.0, 3080.0
+    bands = oracle_bands(6, dq, b, c, spin_allowed_only=True)[:2]
+    fit = fit_spectrum(6, [e for e, _u in bands], spin_state="low", band_labels=term_labels(bands))
+    assert not getattr(fit, "c_fitted", False)
+
+
+def test_explicit_c_or_fit_c_false_holds_c() -> None:
+    """An explicit C, or fit_c=False, keeps C fixed even with every band labelled.
+
+    Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'fit_c'``.
+    """
+    dq, b, c = D5_HS_POINTS[3]
+    energies, labels = merged_labelled_bands(5, dq, b, c, 3)
+    held = fit_spectrum(5, energies, 3500.0, include_spin_forbidden=True, band_labels=labels)
+    off = fit_spectrum(5, energies, include_spin_forbidden=True, band_labels=labels, fit_c=False)
+    assert not held.c_fitted
+    assert held.C == 3500.0
+    assert not off.c_fitted
+
+
+def test_c_over_b_outside_window_warns() -> None:
+    """Truth C/B = 7, outside the (3, 6) window: the fit pins on the edge and says so.
+
+    C0m: 18 of 18 such labelled fits pinned at the window edge with no warning.
+    Observed red: ``assert False`` -- no warning names the C/B window.
+    """
+    dq, b = D5_HS_POINTS[3][:2]
+    energies, labels = merged_labelled_bands(5, dq, b, 7.0 * b, 3)
+    fit = fit_spectrum(5, energies, include_spin_forbidden=True, band_labels=labels)
+    assert any("C/B" in w and "window" in w for w in fit.warnings)
