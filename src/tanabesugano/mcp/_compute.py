@@ -7,24 +7,21 @@ crunch numbers.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 from typing import Literal
 from typing import TypedDict
 
 import numpy as np
 
 from scipy.optimize import OptimizeResult
+from scipy.optimize import linear_sum_assignment
 from scipy.optimize import minimize
 
 from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
 from tanabesugano.constants import ElectronConfiguration
 from tanabesugano.levels import LevelSet
 from tanabesugano.plot_style import _TERM_RE
-
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 
 SUPPORTED_D_COUNTS: tuple[int, ...] = (2, 3, 4, 5, 6, 7, 8)
@@ -544,6 +541,85 @@ def _initial_seed(
     return observed_sorted[0] / 10.0, float(DEFAULTS[d_count]["default_B"])
 
 
+BandLabel = str | Sequence[str] | None
+"""One band's label: a term key (``4_T_1``, any level of that term), a level uid
+(``4_T_1#1``), several of either (a band covering near-degenerate levels, e.g.
+``("4_E", "4_A_1")``), or ``None`` for an unlabelled band."""
+
+
+def excited_levels(
+    term_energies: dict[str, list[float]], *, spin_allowed_only: bool
+) -> tuple[str, list[tuple[float, str]]]:
+    """Return ``(ground_key, [(energy, uid), ...])`` for the levels a band can land on.
+
+    The same filter as :func:`transition_candidates` (multiplicity of the ground
+    term unless ``spin_allowed_only`` is False, energy above 1 cm^-1), keyed by
+    :attr:`Level.uid` so a label can be checked against it.
+    """
+    ground_key, _ground_energy = ground_term(term_energies)
+    ground_mult = term_multiplicity(ground_key)
+    levels = [
+        (level.energy_cm1, level.uid)
+        for level in LevelSet.from_states(term_energies).levels
+        if (not spin_allowed_only or level.multiplicity == ground_mult) and level.energy_cm1 > 1.0
+    ]
+    return ground_key, sorted(levels)
+
+
+def _label_matches(uid: str, label: tuple[str, ...]) -> bool:
+    """Whether a level uid satisfies one band's label (term key or exact uid)."""
+    term = uid.split("#", maxsplit=1)[0]
+    return any(lab in {uid, term} for lab in label)
+
+
+def assign_bands(
+    observed: np.ndarray,
+    levels: Sequence[tuple[float, str]],
+    labels: Sequence[tuple[str, ...] | None] | None,
+    *,
+    penalty: float,
+) -> tuple[np.ndarray, float]:
+    """Assign each observed band to a distinct level; return the level indices and the cost.
+
+    Injective: two bands can no longer share one level, which nearest-line matching
+    allowed and which let a dense manifold absorb several bands at once. A band
+    whose label the level does not satisfy pays ``penalty**2`` on top of its squared
+    distance, so a label steers the assignment without making the objective
+    discontinuous. The cost is an RMSE over bands, penalties included.
+    """
+    predicted = np.asarray([e for e, _uid in levels], dtype=float)
+    cost = (observed[:, None] - predicted[None, :]) ** 2
+    if labels is not None:
+        mismatch = np.array(
+            [
+                [label is not None and not _label_matches(uid, label) for _e, uid in levels]
+                for label in labels
+            ],
+            dtype=bool,
+        )
+        cost = cost + np.where(mismatch, penalty**2, 0.0)
+    rows, columns = linear_sum_assignment(cost)
+    return columns[np.argsort(rows)], float(np.sqrt(cost[rows, columns].mean()))
+
+
+def _normalise_labels(
+    band_labels: Sequence[BandLabel], n_bands: int
+) -> list[tuple[str, ...] | None]:
+    """Return one tuple of label strings (or None) per band; raise on a count mismatch."""
+    if len(band_labels) != n_bands:
+        msg = f"band_labels needs one label per band: {len(band_labels)} for {n_bands} bands"
+        raise ValueError(msg)
+    out: list[tuple[str, ...] | None] = []
+    for label in band_labels:
+        if label is None:
+            out.append(None)
+        elif isinstance(label, str):
+            out.append((label,))
+        else:
+            out.append(tuple(label))
+    return out
+
+
 def fit_spectrum(
     d_count: int,
     observed_peaks_cm1: list[float],
@@ -553,6 +629,7 @@ def fit_spectrum(
     include_spin_forbidden: bool = False,
     dq_bounds: tuple[float, float] | None = None,
     b_bounds: tuple[float, float] = (200.0, 1500.0),
+    band_labels: Sequence[BandLabel] | None = None,
 ) -> SpectrumFit:
     """Fit observed absorption peaks to determine Dq and Racah B.
 
@@ -594,7 +671,13 @@ def fit_spectrum(
     c_is_default = C is None
     if C is None:
         C = float(DEFAULTS[d_count]["default_C"])
-    observed = np.asarray(sorted(float(p) for p in observed_peaks_cm1), dtype=float)
+    labels = (
+        None if band_labels is None else _normalise_labels(band_labels, len(observed_peaks_cm1))
+    )
+    order = sorted(range(len(observed_peaks_cm1)), key=lambda i: float(observed_peaks_cm1[i]))
+    observed = np.asarray([float(observed_peaks_cm1[i]) for i in order], dtype=float)
+    if labels is not None:
+        labels = [labels[i] for i in order]
     warnings: list[str] = []
 
     # --- Seed ---------------------------------------------------------------
@@ -647,6 +730,23 @@ def fit_spectrum(
             "under-determined. Supply fewer peaks, or pass include_spin_forbidden=True."
         )
         raise ValueError(msg)
+    if labels is not None:
+        _, probe_levels = excited_levels(
+            compute_point(d_count, probe_dq, b_seed, C), spin_allowed_only=spin_allowed_only
+        )
+        # A label tuple is an either-or (a band over near-degenerate levels), so it
+        # fails only when none of its terms names a candidate level.
+        for label in labels:
+            if label is not None and not any(
+                _label_matches(uid, label) for _e, uid in probe_levels
+            ):
+                kind = "spin-allowed " if spin_allowed_only else ""
+                named = " / ".join(repr(lab) for lab in label)
+                msg = (
+                    f"band label {named} names no {kind}level of d{d_count} from the "
+                    f"{reference} ground term in the {spin_state}-spin regime"
+                )
+                raise ValueError(msg)
     if len(seed_candidates) == 1:
         warnings.append(
             "only one spin-allowed transition (= 10Dq) exists for this configuration, "
@@ -672,20 +772,18 @@ def fit_spectrum(
         if excess > 0 or dq <= 0 or b <= 0:
             return base * (2.0 + excess)
         try:
-            terms = compute_point(d_count, dq, b, C)
-            found_ground, candidates = transition_candidates(
-                terms,
-                spin_allowed_only=spin_allowed_only,
+            found_ground, levels = excited_levels(
+                compute_point(d_count, dq, b, C), spin_allowed_only=spin_allowed_only
             )
         except (ValueError, KeyError, np.linalg.LinAlgError):
             return base * 3.0
-        if found_ground != reference or not candidates:
+        if found_ground != reference or len(levels) < observed.size:
             # Crossed the spin crossover. Refuse it: the low-spin manifolds are
             # far denser (d5: 31 lines vs 0), and a nearest-neighbour residual
             # is minimised by a dense forest of candidates, so an unconstrained
             # search is actively rewarded for ending up in the wrong regime.
             return base * 2.0
-        return peak_rmse(observed, np.array([e for e, _a, _s in candidates]))
+        return assign_bands(observed, levels, labels, penalty=base)[1]
 
     starts = _search_starts(d_count, C, dq_seed, b_seed, dq_bounds, b_bounds)
     results = [
@@ -729,9 +827,11 @@ def fit_spectrum(
         raise ValueError(msg)
 
     _, all_transitions = transition_candidates(fitted_terms, spin_allowed_only=False)
-    predicted = np.array([e for e, _a, _s in fitted_candidates])
-    residuals = [float(predicted[int(np.argmin(np.abs(predicted - o)))] - o) for o in observed]
-    rmse = peak_rmse(observed, predicted)
+    _, fitted_levels = excited_levels(fitted_terms, spin_allowed_only=spin_allowed_only)
+    columns, _cost = assign_bands(observed, fitted_levels, labels, penalty=base)
+    predicted = np.asarray([fitted_levels[j][0] for j in columns], dtype=float)
+    residuals = [float(p - o) for p, o in zip(predicted, observed, strict=True)]
+    rmse = float(np.sqrt(np.mean((predicted - observed) ** 2)))
 
     pinned_tol = 0.01
     if abs(fitted_b - b_bounds[0]) / b_bounds[0] < pinned_tol or (

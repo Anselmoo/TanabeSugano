@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pytest
 
 from tanabesugano.mcp._compute import fit_spectrum
@@ -178,4 +179,77 @@ def test_exact_tie_prefers_minimum_nearest_seed(d: int, dq: float, b: float, c: 
     """
     bands = oracle_bands(d, dq, b, c, spin_allowed_only=True)[:2]
     fit = fit_spectrum(d, [e for e, _u in bands], c)
+    assert_recovered(fit, dq, b)
+
+
+def test_labels_pick_the_assigned_level() -> None:
+    """d7 high-spin with the weak 4A2 band unobserved: labels pin nu3 to 4T1(P).
+
+    Unlabelled, 19015 cm^-1 is free to read as 4A2 and the fit returns 1013 / 953.
+    """
+    dq, b, c = 1000.0, 750.0, 3450.0
+    bands = [
+        x
+        for x in oracle_bands(7, dq, b, c, spin_allowed_only=True)
+        if x[1] in {"4_T_2#0", "4_T_1#1"}
+    ]
+    fit = fit_spectrum(7, [e for e, _u in bands], c, band_labels=term_labels(bands))
+    assert_recovered(fit, dq, b)
+
+
+def test_labelled_band_list_is_sorted_with_its_labels() -> None:
+    """Labels travel with their band when the bands are given out of order."""
+    dq, b, c = 1000.0, 750.0, 3450.0
+    bands = [
+        x
+        for x in oracle_bands(7, dq, b, c, spin_allowed_only=True)
+        if x[1] in {"4_T_2#0", "4_T_1#1"}
+    ][::-1]
+    fit = fit_spectrum(7, [e for e, _u in bands], c, band_labels=term_labels(bands))
+    assert_recovered(fit, dq, b)
+
+
+def test_assign_bands_is_injective() -> None:
+    """Two bands 50 cm^-1 apart around one isolated level map to two levels."""
+    from tanabesugano.mcp._compute import assign_bands
+
+    observed = np.array([10000.0, 10050.0])
+    levels = [(10025.0, "4_T_2#0"), (12000.0, "4_T_1#1")]
+    columns, _rmse = assign_bands(observed, levels, None, penalty=1.0e4)
+    assert sorted(columns.tolist()) == [0, 1]
+
+
+@pytest.mark.parametrize(
+    ("bands", "labels", "needle"),
+    [
+        ([8500.0, 13800.0, 25300.0], ["3_T_2", "3_T_1"], "one label per band"),
+        ([8500.0, 13800.0, 25300.0], ["3_T_2", "9_X_9", "3_T_1"], "9_X_9"),
+        ([8500.0, 13800.0, 25300.0], ["3_T_2", "1_A_1", "3_T_1"], "1_A_1"),
+    ],
+)
+def test_band_labels_are_validated(bands: list[float], labels: list[str], needle: str) -> None:
+    """A wrong count, an unknown term, or a term the fitted manifold lacks raises.
+
+    1_A_1 is a real d8 term but spin-forbidden; without include_spin_forbidden it is
+    not a candidate. C0m: unvalidated, three such bands returned Dq -18 % with only
+    generic warnings.
+    """
+    with pytest.raises(ValueError, match=needle):
+        fit_spectrum(8, bands, band_labels=labels)
+
+
+def test_merged_band_label_needs_only_one_known_term() -> None:
+    """A band covering a quartet and a near-degenerate doublet keeps both terms.
+
+    With spin-allowed bands only, 2_E is no candidate, but 4_T_1 is: a label tuple is
+    an either-or, so it must not raise.
+
+    Observed red at the first C3 draft: ``ValueError: band label '2_E' names no
+    spin-allowed level of d3`` on audit row d3 high-spin Dq 2000, B 1055.7.
+    """
+    dq, b, c = 1000.0, 750.0, 3450.0
+    bands = oracle_bands(3, dq, b, c, spin_allowed_only=True)[:3]
+    labels: list[str | tuple[str, ...]] = list(term_labels(bands))
+    labels[1] = (labels[1], "2_E")
+    fit = fit_spectrum(3, [e for e, _u in bands], c, band_labels=labels)
     assert_recovered(fit, dq, b)
