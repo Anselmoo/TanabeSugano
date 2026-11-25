@@ -1064,12 +1064,27 @@ def jce_fixture(record: JceRecord) -> IonFixture:
     )
 
 
+JCE_SOURCE_ERRATA: dict[str, str] = {
+    "[Mn(CN)6]3- [allowed]": (
+        "Alexander & Gray 1968 (JCE ref 29) assign 31100 cm^-1 to charge transfer "
+        "(t1u -> t2g), not to 3E: the band set fits a CT band as d-d"
+    ),
+    "[Mn(CN)6]3- [all]": "as [allowed]: 31100 cm^-1 is charge transfer in the original",
+}
+"""Self-consistent records whose band set the original paper contradicts: no inverse fixture.
+
+From a check of the JCE tables against 18 of the 40 originals (2026-11-25). A source
+can reproduce its own numbers (forward) and still pair a band with the wrong level;
+fitting it would certify the mispairing. K3Cr(CN)6 [allowed] stays: the original's
+C/B is 5.77, not 5.563, but the d3 quartet bands do not depend on C."""
+
+
 def _jce_inverse() -> tuple[tuple[IonFixture, ...], dict[str, str]]:
     """Inverse records for the self-consistent sources, and those the nu1 guard refuses."""
     built: list[IonFixture] = []
     refused: dict[str, str] = {}
     for record in jce_records():
-        if record.record_id not in SELF_CONSISTENT:
+        if record.record_id not in SELF_CONSISTENT or record.record_id in JCE_SOURCE_ERRATA:
             continue
         try:
             built.append(jce_fixture(record))
@@ -1131,6 +1146,11 @@ class TestJce2023Inverse:
             "MgO:Ni2+ [all]",
         }
 
+    def test_errata_name_self_consistent_records(self) -> None:
+        """An erratum only matters for a record the forward check would have admitted."""
+        assert set(JCE_SOURCE_ERRATA) <= SELF_CONSISTENT
+        assert not {fx.label for fx in JCE_FIXTURES} & {f"JCE2023 {k}" for k in JCE_SOURCE_ERRATA}
+
     def test_every_finding_is_numbered(self) -> None:
         """A strict xfail always names its finding, so a later fix that XPASSes is traced."""
         assert all(re.match(r"^E4-F\d+: ", reason) for reason in JCE_FINDINGS.values())
@@ -1153,9 +1173,9 @@ class TestJce2023Inverse:
         """Dq (and B where determined) within the propagated 2-sigma, rmse within 2-sigma.
 
         Green on arrival (95529fa): a T3 coverage claim, not the red of a fix -- all nine
-        records passed at the first run, so JCE_FINDINGS is empty. Sensitivity checked
-        then: a published Dq moved by +3 % fails every record (on the assertion, or at
-        construction through the nu1 == 10Dq guard for d3/d8).
+        records (seven after JCE_SOURCE_ERRATA) passed at the first run, so JCE_FINDINGS
+        is empty. Sensitivity checked then: a published Dq moved by +3 % fails every
+        record (on the assertion, or at construction through the nu1 == 10Dq guard).
         """
         fit = fit_spectrum(
             fx.d_count,
