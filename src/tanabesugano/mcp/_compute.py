@@ -436,6 +436,51 @@ def crossover_dq(
     return hi
 
 
+SEARCH_GRID_NODES = (12, 4)
+"""Dq x B nodes of the start grid, log-spaced over ``dq_bounds`` and ``b_bounds``.
+
+Every node is refined, none is ranked away. Measured on the 208-case synthetic
+audit matrix at the true C (plan C0m): 186 recovered with no previously
+recovered case lost. Keeping only the six best of a finer 24 x 6 grid recovered
+174 and lost 7, because a coarse node's objective does not predict which basin
+holds the truth.
+"""
+
+CROSSOVER_START_FACTORS = (0.9, 1.1)
+"""Extra Dq starts either side of the spin crossover at the seed's B."""
+
+
+def _search_starts(
+    d_count: int,
+    C: float,
+    dq_seed: float,
+    b_seed: float,
+    dq_bounds: tuple[float, float],
+    b_bounds: tuple[float, float],
+) -> list[tuple[float, float]]:
+    """Return every Nelder-Mead start: the grid, the five local starts, the crossover pair."""
+    n_dq, n_b = SEARCH_GRID_NODES
+    starts = [
+        (float(dq), float(b))
+        for dq in np.geomspace(*dq_bounds, n_dq)
+        for b in np.geomspace(*b_bounds, n_b)
+    ]
+    starts += [
+        (dq_seed, b_seed),
+        (0.8 * dq_seed, b_seed),
+        (1.25 * dq_seed, b_seed),
+        (dq_seed, 0.7 * b_seed),
+        (dq_seed, 1.2 * b_seed),
+    ]
+    # Order matters only on exact objective ties (the first strictly lower minimum
+    # wins); it is the order the C0m measurement used.
+    low_spin_ground = reference_ground_term(d_count, b_seed, C, "low")
+    crossover = crossover_dq(d_count, b_seed, C, low_spin_ground)
+    if crossover < STRONG_FIELD_DQ_CM1:
+        starts += [(f * crossover, b_seed) for f in CROSSOVER_START_FACTORS]
+    return starts
+
+
 def _initial_seed(
     d_count: int, observed_sorted: list[float], *, include_spin_forbidden: bool
 ) -> tuple[float, float]:
@@ -600,13 +645,7 @@ def fit_spectrum(
             return base * 2.0
         return peak_rmse(observed, np.array([e for e, _a, _s in candidates]))
 
-    starts = [
-        (dq_seed, b_seed),
-        (0.8 * dq_seed, b_seed),
-        (1.25 * dq_seed, b_seed),
-        (dq_seed, 0.7 * b_seed),
-        (dq_seed, 1.2 * b_seed),
-    ]
+    starts = _search_starts(d_count, C, dq_seed, b_seed, dq_bounds, b_bounds)
     best = None
     for start in starts:
         result = minimize(

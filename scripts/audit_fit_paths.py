@@ -68,6 +68,8 @@ import inspect
 import io
 import json
 import math
+import multiprocessing
+import os
 import re
 import statistics
 import sys
@@ -227,10 +229,10 @@ NON_PERTINENT_KINDS = frozenset({"c-note"})
 FIX_CLASSES = {
     "a": "generic seed obs[0]/10 (_initial_seed)",
     "bounds-exclude-truth": "default dq_bounds (default_dq_bounds) exclude the truth",
-    "b": "5 local starts around the seed (L555-561)",
-    "c": "unlabelled non-injective NN matching incl. doublets (L302, L541-553)",
-    "d": "regime penalty / crossover proximity (L547)",
-    "e": "C-misspecification bias: C never fitted (L455-457, L612)",
+    "b": "the start set misses the truth basin (_search_starts)",
+    "c": "unlabelled non-injective NN matching incl. doublets (peak_rmse)",
+    "d": "regime penalty / crossover proximity (fit_spectrum objective)",
+    "e": "C-misspecification bias: C never fitted",
     "f": "no ambiguity check",
     "app-hs": "app hard-codes the high-spin reference and default C",
     "app-sf": "app has no include_spin_forbidden and fits forbidden bands as allowed",
@@ -349,9 +351,9 @@ FINDINGS_STATIC = {
     "M": (
         "**M. The d5 mechanism.** High-spin d5 with spin-forbidden bands fails for two "
         "separable reasons (Section 1). With C right, the minimum exists: on the Mn bands a "
-        "start grid over Dq and B chosen without the reference reaches it, while the "
-        "default seed and five local starts do not (one system, and R1-tainted as a "
-        "comparator). With C at the default, the published point is not a "
+        "start grid over Dq and B chosen without the reference reaches it, and since the "
+        "fit-path fix so does fit_spectrum's own Dq x B start grid (one system, and "
+        "R1-tainted as a comparator). With C at the default, the published point is not a "
         "minimum of the objective at all, so no seed can fix it; that needs C fitted as "
         "well, and whether three bands determine C is not measured here. Noisy bands are "
         "not measured either."
@@ -1319,6 +1321,31 @@ def run_case(case: Case, reverse: Callable[..., Any], ratio: Callable[..., Any])
     return [grade(case, run) for run in runs]
 
 
+MAX_WORKERS = 8
+"""Process-pool ceiling. Rows are collected in case order, so the output does not
+depend on the worker count; only the wall time does."""
+
+_WORKER_TOOLS: tuple[Callable[..., Any], Callable[..., Any]] | None = None
+
+
+def pool_size() -> int:
+    """Return the worker count: the CPU count, capped at ``MAX_WORKERS``."""
+    return max(1, min(MAX_WORKERS, os.cpu_count() or 1))
+
+
+def init_worker() -> None:
+    """Load the two app tools once per worker process."""
+    global _WORKER_TOOLS  # noqa: PLW0603 - one in-memory server per process
+    _WORKER_TOOLS = load_app_tools()
+
+
+def run_case_in_worker(case: Case) -> list[Row]:
+    """Run one case with this worker's app tools."""
+    if _WORKER_TOOLS is None:
+        raise SystemExit("worker tools not loaded")
+    return run_case(case, *_WORKER_TOOLS)
+
+
 def known_defect() -> list[tuple[str, str, str, str, str, str, str]]:
     """Regenerate the [Mn(H2O)6]2+ known-defect rows, hand-picked illustration included."""
     b = KNOWN_DEFECT_DQ / KNOWN_DEFECT_DQ_OVER_B
@@ -1372,21 +1399,33 @@ def reference_blind_fit(bands: list[float], c: float | None) -> SpectrumFit:
     ``FIT_B_BOUNDS``. Each start patches the seed ``fit_spectrum`` would derive.
     """
     lo, hi = 0.2 * bands[0] / 10.0, 5.0 * bands[0] / 10.0
+    jobs = [
+        (bands, c, (float(dq), float(b0)), (lo, hi))
+        for dq in np.geomspace(lo, hi, MULTISTART_DQ_SEEDS)
+        for b0 in np.geomspace(*FIT_B_BOUNDS, MULTISTART_B_SEEDS)
+    ]
+    with multiprocessing.Pool(pool_size()) as pool:
+        fits = pool.map(blind_start, jobs)
     best: SpectrumFit | None = None
-    for dq in np.geomspace(lo, hi, MULTISTART_DQ_SEEDS):
-        for b0 in np.geomspace(*FIT_B_BOUNDS, MULTISTART_B_SEEDS):
-            seed = (float(dq), float(b0))
-            with mock.patch.object(compute_module, "_initial_seed", return_value=seed):
-                try:
-                    fit = fit_spectrum(5, bands, c, include_spin_forbidden=True, dq_bounds=(lo, hi))
-                except ValueError:
-                    continue
-            if best is None or fit.rmse_cm1 < best.rmse_cm1:
-                best = fit
+    for fit in fits:  # in start order, so ties resolve as the serial loop did
+        if fit is not None and (best is None or fit.rmse_cm1 < best.rmse_cm1):
+            best = fit
     if best is None:
         msg = "every start raised"
         raise ValueError(msg)
     return best
+
+
+def blind_start(
+    job: tuple[list[float], float | None, tuple[float, float], tuple[float, float]],
+) -> SpectrumFit | None:
+    """Run one reference-blind start: patch the seed, fit, or return None if it raises."""
+    bands, c, seed, dq_bounds = job
+    with mock.patch.object(compute_module, "_initial_seed", return_value=seed):
+        try:
+            return fit_spectrum(5, bands, c, include_spin_forbidden=True, dq_bounds=dq_bounds)
+        except ValueError:
+            return None
 
 
 def nearest_line_rmse(d: int, bands: Sequence[float], dq: float, b: float, c: float) -> float:
@@ -1484,8 +1523,12 @@ def section_known_defect(
                 f"reference: over the {n} synthetic d5 high-spin spin-forbidden fit_spectrum "
                 f"runs with C = truth, the objective at the truth is at most {fmt(at_truth)} "
                 f"cm^-1, and in {better} of them fit_spectrum returns a point whose objective "
-                "is more than 1 cm^-1 higher (or raises). The minimum is there; the default "
-                "seed / local-start strategy does not reach it."
+                "is more than 1 cm^-1 higher (or raises). "
+                + (
+                    "The minimum is there and the start strategy does not reach it."
+                    if better
+                    else "The minimum is there and fit_spectrum reaches it in every run."
+                )
             ),
             "",
             (
@@ -2052,9 +2095,10 @@ def build() -> tuple[str, str]:
     self_test = truth_self_test(synthetic)
     jce = jce_cases()
     jce_labels = jce_label_check(jce)
-    rows: list[Row] = []
-    for case in [*synthetic, *jce]:
-        rows.extend(run_case(case, reverse, ratio))
+    del reverse, ratio  # loaded once here for the grid check; each worker loads its own
+    with multiprocessing.Pool(pool_size(), initializer=init_worker) as pool:
+        per_case = pool.map(run_case_in_worker, [*synthetic, *jce], chunksize=4)
+    rows: list[Row] = [row for case_rows in per_case for row in case_rows]
     attach_classes(rows)
     return render_csv(rows), render_md(rows, na_cells, defect, self_test, jce_labels)
 

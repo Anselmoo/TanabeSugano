@@ -113,3 +113,45 @@ def test_closed_form_seed_skipped_with_spin_forbidden() -> None:
     assert any(not uid.startswith("3_") for _e, uid in bands[:3])
     fit = fit_spectrum(8, [e for e, _u in bands], c, include_spin_forbidden=True)
     assert_recovered(fit, dq, b)
+
+
+MERGE_CM1 = 50.0
+"""Levels closer than this read as one band, as in the audit (``audit_fit_paths.MERGE_CM1``)."""
+
+
+def merged_bands(d: int, dq: float, b: float, c: float, n_bands: int) -> list[float]:
+    """Return the lowest ``n_bands`` oracle bands, all multiplicities, near-degenerate merged."""
+    groups: list[list[float]] = []
+    for e, _uid in oracle_bands(d, dq, b, c, spin_allowed_only=False):
+        if groups and e - groups[-1][-1] <= MERGE_CM1:
+            groups[-1].append(e)
+        else:
+            groups.append([e])
+    return [sum(g) / len(g) for g in groups[:n_bands]]
+
+
+# Synthetic rows that fail unlabelled at C = truth after the bounds fix (audit at
+# 8135f29): the six d5 high-spin spin-forbidden misses, and the d3 row that had been
+# right only by a closed-form seed built from 2E. (d, Dq, B, C, n_bands)
+# Two further audit misses (d5 Dq 836.9 and 1283.3) already pass on these oracle
+# bands before the grid exists, so they are not red tests and are left out.
+SEARCH_MISSES = [
+    (5, 963.6, 645.0, 3096.0, 3),
+    (5, 1785.4, 1376.0, 5504.0, 3),
+    (5, 2055.7, 1376.0, 6604.8, 3),
+    (5, 1590.1, 645.0, 2580.0, 3),
+    (3, 1200.0, 1468.8, 7050.2, 6),
+]
+
+
+@pytest.mark.parametrize(("d", "dq", "b", "c", "n_bands"), SEARCH_MISSES)
+def test_grid_search_recovers_unlabelled(
+    d: int, dq: float, b: float, c: float, n_bands: int
+) -> None:
+    """High-spin, spin-forbidden bands, C = truth, no labels: the grid search finds the truth.
+
+    Observed red at 8135f29 (five local starts around one seed), in table order:
+    ``AssertionError: dDq +125.56 %``, ``+64.33 %``, ``-10.50 %``, ``-15.56 %``, ``+4.83 %``.
+    """
+    fit = fit_spectrum(d, merged_bands(d, dq, b, c, n_bands), c, include_spin_forbidden=True)
+    assert_recovered(fit, dq, b)
