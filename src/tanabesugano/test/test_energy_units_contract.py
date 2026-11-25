@@ -25,8 +25,8 @@ UNIT_TEXT = re.compile(r"cm⁻¹|cm\^-1|cm-1|energy_unit")
 
 
 def _is_number(schema: dict) -> bool:
-    """True for a number, an array of numbers, a fixed tuple of numbers, or an optional one."""
-    if schema.get("type") == "number":
+    """True for a number or integer, an array or fixed tuple of them, or an optional one."""
+    if schema.get("type") in {"number", "integer"}:
         return True
     if schema.get("type") == "array":
         items = schema.get("items")
@@ -47,11 +47,41 @@ def _numeric_params() -> dict[tuple[str, str], str]:
 
     tools = run_loop_free(go)
     return {
-        (tool.name, name): schema.get("description", "")
+        (tool.name, name): description
         for tool in tools
-        for name, schema in tool.parameters.get("properties", {}).items()
-        if _is_number(schema)
+        for name, description in _numeric_fields(tool.parameters).items()
+        if name not in COUNTERS
     }
+
+
+def _numeric_fields(parameters: dict, node: dict | None = None, prefix: str = "") -> dict[str, str]:
+    """Every numeric field of one tool's parameter schema, mapped to its description.
+
+    Follows ``$ref`` into ``$defs`` (also inside ``anyOf``) and names a model's
+    fields ``param.field``, so a model parameter cannot hide an energy.
+    """
+    defs = parameters.get("$defs", {})
+
+    def resolve(schema: dict) -> dict:
+        ref = schema.get("$ref", "")
+        return defs.get(ref.rsplit("/", 1)[-1], schema) if ref.startswith("#/$defs/") else schema
+
+    found: dict[str, str] = {}
+    for name, raw in (node or parameters).get("properties", {}).items():
+        if _is_number(raw):
+            found[prefix + name] = raw.get("description", "")
+            continue
+        for option in [raw, *raw.get("anyOf", [])]:
+            target = resolve(option)
+            if target.get("properties"):
+                found |= _numeric_fields(parameters, target, f"{prefix}{name}.")
+    return found
+
+
+COUNTERS = frozenset(
+    {"d_count", "d_counts", "dpi", "grid_steps", "n_energy_points", "n_points", "steps"}
+)
+"""Integer parameters that count or select, never an energy; excluded by name."""
 
 
 ENERGY_PARAMS: frozenset[tuple[str, str]] = frozenset(
@@ -166,3 +196,35 @@ def test_ev_axis_keeps_cm1_parameters_labelled() -> None:
     assert "eV" in payload["y_label"]
     assert re.search(r"C=\d+ cm⁻¹", payload["title"]), payload["title"]
     assert re.search(r"Dq [\d.]+–[\d.]+ cm⁻¹", payload["title"]), payload["title"]
+
+
+def test_walker_sees_integer_and_model_fields() -> None:
+    """An int parameter and a field inside a model parameter are both seen (final review I2).
+
+    Without this a future ``max_energy_cm: int`` or ``params: TSInput`` would fall
+    outside the pinned set and both tests above would stay green.
+    Observed red (562491b): ``assert {'dq'} == {'cutoff', 'dq', 'params.B'}``.
+    """
+    schema = {
+        "properties": {
+            "dq": {"type": "number"},
+            "cutoff": {"type": "integer", "description": "cm^-1"},
+            "params": {"$ref": "#/$defs/Model"},
+            "label": {"type": "string"},
+        },
+        "$defs": {"Model": {"type": "object", "properties": {"B": {"type": "number"}}}},
+    }
+    assert set(_numeric_fields(schema)) == {"dq", "cutoff", "params.B"}
+
+
+def test_counters_are_live() -> None:
+    """Every excluded counter still exists, so the exclusion list cannot go stale.
+
+    Green on arrival: pins the exclusion added with the walker fix (final review I2).
+    """
+
+    async def go():
+        return await create_server().list_tools()
+
+    live = {name for tool in run_loop_free(go) for name in tool.parameters.get("properties", {})}
+    assert live >= COUNTERS
