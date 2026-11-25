@@ -390,8 +390,8 @@ FINDINGS_STATIC = {
     "S2": (
         "**S2. Estimator disagreement does not explain the JCE misses.** The tag applies "
         "only where the reverse app's answer beats the published (Dq, B, C) on the app's own "
-        "objective with every band assigned, more than two bands and a reported C. Even so "
-        "narrowed it holds on OK rows about as often as on failing ones (Section 6), so it "
+        "objective with every band assigned, more than two bands and a reported C. Unless "
+        "Section 6 finds it discriminating in every source that votes (verdict below), it "
         "marks a disagreement between estimators, not the cause of a miss. A looser rule "
         "fires on most OK rows, and for fit_spectrum it would only repeat class (f)."
     ),
@@ -1757,9 +1757,8 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             "- **seed-displaced.** For d3/d8 spin-allowed points the closed form is exact on "
             "oracle bands (nu1 = 10Dq, nu2 + nu3 = 15B + 3 nu1), so fit_spectrum starts AT the "
             "answer. Each such point gets an extra C = truth run with `_initial_seed` "
-            f"patched to return ({SEED_DQ_FACTOR} x Dq_cf, {SEED_B_FACTOR} x B_cf). JCE d3/d8 "
-            "reported Dq is nu1/10 by construction, equal to both the closed-form seed and "
-            "reverse-app grid node 8 -- hence the many dDq = 0.0 rows."
+            f"patched to return ({SEED_DQ_FACTOR} x Dq_cf, {SEED_B_FACTOR} x B_cf). "
+            f"{nu1_sentence()}"
         ),
         (
             f"- **Verdict.** OK if |dDq| <= {DQ_TOL_PCT:g} % and |dB| <= {B_TOL_PCT:g} %: "
@@ -2008,29 +2007,72 @@ def class_applies(key: str, row: Row) -> bool:
     return eligible.get(key, True)
 
 
-def discrimination(key: str, rows: list[Row]) -> str:
-    """Compare a class's firing rate on eligible failing vs eligible OK rows (non-R1).
+SOURCES = ("synthetic", "jce2023")
 
-    A class counts as discriminating only if it fires on OK rows at under a quarter of its
-    rate on failing rows (the B1 decision rule); otherwise it is a precondition.
-    """
-    if key == "unclassified":
-        return "-"
+
+def source_rates(key: str, rows: list[Row], source: str) -> tuple[int, int, int, int]:
+    """``(fires on failing, eligible failing, fires on OK, eligible OK)`` in one source (non-R1)."""
     pools = {"failing": [0, 0], "OK": [0, 0]}
     for row in rows:
         status = "failing" if is_failure(row) else "OK" if base_verdict(row) == "OK" else ""
-        if not status or row.case.comparison or not class_applies(key, row):
+        if (
+            not status
+            or row.case.source != source
+            or row.case.comparison
+            or not class_applies(key, row)
+        ):
             continue
         pools[status][1] += 1
         pools[status][0] += key in row.classes
     (ff, nf), (fo, no) = pools["failing"], pools["OK"]
+    return ff, nf, fo, no
+
+
+def source_vote(ff: int, nf: int, fo: int, no: int) -> str | None:
+    """One source's verdict on a class, or its reason for not voting (the B1 rule, per source).
+
+    A source votes only if it has eligible failing rows, eligible OK rows, and the class
+    fires on at least one of them: a class silent in a source carries no evidence there.
+    """
+    if nf == 0:
+        return None
+    if no == 0 or ff == fo == 0:
+        return None
+    return "discriminates" if fo / no < (ff / nf) / 4 else "precondition"
+
+
+def source_cell(key: str, rows: list[Row], source: str) -> str:
+    """The rates column for one source: counts, then its vote or why it does not vote."""
+    if key == "unclassified":
+        return "-"
+    ff, nf, fo, no = source_rates(key, rows, source)
     rates = f"{ff}/{nf} vs {fo}/{no}"
-    if nf == 0 or ff == 0:
-        return f"{rates}: never fires on a failure"
+    if nf == 0:
+        return f"{rates}: no failures in this source"
     if no == 0:
         return f"{rates}: untested (no eligible OK row)"
-    verdict = "discriminates" if fo / no < (ff / nf) / 4 else "precondition"
-    return f"{rates}: {verdict}"
+    if ff == fo == 0:
+        return f"{rates}: does not fire"
+    return f"{rates}: {source_vote(ff, nf, fo, no)}"
+
+
+def discrimination(key: str, rows: list[Row]) -> str:
+    """A class discriminates only if every source that votes says so (and one votes at all).
+
+    Pooling the sources let one source's large OK pool dilute the other's: the rule is the
+    B1 decision rule (OK rate under a quarter of the failing rate) applied per source.
+    """
+    if key == "unclassified":
+        return "-"
+    votes = [v for src in SOURCES if (v := source_vote(*source_rates(key, rows, src)))]
+    if not votes:
+        return "no source votes"
+    return "discriminates" if all(v == "discriminates" for v in votes) else "precondition"
+
+
+def discriminating_classes(rows: list[Row]) -> list[str]:
+    """Every class that discriminates under the per-source rule, in table order."""
+    return [key for key in FIX_CLASSES if discrimination(key, rows) == "discriminates"]
 
 
 REGIME_KEY = ("source", "system", "d", "spin", "sf", "truth_Dq", "truth_B", "truth_C", "n_bands")
@@ -2073,6 +2115,7 @@ def section_scope(rows: list[Row]) -> list[str]:
                 for src in ("synthetic", "jce2023")
                 for status in ("failing", "OK")
             ),
+            *(source_cell(key, rows, src) for src in SOURCES),
             discrimination(key, rows),
         )
         for key in FIX_CLASSES
@@ -2107,11 +2150,14 @@ def section_scope(rows: list[Row]) -> list[str]:
             f"same case ({regime_mismatches(rows)} app-regime rows differ in verdict from that "
             "row), so its failures have the causes classified on the fit_spectrum row; they "
             "are left unclassified here rather than counted twice. "
-            "The OK columns apply the same rules to rows graded OK. The last "
-            "column pools both sources over the rows each rule can fire on (failing vs OK) "
-            "and calls a class discriminating only if its OK rate is under a quarter of its "
-            "failing rate; a precondition co-occurs with failures but does not separate them "
-            "from successes, so it alone does not size a fix."
+            "The OK columns apply the same rules to rows graded OK. The rate columns count, "
+            "per source, the rows each rule can fire on (failing vs OK); a source votes "
+            "'discriminates' if its OK rate is under a quarter of its failing rate. A source "
+            "with no eligible failing row, no eligible OK row, or where the class fires on "
+            "neither does not vote. The verdict is 'discriminates' only if every voting "
+            "source says so; a precondition co-occurs with failures but does not separate "
+            "them from successes, so it alone does not size a fix. Discriminating classes: "
+            f"{', '.join(discriminating_classes(rows)) or 'none'}."
         ),
         "",
         (
@@ -2122,7 +2168,19 @@ def section_scope(rows: list[Row]) -> list[str]:
         "",
     ]
     header = ("class", "proposed fix", "rule", "synthetic failing", "synthetic OK")
-    lines.extend(md_table((*header, "JCE failing", "JCE OK", "failing vs OK rate"), body))
+    lines.extend(
+        md_table(
+            (
+                *header,
+                "JCE failing",
+                "JCE OK",
+                "synthetic failing vs OK rate",
+                "JCE failing vs OK rate",
+                "verdict",
+            ),
+            body,
+        )
+    )
     lines.append("")
     return lines
 
@@ -2191,7 +2249,9 @@ def findings_s2(rows: list[Row]) -> str:
     return (
         f"Live: {len(failing)} failing JCE reverse-app rows (neither R1 nor REF) qualify "
         f"({systems}); the "
-        f"same rule holds on {ok_hits} of {len(ok)} OK ones."
+        f"same rule holds on {ok_hits} of {len(ok)} OK ones. Section 6 verdict, per source: "
+        f"{discrimination('estimator-disagreement', rows)}; the classes that discriminate "
+        f"are {', '.join(discriminating_classes(rows)) or 'none'}."
     )
 
 
@@ -2551,6 +2611,69 @@ def check_silent_causes(rows: list[Row]) -> None:
             raise SystemExit(f"{key}: a model limit must say what {MODEL_LACKS}...")
 
 
+NU1_BLOCKS = {"d3(Oh)/d7(Td)": "4", "d8(Oh)/d2(Td)": "3"}
+"""The two JCE blocks where nu1 = 10Dq, with the ground multiplicity of their T2 band."""
+
+
+def nu1_counterexamples() -> tuple[int, list[tuple[str, float, float]]]:
+    """Read every d3/d8 published Dq beside its Table 1 nu1/10, straight from the CSVs.
+
+    Returns:
+        ``(systems compared, [(system, published Dq, nu1 / 10)])`` for the systems where
+        the two differ.
+
+    """
+    published = {
+        p["system"]: float(p["Dq_cm1"])
+        for p in read_csv(JCE_DIR / "jce2023_table2_parameters.csv")
+        if p["Dq_cm1"]
+    }
+    compared = 0
+    differ: list[tuple[str, float, float]] = []
+    for band in read_csv(JCE_DIR / "jce2023_table1_bands.csv"):
+        mult = NU1_BLOCKS.get(band["block"])
+        if mult is None or (band["irrep"], band["ordinal"], band["multiplicity"]) != (
+            "T2",
+            "1",
+            mult,
+        ):
+            continue
+        if band["system"] not in published:
+            continue
+        compared += 1
+        nu1_dq = float(band["wavenumber_cm1"]) / 10.0
+        if published[band["system"]] != nu1_dq:
+            differ.append((band["system"], published[band["system"]], nu1_dq))
+    return compared, differ
+
+
+def nu1_sentence() -> str:
+    """The measured statement on JCE d3/d8 published Dq against nu1/10, read from the CSVs."""
+    compared, differ = nu1_counterexamples()
+    pairs = "; ".join(f"{system} {dq:g} / {nu1_dq:g}" for system, dq, nu1_dq in differ)
+    return (
+        f"JCE d3/d8 published Dq is not nu1/10 in general: of {compared} systems, "
+        f"{compared - len(differ)} report Dq = nu1/10 and {len(differ)} do not (published Dq / "
+        f"Table 1 T2 band over ten, cm^-1: {pairs}). Where they agree, the published Dq "
+        "equals the closed-form seed, hence the dDq = 0.0 rows; nu1/10 is therefore not a "
+        "grade of the published Dq."
+    )
+
+
+def check_nu1_sentence(md_text: str) -> None:
+    """The method text must not claim published Dq is nu1/10, and must print the CSVs' numbers.
+
+    Raises:
+        SystemExit: on the 'by construction' claim, or on a counterexample the text omits.
+
+    """
+    if "by construction" in md_text:
+        raise SystemExit("AUDIT claims JCE d3/d8 Dq is nu1/10 'by construction'")
+    for system, dq, nu1_dq in nu1_counterexamples()[1]:
+        if f"{system} {dq:g} / {nu1_dq:g}" not in md_text:
+            raise SystemExit(f"AUDIT omits the nu1/10 counterexample {system} {dq:g} / {nu1_dq:g}")
+
+
 def check_suffix_order() -> None:
     """A row carrying both suffixes has a plain base verdict and is counted nowhere.
 
@@ -2594,7 +2717,9 @@ def build() -> tuple[str, str]:
     rows: list[Row] = [row for case_rows in per_case for row in case_rows]
     attach_classes(rows)
     check_silent_causes(rows)
-    return render_csv(rows), render_md(rows, na_cells, defect, self_test, jce_labels)
+    md_text = render_md(rows, na_cells, defect, self_test, jce_labels)
+    check_nu1_sentence(md_text)
+    return render_csv(rows), md_text
 
 
 def main() -> int:
