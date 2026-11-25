@@ -1722,41 +1722,48 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
         observed_peaks: list[float],
         energy_unit: str = "cm1",
         dq_max_search: float | None = None,
-        b_min: float = 400.0,
-        b_max: float = 1600.0,
+        b_min: float = 200.0,
+        b_max: float = 1500.0,
         grid_steps: int = 25,
+        C: float | None = None,
+        spin_state: SpinState = "high",
+        include_spin_forbidden: bool = False,
+        band_labels: list[str | list[str] | None] | None = None,
+        fit_c: bool | None = None,
     ) -> ToolResult:
-        """Grid-search Dq and Racah B to best-fit observed absorption peak positions.
+        """Fit Dq and Racah B to observed absorption peaks, and map the (Dq, B) landscape.
 
-        Performs a coarse grid search over (Dq, B) space, comparing computed
-        spin-allowed transitions (same ground-state multiplicity) against the
-        observed peak positions. Returns best-fit parameters plus a residuals table.
+        The answer is ``fit_spectrum``'s -- the same solver as ``ts_fit_spectrum``,
+        so the two tools cannot disagree. The grid is drawn beside it as a
+        landscape: every (Dq, B) node scored with the fit's own objective
+        (``fit_objective``), so it shows where else the bands fit almost as well.
+        It is a map, not the answer; the fit's distinct minima are listed apart.
 
         Args:
             d_count: d-electron count (2–8).
             observed_peaks: Measured absorption maxima in the chosen energy_unit.
             energy_unit: Unit of observed_peaks: "cm1" (default), "eV", or "nm".
-            dq_max_search: Upper Dq search limit in cm^-1. Defaults to 3x the
-                physics estimate min(peaks)/10, which adapts to the complex; the
-                previous fixed 2500 silently truncated any complex with a lowest
-                band above 25000 cm^-1.
-            b_min, b_max: Racah B search range (cm^-1).
-            grid_steps: Grid resolution per axis (total grid_steps² evaluations).
+            dq_max_search: Upper Dq of the landscape grid in cm^-1. Defaults to 3x
+                min(peaks)/10. The fit itself is not capped by it; a warning says
+                when the fitted Dq lies beyond it.
+            b_min, b_max: Racah B range (cm^-1) for both the fit and the landscape.
+                Defaults match ``ts_fit_spectrum``.
+            grid_steps: Landscape resolution per axis (grid_steps² evaluations).
+            C: Racah C (cm^-1); per-configuration default when omitted.
+            spin_state: which side of a spin crossover to fit on.
+            include_spin_forbidden: also fit against spin-forbidden transitions;
+                required for high-spin d5.
+            band_labels, fit_c: as on ``ts_fit_spectrum``, one label per peak in
+                the order given.
 
         """
         import json as _json
 
-        import numpy as _np
-
         from tanabesugano.levels import LevelSet
-        from tanabesugano.mcp._compute import compute_point
-        from tanabesugano.mcp._compute import peak_rmse
-        from tanabesugano.mcp._compute import reference_ground_term
-        from tanabesugano.mcp._compute import transition_candidates
-        from tanabesugano.mcp._defaults import DEFAULTS
-        from tanabesugano.mcp.tools._shared import resolve_bc
+        from tanabesugano.mcp._compute import fit_objective
+        from tanabesugano.mcp._compute import fit_spectrum
+        from tanabesugano.script_export import labelled_bands
 
-        # Convert observed peaks to cm^-1.
         def to_cm1(e: float) -> float:
             if energy_unit == "eV":
                 return e / CM1_TO_EV
@@ -1764,7 +1771,14 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 return 1e7 / e if e else float("nan")
             return e
 
-        peaks_cm = sorted(to_cm1(p) for p in observed_peaks if p > 0)
+        # Caller order is kept: band_labels are positional, so sorting here would
+        # pair a label with the wrong band. A non-positive entry is dropped with
+        # its label.
+        kept = [i for i, p in enumerate(observed_peaks) if p > 0]
+        peaks_cm = [to_cm1(observed_peaks[i]) for i in kept]
+        labels = None if band_labels is None else [band_labels[i] for i in kept]
+        if band_labels is not None and len(band_labels) != len(observed_peaks):
+            labels = band_labels  # let fit_spectrum report the count mismatch
         if not peaks_cm:
             with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
                 pf.Heading(content="No valid peaks provided", level=3)
@@ -1774,119 +1788,105 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 )
             return _as_tool_result(app, {"d_count": d_count, "error": "no valid peaks"})
 
-        default_C = DEFAULTS[d_count]["default_C"]
-        ground_key = reference_ground_term(d_count, *resolve_bc(d_count, None, None))
-        ground_mult = _multiplicity_of(ground_key)
-
-        best_dq = best_b = best_rms = float("inf")
-        results: list[dict] = []
-
-        if dq_max_search is None:
-            dq_max_search = peaks_cm[0] / 10.0 * 3.0
-        dq_grid = [dq_max_search * i / max(grid_steps - 1, 1) for i in range(grid_steps)]
-        b_grid = [b_min + (b_max - b_min) * j / max(grid_steps - 1, 1) for j in range(grid_steps)]
-
-        observed_arr = _np.asarray(peaks_cm, dtype=float)
-        for dq in dq_grid:
-            for b in b_grid:
-                try:
-                    found_ground, candidates = transition_candidates(
-                        compute_point(d_count, dq, b, default_C),
-                    )
-                except (ValueError, KeyError):
-                    continue
-                # Pin the spin regime: the low-spin manifolds are far denser, so
-                # a nearest-neighbour residual is minimised by crossing over.
-                if found_ground != ground_key or not candidates:
-                    continue
-                rms = peak_rmse(
-                    observed_arr,
-                    _np.array([e for e, _a, _s in candidates]),
-                )
-                results.append({"Dq": round(dq, 1), "B": round(b, 1), "RMS": round(rms, 1)})
-                if rms < best_rms:
-                    best_rms, best_dq, best_b = rms, dq, b
-
-        if not results:
+        try:
+            fit = fit_spectrum(
+                d_count,
+                peaks_cm,
+                C,
+                spin_state=spin_state,
+                include_spin_forbidden=include_spin_forbidden,
+                b_bounds=(b_min, b_max),
+                band_labels=labels,
+                fit_c=fit_c,
+            )
+            bands = labelled_bands(fit, d_count, peaks_cm)
+        except (ValueError, KeyError, RuntimeError) as exc:
             with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
                 pf.Heading(content="No fit found", level=3)
-                pf.Text(
-                    content="The grid search produced no candidates. Try relaxing the search bounds.",
-                    css_class="text-sm text-muted-foreground",
+                pf.Text(content=str(exc), css_class="text-sm text-muted-foreground")
+            return _as_tool_result(app, {"d_count": d_count, "error": str(exc)})
+
+        warnings = list(fit.warnings)
+        if dq_max_search is None:
+            dq_max_search = min(peaks_cm) / 10.0 * 3.0
+        elif fit.Dq > dq_max_search:
+            warnings.append(
+                f"fitted Dq {fit.Dq:.0f} cm^-1 lies beyond dq_max_search "
+                f"({dq_max_search:.0f}); the landscape grid does not reach it",
+            )
+
+        # Landscape: scored with the fit's own objective at the fit's C.
+        steps = max(grid_steps - 1, 1)
+        landscape: list[dict] = []
+        for i in range(1, grid_steps + 1):
+            dq = dq_max_search * i / grid_steps
+            for j in range(grid_steps):
+                b = b_min + (b_max - b_min) * j / steps
+                rms = fit_objective(
+                    d_count,
+                    peaks_cm,
+                    dq,
+                    b,
+                    fit.C,
+                    spin_state=spin_state,
+                    include_spin_forbidden=include_spin_forbidden,
+                    band_labels=labels,
                 )
-            return _as_tool_result(app, {"d_count": d_count, "error": "no fit found"})
+                if rms is not None:
+                    landscape.append({"Dq": round(dq, 1), "B": round(b, 1), "RMS": round(rms, 1)})
+        landscape.sort(key=lambda r: r["RMS"])
+        top_results = landscape[:20]
 
-        _, best_c = resolve_bc(d_count, best_b, None)
-
-        # Build best-fit terms table.
-        try:
-            best_terms = compute_point(d_count, best_dq, best_b, best_c)
-        except (ValueError, RuntimeError):
-            best_terms = {}
-        # LevelSet names each level and sorts by energy; doing either by hand
-        # here is how the two 3T1g rows ended up indistinguishable in the card.
-        best_manifold = LevelSet.from_states(best_terms) if best_terms else None
+        manifold = LevelSet.solve(d_count, dq=fit.Dq, b=fit.B, c=fit.C)
+        ground_mult = _multiplicity_of(fit.ground_term)
         table_rows: list[dict] = [
             {
                 "label": lv.label,
                 "term": lv.term.value,
                 "level": lv.index,
-                "energy_cm": round(lv.energy_cm1, 1),
+                "energy_cm": round(lv.energy_cm1 - manifold.levels[0].energy_cm1, 1),
                 "spin_allowed": lv.multiplicity == ground_mult,
             }
-            for lv in (best_manifold.levels if best_manifold else ())
+            for lv in sorted(manifold.levels, key=lambda lv: lv.energy_cm1)
         ]
-
-        results.sort(key=lambda r: r["RMS"])
-        top_results = results[:20]
-
-        # Per-peak residuals. The docstring has always promised "best-fit
-        # parameters plus a residuals table"; the parameters were rendered as
-        # Metrics but the residuals table did not exist.
-        best_allowed = sorted(
-            float(e)
-            for term_key, energies in best_terms.items()
-            for e in energies
-            if float(e) > 0 and _multiplicity_of(term_key) == ground_mult
-        )
-        residual_rows: list[dict] = []
-        for pk in peaks_cm:
-            if not best_allowed:
-                break
-            closest = min(best_allowed, key=lambda e, pk=pk: abs(e - pk))
-            residual_rows.append(
-                {
-                    "observed_cm": round(pk, 1),
-                    "predicted_cm": round(closest, 1),
-                    "delta_cm": round(closest - pk, 1),
-                },
-            )
+        residual_rows = [
+            {
+                "observed_cm": round(r["observed_cm1"], 1),
+                "predicted_cm": round(r["computed_cm1"], 1),
+                "delta_cm": round(r["residual_cm1"], 1),
+                "assignment": r["assignment_unicode"],
+            }
+            for r in bands
+        ]
+        minima = [
+            {
+                "Dq": round(m[0], 1),
+                "B": round(m[1], 1),
+                "C": round(m[2], 1),
+                "objective_cm1": round(m[3], 1),
+            }
+            for m in fit.minima
+        ]
 
         with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content=f"Reverse fit: d{d_count}", level=3)
             with pf.Grid(columns=3, gap=4):
-                pf.Metric(label="Best Dq", value=f"{best_dq:.1f} cm⁻¹")
-                pf.Metric(label="Best B", value=f"{best_b:.1f} cm⁻¹")
-                pf.Metric(label="RMS residual", value=f"{best_rms:.1f} cm⁻¹")
+                pf.Metric(label="Best Dq", value=f"{fit.Dq:.1f} cm⁻¹")
+                pf.Metric(label="Best B", value=f"{fit.B:.1f} cm⁻¹")
+                pf.Metric(label="RMS residual", value=f"{fit.rmse_cm1:.1f} cm⁻¹")
             pf.Text(
-                content=f"Ground term: {ground_key} (high-spin)",
+                content=(
+                    f"Ground term: {fit.ground_term} ({fit.spin_state}-spin); "
+                    f"C = {fit.C:.0f} cm⁻¹ ({fit.c_provenance})"
+                ),
                 css_class="text-sm text-muted-foreground",
             )
             pf.Text(
                 content=f"Observed peaks ({energy_unit}): {', '.join(str(p) for p in observed_peaks)}",
                 css_class="text-sm text-muted-foreground",
             )
-            pf.Separator()
-            pf.Heading(content="Top 20 grid candidates", level=4)
-            pf.DataTable(
-                columns=[
-                    pf.DataTableColumn(key="Dq", header="Dq (cm⁻¹)", sortable=True),
-                    pf.DataTableColumn(key="B", header="B (cm⁻¹)", sortable=True),
-                    pf.DataTableColumn(key="RMS", header="RMS (cm⁻¹)", sortable=True),
-                ],
-                rows=top_results,
-                search=False,
-            )
+            for warning in warnings:
+                pf.Text(content=f"⚠ {warning}", css_class="text-sm")
             pf.Separator()
             pf.Heading(content="Residuals at best fit", level=4)
             pf.DataTable(
@@ -1894,8 +1894,20 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                     pf.DataTableColumn(key="observed_cm", header="Observed (cm⁻¹)"),
                     pf.DataTableColumn(key="predicted_cm", header="Predicted (cm⁻¹)"),
                     pf.DataTableColumn(key="delta_cm", header="Δ (cm⁻¹)"),
+                    pf.DataTableColumn(key="assignment", header="Assigned to"),
                 ],
                 rows=residual_rows,
+                search=False,
+            )
+            pf.Separator()
+            pf.Heading(content="Top 20 grid candidates (landscape, not the answer)", level=4)
+            pf.DataTable(
+                columns=[
+                    pf.DataTableColumn(key="Dq", header="Dq (cm⁻¹)", sortable=True),
+                    pf.DataTableColumn(key="B", header="B (cm⁻¹)", sortable=True),
+                    pf.DataTableColumn(key="RMS", header="RMS (cm⁻¹)", sortable=True),
+                ],
+                rows=top_results,
                 search=False,
             )
             pf.Separator()
@@ -1911,19 +1923,16 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 search=True,
             )
 
-        # Return the rendered card AND a machine-readable payload. The docstring
-        # promises "best-fit parameters plus a residuals table"; a PrefabApp is a
-        # widget, so an agent calling this tool previously got no numbers at all.
-        # test_reverse_fit_contract.py pins the card's structure so this
-        # return-type change cannot silently break the rendering.
+        # The card AND a machine-readable payload; an agent gets numbers, not
+        # only a widget. test_reverse_fit_contract.py pins both halves.
         fit_data = {
             "d_count": d_count,
-            "Dq": round(best_dq, 1),
-            "B": round(best_b, 1),
-            "C": round(float(best_c), 1),
-            "rmse_cm1": round(best_rms, 1),
-            "ground_term": ground_key,
-            "spin_state": "high",
+            "Dq": round(fit.Dq, 1),
+            "B": round(fit.B, 1),
+            "C": round(fit.C, 1),
+            "rmse_cm1": round(fit.rmse_cm1, 1),
+            "ground_term": fit.ground_term,
+            "spin_state": fit.spin_state,
             "residuals": [
                 {
                     "observed_cm1": row["observed_cm"],
@@ -1933,6 +1942,9 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 for row in residual_rows
             ],
             "grid_candidates": top_results,
+            "minima": minima,
+            "warnings": warnings,
+            "C_source": fit.c_provenance,
         }
         # NOTE: pass the card as app.to_json(), NOT as the PrefabApp object.
         # ToolResult serialises a bare PrefabApp via model_dump(), which drops

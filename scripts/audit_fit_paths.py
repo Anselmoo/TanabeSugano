@@ -159,7 +159,7 @@ SEED_DQ_FACTOR = 0.7
 SEED_B_FACTOR = 1.4
 MIN_ENERGY_CM1 = 1.0
 APP_GRID: dict[str, dict[str, float]] = {
-    "reverse_app": {"grid_steps": 25, "b_min": 400.0, "b_max": 1600.0},
+    "reverse_app": {"grid_steps": 25, "b_min": 200.0, "b_max": 1500.0},
     "ratio_app": {"grid_steps": 30, "b_min": 400.0, "b_max": 1600.0},
 }
 APP_DQ_MAX_FACTOR = 0.3
@@ -187,6 +187,7 @@ MATRIX_COLUMNS = (
     ("fit_spectrum", "labelled-truth", "fit labelled C=truth"),
     ("fit_spectrum", "labelled-default", "fit labelled C=None"),
     ("reverse_app", "app-default", "reverse app"),
+    ("reverse_app", "app-regime", "reverse app +regime"),
     ("ratio_app", "app-default", "ratio app"),
 )
 CSV_COLUMNS = (
@@ -249,16 +250,13 @@ FIX_CLASSES = {
     "d": "regime penalty / crossover proximity (fit_spectrum objective)",
     "e": "C-misspecification bias: C never fitted",
     "f": "no ambiguity check",
-    "app-hs": "app hard-codes the high-spin reference and default C",
-    "app-sf": "app has no include_spin_forbidden and fits forbidden bands as allowed",
+    "app-hs": "app called without the case's spin regime: it fits on the high-spin default",
+    "app-sf": "app called without include_spin_forbidden: forbidden bands fitted as allowed",
     "app-lattice": (
         "ratio app: the Dq grid has no node at nu1/10 for d3/d8, so the returned Dq is the "
         "node nearest nu1/10, not nu1/10 itself"
     ),
-    "app-grid": (
-        "app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600 "
-        "(25 steps reverse, 30 ratio)"
-    ),
+    "app-grid": ("ratio-app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600, 30 steps"),
     "single-band": "one observed band for two free parameters: B is not identifiable",
     "estimator-disagreement": (
         "published values are not the minimum of this objective (reverse app; fit_spectrum "
@@ -293,15 +291,18 @@ CLASS_RULES = {
         "fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) "
         "is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C)"
     ),
-    "app-hs": "app row with spin=low",
-    "app-sf": "reverse-app row with spin-forbidden bands in its input",
+    "app-hs": "app row with spin=low, called without spin_state (c_mode app-default)",
+    "app-sf": (
+        "reverse-app row with spin-forbidden bands in its input, called without "
+        "include_spin_forbidden (c_mode app-default)"
+    ),
     "app-lattice": (
         "ratio-app row, d3 or d8 (nu1 = 10Dq), no Dq grid node within rounding of nu1/10, "
         "and the returned Dq is the node nearest nu1/10"
     ),
     "app-grid": (
-        "app row whose returned (Dq, B) is the grid node nearest the truth on both axes, "
-        "i.e. the error is pure grid resolution"
+        "ratio-app row whose returned (Dq, B) is the grid node nearest the truth on both "
+        "axes, i.e. the error is pure grid resolution"
     ),
     "single-band": "n_bands == 1",
     "estimator-disagreement": (
@@ -757,16 +758,24 @@ def run_seed_displaced(case: Case) -> Run:
         return run_fit_spectrum(case, "seed-displaced")
 
 
-def run_reverse(case: Case, tool: Callable[..., Any]) -> Run:
-    """Call ``ts_reverse_fit_app`` and read its structured content."""
-    run = Run(path="reverse_app", c_mode="app-default", c_used=DEFAULTS[case.d]["default_C"])
-    result = tool(d_count=case.d, observed_peaks=[band.energy for band in case.bands])
+def run_reverse(case: Case, tool: Callable[..., Any], *, regime: bool) -> Run:
+    """Call ``ts_reverse_fit_app`` and read its structured content.
+
+    ``regime`` False is the caller who omits the regime flags (``app-default``, as
+    before the app took them); True passes the case's ``spin`` and ``sf``
+    (``app-regime``). Both are audited, so the careless caller stays measured.
+    """
+    c_mode = "app-regime" if regime else "app-default"
+    run = Run(path="reverse_app", c_mode=c_mode, c_used=DEFAULTS[case.d]["default_C"])
+    flags = {"spin_state": case.spin, "include_spin_forbidden": case.sf} if regime else {}
+    result = tool(d_count=case.d, observed_peaks=[band.energy for band in case.bands], **flags)
     data = result.structured_content
     if not data or "error" in data:
         run.raised = str((data or {}).get("error", "no structured content"))
         return run
     run.fit_dq, run.fit_b, run.fit_c = float(data["Dq"]), float(data["B"]), float(data["C"])
     run.rmse = float(data["rmse_cm1"])
+    run.warnings = list(data.get("warnings", []))
     return run
 
 
@@ -1116,6 +1125,7 @@ def estimator_disagrees(row: Row) -> bool:
         case.source == "jce2023"
         and not case.sf
         and row.run.path == "reverse_app"
+        and row.run.c_mode == "app-default"
         and row.values["assignment_ok"] == "True"
         and len(case.bands) > EXACT_BANDS
         and case.truth_c is not None
@@ -1175,9 +1185,10 @@ def app_classes(row: Row) -> list[str]:
     """Return the app-specific classes for a reverse- or ratio-app row."""
     case, run = row.case, row.run
     found: list[str] = []
-    if case.spin == "low":
+    flagless = run.c_mode == "app-default"
+    if case.spin == "low" and flagless:
         found.append("app-hs")
-    if run.path == "reverse_app" and any(not band.spin_allowed for band in case.bands):
+    if run.path == "reverse_app" and flagless and any(not band.spin_allowed for band in case.bands):
         found.append("app-sf")
     if run.path == "ratio_app" and case.d in CLOSED_FORM_CONFIGS:
         dq_nodes, _ = app_grids(case, run.path)
@@ -1189,7 +1200,14 @@ def app_classes(row: Row) -> list[str]:
             and abs(run.fit_dq - nearest) <= APP_ROUNDING_CM1
         ):
             found.append("app-lattice")
-    if run.fit_dq is not None and run.fit_b is not None and case.truth_b is not None:
+    # The reverse app answers with fit_spectrum, so only the ratio app's answer is
+    # a grid node.
+    if (
+        run.path == "ratio_app"
+        and run.fit_dq is not None
+        and run.fit_b is not None
+        and case.truth_b is not None
+    ):
         dq_grid, b_grid = app_grids(case, run.path)
         truth_b = case.truth_b
         nearest_dq = min(dq_grid, key=lambda g: abs(g - case.truth_dq))
@@ -1383,7 +1401,8 @@ def run_case(case: Case, reverse: Callable[..., Any], ratio: Callable[..., Any])
     ):
         runs.append(run_seed_displaced(case))
     if not case.expect_raise:
-        runs.append(run_reverse(case, reverse))
+        runs.append(run_reverse(case, reverse, regime=False))
+        runs.append(run_reverse(case, reverse, regime=True))
         if not case.sf and len(case.bands) >= RATIO_MIN_BANDS:
             runs.append(run_ratio(case, ratio))
     return [grade(case, run) for run in runs]
@@ -1702,17 +1721,19 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             "not evidence of a good fit. n/a with no fitted point or fewer than two bands."
         ),
         (
-            "- **Apps.** Neither app accepts `spin_state`, `include_spin_forbidden` or C: both "
-            "pin the high-spin reference at the default C, so their low-spin rows fail by "
-            "construction; they are recorded as `c_mode=app-default`. The reverse app receives "
-            "every band of the case; the ratio app the lowest three, spin-allowed cases only. "
-            "The app-grid classifier rebuilds each app's grid from mirrored constants: "
-            f"grid_steps/b_min/b_max {APP_GRID['reverse_app']} (reverse) and "
-            f"{APP_GRID['ratio_app']} (ratio) are checked at start-up against the tool "
-            "signatures (apps.py L1719-1721, L1959-1961); Dq max = 3 x obs[0]/10 was read off "
-            "apps.py L1779 (reverse) and L2013 (ratio). The reverse app's Dq grid contains "
-            "obs[0]/10 exactly at node 8; the ratio app's does not (obs[0]/10 falls at index "
-            "(steps - 1)/3, a node only when steps - 1 is divisible by 3), hence app-lattice."
+            "- **Apps.** The reverse app answers with `fit_spectrum` (its grid is a landscape "
+            "beside the answer) and is run twice: `c_mode=app-default` without the regime "
+            "flags, the caller who omits them, and `c_mode=app-regime` with the case's "
+            "`spin_state` and `include_spin_forbidden`; C is the default in both. The ratio "
+            "app takes no regime flags or C and pins the high-spin reference at the default "
+            "C, so its low-spin rows fail by construction. The reverse app receives every band "
+            "of the case; the ratio app the lowest three, spin-allowed cases only. "
+            "The app-grid classifier rebuilds the ratio app's grid from mirrored constants: "
+            f"grid_steps/b_min/b_max {APP_GRID['ratio_app']} are checked at start-up against "
+            "the tool signature, as is the reverse app's B range "
+            f"{APP_GRID['reverse_app']}; Dq max = 3 x obs[0]/10 was read off apps.py. The ratio "
+            "app's Dq grid has no node at obs[0]/10 (it falls at index (steps - 1)/3, a node "
+            "only when steps - 1 is divisible by 3), hence app-lattice."
         ),
         "- **Not applicable cells.**",
     ]
@@ -1882,11 +1903,13 @@ def class_applies(key: str, row: Row) -> bool:
         "b": fit,
         "e": fit and run.c_mode in {"default", "labelled-default"},
         "f": fit,
-        "app-hs": not fit,
-        "app-grid": not fit,
-        "app-sf": run.path == "reverse_app",
+        "app-hs": not fit and run.c_mode == "app-default",
+        "app-grid": run.path == "ratio_app",
+        "app-sf": run.path == "reverse_app" and run.c_mode == "app-default",
         "app-lattice": run.path == "ratio_app" and case.d in CLOSED_FORM_CONFIGS,
-        "estimator-disagreement": case.source == "jce2023" and run.path == "reverse_app",
+        "estimator-disagreement": (
+            case.source == "jce2023" and run.path == "reverse_app" and run.c_mode == "app-default"
+        ),
     }
     return eligible.get(key, True)
 
@@ -1957,9 +1980,10 @@ def section_scope(rows: list[Row]) -> list[str]:
             f"{tagged} "
             "of the failing rows carry the infeasible_at_c tag (R1 rows excluded; Section 7 "
             "S4 counts them too). Classes (a), bounds-exclude-truth, (b) and (f) apply to "
-            "fit_spectrum only, (e) to its C=default runs; app-hs and app-grid to app rows, "
-            "app-sf to reverse-app rows, app-lattice to d3/d8 ratio-app rows; "
-            "estimator-disagreement to JCE reverse-app rows; (c), (d) and single-band to "
+            "fit_spectrum only, (e) to its C=default runs; app-hs to flagless app rows, "
+            "app-sf to flagless reverse-app rows, app-grid to ratio-app rows, app-lattice to "
+            "d3/d8 ratio-app rows; estimator-disagreement to flagless JCE reverse-app rows; "
+            "(c), (d) and single-band to "
             "every row. The OK columns apply the same rules to rows graded OK. The last "
             "column pools both sources over the rows each rule can fire on (failing vs OK) "
             "and calls a class discriminating only if its OK rate is under a quarter of its "
@@ -2029,7 +2053,13 @@ def findings_s1(rows: list[Row]) -> str:
 
 def findings_s2(rows: list[Row]) -> str:
     """Live numbers for S2: estimator-disagreement on failing vs OK JCE reverse-app rows."""
-    rev = [r for r in rows if r.case.source == "jce2023" and r.run.path == "reverse_app"]
+    rev = [
+        r
+        for r in rows
+        if r.case.source == "jce2023"
+        and r.run.path == "reverse_app"
+        and r.run.c_mode == "app-default"
+    ]
     rev = [r for r in rev if not r.case.r1]
     failing = [r for r in rev if is_failure(r) and estimator_disagrees(r)]
     ok = [r for r in rev if base_verdict(r) == "OK"]

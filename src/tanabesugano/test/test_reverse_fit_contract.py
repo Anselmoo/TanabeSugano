@@ -157,3 +157,96 @@ class TestErrorBranchesStillRender:
             observed_peaks=[0.0, -100.0],
             grid_steps=10,
         )
+
+
+class TestOneSolverOneAnswer:
+    """The app's answer is fit_spectrum's; its grid is a landscape, not an answer.
+
+    Oracle truths come from ``_determinant_oracle`` via the recovery module's helpers;
+    the equality cases compare against a direct ``fit_spectrum`` call (pass-through).
+    """
+
+    def test_reverse_app_fits_low_spin_when_told(self) -> None:
+        """d6 low-spin bands with spin_state='low' come back in that regime.
+
+        C is held at the truth: two bands cannot pin C, and with the default C the
+        fit (fit_spectrum's, not the app's) lands at Dq 2620 -- that is plan C's
+        default-C limitation, not this test's claim.
+
+        Observed red (3bff962): ``TypeError: ...ts_reverse_fit_app() got an
+        unexpected keyword argument 'spin_state'``.
+        """
+        from tanabesugano.test.test_fit_recovery import oracle_bands
+
+        bands = oracle_bands(6, 2500.0, 700.0, 3080.0, spin_allowed_only=True)[:2]
+        data = extract_fit_data(
+            call_reverse_fit(
+                d_count=6, observed_peaks=[e for e, _u in bands], C=3080.0, spin_state="low"
+            )
+        )
+        assert data is not None
+        assert data["Dq"] == pytest.approx(2500.0, rel=0.02)
+        assert data["spin_state"] == "low"
+
+    @pytest.mark.parametrize("case", ["d3", "d6-low", "d5-high-sf"])
+    def test_reverse_app_matches_fit_spectrum(self, case: str) -> None:
+        """App defaults and fit_spectrum defaults give the same Dq and B: one solver.
+
+        Observed red (3bff962): d3 differs (grid node, not the fitted point);
+        d6-low / d5-high-sf: unexpected keyword argument ``spin_state`` /
+        ``include_spin_forbidden``.
+        """
+        from tanabesugano.mcp._compute import fit_spectrum
+        from tanabesugano.test.test_fit_recovery import D5_HS_POINTS
+        from tanabesugano.test.test_fit_recovery import merged_labelled_bands
+        from tanabesugano.test.test_fit_recovery import oracle_bands
+
+        kwargs: dict = {}
+        if case == "d3":
+            d, peaks = (
+                3,
+                [e for e, _u in oracle_bands(3, 1200.0, 413.1, 1652.4, spin_allowed_only=True)[:3]],
+            )
+        elif case == "d6-low":
+            d = 6
+            peaks = [
+                e for e, _u in oracle_bands(6, 2500.0, 700.0, 3080.0, spin_allowed_only=True)[:2]
+            ]
+            kwargs = {"spin_state": "low"}
+        else:
+            d = 5
+            peaks, labels = merged_labelled_bands(5, *D5_HS_POINTS[3], 3)
+            kwargs = {"include_spin_forbidden": True, "band_labels": labels}
+        direct = fit_spectrum(d, peaks, **kwargs)
+        data = extract_fit_data(call_reverse_fit(d_count=d, observed_peaks=peaks, **kwargs))
+        assert data is not None
+        # The payload rounds to 0.1 cm^-1, so equality is to that resolution.
+        assert data["Dq"] == pytest.approx(direct.Dq, abs=0.051)
+        assert data["B"] == pytest.approx(direct.B, abs=0.051)
+
+    def test_reverse_app_default_b_range_reaches_low_b(self) -> None:
+        """Oracle d2 at B 387: the default B range must contain it.
+
+        Observed red (3bff962): B pinned at the old 400 floor.
+        """
+        from tanabesugano.test.test_fit_recovery import oracle_bands
+
+        peaks = [e for e, _u in oracle_bands(2, 900.0, 387.0, 1548.0, spin_allowed_only=True)[:3]]
+        data = extract_fit_data(call_reverse_fit(d_count=2, observed_peaks=peaks))
+        assert data is not None
+        assert data["B"] == pytest.approx(387.0, rel=0.02)
+
+    def test_reverse_app_grid_candidates_keep_their_shape(self) -> None:
+        """grid_candidates keeps today's rows; minima, warnings and C_source are new keys.
+
+        Observed red (3bff962): ``KeyError: 'minima'``.
+        """
+        data = extract_fit_data(call_reverse_fit(d_count=8, observed_peaks=BANDS))
+        assert data is not None
+        rows = data["grid_candidates"]
+        assert 0 < len(rows) <= 20
+        assert all(set(r) == {"Dq", "B", "RMS"} for r in rows)
+        assert [r["RMS"] for r in rows] == sorted(r["RMS"] for r in rows)
+        assert data["minima"][0]["Dq"] == pytest.approx(data["Dq"], abs=0.051)
+        assert isinstance(data["warnings"], list)
+        assert data["C_source"] == "default"

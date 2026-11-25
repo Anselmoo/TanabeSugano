@@ -722,6 +722,74 @@ def excited_levels(
     return ground_key, sorted(levels)
 
 
+def _score_point(
+    d_count: int,
+    observed: np.ndarray,
+    labels: Sequence[tuple[str, ...] | None] | None,
+    point: tuple[float, float, float],
+    *,
+    reference: str,
+    spin_allowed_only: bool,
+    penalty: float,
+) -> float | None:
+    """The fit objective at one (Dq, B, C): band RMSE under the injective assignment.
+
+    ``observed`` is sorted and ``labels`` normalised and in the same order. Returns
+    None when the point is outside the regime the fit is pinned to -- the ground
+    term is not ``reference``, or there are fewer levels than bands. Refusing those
+    matters: the low-spin manifolds are far denser (d5: 31 lines vs 0), and a dense
+    forest of candidates fits any band list, so a search that scored them would be
+    rewarded for ending up in the wrong regime. Solver errors propagate.
+    """
+    dq, b, c = point
+    found_ground, levels = excited_levels(
+        compute_point(d_count, dq, b, c), spin_allowed_only=spin_allowed_only
+    )
+    if found_ground != reference or len(levels) < observed.size:
+        return None
+    return assign_bands(observed, levels, labels, penalty=penalty)[1]
+
+
+def fit_objective(
+    d_count: int,
+    observed_peaks_cm1: Sequence[float],
+    Dq: float,
+    B: float,
+    C: float,
+    *,
+    spin_state: SpinState = "high",
+    include_spin_forbidden: bool = False,
+    band_labels: Sequence[BandLabel] | None = None,
+) -> float | None:
+    """Score one (Dq, B, C) exactly as :func:`fit_spectrum` scores it (cm^-1).
+
+    For a landscape or a diagnostic grid: the same assignment, label penalty and
+    regime pin as the fit, so a grid drawn from it cannot rank points differently
+    from the fit. Returns None for a point outside the requested spin regime or one
+    the solver cannot evaluate. Not a fit: nothing here searches.
+    """
+    order = sorted(range(len(observed_peaks_cm1)), key=lambda i: float(observed_peaks_cm1[i]))
+    observed = np.asarray([float(observed_peaks_cm1[i]) for i in order], dtype=float)
+    labels = None
+    if band_labels is not None:
+        normalised = _normalise_labels(band_labels, len(observed_peaks_cm1))
+        labels = [normalised[i] for i in order]
+    if Dq <= 0 or B <= 0 or C <= 0:
+        return None
+    try:
+        return _score_point(
+            d_count,
+            observed,
+            labels,
+            (Dq, B, C),
+            reference=reference_ground_term(d_count, B, C, spin_state),
+            spin_allowed_only=not include_spin_forbidden,
+            penalty=float(np.sqrt(np.mean(observed**2))),
+        )
+    except (ValueError, KeyError, np.linalg.LinAlgError):
+        return None
+
+
 def _label_matches(uid: str, label: tuple[str, ...]) -> bool:
     """Whether a level uid satisfies one band's label (term key or exact uid)."""
     term = uid.split("#", maxsplit=1)[0]
@@ -1064,18 +1132,19 @@ def _fit_one_regime(
         if excess > 0 or dq <= 0 or b <= 0 or c <= 0:
             return base * (2.0 + excess)
         try:
-            found_ground, levels = excited_levels(
-                compute_point(d_count, dq, b, c), spin_allowed_only=spin_allowed_only
+            score = _score_point(
+                d_count,
+                observed,
+                labels,
+                (dq, b, c),
+                reference=reference,
+                spin_allowed_only=spin_allowed_only,
+                penalty=base,
             )
         except (ValueError, KeyError, np.linalg.LinAlgError):
             return base * 3.0
-        if found_ground != reference or len(levels) < observed.size:
-            # Crossed the spin crossover, or too few levels to carry every band.
-            # Refuse it: the low-spin manifolds are far denser (d5: 31 lines vs 0),
-            # and a dense forest of candidates fits any band list, so an
-            # unconstrained search is rewarded for ending up in the wrong regime.
-            return base * 2.0
-        return assign_bands(observed, levels, labels, penalty=base)[1]
+        # None: crossed the spin crossover, or too few levels for every band.
+        return base * 2.0 if score is None else score
 
     starts: Sequence[tuple[float, ...]]
     if free_c:
