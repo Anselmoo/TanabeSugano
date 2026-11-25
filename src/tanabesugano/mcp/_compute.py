@@ -407,6 +407,11 @@ class SpectrumFit:
     it by more than :data:`MINIMA_DISTINCT`. ``c_candidates`` then holds those tied
     minima and ``c_range`` their (lowest, highest) C; when C is undetermined the
     reported point is the best-objective one, a display value, not a result.
+
+    ``assignment`` is the pairing the fit made, one ``(observed, computed, level_uid)``
+    per band in the caller's order: the injective :func:`assign_bands` result at the
+    returned point. Anything that names the level a band was fitted to reads it
+    here; a nearest-line search would disagree whenever two bands crowd one level.
     """
 
     Dq: float
@@ -427,6 +432,7 @@ class SpectrumFit:
     c_provenance: ParameterProvenance = "default"
     c_candidates: tuple[tuple[float, float, float, float], ...] = ()
     c_range: tuple[float, float] | None = None
+    assignment: tuple[tuple[float, float, str], ...] = ()
 
 
 def crossover_dq(
@@ -1133,6 +1139,10 @@ def _fit_one_regime(
     columns, _cost = assign_bands(observed, fitted_levels, labels, penalty=base)
     predicted = np.asarray([fitted_levels[j][0] for j in columns], dtype=float)
     residuals = [float(p - o) for p, o in zip(predicted, observed, strict=True)]
+    by_caller: list[tuple[float, float, str]] = [(0.0, 0.0, "")] * observed.size
+    for k, i in enumerate(order):
+        energy, uid = fitted_levels[columns[k]]
+        by_caller[i] = (float(observed_peaks_cm1[i]), float(energy), uid)
     rmse = float(np.sqrt(np.mean((predicted - observed) ** 2)))
 
     pinned_tol = 0.01
@@ -1237,6 +1247,7 @@ def _fit_one_regime(
         ),
         c_candidates=tuple(tied) if c_open else (),
         c_range=(min(m[2] for m in tied), max(m[2] for m in tied)) if c_open else None,
+        assignment=tuple(by_caller),
     )
 
 
