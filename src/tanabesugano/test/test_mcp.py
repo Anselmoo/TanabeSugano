@@ -1055,3 +1055,112 @@ def test_figure_tools_accept_labels() -> None:
     assert "⁴T₁g(F)" in json.dumps(json.loads(app_result.content[0].text), ensure_ascii=False)
     assert not script_result.is_error, script_result.content[0].text
     assert "T_{1g}(F)" in script_result.content[0].text
+
+
+# ─────────────────── provenance and diagnostics in FitResult ───────────────────
+
+NI_BANDS = [8500.0, 13800.0, 25300.0]
+FIT_RESULT_FIELDS_BEFORE_PROVENANCE = {
+    "d_count",
+    "fitted_Dq",
+    "fitted_B",
+    "fitted_C",
+    "c_is_default",
+    "c_constrained",
+    "r_squared",
+    "rmse_cm1",
+    "observed_peaks_cm1",
+    "predicted_peaks_cm1",
+    "peak_assignments",
+    "ground_term",
+    "spin_state",
+    "residuals_cm1",
+    "warnings",
+}
+"""FitResult's fields at 05b8b0c, written out so a removal or rename cannot pass unseen."""
+
+
+@pytest.mark.parametrize(("c_arg", "c_source"), [(None, "default"), (4850.0, "given")])
+def test_fit_result_reports_provenance(c_arg: float | None, c_source: str) -> None:
+    """A held C says where it came from; Dq and B say fitted.
+
+    Observed red (05b8b0c): ``AttributeError: 'Root' object has no attribute
+    'Dq_source'``.
+    """
+    args: dict = {"d_count": 8, "observed_peaks_cm1": NI_BANDS}
+    if c_arg is not None:
+        args["C"] = c_arg
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert (data.Dq_source, data.B_source, data.C_source) == ("fitted", "fitted", c_source)
+    assert data.c_fitted is False
+
+
+def test_fit_result_reports_an_undetermined_c() -> None:
+    """The plan C d6 low-spin valley: C undetermined, with its candidates and range.
+
+    Observed red (05b8b0c): ``AttributeError: 'Root' object has no attribute
+    'C_source'``.
+    """
+    from tanabesugano.test.test_fit_recovery import oracle_bands
+    from tanabesugano.test.test_fit_recovery import term_labels
+
+    bands = oracle_bands(6, 4069.1, 1224.8, 6124.0, spin_allowed_only=True)[:3]
+    args = {
+        "d_count": 6,
+        "observed_peaks_cm1": [e for e, _u in bands],
+        "spin_state": "low",
+        "band_labels": term_labels(bands),
+    }
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert data.C_source == "undetermined"
+    assert data.c_fitted is True
+    assert len(data.c_candidates) >= 2
+    lo, hi = data.c_range
+    assert lo <= data.fitted_C <= hi
+    assert {m.C for m in data.c_candidates} <= {m.C for m in data.minima}
+
+
+def test_fit_result_schema_lists_provenance_enum() -> None:
+    """The output schema gives agents the provenance values as an enum.
+
+    Observed red (05b8b0c): ``KeyError: 'C_source'``.
+    """
+    server = create_server()
+
+    async def go():
+        return await server.get_tool("ts_fit_spectrum")
+
+    tool = run_loop_free(go)
+    schema = tool.output_schema
+    defs = schema.get("$defs", {})
+    fit_result = defs.get("FitResult", schema)
+    prop = fit_result["properties"]["C_source"]
+    enum = prop.get("enum") or defs[prop["$ref"].rsplit("/", 1)[-1]]["enum"]
+    assert set(enum) == {"fitted", "given", "default", "undetermined"}
+
+
+def test_old_call_keeps_old_fields() -> None:
+    """A call with yesterday's arguments returns every field yesterday's FitResult had.
+
+    Never red: a guard that the provenance fields were added, not substituted.
+    """
+    result = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": NI_BANDS})
+    fields = set(result.structured_content["result"])  # type: ignore[attr-defined]
+    assert not FIT_RESULT_FIELDS_BEFORE_PROVENANCE - fields
+
+
+def test_band_assignments_and_residuals_follow_input_order() -> None:
+    """Peaks given out of order come back paired and signed in that order.
+
+    Observed red (05b8b0c): ``AttributeError: 'Root' object has no attribute
+    'band_assignments'``; and
+    ``residuals_cm1`` was in sorted band order while documented per input peak.
+    """
+    shuffled = [NI_BANDS[2], NI_BANDS[0], NI_BANDS[1]]
+    data = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": shuffled}).data  # type: ignore[attr-defined]
+    assert [a.observed_cm1 for a in data.band_assignments] == shuffled
+    for a, r in zip(data.band_assignments, data.residuals_cm1, strict=True):
+        assert a.residual_cm1 == pytest.approx(a.computed_cm1 - a.observed_cm1)
+        assert r == pytest.approx(a.residual_cm1)
+    assert data.band_assignments[0].level_uid == "3_T_1#1"
+    assert data.band_assignments[0].label.endswith("³T₁g(P)")

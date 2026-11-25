@@ -5,6 +5,8 @@ from __future__ import annotations
 from pydantic import BaseModel
 from pydantic import Field
 
+from tanabesugano.mcp._compute import ParameterProvenance
+
 
 class SupportedConfig(BaseModel):
     """Metadata for a supported d-electron configuration."""
@@ -56,20 +58,88 @@ class SpectrumPeak(BaseModel):
     intensity: float = Field(description="Relative intensity (0-1).")
 
 
+class FitMinimum(BaseModel):
+    """One distinct minimum the fit's search converged to."""
+
+    Dq: float = Field(description="Dq at this minimum (cm^-1).")
+    B: float = Field(description="Racah B at this minimum (cm^-1).")
+    C: float = Field(description="Racah C at this minimum (cm^-1).")
+    objective_cm1: float = Field(
+        description="Fit objective at this minimum (cm^-1 RMSE, label penalties included).",
+    )
+
+
+class BandAssignment(BaseModel):
+    """The level one observed band was fitted to, in the caller's band order."""
+
+    observed_cm1: float = Field(description="The band as given (cm^-1).")
+    computed_cm1: float = Field(
+        description="Energy of the assigned level above the ground (cm^-1)."
+    )
+    residual_cm1: float = Field(description="computed_cm1 - observed_cm1.")
+    level_uid: str = Field(description="Machine key of the assigned level, e.g. '3_T_1#1'.")
+    label: str = Field(
+        description="Transition by free-ion parentage, e.g. '³A₂g → ³T₁g(P)' (display only).",
+    )
+
+
 class FitResult(BaseModel):
     """Result of fitting a spectrum to find Dq and B parameters."""
 
     d_count: int
     fitted_Dq: float = Field(description="Optimized ligand field parameter (cm^-1).")
     fitted_B: float = Field(description="Optimized Racah B parameter (cm^-1).")
-    fitted_C: float = Field(description="Racah C parameter used (typically fixed or default).")
+    fitted_C: float = Field(
+        description=(
+            "Racah C: held (C_source 'given' or 'default') or fitted ('fitted'); when "
+            "C_source is 'undetermined' it is one of c_candidates, for display."
+        ),
+    )
     c_is_default: bool = Field(
         default=True,
         description=(
             "True when fitted_C came from the per-configuration defaults rather "
-            "than from the caller. Bookkeeping only -- see c_constrained for "
-            "whether the value means anything."
+            "than from the caller. False when C was fitted (c_fitted). Bookkeeping "
+            "only -- see c_constrained for whether the value means anything."
         ),
+    )
+    Dq_source: ParameterProvenance = Field(
+        default="fitted",
+        description="Where fitted_Dq comes from: 'fitted', or 'undetermined' when tied minima disagree on it.",
+    )
+    B_source: ParameterProvenance = Field(
+        default="fitted",
+        description="Where fitted_B comes from: 'fitted', or 'undetermined' when tied minima disagree on it.",
+    )
+    C_source: ParameterProvenance = Field(
+        default="default",
+        description=(
+            "Where fitted_C comes from: 'given' by the caller, the per-configuration "
+            "'default', 'fitted', or 'undetermined' (tied minima disagree; see "
+            "c_candidates and c_range)."
+        ),
+    )
+    c_fitted: bool = Field(
+        default=False, description="True when C was a free parameter of the fit."
+    )
+    c_candidates: list[FitMinimum] = Field(
+        default_factory=list,
+        description="When C is undetermined: the tied minima, each a complete (Dq, B, C).",
+    )
+    c_range: tuple[float, float] | None = Field(
+        default=None,
+        description="When C is undetermined: (lowest, highest) C among c_candidates (cm^-1).",
+    )
+    minima: list[FitMinimum] = Field(
+        default_factory=list,
+        description=(
+            "Every distinct minimum the search reached, the returned one first. Lists "
+            "what the search found, not necessarily every minimum that exists."
+        ),
+    )
+    band_assignments: list[BandAssignment] = Field(
+        default_factory=list,
+        description="Per observed band, in the order given: the level the fit assigned it.",
     )
     c_constrained: bool = Field(
         default=False,
@@ -91,7 +161,12 @@ class FitResult(BaseModel):
     )
     rmse_cm1: float = Field(description="Root-mean-square error in cm^-1.")
     observed_peaks_cm1: list[float] = Field(description="Input observed peak positions.")
-    predicted_peaks_cm1: list[float] = Field(description="Predicted peaks from fitted model.")
+    predicted_peaks_cm1: list[float] = Field(
+        description=(
+            "Every computed transition at the fitted point (spin-forbidden included), "
+            "not only the assigned ones; band_assignments says which band took which."
+        ),
+    )
     peak_assignments: list[SpectrumPeak] = Field(description="Detailed transition assignments.")
     ground_term: str = Field(
         default="",

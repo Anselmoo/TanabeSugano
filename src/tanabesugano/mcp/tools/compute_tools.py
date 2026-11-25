@@ -11,13 +11,16 @@ from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import nephelauxetic_analysis
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
+from tanabesugano.mcp.models import BandAssignment
 from tanabesugano.mcp.models import ComputeError
+from tanabesugano.mcp.models import FitMinimum
 from tanabesugano.mcp.models import FitResult
 from tanabesugano.mcp.models import NephelauxeticResult
 from tanabesugano.mcp.models import SpectrumPeak
 from tanabesugano.mcp.models import SupportedConfig
 from tanabesugano.mcp.tools._shared import READONLY
 from tanabesugano.mcp.tools._shared import TS_META
+from tanabesugano.script_export import labelled_bands
 
 
 if TYPE_CHECKING:
@@ -162,6 +165,21 @@ def register(mcp: FastMCP) -> None:
         residual_ss = sum(r**2 for r in fit.residuals_cm1)
         r_squared = None if total_ss <= 0 else max(0.0, min(1.0, 1.0 - residual_ss / total_ss))
 
+        records = labelled_bands(fit, d_count, observed_peaks_cm1)
+        band_assignments = [
+            BandAssignment(
+                observed_cm1=observed,
+                computed_cm1=computed,
+                residual_cm1=computed - observed,
+                level_uid=uid,
+                label=record["assignment_unicode"],
+            )
+            for (observed, computed, uid), record in zip(fit.assignment, records, strict=True)
+        ]
+
+        def _minimum(m: tuple[float, float, float, float]) -> FitMinimum:
+            return FitMinimum(Dq=m[0], B=m[1], C=m[2], objective_cm1=m[3])
+
         return FitResult(
             d_count=d_count,
             fitted_Dq=fit.Dq,
@@ -176,8 +194,18 @@ def register(mcp: FastMCP) -> None:
             peak_assignments=peak_assignments,
             ground_term=fit.ground_term,
             spin_state=fit.spin_state,
-            residuals_cm1=fit.residuals_cm1,
+            # From the assignment, not fit.residuals_cm1: that one is in sorted band
+            # order, and this field is documented per input peak.
+            residuals_cm1=[a.residual_cm1 for a in band_assignments],
             warnings=fit.warnings,
+            Dq_source=fit.dq_provenance,
+            B_source=fit.b_provenance,
+            C_source=fit.c_provenance,
+            c_fitted=fit.c_fitted,
+            c_candidates=[_minimum(m) for m in fit.c_candidates],
+            c_range=fit.c_range,
+            minima=[_minimum(m) for m in fit.minima],
+            band_assignments=band_assignments,
         )
 
     @mcp.tool(
