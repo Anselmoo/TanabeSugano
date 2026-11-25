@@ -454,6 +454,22 @@ class SpectrumFit:
     dq_nu1: float | None = None
     dq_nu1_reason: str | None = None
     assumptions: tuple[str, ...] = ()
+    dq_convention: Literal["Oh", "Td"] = "Oh"
+
+
+TD_REFUSAL = (
+    "geometry='Td' is high-spin only: Dq_t is about 4/9 of Dq_o, below every spin crossover"
+)
+
+
+def td_partner(n: int) -> int:
+    """The Oh d-count whose manifold is Td d^n at the same Dq: d^(10-n) (hole conjugation).
+
+    Td inverts the d-orbital splitting, and d^n at -Dq equals d^(10-n) at +Dq level for
+    level (asserted against the determinant oracle's native Td, not re-derived from this).
+    Dq stays the Td Dq_t; nothing converts it to an Oh-equivalent.
+    """
+    return 10 - n
 
 
 SPIN_ALLOWED_ASSUMPTION = (
@@ -723,7 +739,11 @@ def _free_c_starts(
 
 
 def _initial_seed(
-    d_count: int, observed_sorted: list[float], *, include_spin_forbidden: bool
+    d_count: int,
+    observed_sorted: list[float],
+    *,
+    include_spin_forbidden: bool,
+    defaults_d: int | None = None,
 ) -> tuple[float, float]:
     """Return the (Dq, B) seed: the d3/d8 closed form where it applies, else (obs[0]/10, B0).
 
@@ -740,7 +760,8 @@ def _initial_seed(
             return closed_form_dq_b(d_count, observed_sorted)
         except ValueError:
             pass  # not d3/d8, or fewer than three bands -- generic seed stands
-    return observed_sorted[0] / 10.0, float(DEFAULTS[d_count]["default_B"])
+    ion = d_count if defaults_d is None else defaults_d
+    return observed_sorted[0] / 10.0, float(DEFAULTS[ion]["default_B"])
 
 
 BandLabel = str | Sequence[str] | None
@@ -901,6 +922,7 @@ def fit_spectrum(
     b_bounds: tuple[float, float] = (200.0, 1500.0),
     band_labels: Sequence[BandLabel] | None = None,
     fit_c: bool | None = None,
+    geometry: Literal["Oh", "Td"] = "Oh",
 ) -> SpectrumFit:
     """Fit observed absorption peaks to determine Dq and Racah B.
 
@@ -939,6 +961,12 @@ def fit_spectrum(
         ``True`` frees C regardless and warns when that gate is not met. If C
         turns out not to move the fitted bands, the fit is redone with C held at
         its default and says so.
+    geometry:
+        ``"Td"`` fits a tetrahedral ion: d^n is fitted on the Oh d^(10-n) manifold
+        (:func:`td_partner`) with the caller's ion's default B and C, labels unchanged,
+        and the returned ``Dq`` is the Td ``Dq_t`` (``dq_convention="Td"``); nothing
+        converts it by 9/4. High-spin only: Dq_t lies below every spin crossover, so
+        any other ``spin_state`` raises.
 
     """
     from tanabesugano.mcp._inputs import unit_error
@@ -946,8 +974,12 @@ def fit_spectrum(
     misread = unit_error(observed_peaks_cm1)
     if misread is not None:
         raise ValueError(misread)
+    td = geometry == "Td"
+    if td and spin_state != "high":
+        raise ValueError(TD_REFUSAL)
+    manifold_d = td_partner(d_count) if td else d_count
     fit = _fit_one_regime(
-        d_count,
+        manifold_d,
         observed_peaks_cm1,
         C,
         spin_state=spin_state,
@@ -956,16 +988,21 @@ def fit_spectrum(
         b_bounds=b_bounds,
         band_labels=band_labels,
         fit_c=fit_c,
+        defaults_d=d_count,
     )
-    other = _other_regime_fit(
-        d_count,
-        observed_peaks_cm1,
-        C,
-        spin_state=spin_state,
-        include_spin_forbidden=include_spin_forbidden,
-        b_bounds=b_bounds,
-        band_labels=band_labels,
-        fit_c=fit_c,
+    other = (
+        None
+        if td
+        else _other_regime_fit(
+            d_count,
+            observed_peaks_cm1,
+            C,
+            spin_state=spin_state,
+            include_spin_forbidden=include_spin_forbidden,
+            b_bounds=b_bounds,
+            band_labels=band_labels,
+            fit_c=fit_c,
+        )
     )
     if other is not None and other.rmse_cm1 <= max(fit.rmse_cm1, BAND_RESOLUTION_CM1):
         note = (
@@ -977,16 +1014,19 @@ def fit_spectrum(
         fit = replace(fit, warnings=[*fit.warnings, note])
     if C is None and band_labels is None:
         fit = _held_c_check(
-            d_count,
+            manifold_d,
             observed_peaks_cm1,
             fit,
             include_spin_forbidden=include_spin_forbidden,
             dq_bounds=dq_bounds,
             b_bounds=b_bounds,
+            defaults_d=d_count,
         )
     if band_labels is None and not include_spin_forbidden:
         fit = replace(fit, assumptions=(*fit.assumptions, SPIN_ALLOWED_ASSUMPTION))
-    return _with_nu1(d_count, observed_peaks_cm1, fit, band_labels, include_spin_forbidden)
+    if td:
+        fit = replace(fit, dq_convention="Td")
+    return _with_nu1(manifold_d, observed_peaks_cm1, fit, band_labels, include_spin_forbidden)
 
 
 NU1_TERM = {3: "4_T_2", 8: "3_T_2"}
@@ -1000,10 +1040,18 @@ def _with_nu1(
     band_labels: Sequence[BandLabel] | None,
     include_spin_forbidden: bool,
 ) -> SpectrumFit:
-    """Attach nu1/10 beside the least-squares Dq, and say when the two differ."""
+    """Attach nu1/10 beside the least-squares Dq, and say when the two differ.
+
+    ``d_count`` is the fitted manifold's (Td d7 is fitted as d3, whose 4T2 is 10 Dq_t).
+    """
     term = NU1_TERM.get(d_count)
     if term is None:
-        return replace(fit, dq_nu1_reason="nu1 = 10Dq holds only for d3 and d8")
+        reason = (
+            "nu1 = 10Dq_t holds only for d2 and d7 in Td"
+            if fit.dq_convention == "Td"
+            else "nu1 = 10Dq holds only for d3 and d8"
+        )
+        return replace(fit, dq_nu1_reason=reason)
     if band_labels is not None:
         named = [
             e
@@ -1038,6 +1086,7 @@ def _held_c_check(
     include_spin_forbidden: bool,
     dq_bounds: tuple[float, float] | None,
     b_bounds: tuple[float, float],
+    defaults_d: int | None = None,
 ) -> SpectrumFit:
     """Say when holding the default C hides another (Dq, B): refit with C free and compare.
 
@@ -1063,6 +1112,7 @@ def _held_c_check(
             dq_bounds=dq_bounds,
             b_bounds=b_bounds,
             fit_c=True,
+            defaults_d=defaults_d,
         )
     except ValueError:
         return fit
@@ -1197,8 +1247,13 @@ def _fit_one_regime(
     b_bounds: tuple[float, float] = (200.0, 1500.0),
     band_labels: Sequence[BandLabel] | None = None,
     fit_c: bool | None = None,
+    defaults_d: int | None = None,
 ) -> SpectrumFit:
-    """Fit in the requested spin regime only; :func:`fit_spectrum` adds the regime check."""
+    """Fit in the requested spin regime only; :func:`fit_spectrum` adds the regime check.
+
+    ``defaults_d`` is the ion whose default B and C are used, when it is not the
+    manifold's ``d_count`` (Td: the caller's ion, fitted on the d^(10-n) manifold).
+    """
     from tanabesugano.mcp._defaults import DEFAULTS
 
     if not observed_peaks_cm1:
@@ -1210,7 +1265,7 @@ def _fit_one_regime(
 
     c_is_default = C is None
     if C is None:
-        C = float(DEFAULTS[d_count]["default_C"])
+        C = float(DEFAULTS[d_count if defaults_d is None else defaults_d]["default_C"])
     labels = (
         None if band_labels is None else _normalise_labels(band_labels, len(observed_peaks_cm1))
     )
@@ -1236,7 +1291,10 @@ def _fit_one_regime(
     # The seed adds local starts beside the grid. For d3/d8 spin-allowed fits it
     # is the closed form, which gives both parameters analytically.
     dq_seed, b_seed = _initial_seed(
-        d_count, observed.tolist(), include_spin_forbidden=include_spin_forbidden
+        d_count,
+        observed.tolist(),
+        include_spin_forbidden=include_spin_forbidden,
+        defaults_d=defaults_d,
     )
     if not b_bounds[0] <= b_seed <= b_bounds[1]:
         b_seed = min(max(b_seed, b_bounds[0]), b_bounds[1])

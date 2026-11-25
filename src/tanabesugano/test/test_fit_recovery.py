@@ -886,3 +886,111 @@ def test_oracle_bands_do_not_disagree(
     fit = fit_spectrum(d_count, bands, C=c)
     assert fit.dq_nu1 == bands[0] / 10.0
     assert fit.dq_nu1_reason == LOWEST_BAND_NU1
+
+
+# --- F2: geometry="Td" ---------------------------------------------------------------------
+
+TD_REFUSAL = (
+    "geometry='Td' is high-spin only: Dq_t is about 4/9 of Dq_o, below every spin crossover"
+)
+"""Copied from the plan (F-release Task 8), not from the code."""
+
+
+@pytest.mark.parametrize("n", [6, 7, 8])
+def test_td_fit_recovers_from_displaced_seed(n: int) -> None:
+    """T2: spin-allowed oracle Td bands give back Dq_t, reported in the Td convention.
+
+    Truth Dq_t = 0.5 B at each n's own default B; the oracle is d^n at -Dq_t. The bounds
+    (0.35, 1.4) x truth centre the search (geometric mean) on 0.7 x truth, away from it.
+    d5 is excluded: high-spin d5 has no spin-allowed band.
+
+    Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'geometry'``.
+    """
+    b = float(DEFAULTS[n]["default_B"])
+    c = float(DEFAULTS[n]["default_C"])
+    dq_t = 0.5 * b
+    bands = [e for e, _u in oracle_bands(n, -dq_t, b, c, spin_allowed_only=True)]
+    fit = fit_spectrum(n, bands, geometry="Td", dq_bounds=(0.35 * dq_t, 1.4 * dq_t))
+    assert fit.dq_convention == "Td"
+    assert fit.Dq == pytest.approx(dq_t, rel=0.005)
+
+
+def test_td_d5_spin_forbidden_with_given_c() -> None:
+    """T2: high-spin Td d5 from its quartet bands, C given, spin-forbidden fitting on.
+
+    Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'geometry'``.
+    """
+    b, c = 700.0, 2800.0
+    dq_t = 400.0
+    quartets = [
+        (e, uid)
+        for e, uid in oracle_bands(5, -dq_t, b, c, spin_allowed_only=False)
+        if uid[0] == "4"
+    ][:4]
+    fit = fit_spectrum(
+        5,
+        [e for e, _u in quartets],
+        C=c,
+        geometry="Td",
+        include_spin_forbidden=True,
+        band_labels=term_labels(quartets),
+    )
+    assert fit.dq_convention == "Td"
+    assert fit.Dq == pytest.approx(dq_t, rel=0.005)
+
+
+def test_td_uses_the_callers_defaults() -> None:
+    """Td d8 is fitted on the d2 manifold but with Ni(II)'s default C, not V(III)'s.
+
+    Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'geometry'``.
+    Behavioural red (defaults read from the partner, ``DEFAULTS[10 - n]``):
+    ``AssertionError: assert 4850.0 == 3801.0``.
+    """
+    b = float(DEFAULTS[8]["default_B"])
+    bands = [
+        e
+        for e, _u in oracle_bands(
+            8, -450.0, b, float(DEFAULTS[8]["default_C"]), spin_allowed_only=True
+        )
+    ]
+    fit = fit_spectrum(8, bands, geometry="Td", include_spin_forbidden=True)
+    assert DEFAULTS[8]["default_C"] == fit.C
+    assert fit.c_is_default
+
+
+def test_td_low_spin_is_refused() -> None:
+    """Review Focus 3: Td with spin_state='low' is refused by name, not silently fitted.
+
+    Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'geometry'``.
+    """
+    with pytest.raises(ValueError, match="high-spin only") as err:
+        fit_spectrum(6, [4500.0], geometry="Td", spin_state="low")
+    assert str(err.value) == TD_REFUSAL
+
+
+def test_td_nu1_follows_the_fitted_manifold() -> None:
+    """Td d7 has nu1 = 10 Dq_t (4A2 -> 4T2); Td d8 has none. Keyed on the manifold, not on n.
+
+    Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'geometry'``.
+    """
+    d7 = [e for e, _u in oracle_bands(7, -400.0, 750.0, 3400.0, spin_allowed_only=True)]
+    fit = fit_spectrum(7, d7, geometry="Td")
+    assert fit.dq_nu1 == min(d7) / 10.0
+    assert fit.dq_nu1 == pytest.approx(400.0, abs=1e-6)
+    fit8 = fit_spectrum(8, [4400.0, 15500.0], geometry="Td")
+    assert fit8.dq_nu1 is None
+    assert fit8.dq_nu1_reason == "nu1 = 10Dq_t holds only for d2 and d7 in Td"
+
+
+def test_zno_td_fit_matches_oracle() -> None:
+    """ZnO:Ni2+ (Td d8): the fit reaches the oracle's no-SO point (515.13, 790.09).
+
+    The reference is ``test_zno_td_no_so_value`` (fsolve on the oracle alone); the
+    published 405/795 assume spin-orbit stabilisation and are not the target.
+
+    Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'geometry'``.
+    """
+    fit = fit_spectrum(8, [4400.0, 15500.0], geometry="Td")
+    assert fit.Dq == pytest.approx(515.13, abs=0.5)
+    assert pytest.approx(790.09, abs=0.5) == fit.B
+    assert fit.dq_convention == "Td"

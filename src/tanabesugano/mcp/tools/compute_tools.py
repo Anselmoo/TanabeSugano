@@ -9,6 +9,7 @@ from tanabesugano import __version__
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import nephelauxetic_analysis
+from tanabesugano.mcp._compute import td_partner
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
 from tanabesugano.mcp.models import BandAssignment
@@ -86,6 +87,7 @@ def register(mcp: FastMCP) -> None:
         band_labels: list[str | list[str] | None] | None = None,
         fit_c: bool | None = None,
         dq_bounds: tuple[float, float] | None = None,
+        geometry: Literal["Oh", "Td"] = "Oh",
     ) -> FitResult | ComputeError:
         """Fit observed UV-Vis absorption bands to determine Dq and B parameters.
 
@@ -115,6 +117,9 @@ def register(mcp: FastMCP) -> None:
                 C; true frees it regardless (then a warning says C is one of many).
             dq_bounds: Optional (lower, upper) Dq search range in cm^-1; by default
                 derived from the lowest band. A Dq pinned at a bound is warned about.
+            geometry: "Oh" (default) or "Td". Td fits d^n on the Oh d^(10-n) manifold
+                with this ion's default B and C and returns the tetrahedral Dq_t
+                (Dq_convention "Td"), never an Oh-equivalent. High-spin only.
 
         Returns:
             FitResult with the optimized Dq and B, the ground term the fit is
@@ -143,6 +148,7 @@ def register(mcp: FastMCP) -> None:
                 dq_bounds=dq_bounds,
                 band_labels=band_labels,
                 fit_c=fit_c,
+                geometry=geometry,
             )
         except (ValueError, RuntimeError) as exc:
             return ComputeError(error=f"Fitting failed: {exc!s}")
@@ -165,7 +171,9 @@ def register(mcp: FastMCP) -> None:
         residual_ss = sum(r**2 for r in fit.residuals_cm1)
         r_squared = None if total_ss <= 0 else max(0.0, min(1.0, 1.0 - residual_ss / total_ss))
 
-        records = labelled_bands(fit, d_count, observed_peaks_cm1)
+        # The assignment uids name levels of the fitted manifold, which under Td is d^(10-n).
+        manifold_d = td_partner(d_count) if geometry == "Td" else d_count
+        records = labelled_bands(fit, manifold_d, observed_peaks_cm1)
         band_assignments = [
             BandAssignment(
                 observed_cm1=observed,
@@ -217,6 +225,7 @@ def register(mcp: FastMCP) -> None:
             Dq_nu1=fit.dq_nu1,
             Dq_nu1_reason=fit.dq_nu1_reason,
             assumptions=list(fit.assumptions),
+            Dq_convention=fit.dq_convention,
         )
 
     @mcp.tool(

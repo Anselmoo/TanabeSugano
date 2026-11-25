@@ -1235,6 +1235,25 @@ def test_ts_fit_spectrum_dq_nu1_none_off_d3_d8() -> None:
     assert data.Dq_nu1_reason == "nu1 = 10Dq holds only for d3 and d8"
 
 
+def test_ts_fit_spectrum_td_reports_the_convention_and_partner_uids() -> None:
+    """geometry='Td' through the tool: Dq_convention says Td, and every assigned uid names a
+    level of the manifold that was fitted (d2 for Td d8).
+
+    Observed red: ``pydantic_core.ValidationError`` / unexpected keyword ``geometry``.
+    """
+    from tanabesugano.levels import LevelSet
+
+    args = {"d_count": 8, "observed_peaks_cm1": [4400.0, 15500.0], "geometry": "Td"}
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert data.Dq_convention == "Td"
+    assert data.d_count == 8
+    levels = LevelSet.solve(2, dq=data.fitted_Dq, b=data.fitted_B, c=data.fitted_C)
+    uids = {lv.uid for lv in levels.levels}
+    assert {a.level_uid for a in data.band_assignments} <= uids
+    oh = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": NI_BANDS}).data  # type: ignore[attr-defined]
+    assert oh.Dq_convention == "Oh"
+
+
 def test_band_assignments_and_residuals_follow_input_order() -> None:
     """Peaks given out of order come back paired and signed in that order.
 

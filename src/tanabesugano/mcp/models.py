@@ -167,6 +167,13 @@ class FitResult(BaseModel):
             "a warning: it does not depend on the result."
         ),
     )
+    Dq_convention: Literal["Oh", "Td"] = Field(
+        default="Oh",
+        description=(
+            "Which crystal field fitted_Dq belongs to: 'Oh', or 'Td' (geometry='Td'), where "
+            "it is the tetrahedral Dq_t itself, never converted to an Oh-equivalent."
+        ),
+    )
     Dq_estimator: Literal["least_squares"] = Field(
         default="least_squares",
         description="How fitted_Dq was obtained: least squares over every fitted band.",
