@@ -6,7 +6,7 @@ d2-d8, and when it does not, does it at least warn pertinently?  Paths graded:
 * ``fit_spectrum`` (``tanabesugano.mcp._compute``), called directly with
   C = truth, with C = None (the per-configuration default) and, for d3/d8
   spin-allowed points, with a displaced closed-form seed (``seed-displaced``:
-  ``closed_form_dq_b`` patched to return 0.7 x Dq_cf, 1.4 x B_cf);
+  ``_initial_seed`` patched to return 0.7 x Dq_cf, 1.4 x B_cf);
 * ``ts_reverse_fit_app`` and ``ts_ratio_fit_app``, called through the in-memory
   FastMCP server the way ``test_reverse_fit_contract.py`` does it
   (``create_server()`` + ``run_loop_free``).  The reverse app's numbers come
@@ -88,8 +88,10 @@ from fastmcp.tools.function_tool import FunctionTool
 import tanabesugano.mcp._compute as compute_module
 
 from tanabesugano.levels import LevelSet
+from tanabesugano.mcp._compute import _initial_seed
 from tanabesugano.mcp._compute import closed_form_dq_b
 from tanabesugano.mcp._compute import compute_point
+from tanabesugano.mcp._compute import default_dq_bounds
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import ground_term
 from tanabesugano.mcp._compute import peak_rmse
@@ -223,8 +225,8 @@ WARNING_KINDS = (
 NON_PERTINENT_KINDS = frozenset({"c-note"})
 
 FIX_CLASSES = {
-    "a": "seed obs[0]/10 outside d3/d8 (_compute.py L465)",
-    "bounds-exclude-truth": "default dq_bounds (0.2, 5) x seed exclude the truth (L474-475)",
+    "a": "generic seed obs[0]/10 (_initial_seed)",
+    "bounds-exclude-truth": "default dq_bounds (default_dq_bounds) exclude the truth",
     "b": "5 local starts around the seed (L555-561)",
     "c": "unlabelled non-injective NN matching incl. doublets (L302, L541-553)",
     "d": "regime penalty / crossover proximity (L547)",
@@ -249,13 +251,13 @@ FIX_CLASSES = {
 }
 CLASS_RULES = {
     "a": (
-        "fit_spectrum only, not seed-displaced: generic seed (not d3/d8, or <3 bands) and "
-        "seed Dq / truth Dq outside the local-start span [0.8, 1.25]; or d3/d8 with a "
-        "spin-forbidden band among the three lowest (closed form fed a forbidden band)"
+        "fit_spectrum only, not seed-displaced: generic seed (not d3/d8, <3 bands, or "
+        "spin-forbidden bands included) and seed Dq / truth Dq outside the local-start "
+        "span [0.8, 1.25]"
     ),
     "bounds-exclude-truth": (
-        "fit_spectrum only, not seed-displaced: the truth Dq lies outside (0.2, 5) x the seed "
-        "fit_spectrum computes (closed form for d3/d8 with >=3 bands, else obs[0]/10)"
+        "fit_spectrum only, not seed-displaced: the truth Dq lies outside "
+        "default_dq_bounds(bands, seed), the seed being _initial_seed's"
     ),
     "b": (
         "fit_spectrum only: objective (C used) at the returned point exceeds the objective "
@@ -716,7 +718,7 @@ def run_seed_displaced(case: Case) -> Run:
     """Call ``fit_spectrum`` with C = truth and the closed-form seed displaced."""
     dq_cf, b_cf = closed_form_dq_b(case.d, [band.energy for band in case.bands])
     seed = (SEED_DQ_FACTOR * dq_cf, SEED_B_FACTOR * b_cf)
-    with mock.patch.object(compute_module, "closed_form_dq_b", return_value=seed):
+    with mock.patch.object(compute_module, "_initial_seed", return_value=seed):
         return run_fit_spectrum(case, "seed-displaced")
 
 
@@ -1067,16 +1069,15 @@ def fit_classes(row: Row, paired_truth_ok: bool) -> list[str]:
     case, run = row.case, row.run
     found: list[str] = []
     energies = sorted(band.energy for band in case.bands)
-    closed_form = case.d in CLOSED_FORM_CONFIGS and len(energies) >= CLOSED_FORM_BANDS
-    lowest_three = sorted(case.bands, key=lambda band: band.energy)[:CLOSED_FORM_BANDS]
-    forbidden_in_closed_form = closed_form and any(not band.spin_allowed for band in lowest_three)
+    closed_form = (
+        case.d in CLOSED_FORM_CONFIGS and len(energies) >= CLOSED_FORM_BANDS and not case.sf
+    )
     seed_ratio = energies[0] / 10.0 / case.truth_dq
     generic_off = not closed_form and not SEED_SPAN[0] <= seed_ratio <= SEED_SPAN[1]
-    if run.c_mode != "seed-displaced" and (generic_off or forbidden_in_closed_form):
+    if run.c_mode != "seed-displaced" and generic_off:
         found.append("a")
-    if run.c_mode != "seed-displaced" and not 0.2 * seed_dq(case) < case.truth_dq < 5.0 * seed_dq(
-        case
-    ):
+    lo, hi = default_dq_bounds(energies, seed_dq(case))
+    if run.c_mode != "seed-displaced" and not lo < case.truth_dq < hi:
         found.append("bounds-exclude-truth")
     fit, at_truth = row.obj_fit, row.obj_truth_c_used
     better_exists = fit is not None and at_truth is not None and fit > at_truth + RMSE_EPS_CM1
@@ -1093,10 +1094,7 @@ def fit_classes(row: Row, paired_truth_ok: bool) -> list[str]:
 def seed_dq(case: Case) -> float:
     """Return the Dq seed ``fit_spectrum`` derives its default ``dq_bounds`` from."""
     energies = sorted(band.energy for band in case.bands)
-    try:
-        return closed_form_dq_b(case.d, energies)[0]
-    except ValueError:
-        return energies[0] / 10.0
+    return _initial_seed(case.d, energies, include_spin_forbidden=case.sf)[0]
 
 
 def app_grids(case: Case, path: str) -> tuple[list[float], list[float]]:
@@ -1357,7 +1355,7 @@ def known_defect() -> list[tuple[str, str, str, str, str, str, str]]:
         "reference-blind 25 x 5 start grid (Dq x B), C = default",
         lambda: reference_blind_fit(bands, None),
     )
-    with mock.patch.object(compute_module, "closed_form_dq_b", return_value=COUNTERFACTUAL_SEED):
+    with mock.patch.object(compute_module, "_initial_seed", return_value=COUNTERFACTUAL_SEED):
         record(
             "illustration (hand-picked): seed (650, 750), dq_bounds (130, 3250), C = reference",
             lambda: fit_spectrum(
@@ -1378,7 +1376,7 @@ def reference_blind_fit(bands: list[float], c: float | None) -> SpectrumFit:
     for dq in np.geomspace(lo, hi, MULTISTART_DQ_SEEDS):
         for b0 in np.geomspace(*FIT_B_BOUNDS, MULTISTART_B_SEEDS):
             seed = (float(dq), float(b0))
-            with mock.patch.object(compute_module, "closed_form_dq_b", return_value=seed):
+            with mock.patch.object(compute_module, "_initial_seed", return_value=seed):
                 try:
                     fit = fit_spectrum(5, bands, c, include_spin_forbidden=True, dq_bounds=(lo, hi))
                 except ValueError:
@@ -1468,7 +1466,7 @@ def section_known_defect(
             "This reference is d5 and therefore R1-tainted "
             "(Hormann & Shaw, J. Chem. Educ. 1987, 64, 918): the table is a comparison, not a "
             "grade. Regenerated live. The start-grid rows and the hand-picked illustration "
-            "monkeypatch `tanabesugano.mcp._compute.closed_form_dq_b` inside this process "
+            "monkeypatch `tanabesugano.mcp._compute._initial_seed` inside this process "
             "only; the start grid never sees the reference."
         ),
         "",
@@ -1549,7 +1547,7 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
         (
             "- **seed-displaced.** For d3/d8 spin-allowed points the closed form is exact on "
             "oracle bands (nu1 = 10Dq, nu2 + nu3 = 15B + 3 nu1), so fit_spectrum starts AT the "
-            "answer. Each such point gets an extra C = truth run with `closed_form_dq_b` "
+            "answer. Each such point gets an extra C = truth run with `_initial_seed` "
             f"patched to return ({SEED_DQ_FACTOR} x Dq_cf, {SEED_B_FACTOR} x B_cf). JCE d3/d8 "
             "reported Dq is nu1/10 by construction, equal to both the closed-form seed and "
             "reverse-app grid node 8 -- hence the many dDq = 0.0 rows."

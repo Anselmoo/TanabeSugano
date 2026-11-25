@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
+from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.test._determinant_oracle import relative_term_levels
 
 
@@ -68,3 +71,45 @@ def test_oracle_bands_d8_nu1_is_ten_dq() -> None:
     assert len(bands) == 3
     assert abs(bands[0][0] - 8500.0) < 1e-6
     assert term_labels(bands) == ["3_T_2", "3_T_1", "3_T_1"]
+
+
+# The four B1 cases whose truth lay outside the old default bounds (B6 idx 77, 91,
+# 169, 183): (d, Dq, B, C, spin_state, n_bands), spin-forbidden bands included.
+BOUNDS_EXCLUDED_TRUTH = [
+    (4, 1675.0, 723.8, 2895.2, "high", 4),
+    (4, 1851.3, 723.8, 2895.2, "low", 6),
+    (7, 1343.7, 728.2, 2912.8, "high", 6),
+    (7, 1485.2, 728.2, 2912.8, "low", 6),
+]
+
+
+@pytest.mark.parametrize(("d", "dq", "b", "c", "_spin", "n_bands"), BOUNDS_EXCLUDED_TRUTH)
+def test_default_dq_bounds_contain_truth(
+    d: int, dq: float, b: float, c: float, _spin: str, n_bands: int
+) -> None:
+    """The default Dq bounds contain the truth, reading only the observed bands.
+
+    Containment only: B6 widen/nn/truth recovers just 2 of these 4, so recovery is
+    asserted under the grid search (C2), not here.
+
+    Observed red: ``ImportError: cannot import name 'default_dq_bounds'``; on the old
+    formula ``(0.2, 5) * min(obs) / 10`` the upper bound is 420 against a truth of 1675.
+    """
+    from tanabesugano.mcp._compute import default_dq_bounds
+
+    observed = [e for e, _uid in oracle_bands(d, dq, b, c, spin_allowed_only=False)[:n_bands]]
+    lo, hi = default_dq_bounds(observed, observed[0] / 10.0)
+    assert lo < dq < hi
+
+
+def test_closed_form_seed_skipped_with_spin_forbidden() -> None:
+    """d8 with a singlet among the lowest three bands still recovers (Dq, B).
+
+    The closed form reads the lowest three bands as nu1..nu3; with spin-forbidden
+    bands included, one of them is 1_E, and the seed is built from the wrong level.
+    """
+    dq, b, c = 850.0, 907.0, 4850.0
+    bands = oracle_bands(8, dq, b, c, spin_allowed_only=False)[:5]
+    assert any(not uid.startswith("3_") for _e, uid in bands[:3])
+    fit = fit_spectrum(8, [e for e, _u in bands], c, include_spin_forbidden=True)
+    assert_recovered(fit, dq, b)

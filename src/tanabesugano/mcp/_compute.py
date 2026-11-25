@@ -8,6 +8,7 @@ crunch numbers.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Literal
 from typing import TypedDict
 
@@ -19,6 +20,10 @@ from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
 from tanabesugano.constants import ElectronConfiguration
 from tanabesugano.levels import LevelSet
 from tanabesugano.plot_style import _TERM_RE
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 SUPPORTED_D_COUNTS: tuple[int, ...] = (2, 3, 4, 5, 6, 7, 8)
@@ -336,6 +341,31 @@ def closed_form_dq_b(d_count: int, observed_peaks_cm1: list[float]) -> tuple[flo
     return nu1 / 10.0, (nu3 + nu2 - 3.0 * nu1) / 15.0
 
 
+DQ_BOUNDS_SEED_SPAN = (0.2, 5.0)
+"""Default Dq bounds as multiples of the seed, the historical window."""
+
+DQ_BOUNDS_BAND_SPAN = (0.005, 0.25)
+"""Default Dq bounds as fractions of the highest observed band.
+
+The seed span alone fails whenever the lowest band is a weak low-lying
+spin-forbidden level: ``min(obs) / 10`` then sits far below the real Dq, and the
+fit-path audit found four cases whose truth lay above ``5 * dq_seed``. The band
+span reads only the observed bands, never a reference value. It is the span the
+B6 ablation widened to: it contains every audited truth, and a lone d3/d8 nu1
+(Dq = nu1 / 10) sits well inside it. It is an empirical window, not a bound
+derived from the Hamiltonian.
+"""
+
+
+def default_dq_bounds(observed_peaks_cm1: Sequence[float], dq_seed: float) -> tuple[float, float]:
+    """Return the default ``dq_bounds``: the seed window widened by the band span."""
+    top = max(observed_peaks_cm1)
+    return (
+        min(DQ_BOUNDS_SEED_SPAN[0] * dq_seed, DQ_BOUNDS_BAND_SPAN[0] * top),
+        max(DQ_BOUNDS_SEED_SPAN[1] * dq_seed, DQ_BOUNDS_BAND_SPAN[1] * top),
+    )
+
+
 @dataclass(frozen=True)
 class SpectrumFit:
     """Result of fitting observed absorption bands to (Dq, B).
@@ -406,6 +436,27 @@ def crossover_dq(
     return hi
 
 
+def _initial_seed(
+    d_count: int, observed_sorted: list[float], *, include_spin_forbidden: bool
+) -> tuple[float, float]:
+    """Return the (Dq, B) seed: the d3/d8 closed form where it applies, else (obs[0]/10, B0).
+
+    The closed form reads the lowest three bands as nu1..nu3. With spin-forbidden
+    bands in the list one of those can be a doublet or singlet (d8: 1_E sits
+    between nu2 and nu3), and the seed is then built from the wrong level, so it
+    is used only for spin-allowed fits. One function, so the audit can displace
+    the seed on every path by patching a single name.
+    """
+    from tanabesugano.mcp._defaults import DEFAULTS
+
+    if not include_spin_forbidden:
+        try:
+            return closed_form_dq_b(d_count, observed_sorted)
+        except ValueError:
+            pass  # not d3/d8, or fewer than three bands -- generic seed stands
+    return observed_sorted[0] / 10.0, float(DEFAULTS[d_count]["default_B"])
+
+
 def fit_spectrum(
     d_count: int,
     observed_peaks_cm1: list[float],
@@ -438,7 +489,8 @@ def fit_spectrum(
         Fit against spin-forbidden transitions too. Required for high-spin d5,
         whose d-d bands are *all* spin-forbidden.
     dq_bounds:
-        Defaults to ``(0.2 * dq_seed, 5 * dq_seed)``. The lower bound must stay
+        Defaults to :func:`default_dq_bounds`: the seed window
+        ``(0.2, 5) * dq_seed`` widened to ``(0.005, 0.25) * max(observed)``. The lower bound must stay
         strictly positive: the solver silently returns corrupted energies for
         Dq < 0 (the ground level stops being the zero point) with no error.
 
@@ -461,18 +513,14 @@ def fit_spectrum(
     # --- Seed ---------------------------------------------------------------
     # For d3/d8 the closed form gives BOTH parameters analytically, so the
     # optimizer starts on (or beside) the answer instead of hunting for it.
-    b_default = float(DEFAULTS[d_count]["default_B"])
-    dq_seed = float(observed[0]) / 10.0
-    b_seed = b_default
-    try:
-        dq_seed, b_seed = closed_form_dq_b(d_count, observed.tolist())
-    except ValueError:
-        pass  # not d3/d8, or fewer than three bands -- generic seed stands
+    dq_seed, b_seed = _initial_seed(
+        d_count, observed.tolist(), include_spin_forbidden=include_spin_forbidden
+    )
     if not b_bounds[0] <= b_seed <= b_bounds[1]:
         b_seed = min(max(b_seed, b_bounds[0]), b_bounds[1])
 
     if dq_bounds is None:
-        dq_bounds = (0.2 * dq_seed, 5.0 * dq_seed)
+        dq_bounds = default_dq_bounds(observed.tolist(), dq_seed)
     if dq_bounds[0] <= 0:
         msg = f"dq_bounds lower limit must be > 0 (Dq <= 0 corrupts the solver); got {dq_bounds}"
         raise ValueError(msg)
