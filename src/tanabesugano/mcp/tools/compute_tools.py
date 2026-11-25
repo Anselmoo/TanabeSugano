@@ -214,6 +214,8 @@ def register(mcp: FastMCP) -> None:
             c_range=fit.c_range,
             minima=minima,
             band_assignments=band_assignments,
+            Dq_nu1=fit.dq_nu1,
+            Dq_nu1_reason=fit.dq_nu1_reason,
         )
 
     @mcp.tool(

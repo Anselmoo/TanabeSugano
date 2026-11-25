@@ -15,6 +15,7 @@ import pytest
 
 from tanabesugano.mcp._compute import _pick_minimum
 from tanabesugano.mcp._compute import fit_spectrum
+from tanabesugano.mcp._compute import nu1_floor
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.test._determinant_oracle import relative_term_levels
 
@@ -712,3 +713,117 @@ def test_free_c_refit_failure_keeps_held_fit(monkeypatch: pytest.MonkeyPatch) ->
     fit = fit_spectrum(6, bands, spin_state="low")
     assert fit.dq_provenance == "fitted"
     assert fit.free_c_minima == ()
+
+
+# --- F3: both d3/d8 Dq estimators reported ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("nu1", "floor"),
+    [
+        pytest.param(17400.0, 50.0, id="hundreds-printed"),
+        pytest.param(17235.0, 1.0, id="units-printed-floored"),
+        pytest.param(17234.56789, 1.0, id="oracle-float-floored"),
+        pytest.param(8500.0, 50.0, id="d8-hundreds"),
+    ],
+)
+def test_nu1_floor(nu1: float, floor: float) -> None:
+    """Half the last printed digit of nu1, never below ``TIE_RMSE_CM1``.
+
+    The expected values are read off the digits as printed, not from the code: 17400 is
+    printed to the hundred (half = 50), 17235 to the unit (half = 0.5, floored to the
+    1 cm^-1 tie), and an oracle float carries no printing precision at all.
+
+    Observed red: ``ImportError: cannot import name 'nu1_floor'``.
+    """
+    assert nu1_floor(nu1) == floor
+
+
+def test_dq_nu1_reported_for_d3_and_d8() -> None:
+    """d8 [Ni(H2O)6]2+: nu1/10 is the lowest band over ten, reported beside the LS Dq.
+
+    The expected 850.0 is the input band 8500 / 10 (T1a: nu1 = 10Dq for d8), not a fit value.
+    The disagreement sentence appears exactly when ``|10 Dq - nu1|`` exceeds the threshold.
+
+    Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'dq_nu1'``.
+    """
+    fit = fit_spectrum(8, [8500.0, 13800.0, 25300.0])
+    assert fit.dq_nu1 == 850.0
+    differs = abs(10.0 * fit.Dq - 8500.0) > max(fit.rmse_cm1, nu1_floor(8500.0))
+    if differs:
+        assert fit.dq_nu1_reason == (
+            f"Dq estimators differ: nu1/10 = 850, least squares = {fit.Dq:.0f} cm^-1"
+        )
+    else:
+        assert fit.dq_nu1_reason is None
+    assert not any("estimators" in w for w in fit.warnings), "report-only: no warning"
+
+
+def test_dq_nu1_labelled_takes_the_t2_band() -> None:
+    """Labelled d3: nu1 is the band labelled 4_T_2, wherever it sits in the input order.
+
+    Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'dq_nu1'``.
+    """
+    bands = oracle_bands(3, 1750.0, 700.0, 2800.0, spin_allowed_only=True)
+    t2 = next(e for e, uid in bands if uid.startswith("4_T_2"))
+    reordered = list(reversed(bands))
+    fit = fit_spectrum(3, [e for e, _u in reordered], band_labels=term_labels(reordered))
+    assert fit.dq_nu1 == t2 / 10.0
+
+
+@pytest.mark.parametrize(
+    ("d_count", "kwargs", "reason"),
+    [
+        pytest.param(
+            3,
+            {"include_spin_forbidden": True},
+            "unlabelled spin-forbidden bands: the lowest band may be 2E/1E",
+            id="d3-unlabelled-spin-forbidden",
+        ),
+        pytest.param(
+            5,
+            {"include_spin_forbidden": True},
+            "nu1 = 10Dq holds only for d3 and d8",
+            id="d5",
+        ),
+    ],
+)
+def test_dq_nu1_none_with_reason(d_count: int, kwargs: dict[str, bool], reason: str) -> None:
+    """No nu1 where it is not a band: unlabelled spin-forbidden input, or a d-count without it.
+
+    Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'dq_nu1'``.
+    """
+    bands = oracle_bands(d_count, 1500.0, 700.0, 3000.0, spin_allowed_only=False)[:4]
+    fit = fit_spectrum(d_count, [e for e, _u in bands], **kwargs)
+    assert fit.dq_nu1 is None
+    assert fit.dq_nu1_reason == reason
+
+
+@pytest.mark.parametrize(
+    ("d_count", "dq", "b", "c", "nu1_offset"),
+    [
+        pytest.param(3, 1200.0, 688.5, 688.5 * 4.0, 0.0, id="d3-exact"),
+        pytest.param(8, 850.0, 907.0, 4850.0, 0.5, id="d8-nu1-half-unit-off"),
+    ],
+)
+def test_oracle_bands_do_not_disagree(
+    d_count: int, dq: float, b: float, c: float, nu1_offset: float
+) -> None:
+    """Oracle bands: no disagreement sentence fires on float round-off (Review Focus 5).
+
+    nu1 is a float with many digits, so :func:`nu1_floor` must fall back to
+    ``TIE_RMSE_CM1`` rather than to half a 1e-12 digit. On exact d3 bands the two
+    estimators agree to the bit (|10 Dq - nu1| = 0.0), which no threshold can tell
+    apart; the d8 case moves nu1 by half a unit, giving |10 Dq - nu1| = 0.30 above the
+    RMSE 0.23 and below the 1 cm^-1 floor, so only the floor keeps it silent.
+
+    Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'dq_nu1'``.
+    Behavioural red (threshold mutated to ``max(rmse, 0.0)``): ``[d8-nu1-half-unit-off]``
+    fails with ``AssertionError: assert 'Dq estimators differ: nu1/10 = 850, least
+    squares = 850 cm^-1' is None``; ``[d3-exact]`` stays green (gap 0.0).
+    """
+    bands = [e for e, _u in oracle_bands(d_count, dq, b, c, spin_allowed_only=True)]
+    bands[0] += nu1_offset
+    fit = fit_spectrum(d_count, bands, C=c)
+    assert fit.dq_nu1 == bands[0] / 10.0
+    assert fit.dq_nu1_reason is None

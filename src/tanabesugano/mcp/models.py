@@ -159,6 +159,26 @@ class FitResult(BaseModel):
         default_factory=list,
         description="Per observed band, in the order given: the level the fit assigned it.",
     )
+    Dq_estimator: Literal["least_squares"] = Field(
+        default="least_squares",
+        description="How fitted_Dq was obtained: least squares over every fitted band.",
+    )
+    Dq_nu1: float | None = Field(
+        default=None,
+        description=(
+            "d3 and d8 only: nu1/10, the other Dq estimator (nu1 = 10Dq exactly for these "
+            "ions), reported beside fitted_Dq, never instead of it. None where nu1 is not "
+            "a band; Dq_nu1_reason says why."
+        ),
+    )
+    Dq_nu1_reason: str | None = Field(
+        default=None,
+        description=(
+            "Why Dq_nu1 is None, or, when it is set, that the two Dq estimators differ by "
+            "more than the larger of the RMSE and half the last printed digit of nu1. A "
+            "report, not a warning."
+        ),
+    )
     c_constrained: bool = Field(
         default=False,
         description=(

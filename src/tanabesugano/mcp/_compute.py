@@ -11,6 +11,7 @@ from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import replace
+from decimal import Decimal
 from typing import Literal
 from typing import TypedDict
 
@@ -413,6 +414,12 @@ class SpectrumFit:
     then one choice of C among several. ``free_c_minima`` holds those free-C minima,
     lowest objective first; the returned point is still the held one.
 
+    ``dq_nu1`` is the other d3/d8 estimator, nu1/10 (nu1 = 10Dq exactly for these two
+    ions), reported beside the least-squares ``Dq``, never instead of it.
+    ``dq_nu1_reason`` says why it is None, or, when it is set, that the two estimators
+    differ by more than the larger of the RMSE and :func:`nu1_floor`. It is a report:
+    it adds no warning.
+
     ``assignment`` is the pairing the fit made, one ``(observed, computed, level_uid)``
     per band in the caller's order: the injective :func:`assign_bands` result at the
     returned point. Anything that names the level a band was fitted to reads it
@@ -439,6 +446,8 @@ class SpectrumFit:
     c_range: tuple[float, float] | None = None
     assignment: tuple[tuple[float, float, str], ...] = ()
     free_c_minima: tuple[tuple[float, float, float, float], ...] = ()
+    dq_nu1: float | None = None
+    dq_nu1_reason: str | None = None
 
 
 def crossover_dq(
@@ -500,6 +509,20 @@ TIE_RMSE_CM1 = 1.0
 The scale of ``C_SENSITIVITY_TOL_CM1``: far above the optimizer's ``fatol`` and far
 below any band-position difference a spectrum can resolve.
 """
+
+
+def nu1_floor(nu1: float) -> float:
+    """Half the last printed digit of ``nu1``, never below :data:`TIE_RMSE_CM1` (cm^-1).
+
+    A band printed as 17400 is known to the hundred, so a nu1/10 that differs from the
+    least-squares Dq by less than 50 cm^-1 in 10 Dq is round-off, not disagreement. A
+    float carrying many digits (an oracle band) has no printing precision; the tie
+    threshold is then the floor.
+    """
+    exponent = Decimal(repr(float(nu1))).normalize().as_tuple().exponent
+    if not isinstance(exponent, int):
+        return TIE_RMSE_CM1
+    return max(TIE_RMSE_CM1, 0.5 * 10.0**exponent)
 
 
 def _pick_minimum(
@@ -944,7 +967,45 @@ def fit_spectrum(
             dq_bounds=dq_bounds,
             b_bounds=b_bounds,
         )
-    return fit
+    return _with_nu1(d_count, observed_peaks_cm1, fit, band_labels, include_spin_forbidden)
+
+
+NU1_TERM = {3: "4_T_2", 8: "3_T_2"}
+"""The term whose energy above the ground is exactly 10Dq, for the two ions where one is."""
+
+
+def _with_nu1(
+    d_count: int,
+    observed: list[float],
+    fit: SpectrumFit,
+    band_labels: Sequence[BandLabel] | None,
+    include_spin_forbidden: bool,
+) -> SpectrumFit:
+    """Attach nu1/10 beside the least-squares Dq, and say when the two differ."""
+    term = NU1_TERM.get(d_count)
+    if term is None:
+        return replace(fit, dq_nu1_reason="nu1 = 10Dq holds only for d3 and d8")
+    if band_labels is not None:
+        named = [
+            e
+            for e, label in zip(observed, band_labels, strict=True)
+            if label == term or (not isinstance(label, str) and list(label or ()) == [term])
+        ]
+        if not named:
+            return replace(fit, dq_nu1_reason=f"no band is labelled {term}")
+        nu1 = min(named)
+    elif include_spin_forbidden:
+        return replace(
+            fit, dq_nu1_reason="unlabelled spin-forbidden bands: the lowest band may be 2E/1E"
+        )
+    else:
+        nu1 = min(observed)
+    reason = None
+    if abs(10.0 * fit.Dq - nu1) > max(fit.rmse_cm1, nu1_floor(nu1)):
+        reason = (
+            f"Dq estimators differ: nu1/10 = {nu1 / 10.0:.0f}, least squares = {fit.Dq:.0f} cm^-1"
+        )
+    return replace(fit, dq_nu1=nu1 / 10.0, dq_nu1_reason=reason)
 
 
 def _held_c_check(

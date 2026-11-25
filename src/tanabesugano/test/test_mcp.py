@@ -1188,6 +1188,35 @@ def test_old_call_keeps_old_fields() -> None:
     assert not FIT_RESULT_FIELDS_BEFORE_PROVENANCE - fields
 
 
+def test_ts_fit_spectrum_reports_both_d8_dq_estimators() -> None:
+    """F3: nu1/10 beside the least-squares Dq, named, and only reported.
+
+    850.0 is the input band 8500 / 10, not a fit value; ``fitted_Dq`` stays the
+    least-squares one and ``Dq_estimator`` says so.
+
+    Observed red: ``AttributeError: 'Root' object has no attribute 'Dq_nu1'``.
+    """
+    data = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": NI_BANDS}).data  # type: ignore[attr-defined]
+    assert data.Dq_nu1 == 850.0
+    assert data.Dq_estimator == "least_squares"
+    assert data.fitted_Dq != data.Dq_nu1
+    assert data.Dq_nu1_reason == (
+        f"Dq estimators differ: nu1/10 = 850, least squares = {data.fitted_Dq:.0f} cm^-1"
+    )
+    assert not any("estimators" in w for w in data.warnings)
+
+
+def test_ts_fit_spectrum_dq_nu1_none_off_d3_d8() -> None:
+    """A d-count without nu1 = 10Dq reports None with the reason.
+
+    Observed red: ``AttributeError: 'Root' object has no attribute 'Dq_nu1'``.
+    """
+    args = {"d_count": 2, "observed_peaks_cm1": [17200, 25600]}
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert data.Dq_nu1 is None
+    assert data.Dq_nu1_reason == "nu1 = 10Dq holds only for d3 and d8"
+
+
 def test_band_assignments_and_residuals_follow_input_order() -> None:
     """Peaks given out of order come back paired and signed in that order.
 

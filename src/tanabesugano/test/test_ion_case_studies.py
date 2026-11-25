@@ -1571,6 +1571,34 @@ class TestJce2023Inverse:
         }
         assert {f"JCE2023 {k}" for k in JCE_UNNORMALISED} <= set(COMPARISON_ONLY)
 
+    def test_mgo_nu1_estimator_matches_the_original(self) -> None:
+        """MgO:Ni2+'s nu1/10 = 801 is graded against the F3 nu1/10 report, not the LS Dq.
+
+        Provenance: ref 24 (doi:10.1063/1.1732066, Section (d)) states the no-spin-orbit
+        model gives nu1/10 = 801 (``primary_sources.csv``, the MgO:Ni2+ Dq note); the printed
+        Dq 815 adds a predicted spin-orbit stabilisation and stays comparison-only. The
+        tolerance is zero: nu1/10 is a band over ten, so any other value means the wrong
+        band was taken for nu1. The least-squares Dq (816) is not graded here.
+
+        Observed red (``_with_nu1`` mutated to return the fit unchanged):
+        ``AssertionError: assert None == 801.0``.
+        """
+        (record,) = [r for r in jce_records() if r.record_id == "MgO:Ni2+ [allowed]"]
+        note = next(
+            p.note for p in primary_sources() if (p.system, p.quantity) == ("MgO:Ni2+", "Dq")
+        )
+        found = re.search(r"nu1/10 = (\d+)", note)
+        assert found is not None, note
+        printed = float(found.group(1))
+        fit = fit_spectrum(
+            record.d_count,
+            list(record.bands_cm1),
+            record.C,
+            spin_state=record.spin_state,
+            band_labels=list(record.labels),
+        )
+        assert fit.dq_nu1 == printed
+
     def test_errata_name_self_consistent_records(self) -> None:
         """An erratum only matters for a record the forward check would have admitted."""
         assert set(JCE_SOURCE_ERRATA) <= SELF_CONSISTENT
