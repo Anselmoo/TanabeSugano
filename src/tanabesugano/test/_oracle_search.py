@@ -51,9 +51,16 @@ def _levels(n: int, dq: np.ndarray, b: np.ndarray, c: float) -> list[tuple[int, 
 
 
 def _candidates(
-    per_block: list[tuple[int, str, np.ndarray]], node: int, multiplicity: int
+    per_block: list[tuple[int, str, np.ndarray]],
+    node: int,
+    multiplicity: int,
+    *,
+    spin_forbidden: bool = False,
 ) -> tuple[np.ndarray, list[tuple[str, int]]] | None:
-    """Levels of ``multiplicity`` above the ground at one node, or None off that regime."""
+    """Levels above the ground at one node, or None off the ``multiplicity`` regime.
+
+    Only levels of the ground multiplicity, unless ``spin_forbidden``: then every level.
+    """
     ground_e, ground_mult, ground_key = min(
         (float(lv[node].min()), mult, key) for mult, key, lv in per_block
     )
@@ -62,7 +69,7 @@ def _candidates(
     energies: list[float] = []
     ids: list[tuple[str, int]] = []
     for mult, key, lv in per_block:
-        if mult != multiplicity:
+        if mult != multiplicity and not spin_forbidden:
             continue
         for index, energy in enumerate(np.sort(lv[node])):
             if key == ground_key and index == 0:
@@ -82,11 +89,18 @@ def _assign(observed: np.ndarray, energies: np.ndarray) -> tuple[float, np.ndarr
 
 
 def oracle_rmse(
-    n: int, observed: list[float], dq: float, b: float, c: float, multiplicity: int
+    n: int,
+    observed: list[float],
+    dq: float,
+    b: float,
+    c: float,
+    multiplicity: int,
+    *,
+    spin_forbidden: bool = False,
 ) -> float:
     """RMSE at one point under the optimal assignment; inf outside the regime."""
     per_block = _levels(n, np.array([dq]), np.array([b]), c)
-    found = _candidates(per_block, 0, multiplicity)
+    found = _candidates(per_block, 0, multiplicity, spin_forbidden=spin_forbidden)
     if found is None:
         return float("inf")
     return _assign(np.asarray(observed, dtype=float), found[0])[0]
@@ -99,6 +113,8 @@ def oracle_global_min(
     dq_bounds: tuple[float, float],
     b_bounds: tuple[float, float],
     multiplicity: int,
+    *,
+    spin_forbidden: bool = False,
 ) -> OracleMinimum:
     """The lowest band RMSE over the box, at fixed C, in the ``multiplicity`` regime."""
     obs = np.asarray(observed, dtype=float)
@@ -110,7 +126,7 @@ def oracle_global_min(
         dq_chunk, b_chunk = dq_grid[start : start + CHUNK], b_grid[start : start + CHUNK]
         per_block = _levels(n, dq_chunk, b_chunk, c)
         for node in range(len(dq_chunk)):
-            found = _candidates(per_block, node, multiplicity)
+            found = _candidates(per_block, node, multiplicity, spin_forbidden=spin_forbidden)
             if found is None:
                 continue
             rmse, cols = _assign(obs, found[0])
@@ -133,7 +149,15 @@ def oracle_global_min(
         fit = least_squares(
             residual, [dq0, b0], bounds=([dq_bounds[0], b_bounds[0]], [dq_bounds[1], b_bounds[1]])
         )
-        polished = oracle_rmse(n, observed, float(fit.x[0]), float(fit.x[1]), c, multiplicity)
+        polished = oracle_rmse(
+            n,
+            observed,
+            float(fit.x[0]),
+            float(fit.x[1]),
+            c,
+            multiplicity,
+            spin_forbidden=spin_forbidden,
+        )
         if polished < best.rmse_cm1:
             best = OracleMinimum(polished, float(fit.x[0]), float(fit.x[1]), ids)
     return best

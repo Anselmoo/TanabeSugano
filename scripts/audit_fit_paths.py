@@ -84,6 +84,7 @@ from dataclasses import field
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 from unittest import mock
 
 import numpy as np
@@ -226,6 +227,7 @@ CSV_COLUMNS = (
     "geometry",
     "Dq_source",
     "free_c_lowest",
+    "reference_note",
     "failure_classes",
 )
 WARNING_KINDS = (
@@ -440,6 +442,13 @@ class Case:
     approx: bool = False
     r1: bool = False
     geometry: str = "Oh"
+    ref_note: str = ""
+    """Why the reference is comparison-only (primary_sources.csv); empty when it is graded."""
+
+    @property
+    def comparison(self) -> bool:
+        """R1-tainted or comparison-only reference: reported, never counted as pass or fail."""
+        return self.r1 or bool(self.ref_note)
 
 
 @dataclass
@@ -1047,6 +1056,8 @@ def grade(case: Case, run: Run) -> Row:
     verdict = decide_verdict(case, run, d_dq, d_b, kinds)
     if case.r1:
         verdict = f"{verdict}-R1"
+    if case.ref_note:
+        verdict = f"{verdict}-REF"
     jce = case.source == "jce2023"
     values = {
         "source": case.source,
@@ -1087,6 +1098,7 @@ def grade(case: Case, run: Run) -> Row:
         "free_c_lowest": ""
         if run.free_c_lowest is None
         else "/".join(fmt(x) for x in run.free_c_lowest),
+        "reference_note": case.ref_note,
         "failure_classes": "",
     }
     return Row(
@@ -1105,8 +1117,8 @@ def grade(case: Case, run: Run) -> Row:
 
 
 def base_verdict(row: Row) -> str:
-    """Return the verdict without its ``-R1`` suffix."""
-    return row.verdict.removesuffix("-R1")
+    """Return the verdict without its ``-REF`` and ``-R1`` suffixes (appended in that order)."""
+    return row.verdict.removesuffix("-REF").removesuffix("-R1")
 
 
 def is_failure(row: Row) -> bool:
@@ -1349,6 +1361,35 @@ def jce_bands(
     return tuple(band_from(cl, gm, partners) for cl in cluster_levels(levels))
 
 
+UNGRADABLE_STATUS = frozenset({"calc", "CT", "unverified"})
+"""A primary band with one of these statuses is dropped from the case."""
+
+
+def read_primary() -> dict[tuple[str, str], dict[str, str]]:
+    """``audit/jce2023/primary_sources.csv`` keyed by (system, quantity).
+
+    Read here, not through the test module: the script must not import tests that
+    need pytest. The test module validates the file's schema.
+    """
+    return {(r["system"], r["quantity"]): r for r in read_csv(JCE_DIR / "primary_sources.csv")}
+
+
+def primary_quantity(band: dict[str, str]) -> str:
+    """A Table 1 row as a primary-file quantity, ``band:3_T_1#1`` (0-based index)."""
+    return (
+        f"band:{band['multiplicity']}_{JCE_IRREPS[band['irrep']]}#{int(band['ordinal'] or 1) - 1}"
+    )
+
+
+def reference_note(system: str, primary: dict[tuple[str, str], dict[str, str]]) -> str:
+    """Why a system's reference (Dq, B, C) is comparison-only, or "" if it is graded."""
+    for quantity in ("Dq", "B", "C"):
+        row = primary.get((system, quantity))
+        if row is not None and row["status"] != "observed":
+            return f"{quantity} {row['status']} (ref {row['ref']}): {row['note']}"
+    return ""
+
+
 def jce_cases() -> list[Case]:
     """Build the JCE 2023 cases: a spin-allowed-only case and, if any, a mixed one.
 
@@ -1359,6 +1400,7 @@ def jce_cases() -> list[Case]:
     bands_by_system: dict[str, list[dict[str, str]]] = defaultdict(list)
     for band in read_csv(JCE_DIR / "jce2023_table1_bands.csv"):
         bands_by_system[band["system"]].append(band)
+    primary = read_primary()
     cases: list[Case] = []
     for params in read_csv(JCE_DIR / "jce2023_table2_parameters.csv"):
         system = params["system"]
@@ -1370,9 +1412,19 @@ def jce_cases() -> list[Case]:
         dq = float(params["Dq_cm1"])
         b = dq / float(params["Dq_over_B_reported"]) if params["Dq_over_B_reported"] else None
         c = float(params["C_over_B_reported"]) * b if params["C_over_B_reported"] and b else None
+        c_row = primary.get((system, "C"))
+        if c_row is not None and c_row["status"] == "observed" and c_row["value"]:
+            c = float(c_row["value"])
         dq_ref = ORACLE_WEAK_DQ if spin == "high" else ORACLE_STRONG_DQ
         ground = oracle_ground(d, dq_ref, DEFAULTS[d]["default_B"], DEFAULTS[d]["default_C"])
-        rows = bands_by_system[system]
+        rows = []
+        for r in bands_by_system[system]:
+            src = primary.get((system, primary_quantity(r)))
+            if src is not None and src["status"] in UNGRADABLE_STATUS:
+                continue
+            if src is not None and src["value"]:
+                r = {**r, "wavenumber_cm1": src["value"]}  # noqa: PLW2901
+            rows.append(r)
         levels = [(float(r["wavenumber_cm1"]), jce_label(r)) for r in rows]
         allowed = [lv for lv in levels if multiplicity(lv[1]) == gm]
         variants: list[tuple[bool, list[tuple[float, str]]]] = []
@@ -1395,6 +1447,7 @@ def jce_cases() -> list[Case]:
                 approx=any(r["approx"] == "True" for r in rows),
                 r1=d in R1_CONFIGS,
                 geometry=jce_geometry(system, d),
+                ref_note=reference_note(system, primary),
             )
             for sf, chosen in variants
         )
@@ -1886,7 +1939,12 @@ def section_jce(rows: list[Row], jce_labels: list[str]) -> list[str]:
             f"Source: {JCE_CITATION}. "
             "Reference = the `_reported` columns of Table 2 only (B = Dq / (Dq/B), "
             "C = (C/B) B). Rows ending in `-R1` are d5/d6 and R1-tainted: a comparison, never "
-            "a pass or fail. [Mn(CN)6]3- is fitted low-spin, as are the Co(III) rows. "
+            "a pass or fail. Rows ending in `-REF` have a reference the original did not "
+            "measure (read off a diagram, assumed, or unverified; `reference_note` says which, "
+            "from `audit/jce2023/primary_sources.csv`): also a comparison. Bands and C are the "
+            "originals' where that file has an observed value; a band it marks calculated, "
+            "charge transfer or unverified is dropped. "
+            "[Mn(CN)6]3- is fitted low-spin, as are the Co(III) rows. "
             "`approx=True` marks a system with a band the paper flags as approximate. "
             "ZnO:Ni2+ is Ni2+ (d8) in Td, fitted on the d2(Oh) diagram (geometry="
             "Td-equivalent); d5 cannot be told apart by d-count and is recorded as Oh. "
@@ -1904,8 +1962,8 @@ def section_jce(rows: list[Row], jce_labels: list[str]) -> list[str]:
         "",
     ]
     lines.extend(f"- {entry}" for entry in jce_labels or ["none"])
-    lines.extend(["", "Counts (non-R1 rows):", ""])
-    lines.extend(verdict_counts([r for r in jce if not r.case.r1]))
+    lines.extend(["", "Counts (rows neither R1 nor REF):", ""])
+    lines.extend(verdict_counts([r for r in jce if not r.case.comparison]))
     lines.append("")
     lines.extend(md_table(columns, [row_cells(r, columns) for r in jce]))
     lines.append("")
@@ -1944,7 +2002,7 @@ def discrimination(key: str, rows: list[Row]) -> str:
     pools = {"failing": [0, 0], "OK": [0, 0]}
     for row in rows:
         status = "failing" if is_failure(row) else "OK" if base_verdict(row) == "OK" else ""
-        if not status or row.case.r1 or not class_applies(key, row):
+        if not status or row.case.comparison or not class_applies(key, row):
             continue
         pools[status][1] += 1
         pools[status][0] += key in row.classes
@@ -1984,7 +2042,7 @@ def section_scope(rows: list[Row]) -> list[str]:
     fires: Counter[tuple[str, str, str]] = Counter()
     for row in rows:
         status = "failing" if is_failure(row) else "OK" if base_verdict(row) == "OK" else ""
-        if not status or row.case.r1:
+        if not status or row.case.comparison:
             continue
         for cls in row.classes:
             fires[row.case.source, status, cls] += 1
@@ -2003,16 +2061,20 @@ def section_scope(rows: list[Row]) -> list[str]:
         for key in FIX_CLASSES
     ]
     tagged = sum(
-        1 for r in rows if is_failure(r) and r.values["infeasible_at_c"] == "True" and not r.case.r1
+        1
+        for r in rows
+        if is_failure(r) and r.values["infeasible_at_c"] == "True" and not r.case.comparison
     )
     excluded = Counter(
-        base_verdict(r) for r in rows if not r.case.r1 and base_verdict(r) == "OK-B-UNIDENTIFIED"
+        base_verdict(r)
+        for r in rows
+        if not r.case.comparison and base_verdict(r) == "OK-B-UNIDENTIFIED"
     )
     lines = [
         "## 6. Follow-up scope",
         "",
         (
-            "Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is "
+            "Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 and REF rows excluded) is "
             "tested against each rule independently, so a row may carry several classes and "
             "columns do not sum to the failure count; in particular (e) is assigned whether "
             "or not (a)/(b) also apply. Not failures, so not classified: "
@@ -2104,13 +2166,14 @@ def findings_s2(rows: list[Row]) -> str:
         and r.run.path == "reverse_app"
         and r.run.c_mode == "app-default"
     ]
-    rev = [r for r in rev if not r.case.r1]
+    rev = [r for r in rev if not r.case.comparison]
     failing = [r for r in rev if is_failure(r) and estimator_disagrees(r)]
     ok = [r for r in rev if base_verdict(r) == "OK"]
     ok_hits = sum(1 for r in ok if estimator_disagrees(r))
     systems = ", ".join(sorted({r.case.system for r in failing})) or "none"
     return (
-        f"Live: {len(failing)} failing non-R1 JCE reverse-app rows qualify ({systems}); the "
+        f"Live: {len(failing)} failing JCE reverse-app rows (neither R1 nor REF) qualify "
+        f"({systems}); the "
         f"same rule holds on {ok_hits} of {len(ok)} OK ones."
     )
 
@@ -2178,7 +2241,8 @@ def findings_s4(rows: list[Row]) -> str:
     jce = sorted({r.case.system for r in tagged if r.case.source == "jce2023"})
     return (
         f"Live: {len(tagged)} failing runs carry the tag, "
-        f"{sum(1 for r in tagged if r.case.r1)} of them R1 rows that Section 6 leaves out "
+        f"{sum(1 for r in tagged if r.case.comparison)} of them R1 or REF rows that Section 6 "
+        "leaves out "
         f"({len(fit)} synthetic fit_spectrum: "
         f"{origin}, {near} near-crossover). JCE systems with tagged runs: "
         f"{', '.join(jce) or 'none'}."
@@ -2282,7 +2346,7 @@ def section_f1_status(rows: list[Row]) -> list[str]:
     jce = [r for r in held if r.case.source == "jce2023"]
     f1b = [r for r in jce if r.case.system in F1B_SYSTEMS and not r.case.sf]
     f1b_silent = sum(base_verdict(r) == "WRONG-SILENT" for r in f1b)
-    rest = [r for r in jce if r not in f1b and not r.case.r1]
+    rest = [r for r in jce if r not in f1b and not r.case.comparison]
     rest_silent = sum(base_verdict(r) == "WRONG-SILENT" for r in rest)
     lines = [
         "## 8. Held default C (plan F, F1)",
@@ -2299,9 +2363,12 @@ def section_f1_status(rows: list[Row]) -> list[str]:
         "| count | silent | of |",
         "|---|---|---|",
         f"| F1: synthetic rows silent at 29420b6 | {len(f1_silent)} | {len(F1_ROWS)} |",
-        f"| F1b: JCE rows where C does not move the bands | {f1b_silent} | {len(f1b)} |",
         (
-            "| remaining JCE `fit_spectrum` rows at the default C (not R1) | "
+            "| F1b: JCE rows where C does not move the bands (REF: comparison-only) | "
+            f"{f1b_silent} | {len(f1b)} |"
+        ),
+        (
+            "| remaining JCE `fit_spectrum` rows at the default C (neither R1 nor REF) | "
             f"{rest_silent} | {len(rest)} |"
         ),
         "",
@@ -2364,9 +2431,128 @@ def render_md(
     return "\n".join(lines)
 
 
+SilentCause = Literal["reference data", "model limit", "code"]
+_APP_SF = (
+    "app-default omits include_spin_forbidden, so the spin-forbidden line is fitted to a "
+    "spin-allowed level; the spin-allowed oracle minimum over the app's own grid box is the "
+    "app's point"
+)
+JCE_SILENT_CAUSES: dict[str, tuple[SilentCause, str]] = {
+    "Al2O3:V3+ | sf=True | fit_spectrum | truth": (
+        "model limit",
+        (
+            "fit RMSE 87.8 = oracle global minimum 87.8 (Hungarian, all multiplicities, band-span "
+            "box, C at truth); the source does not reproduce its own nu1/nu2 (-2.8/-2.6 sigma), "
+            "640.2 at the reported point; ref 25 not checked"
+        ),
+    ),
+    "Al2O3:V3+ | sf=True | fit_spectrum | labelled-truth": (
+        "model limit",
+        (
+            "fit RMSE 304.4 = labelled oracle minimum 304.4; one (Dq, B) at this C does not place "
+            "1E, 3T2 and 3T1 together (B +8.1 %); 640.2 at the reported point"
+        ),
+    ),
+    "Al2O3:V3+ | sf=True | reverse_app | app-default": (
+        "model limit",
+        f"{_APP_SF} (857.5 = 857.5)",
+    ),
+    "KZnClSO4·3H2O:Cr3+ | sf=True | fit_spectrum | labelled-truth": (
+        "model limit",
+        (
+            "fit RMSE 275.2 = labelled oracle minimum 275.2; the published C/B does not place 2E "
+            "(+6.3 sigma at the reported point, ref 14 confirmed as printed), so B absorbs it "
+            "(-9.9 %)"
+        ),
+    ),
+    "KZnClSO4·3H2O:Cr3+ | sf=True | reverse_app | app-default": (
+        "model limit",
+        f"{_APP_SF} (875.7 = 875.7)",
+    ),
+    "K3Cr(CN)6 | sf=True | fit_spectrum | labelled-truth": (
+        "model limit",
+        (
+            "fit RMSE 94.3 = labelled oracle minimum 94.3, at the original's C = 2800; the 2E line "
+            "(an emission line in the original) sits at -4.6 sigma there, so B absorbs it (+13.7 %)"
+        ),
+    ),
+    "Co(bipy)3Br2·6H2O | sf=True | reverse_app | app-default": (
+        "model limit",
+        f"{_APP_SF} (430.6 = 430.6)",
+    ),
+}
+"""Every JCE WRONG-SILENT row that is neither R1 nor REF, keyed by ``silent_key``: its cause
+and the evidence. ``code`` means the fit's oracle RMSE exceeds the oracle's global minimum on
+the same bands and C by more than 1 cm^-1 (a search failure); ``reference data`` means the
+primary file holds a non-observed row for the system; otherwise ``model limit``."""
+
+
+def silent_key(row: Row) -> str:
+    """The ``JCE_SILENT_CAUSES`` key of a row."""
+    return f"{row.case.system} | sf={row.case.sf} | {row.run.path} | {row.run.c_mode}"
+
+
+def check_silent_causes(rows: list[Row]) -> None:
+    """Fail the build on an unclassified, or a stale, silent JCE row.
+
+    Raises:
+        SystemExit: naming the first unclassified row, or every stale entry.
+
+    """
+    silent = [
+        silent_key(r)
+        for r in rows
+        if r.case.source == "jce2023"
+        and not r.case.comparison
+        and base_verdict(r) == "WRONG-SILENT"
+    ]
+    for key in silent:
+        if key not in JCE_SILENT_CAUSES:
+            raise SystemExit(f"unclassified silent JCE row: {key}")
+    stale = sorted(set(JCE_SILENT_CAUSES) - set(silent))
+    if stale:
+        raise SystemExit(f"JCE_SILENT_CAUSES entries no longer silent: {stale}")
+    primary = read_primary()
+    for key, (cause, _evidence) in JCE_SILENT_CAUSES.items():
+        system = key.split(" | ", 1)[0]
+        unobserved = any(
+            s == system and r["status"] != "observed" for (s, _q), r in primary.items()
+        )
+        if cause != "code" and unobserved != (cause == "reference data"):
+            raise SystemExit(f"{key}: {cause!r} contradicts the primary file")
+
+
+def check_suffix_order() -> None:
+    """A row carrying both suffixes has a plain base verdict and is counted nowhere.
+
+    Raises:
+        SystemExit: if ``base_verdict`` or ``Case.comparison`` disagree with that.
+
+    """
+    case = Case(
+        source="jce2023",
+        system="probe",
+        d=5,
+        spin="high",
+        sf=False,
+        truth_dq=1.0,
+        truth_b=1.0,
+        truth_c=1.0,
+        ground_key="6_A_1",
+        bands=(),
+        r1=True,
+        ref_note="probe",
+    )
+    row = Row(case=case, run=Run(path="p", c_mode="m", c_used=1.0), values={}, verdict="")
+    row.verdict = "WRONG-SILENT-R1-REF"
+    if base_verdict(row) != "WRONG-SILENT" or not case.comparison:
+        raise SystemExit(f"suffix order broken: {base_verdict(row)!r}, {case.comparison}")
+
+
 def build() -> tuple[str, str]:
     """Run the whole audit and return ``(csv_text, md_text)``."""
     check_oracle_spelling()
+    check_suffix_order()
     reverse, ratio = load_app_tools()
     defect = known_defect()
     synthetic, na_cells = synthetic_cases()
@@ -2378,6 +2564,7 @@ def build() -> tuple[str, str]:
         per_case = pool.map(run_case_in_worker, [*synthetic, *jce], chunksize=4)
     rows: list[Row] = [row for case_rows in per_case for row in case_rows]
     attach_classes(rows)
+    check_silent_causes(rows)
     return render_csv(rows), render_md(rows, na_cells, defect, self_test, jce_labels)
 
 
