@@ -6,7 +6,9 @@ d2-d8, and when it does not, does it at least warn pertinently?  Paths graded:
 * ``fit_spectrum`` (``tanabesugano.mcp._compute``), called directly with
   C = truth, with C = None (the per-configuration default) and, for d3/d8
   spin-allowed points, with a displaced closed-form seed (``seed-displaced``:
-  ``_initial_seed`` patched to return 0.7 x Dq_cf, 1.4 x B_cf);
+  ``_initial_seed`` patched to return 0.7 x Dq_cf, 1.4 x B_cf); and again at
+  both C values with ``band_labels`` set to each band's term keys
+  (``labelled-truth``, ``labelled-default``);
 * ``ts_reverse_fit_app`` and ``ts_ratio_fit_app``, called through the in-memory
   FastMCP server the way ``test_reverse_fit_contract.py`` does it
   (``create_server()`` + ``run_loop_free``).  The reverse app's numbers come
@@ -91,9 +93,11 @@ import tanabesugano.mcp._compute as compute_module
 
 from tanabesugano.levels import LevelSet
 from tanabesugano.mcp._compute import _initial_seed
+from tanabesugano.mcp._compute import assign_bands
 from tanabesugano.mcp._compute import closed_form_dq_b
 from tanabesugano.mcp._compute import compute_point
 from tanabesugano.mcp._compute import default_dq_bounds
+from tanabesugano.mcp._compute import excited_levels
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import ground_term
 from tanabesugano.mcp._compute import peak_rmse
@@ -179,6 +183,8 @@ MATRIX_COLUMNS = (
     ("fit_spectrum", "truth", "fit C=truth"),
     ("fit_spectrum", "default", "fit C=default"),
     ("fit_spectrum", "seed-displaced", "fit seed-displaced"),
+    ("fit_spectrum", "labelled-truth", "fit labelled C=truth"),
+    ("fit_spectrum", "labelled-default", "fit labelled C=default"),
     ("reverse_app", "app-default", "reverse app"),
     ("ratio_app", "app-default", "ratio app"),
 )
@@ -230,7 +236,7 @@ FIX_CLASSES = {
     "a": "generic seed obs[0]/10 (_initial_seed)",
     "bounds-exclude-truth": "default dq_bounds (default_dq_bounds) exclude the truth",
     "b": "the start set misses the truth basin (_search_starts)",
-    "c": "unlabelled non-injective NN matching incl. doublets (peak_rmse)",
+    "c": "a band's nearest level at the returned point does not carry its label",
     "d": "regime penalty / crossover proximity (fit_spectrum objective)",
     "e": "C-misspecification bias: C never fitted",
     "f": "no ambiguity check",
@@ -270,7 +276,10 @@ CLASS_RULES = {
         "ground_reached is False, the row is a near-crossover point, or the raise names the "
         "crossover / penalty region"
     ),
-    "e": "fit_spectrum only: c_mode=default and the same case with c_mode=truth is OK",
+    "e": (
+        "fit_spectrum only: C = default (labelled or not) and the same case at C = truth, "
+        "with the same labelling, is OK"
+    ),
     "f": (
         "fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) "
         "is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C)"
@@ -692,8 +701,8 @@ def load_app_tools() -> tuple[Callable[..., Any], Callable[..., Any]]:
 
 
 def run_fit_spectrum(case: Case, c_mode: str) -> Run:
-    """Call ``fit_spectrum`` for one case with C = truth or C = None."""
-    c_arg = case.truth_c if c_mode in {"truth", "seed-displaced"} else None
+    """Call ``fit_spectrum`` for one case with C = truth or C = None, labelled or not."""
+    c_arg = case.truth_c if c_mode in {"truth", "seed-displaced", "labelled-truth"} else None
     run = Run(
         path="fit_spectrum",
         c_mode=c_mode,
@@ -706,6 +715,7 @@ def run_fit_spectrum(case: Case, c_mode: str) -> Run:
             c_arg,
             spin_state=case.spin,
             include_spin_forbidden=case.sf,
+            band_labels=run_labels(case, c_mode),
         )
     except ValueError as exc:
         run.raised = str(exc)
@@ -714,6 +724,20 @@ def run_fit_spectrum(case: Case, c_mode: str) -> Run:
     run.rmse = fit.rmse_cm1
     run.warnings = list(fit.warnings)
     return run
+
+
+LABELLED_MODES = frozenset({"labelled-truth", "labelled-default"})
+
+
+def run_labels(case: Case, c_mode: str) -> list[tuple[str, ...]] | None:
+    """Return the term-key labels a labelled run passes, one tuple per band, else None.
+
+    Term keys only (``4_T_1``), never the oracle's ``#index``: a user can name the
+    term a band belongs to but not which of several same-term levels it is (B7 O1).
+    """
+    if c_mode not in LABELLED_MODES:
+        return None
+    return [tuple(sorted({lab.split("#", 1)[0] for lab in band.labels})) for band in case.bands]
 
 
 def run_seed_displaced(case: Case) -> Run:
@@ -884,8 +908,30 @@ def jce_label_check(cases: list[Case]) -> list[str]:
     return out
 
 
-def objective_at(case: Case, path: str, dq: float, b: float, c: float) -> float | None:
-    """Return the path's nearest-line RMSE at ``(dq, b, c)``, None if undefined."""
+def objective_at(
+    case: Case, path: str, dq: float, b: float, c: float, c_mode: str = ""
+) -> float | None:
+    """Return the path's objective at ``(dq, b, c)``, None if undefined.
+
+    fit_spectrum: its own injective assignment (with this run's labels); the apps:
+    nearest-line RMSE.
+    """
+    if path == "fit_spectrum":
+        try:
+            _, levels = excited_levels(
+                compute_point(case.d, dq, b, c),
+                spin_allowed_only=not matches_every_level(case, path),
+            )
+        except (ValueError, KeyError):
+            return None
+        observed = np.asarray([band.energy for band in case.bands])
+        if len(levels) < observed.size:
+            return None
+        labels = run_labels(case, c_mode)
+        order = np.argsort(observed)
+        sorted_labels = None if labels is None else [labels[i] for i in order]
+        base = float(np.sqrt(np.mean(observed**2)))
+        return assign_bands(observed[order], levels, sorted_labels, penalty=base)[1]
     try:
         _, candidates = transition_candidates(
             compute_point(case.d, dq, b, c),
@@ -958,11 +1004,15 @@ def grade(case: Case, run: Run) -> Row:
             r2 = r_squared(
                 [band.energy for band in case.bands], nearest_residuals(case.bands, levels)
             )
-        obj_fit = objective_at(case, run.path, run.fit_dq, run.fit_b, run.c_used)
+        obj_fit = objective_at(case, run.path, run.fit_dq, run.fit_b, run.c_used, run.c_mode)
     if case.truth_b is not None:
-        obj_truth_c_used = objective_at(case, run.path, case.truth_dq, case.truth_b, run.c_used)
+        obj_truth_c_used = objective_at(
+            case, run.path, case.truth_dq, case.truth_b, run.c_used, run.c_mode
+        )
         if case.truth_c is not None:
-            obj_truth = objective_at(case, run.path, case.truth_dq, case.truth_b, case.truth_c)
+            obj_truth = objective_at(
+                case, run.path, case.truth_dq, case.truth_b, case.truth_c, run.c_mode
+            )
     verdict = decide_verdict(case, run, d_dq, d_b, kinds)
     if case.r1:
         verdict = f"{verdict}-R1"
@@ -1085,7 +1135,7 @@ def fit_classes(row: Row, paired_truth_ok: bool) -> list[str]:
     better_exists = fit is not None and at_truth is not None and fit > at_truth + RMSE_EPS_CM1
     if better_exists or "converge" in run.raised.lower():
         found.append("b")
-    if run.c_mode == "default" and paired_truth_ok:
+    if run.c_mode in {"default", "labelled-default"} and paired_truth_ok:
         found.append("e")
     as_good = fit is not None and row.obj_truth is not None and fit <= row.obj_truth + RMSE_EPS_CM1
     if base_verdict(row) == "WRONG-SILENT" and as_good:
@@ -1154,13 +1204,19 @@ def classify(row: Row, paired_truth_ok: bool) -> tuple[str, ...]:
 
 
 def attach_classes(rows: list[Row]) -> None:
-    """Classify every failing row in place, pairing C=default with its C=truth run."""
-    truth_ok: dict[Case, bool] = {}
+    """Classify every failing row in place, pairing C=default with its C=truth run.
+
+    A labelled run pairs with the labelled run of the same case, an unlabelled one
+    with the unlabelled.
+    """
+    truth_ok: dict[tuple[Case, bool], bool] = {}
     for row in rows:
-        if row.run.path == "fit_spectrum" and row.run.c_mode == "truth":
-            truth_ok[row.case] = base_verdict(row) == "OK"
+        if row.run.path == "fit_spectrum" and row.run.c_mode in {"truth", "labelled-truth"}:
+            labelled = row.run.c_mode in LABELLED_MODES
+            truth_ok[row.case, labelled] = base_verdict(row) == "OK"
     for row in rows:
-        row.classes = classify(row, truth_ok.get(row.case, False))
+        labelled = row.run.c_mode in LABELLED_MODES
+        row.classes = classify(row, truth_ok.get((row.case, labelled), False))
         if is_failure(row):
             row.values["failure_classes"] = ";".join(row.classes)
 
@@ -1307,6 +1363,9 @@ def run_case(case: Case, reverse: Callable[..., Any], ratio: Callable[..., Any])
     if case.truth_c is not None:
         runs.append(run_fit_spectrum(case, "truth"))
     runs.append(run_fit_spectrum(case, "default"))
+    if case.truth_c is not None:
+        runs.append(run_fit_spectrum(case, "labelled-truth"))
+    runs.append(run_fit_spectrum(case, "labelled-default"))
     if (
         case.source == "synthetic"
         and case.d in CLOSED_FORM_CONFIGS
@@ -1588,6 +1647,11 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             "both apps' B grid."
         ),
         (
+            "- **labelled.** Every fit_spectrum case runs again at C = truth and C = default "
+            "with `band_labels`: each band's term keys (`4_T_1`, never the oracle's `#index`), "
+            "the label a user can name. A merged band carries the terms of all its levels."
+        ),
+        (
             "- **seed-displaced.** For d3/d8 spin-allowed points the closed form is exact on "
             "oracle bands (nu1 = 10Dq, nu2 + nu3 = 15B + 3 nu1), so fit_spectrum starts AT the "
             "answer. Each such point gets an extra C = truth run with `_initial_seed` "
@@ -1804,7 +1868,7 @@ def class_applies(key: str, row: Row) -> bool:
         "a": fit and run.c_mode != "seed-displaced",
         "bounds-exclude-truth": fit and run.c_mode != "seed-displaced",
         "b": fit,
-        "e": fit and run.c_mode == "default",
+        "e": fit and run.c_mode in {"default", "labelled-default"},
         "f": fit,
         "app-hs": not fit,
         "app-grid": not fit,
