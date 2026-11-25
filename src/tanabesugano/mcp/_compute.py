@@ -386,6 +386,13 @@ class SpectrumFit:
     ``c_fitted`` says whether C was a free parameter of this fit (see the
     ``fit_c`` argument of :func:`fit_spectrum`); when it is True, ``C`` is a
     result, not an input.
+
+    ``minima`` lists every distinct minimum the search converged to, as
+    ``(Dq, B, C, objective)`` sorted by objective (cm^-1, label penalties
+    included); the returned point is one of them. Two minima with near-zero
+    objective mean the bands are reproduced exactly by both and the data cannot
+    choose. It is a list, not a warning, because no threshold on the second
+    minimum separated wrong fits from right ones (plan C0m check 3).
     """
 
     Dq: float
@@ -400,6 +407,7 @@ class SpectrumFit:
     c_is_default: bool
     c_constrained: bool
     c_fitted: bool = False
+    minima: tuple[tuple[float, float, float, float], ...] = ()
 
 
 def crossover_dq(
@@ -493,6 +501,45 @@ def _pick_minimum(
 
     # min() keeps the first of equal distances, i.e. start order, so ties stay stable.
     return min(tied, key=distance)
+
+
+MINIMA_DISTINCT = (0.02, 0.05, 0.05)
+"""Relative Dq, B, C differences above which two minima count as distinct.
+
+The audit's recovery tolerances: two minima closer than this in every parameter
+would grade as the same answer.
+"""
+
+
+def _distinct_minima(
+    results: Sequence[OptimizeResult],
+    best: OptimizeResult,
+    C: float,
+    *,
+    ceiling: float,
+) -> tuple[tuple[float, float, float, float], ...]:
+    """Return ``(Dq, B, C, objective)`` of each distinct converged minimum, best first.
+
+    A run counts if it converged and escaped the penalty region (objective below
+    ``ceiling``). ``best`` is placed first, so a near-duplicate never displaces the
+    point actually returned.
+    """
+
+    def point(r: OptimizeResult) -> tuple[float, float, float, float]:
+        c = float(r.x[2]) if len(r.x) > 2 else C
+        return (float(r.x[0]), float(r.x[1]), c, float(r.fun))
+
+    converged = sorted(
+        (r for r in results if r.success and float(r.fun) < ceiling), key=lambda r: float(r.fun)
+    )
+    kept = [point(best)]
+    for candidate in map(point, converged):
+        if all(
+            any(abs(a / b - 1) > tol for a, b, tol in zip(candidate[:3], k[:3], MINIMA_DISTINCT))
+            for k in kept
+        ):
+            kept.append(candidate)
+    return tuple(sorted(kept, key=lambda m: m[3]))
 
 
 def _local_starts(dq_seed: float, b_seed: float) -> list[tuple[float, float]]:
@@ -736,6 +783,106 @@ def fit_spectrum(
         its default and says so.
 
     """
+    fit = _fit_one_regime(
+        d_count,
+        observed_peaks_cm1,
+        C,
+        spin_state=spin_state,
+        include_spin_forbidden=include_spin_forbidden,
+        dq_bounds=dq_bounds,
+        b_bounds=b_bounds,
+        band_labels=band_labels,
+        fit_c=fit_c,
+    )
+    other = _other_regime_fit(
+        d_count,
+        observed_peaks_cm1,
+        C,
+        spin_state=spin_state,
+        include_spin_forbidden=include_spin_forbidden,
+        b_bounds=b_bounds,
+        band_labels=band_labels,
+        fit_c=fit_c,
+    )
+    if other is not None and other.rmse_cm1 <= max(fit.rmse_cm1, BAND_RESOLUTION_CM1):
+        note = (
+            f"the {other.spin_state}-spin regime also fits these bands: Dq = {other.Dq:.0f}, "
+            f"B = {other.B:.0f} cm^-1, ground term {other.ground_term}, RMSE "
+            f"{other.rmse_cm1:.0f} cm^-1 (this fit: {fit.rmse_cm1:.0f}); the bands alone do "
+            "not decide the spin state"
+        )
+        return replace(fit, warnings=[*fit.warnings, note])
+    return fit
+
+
+BAND_RESOLUTION_CM1 = 100.0
+"""How well a broad d-d band maximum is located; RMSE differences below it are not evidence.
+
+d-d bands run 2000-4000 cm^-1 wide, and their maxima are rarely quoted better
+than about +-100 cm^-1. A fit in the other spin regime whose RMSE is within this
+(or within this fit's own RMSE, if larger) fits as well as any spectrum can tell.
+Set by that physical scale, not on the audit: on its oracle (noise-free) d4-d7
+cases the other regime comes within 50 cm^-1 on 11 of 111 unlabelled cases and
+on none labelled, where the labels themselves decide the regime.
+"""
+
+
+def _other_regime_fit(
+    d_count: int,
+    observed_peaks_cm1: list[float],
+    C: float | None,
+    *,
+    spin_state: SpinState,
+    include_spin_forbidden: bool,
+    b_bounds: tuple[float, float],
+    band_labels: Sequence[BandLabel] | None,
+    fit_c: bool | None,
+) -> SpectrumFit | None:
+    """Fit the same bands in the other spin regime, or return None where there is none.
+
+    Only d4-d7 have two regimes, and only where the crossover lies below
+    ``STRONG_FIELD_DQ_CM1`` at the default B and C is the other one reachable.
+    The default ``dq_bounds`` are used, since the caller's were chosen for one regime.
+    """
+    from tanabesugano.mcp._defaults import DEFAULTS
+
+    if d_count not in {4, 5, 6, 7}:
+        return None
+    b0 = float(DEFAULTS[d_count]["default_B"])
+    c0 = float(DEFAULTS[d_count]["default_C"]) if C is None else C
+    if crossover_dq(d_count, b0, c0, reference_ground_term(d_count, b0, c0, "low")) >= (
+        STRONG_FIELD_DQ_CM1
+    ):
+        return None
+    other: SpinState = "low" if spin_state == "high" else "high"
+    try:
+        return _fit_one_regime(
+            d_count,
+            observed_peaks_cm1,
+            C,
+            spin_state=other,
+            include_spin_forbidden=include_spin_forbidden,
+            b_bounds=b_bounds,
+            band_labels=band_labels,
+            fit_c=fit_c,
+        )
+    except ValueError:
+        return None  # the other regime cannot carry these bands (or labels) at all
+
+
+def _fit_one_regime(
+    d_count: int,
+    observed_peaks_cm1: list[float],
+    C: float | None = None,
+    *,
+    spin_state: SpinState = "high",
+    include_spin_forbidden: bool = False,
+    dq_bounds: tuple[float, float] | None = None,
+    b_bounds: tuple[float, float] = (200.0, 1500.0),
+    band_labels: Sequence[BandLabel] | None = None,
+    fit_c: bool | None = None,
+) -> SpectrumFit:
+    """Fit in the requested spin regime only; :func:`fit_spectrum` adds the regime check."""
     from tanabesugano.mcp._defaults import DEFAULTS
 
     if not observed_peaks_cm1:
@@ -938,6 +1085,11 @@ def fit_spectrum(
         abs(fitted_b - b_bounds[1]) / b_bounds[1] < pinned_tol
     ):
         warnings.append(f"B pinned at its search bound ({fitted_b:.0f} cm^-1); result suspect")
+    if min(abs(fitted_dq - edge) / edge for edge in dq_bounds) < pinned_tol:
+        warnings.append(
+            f"Dq pinned at its search bound ({fitted_dq:.0f} cm^-1, dq_bounds {dq_bounds}); "
+            "the best fit may lie outside the bounds",
+        )
     if observed.size <= free_parameters:
         warnings.append(
             f"only {observed.size} band(s) for {free_parameters} free parameters: the fit is "
@@ -962,7 +1114,7 @@ def fit_spectrum(
     if free_c and not c_constrained:
         # C was free but the fitted bands do not depend on it, so the returned C
         # is arbitrary. Refit with it held, and say why.
-        held = fit_spectrum(
+        held = _fit_one_regime(
             d_count,
             observed_peaks_cm1,
             C,
@@ -1006,6 +1158,7 @@ def fit_spectrum(
         c_is_default=c_is_default,
         c_constrained=c_constrained,
         c_fitted=free_c,
+        minima=_distinct_minima(results, best, C, ceiling=base),
     )
 
 

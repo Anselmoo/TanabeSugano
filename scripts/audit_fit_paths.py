@@ -230,8 +230,15 @@ WARNING_KINDS = (
     ("only one spin-allowed transition", "single-transition"),
     ("free parameters", "too-few-bands"),
     ("was not constrained", "c-note"),
+    ("Dq pinned", "dq-pinned"),
+    ("C/B pinned", "cb-pinned"),
+    ("regime also fits", "other-regime"),
+    ("do not move with C", "c-refit"),
+    ("fit_c=True", "c-forced"),
 )
-NON_PERTINENT_KINDS = frozenset({"c-note"})
+NON_PERTINENT_KINDS = frozenset({"c-note", "c-refit"})
+"""Notes about C, not about Dq: neither says the returned Dq or B may be wrong."""
+PERTINENT_KINDS = tuple(k for _needle, k in WARNING_KINDS if k not in NON_PERTINENT_KINDS)
 
 FIX_CLASSES = {
     "a": "generic seed obs[0]/10 (_initial_seed)",
@@ -1668,8 +1675,8 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             f"{THRESHOLD_REASON}. That tolerance was set for the exact oracle; on JCE rows it "
             "is applied only as a comparator. OK-B-UNIDENTIFIED: Dq within tolerance, B not, "
             "and the 'only one spin-allowed transition' warning fired. Otherwise WRONG-WARNED "
-            "only if a pertinent warning fired (warning_kinds residual, b-pinned, "
-            "single-transition, too-few-bands; the c-note alone does not count), else "
+            f"only if a pertinent warning fired (warning_kinds {', '.join(PERTINENT_KINDS)}; "
+            f"{' and '.join(sorted(NON_PERTINENT_KINDS))} do not count), else "
             "WRONG-SILENT; RAISED on an exception or error payload. A run whose truth Dq lies "
             "in the other spin regime at the C it used keeps its verdict and is tagged "
             "`infeasible_at_c=True`: the tag explains, it does not excuse. OK-B-UNIDENTIFIED "

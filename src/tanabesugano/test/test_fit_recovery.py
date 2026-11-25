@@ -347,3 +347,82 @@ def test_c_over_b_outside_window_warns() -> None:
     energies, labels = merged_labelled_bands(5, dq, b, 7.0 * b, 3)
     fit = fit_spectrum(5, energies, include_spin_forbidden=True, band_labels=labels)
     assert any("C/B" in w and "window" in w for w in fit.warnings)
+
+
+def test_missing_band_lists_both_exact_minima() -> None:
+    """d5 high-spin, middle (4T2) band dropped: two exact minima, both listed.
+
+    C0m check 4 (oracle, C held at truth): with the 4T2 band gone, a second
+    (Dq, B) reproduces the two remaining bands exactly and honours the term labels,
+    by putting the top band on 4E from 4D. Labels cannot tell them apart, so the
+    fit must list both rather than return one silently. The held-C search reaches
+    both in 7 of the 9 audit points (not 502.1 / 387 or 1590.1 / 645): ``minima``
+    lists what the search found, not every minimum that exists.
+    Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'minima'``.
+    """
+    dq, b, c = D5_HS_POINTS[1]
+    energies, labels = merged_labelled_bands(5, dq, b, c, 3)
+    del energies[1], labels[1]
+    fit = fit_spectrum(5, energies, c, include_spin_forbidden=True, band_labels=labels)
+    exact = [m for m in fit.minima if m[3] < 1.0]
+    assert len(exact) == 2
+    assert any(abs(m[0] / dq - 1) < 0.02 and abs(m[1] / b - 1) < 0.05 for m in exact)
+
+
+def test_minima_are_distinct_and_sorted() -> None:
+    """``minima`` holds each converged minimum once, best first, returned one included."""
+    dq, b, c = 1200.0, 750.0, 3450.0
+    fit = fit_spectrum(7, [e for e, _u in oracle_bands(7, dq, b, c, spin_allowed_only=True)], c)
+    objectives = [m[3] for m in fit.minima]
+    assert objectives == sorted(objectives)
+    assert any(m[0] == fit.Dq and m[1] == fit.B for m in fit.minima)
+    for i, m in enumerate(fit.minima):
+        for n in fit.minima[:i]:
+            assert (
+                abs(m[0] / n[0] - 1) > 0.02
+                or abs(m[1] / n[1] - 1) > 0.05
+                or abs(m[2] / n[2] - 1) > 0.05
+            )
+
+
+def test_bounds_excluding_minimum_warns() -> None:
+    """Review Focus 4: dq_bounds below the truth pin Dq on the edge, and the fit says so.
+
+    d8 oracle (850, 907, 4850), bounds (300, 700): the best the fit can do is Dq = 700.
+    Observed red: ``assert False`` -- Dq came back at 700 with no warning naming it.
+    """
+    bands = [e for e, _u in oracle_bands(8, 850.0, 907.0, 4850.0, spin_allowed_only=True)]
+    fit = fit_spectrum(8, bands, 4850.0, dq_bounds=(300.0, 700.0))
+    assert fit.Dq == pytest.approx(700.0, rel=0.01)
+    assert any("Dq pinned" in w for w in fit.warnings)
+
+
+# Audit near-crossover points (1.1 x crossover, spin-allowed bands) that the other
+# spin regime reproduces too (C5 scan): d6 one band, exactly; d7 three bands, to 10 cm^-1.
+OTHER_REGIME_CASES = [
+    (6, 1292.5, 798.8, 3195.2, "low"),
+    (7, 1343.7, 728.2, 2912.8, "low"),
+]
+
+
+@pytest.mark.parametrize(("d", "dq", "b", "c", "other"), OTHER_REGIME_CASES)
+def test_near_crossover_names_other_regime(
+    d: int, dq: float, b: float, c: float, other: str
+) -> None:
+    """Unlabelled high-spin bands near the crossover: say the low-spin regime fits them too.
+
+    Observed red (against 32a91a0): ``assert False`` on both -- no warning names the
+    other regime, and the high-spin answer is returned as if it were the only one.
+    """
+    bands = [e for e, _u in oracle_bands(d, dq, b, c, spin_allowed_only=True)]
+    fit = fit_spectrum(d, bands, c)
+    assert abs(fit.Dq / dq - 1) * 100 <= DQ_TOL_PCT  # one d6 band leaves B open
+    assert any(f"{other}-spin regime also fits" in w for w in fit.warnings)
+
+
+def test_labels_settle_the_regime() -> None:
+    """With term labels the other regime cannot carry the bands, so nothing is said."""
+    d, dq, b, c, _other = OTHER_REGIME_CASES[1]
+    bands = oracle_bands(d, dq, b, c, spin_allowed_only=True)
+    fit = fit_spectrum(d, [e for e, _u in bands], c, band_labels=term_labels(bands))
+    assert not any("regime also fits" in w for w in fit.warnings)
