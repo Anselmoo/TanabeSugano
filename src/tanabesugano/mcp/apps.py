@@ -1974,34 +1974,44 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         v2: float,
         v3: float | None = None,
         energy_unit: str = "cm1",
-        b_min: float = 400.0,
-        b_max: float = 1600.0,
+        b_min: float = 200.0,
+        b_max: float = 1500.0,
         grid_steps: int = 30,
+        C: float | None = None,
+        spin_state: SpinState = "high",
+        include_spin_forbidden: bool = False,
+        band_labels: list[str | list[str] | None] | None = None,
     ) -> ToolResult:
-        """Derive Dq and Racah B from two or three measured band positions.
+        """Derive Dq and Racah B from two or three measured bands and draw the TS diagram.
 
-        Uses the two-ratio method: finds the (Dq, B) grid point where the
-        computed spin-allowed transitions best reproduce the observed band ratios
-        nu2/nu1 (and nu3/nu1 when v3 is provided). Returns a Chart.js TS diagram
-        with the fitted Dq/B region highlighted.
+        The answer (``Dq``, ``B``, the title, the marker) is ``fit_spectrum``'s --
+        the same solver as ``ts_fit_spectrum``, so the two tools cannot disagree.
+        The two-ratio method survives as a diagnostic: the node of a (Dq, B) grid
+        whose spin-allowed ratios nu2/nu1 (and nu3/nu1) best match the bands is
+        returned as ``ratio_grid_best`` with its cell size and drawn as a second,
+        dashed marker. It is never the answer: on a grid it cannot be finer than a
+        cell (+3.5 % Dq on d3, where nu1/10 falls between nodes).
 
         Args:
             d_count: d-electron count (2–8).
-            v1, v2: First and second spin-allowed band positions.
+            v1, v2: First and second band positions.
             v3: Optional third band position.
             energy_unit: Unit of v1/v2/v3 (cm1, eV, nm).
-            b_min, b_max: Racah B search range (cm^-1).
-            grid_steps: Grid resolution.
+            b_min, b_max: Racah B range (cm^-1) for the fit and the ratio grid;
+                defaults match ``ts_fit_spectrum``.
+            grid_steps: Ratio-grid resolution per axis.
+            C: Racah C (cm^-1); per-configuration default when omitted.
+            spin_state: which side of a spin crossover to fit on.
+            include_spin_forbidden: also fit against spin-forbidden transitions.
+            band_labels: as on ``ts_fit_spectrum``, one per given band (v1, v2, v3).
 
         """
         import json as _json
         import math
 
         from tanabesugano.mcp._compute import compute_point
-        from tanabesugano.mcp._compute import reference_ground_term
+        from tanabesugano.mcp._compute import fit_spectrum
         from tanabesugano.mcp._compute import transition_candidates
-        from tanabesugano.mcp._defaults import DEFAULTS
-        from tanabesugano.mcp.tools._shared import resolve_bc
 
         def to_cm1(e: float) -> float:
             if energy_unit == "eV":
@@ -2010,7 +2020,13 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 return 1e7 / e if e else float("nan")
             return e
 
-        obs = sorted(to_cm1(x) for x in ([v1, v2] + ([v3] if v3 else [])) if x > 0)
+        given = [v1, v2] + ([v3] if v3 else [])
+        kept = [i for i, x in enumerate(given) if x > 0]
+        bands = [to_cm1(given[i]) for i in kept]
+        labels = None if band_labels is None else [band_labels[i] for i in kept]
+        if band_labels is not None and len(band_labels) != len(given):
+            labels = band_labels  # let fit_spectrum report the count mismatch
+        obs = sorted(bands)
         if len(obs) < 2:
             return ToolResult(
                 content=[
@@ -2021,9 +2037,32 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 ],
             )
 
+        try:
+            fit = fit_spectrum(
+                d_count,
+                bands,
+                C,
+                spin_state=spin_state,
+                include_spin_forbidden=include_spin_forbidden,
+                b_bounds=(b_min, b_max),
+                band_labels=labels,
+            )
+        except (ValueError, KeyError, RuntimeError) as exc:
+            payload = {
+                "title": f"No fit for d{d_count}",
+                "x_label": "",
+                "y_label": "",
+                "series": [],
+                "error": str(exc),
+            }
+            return ToolResult(
+                content=[_mcp_types.TextContent(type="text", text=_json.dumps(payload))]
+            )
+
+        # --- Diagnostic: the two-ratio grid, in the fit's regime and at its C ---
         obs_ratios = [obs[i] / obs[0] for i in range(1, len(obs))]
-        ground_key = reference_ground_term(d_count, *resolve_bc(d_count, None, None))
-        default_C = DEFAULTS[d_count]["default_C"]
+        ground_key = fit.ground_term
+        default_C = fit.C
         # Dq is of order nu1/10, not nu1: for [Ni(H2O)6]2+ nu1 = 8500 cm^-1 and
         # Dq = 850. Searching out to 2*nu1 spread 30 grid points over a range 20x
         # too wide, making the spacing (586 cm^-1) larger than Dq itself. Bound
@@ -2067,30 +2106,24 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 if score < best_score:
                     best_score, best_dq, best_b = score, dq, b
 
-        if not (0 < best_dq < 1e7) or not (0 < best_b < 1e7):
-            # Grid search found nothing valid; return an error payload.
-            import json as _json
+        steps = max(grid_steps - 1, 1)
+        ratio_grid_best = (
+            {
+                "Dq": round(best_dq, 1),
+                "B": round(best_b, 1),
+                "score": round(best_score, 5),
+                "cell": {
+                    "Dq": round(dq_max_search / steps, 1),
+                    "B": round((b_max - b_min) / steps, 1),
+                },
+            }
+            if 0 < best_dq < 1e7 and 0 < best_b < 1e7
+            else None
+        )
 
-            return ToolResult(
-                content=[
-                    _mcp_types.TextContent(
-                        type="text",
-                        text=_json.dumps(
-                            {
-                                "title": f"No fit found for d{d_count}",
-                                "x_label": "",
-                                "y_label": "",
-                                "series": [],
-                                "error": "Could not converge: try different peak values or a wider B range.",
-                            },
-                        ),
-                    ),
-                ],
-            )
-
-        b_fit, c_fit = resolve_bc(d_count, best_b, None)
-        dq_lo = max(0.0, best_dq * 0.6)
-        dq_hi = best_dq * 1.6
+        b_fit, c_fit = fit.B, fit.C
+        dq_lo = max(0.0, fit.Dq * 0.6)
+        dq_hi = fit.Dq * 1.6
 
         try:
             rows, series, title, x_key, x_label, y_label = _sweep_payload(
@@ -2113,7 +2146,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
             )
 
         # Mark the fitted Dq/B location as a vertical annotation dataset.
-        x_fit_norm = round(best_dq * 10.0 / b_fit, 3) if b_fit else 0.0
+        x_fit_norm = round(fit.Dq * 10.0 / b_fit, 3) if b_fit else 0.0
         all_series: list[dict] = []
         for s in series:
             data = [{"x": row[x_key], "y": row.get(s.data_key)} for row in rows]
@@ -2129,10 +2162,34 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 "borderDash": [6, 3],
             },
         )
+        if ratio_grid_best is not None and b_fit:
+            # Same normalisation as the fit marker: the diagram's x axis is 10Dq/B at B = b_fit.
+            x_grid_norm = round(best_dq * 10.0 / b_fit, 3)
+            all_series.append(
+                {
+                    "label": f"Ratio-grid node 10Dq/B = {x_grid_norm:g} (diagnostic)",
+                    "color": "#888",
+                    "data": [{"x": x_grid_norm, "y": 0}, {"x": x_grid_norm, "y": 150}],
+                    "borderDash": [2, 4],
+                },
+            )
 
-        title_custom = f"Custom TS d{d_count}: Dq={best_dq:.1f}, B={b_fit:.1f} cm⁻¹"
+        title_custom = f"Custom TS d{d_count}: Dq={fit.Dq:.1f}, B={b_fit:.1f} cm⁻¹"
         payload = _json.dumps(
-            {"title": title_custom, "x_label": x_label, "y_label": y_label, "series": all_series},
+            {
+                "title": title_custom,
+                "x_label": x_label,
+                "y_label": y_label,
+                "series": all_series,
+                "Dq": fit.Dq,
+                "B": fit.B,
+                "C": fit.C,
+                "C_source": fit.c_provenance,
+                "spin_state": fit.spin_state,
+                "rmse_cm1": fit.rmse_cm1,
+                "warnings": list(fit.warnings),
+                "ratio_grid_best": ratio_grid_best,
+            },
         )
         return ToolResult(content=[_mcp_types.TextContent(type="text", text=payload)])
 

@@ -160,7 +160,7 @@ SEED_B_FACTOR = 1.4
 MIN_ENERGY_CM1 = 1.0
 APP_GRID: dict[str, dict[str, float]] = {
     "reverse_app": {"grid_steps": 25, "b_min": 200.0, "b_max": 1500.0},
-    "ratio_app": {"grid_steps": 30, "b_min": 400.0, "b_max": 1600.0},
+    "ratio_app": {"grid_steps": 30, "b_min": 200.0, "b_max": 1500.0},
 }
 APP_DQ_MAX_FACTOR = 0.3
 APP_ROUNDING_CM1 = 0.051
@@ -189,6 +189,7 @@ MATRIX_COLUMNS = (
     ("reverse_app", "app-default", "reverse app"),
     ("reverse_app", "app-regime", "reverse app +regime"),
     ("ratio_app", "app-default", "ratio app"),
+    ("ratio_app", "app-regime", "ratio app +regime"),
 )
 CSV_COLUMNS = (
     "source",
@@ -256,7 +257,7 @@ FIX_CLASSES = {
         "ratio app: the Dq grid has no node at nu1/10 for d3/d8, so the returned Dq is the "
         "node nearest nu1/10, not nu1/10 itself"
     ),
-    "app-grid": ("ratio-app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600, 30 steps"),
+    "app-grid": ("ratio-app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 200..1500, 30 steps"),
     "single-band": "one observed band for two free parameters: B is not identifiable",
     "estimator-disagreement": (
         "published values are not the minimum of this objective (reverse app; fit_spectrum "
@@ -784,23 +785,28 @@ def ratio_inputs(case: Case) -> list[float]:
     return sorted(band.energy for band in case.bands)[:RATIO_MAX_BANDS]
 
 
-def run_ratio(case: Case, tool: Callable[..., Any]) -> Run:
-    """Call ``ts_ratio_fit_app`` with the lowest three bands and parse the title."""
-    run = Run(path="ratio_app", c_mode="app-default", c_used=DEFAULTS[case.d]["default_C"])
+def run_ratio(case: Case, tool: Callable[..., Any], *, regime: bool) -> Run:
+    """Call ``ts_ratio_fit_app`` with the lowest three bands and read its payload.
+
+    ``regime`` as in :func:`run_reverse`: True passes the case's ``spin``.
+    """
+    c_mode = "app-regime" if regime else "app-default"
+    run = Run(path="ratio_app", c_mode=c_mode, c_used=DEFAULTS[case.d]["default_C"])
     energies = ratio_inputs(case)
-    kwargs: dict[str, float] = {"v1": energies[0], "v2": energies[1]}
+    kwargs: dict[str, Any] = {"v1": energies[0], "v2": energies[1]}
     if len(energies) == RATIO_MAX_BANDS:
         kwargs["v3"] = energies[2]
+    if regime:
+        kwargs["spin_state"] = case.spin
     result = tool(d_count=case.d, **kwargs)
     payload = json.loads(result.content[0].text)
     if "error" in payload:
         run.raised = str(payload["error"])
         return run
-    match = re.search(r"Dq=([\d.]+), B=([\d.]+)", payload.get("title", ""))
-    if match is None:
-        run.raised = f"unparseable title: {payload.get('title')!r}"
-        return run
-    run.fit_dq, run.fit_b = float(match.group(1)), float(match.group(2))
+    run.fit_dq, run.fit_b = float(payload["Dq"]), float(payload["B"])
+    run.fit_c = float(payload["C"])
+    run.rmse = float(payload["rmse_cm1"])
+    run.warnings = list(payload.get("warnings", []))
     return run
 
 
@@ -1404,7 +1410,8 @@ def run_case(case: Case, reverse: Callable[..., Any], ratio: Callable[..., Any])
         runs.append(run_reverse(case, reverse, regime=False))
         runs.append(run_reverse(case, reverse, regime=True))
         if not case.sf and len(case.bands) >= RATIO_MIN_BANDS:
-            runs.append(run_ratio(case, ratio))
+            runs.append(run_ratio(case, ratio, regime=False))
+            runs.append(run_ratio(case, ratio, regime=True))
     return [grade(case, run) for run in runs]
 
 
@@ -1721,14 +1728,15 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             "not evidence of a good fit. n/a with no fitted point or fewer than two bands."
         ),
         (
-            "- **Apps.** The reverse app answers with `fit_spectrum` (its grid is a landscape "
-            "beside the answer) and is run twice: `c_mode=app-default` without the regime "
+            "- **Apps.** Both apps answer with `fit_spectrum` (their grids are diagnostics "
+            "beside the answer) and each is run twice: `c_mode=app-default` without the regime "
             "flags, the caller who omits them, and `c_mode=app-regime` with the case's "
-            "`spin_state` and `include_spin_forbidden`; C is the default in both. The ratio "
-            "app takes no regime flags or C and pins the high-spin reference at the default "
-            "C, so its low-spin rows fail by construction. The reverse app receives every band "
+            "`spin_state` (and, reverse app only, `include_spin_forbidden`); C is the default "
+            "in both. The reverse app receives every band "
             "of the case; the ratio app the lowest three, spin-allowed cases only. "
-            "The app-grid classifier rebuilds the ratio app's grid from mirrored constants: "
+            "app-lattice and app-grid test whether an answer sits on a grid node; they "
+            "should no longer fire. The app-grid classifier rebuilds the ratio app's grid from "
+            "mirrored constants: "
             f"grid_steps/b_min/b_max {APP_GRID['ratio_app']} are checked at start-up against "
             "the tool signature, as is the reverse app's B range "
             f"{APP_GRID['reverse_app']}; Dq max = 3 x obs[0]/10 was read off apps.py. The ratio "

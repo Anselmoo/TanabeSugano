@@ -29,7 +29,7 @@ At the default C the reference (Dq, B) is not a minimum of this objective: the n
 - **Verdict.** OK if |dDq| <= 2 % and |dB| <= 5 %: the oracle is exact (eigenvalues of the full determinant Hamiltonian), so a correct continuous optimiser recovers Dq and B to well under 0.1 %; the slack exists only for the two grid paths, whose cells are several percent wide. That tolerance was set for the exact oracle; on JCE rows it is applied only as a comparator. OK-B-UNIDENTIFIED: Dq within tolerance, B not, and the 'only one spin-allowed transition' warning fired. Otherwise WRONG-WARNED only if a pertinent warning fired (warning_kinds residual, b-pinned, single-transition, too-few-bands, dq-pinned, cb-pinned, other-regime, c-forced, undetermined; c-note and c-refit do not count), else WRONG-SILENT; RAISED on an exception or error payload. A run whose truth Dq lies in the other spin regime at the C it used keeps its verdict and is tagged `infeasible_at_c=True`: the tag explains, it does not excuse. OK-B-UNIDENTIFIED is not a failure. RAISED-EXPECTED only for fit_spectrum on high-spin d5 spin-allowed-only, fed the quartet bands, when the message says `no spin-allowed`. Where no B reference exists (JCE [Ni(NH3)6]2+) the verdict uses dDq only. Severity for 'worst': N/A < OK < RAISED-EXPECTED < OK-B-UNIDENTIFIED < RAISED < WRONG-WARNED < WRONG-SILENT.
 - **assignment_ok.** At the returned point (with the C the path used), each band's nearest predicted level by `Level.uid` must carry one of its labels. fit_spectrum with `include_spin_forbidden` matches every level; all other runs only the ground multiplicity. A blank JCE ordinal matches any index of the term.
 - **r2.** Computed by this grader; no fit path returns it. Over the same levels as assignment_ok, r2 = 1 - sum(res^2) / sum((E - mean E)^2), where res is each band's distance to its nearest predicted line -- the measure the fitters minimise. A high r2 beside a wrong Dq is therefore the silent-failure signature, not evidence of a good fit. n/a with no fitted point or fewer than two bands.
-- **Apps.** The reverse app answers with `fit_spectrum` (its grid is a landscape beside the answer) and is run twice: `c_mode=app-default` without the regime flags, the caller who omits them, and `c_mode=app-regime` with the case's `spin_state` and `include_spin_forbidden`; C is the default in both. The ratio app takes no regime flags or C and pins the high-spin reference at the default C, so its low-spin rows fail by construction. The reverse app receives every band of the case; the ratio app the lowest three, spin-allowed cases only. The app-grid classifier rebuilds the ratio app's grid from mirrored constants: grid_steps/b_min/b_max {'grid_steps': 30, 'b_min': 400.0, 'b_max': 1600.0} are checked at start-up against the tool signature, as is the reverse app's B range {'grid_steps': 25, 'b_min': 200.0, 'b_max': 1500.0}; Dq max = 3 x obs[0]/10 was read off apps.py. The ratio app's Dq grid has no node at obs[0]/10 (it falls at index (steps - 1)/3, a node only when steps - 1 is divisible by 3), hence app-lattice.
+- **Apps.** Both apps answer with `fit_spectrum` (their grids are diagnostics beside the answer) and each is run twice: `c_mode=app-default` without the regime flags, the caller who omits them, and `c_mode=app-regime` with the case's `spin_state` (and, reverse app only, `include_spin_forbidden`); C is the default in both. The reverse app receives every band of the case; the ratio app the lowest three, spin-allowed cases only. app-lattice and app-grid test whether an answer sits on a grid node; they should no longer fire. The app-grid classifier rebuilds the ratio app's grid from mirrored constants: grid_steps/b_min/b_max {'grid_steps': 30, 'b_min': 200.0, 'b_max': 1500.0} are checked at start-up against the tool signature, as is the reverse app's B range {'grid_steps': 25, 'b_min': 200.0, 'b_max': 1500.0}; Dq max = 3 x obs[0]/10 was read off apps.py. The ratio app's Dq grid has no node at obs[0]/10 (it falls at index (steps - 1)/3, a node only when steps - 1 is divisible by 3), hence app-lattice.
 - **Not applicable cells.**
   - ratio app with sf=True; both apps on high-spin d5 sf=False (no spin-allowed band exists); seed-displaced outside d3/d8 sf=False.
 
@@ -37,30 +37,30 @@ At the default C the reference (Dq, B) is not a minimum of this objective: the n
 
 Worst verdict per cell and how many of the cell's runs carry it.
 
-| d | spin | sf | fit C=truth | fit C=default | fit seed-displaced | fit labelled C=truth | fit labelled C=None | reverse app | reverse app +regime | ratio app |
-|---|---|---|---|---|---|---|---|---|---|---|
-| d2 | high | False | OK 16/16 | OK 16/16 | N/A | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | WRONG-SILENT 8/16 |
-| d2 | high | True | OK 16/16 | WRONG-SILENT 5/16 | N/A | OK 16/16 | OK 16/16 | RAISED 16/16 | WRONG-SILENT 5/16 | N/A |
-| d3 | high | False | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | WRONG-SILENT 16/16 |
-| d3 | high | True | OK 16/16 | WRONG-SILENT 2/16 | N/A | OK 16/16 | OK 16/16 | RAISED 16/16 | WRONG-SILENT 2/16 | N/A |
-| d4 | high | False | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A |
-| d4 | high | True | OK 7/7 | WRONG-WARNED 6/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 6/7 | N/A |
-| d4 | low | False | OK 7/7 | WRONG-WARNED 6/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 6/7 | RAISED 7/7 |
-| d4 | low | True | OK 7/7 | WRONG-SILENT 1/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-SILENT 1/7 | N/A |
-| d5 | high | False | RAISED-EXPECTED 9/9 | RAISED-EXPECTED 9/9 | N/A | RAISED-EXPECTED 9/9 | RAISED-EXPECTED 9/9 | N/A | N/A | N/A |
-| d5 | high | True | OK 9/9 | WRONG-SILENT 2/9 | N/A | OK 9/9 | OK 9/9 | RAISED 9/9 | WRONG-SILENT 2/9 | N/A |
-| d5 | low | False | OK 9/9 | WRONG-WARNED 6/9 | N/A | OK 9/9 | OK 9/9 | RAISED 9/9 | WRONG-WARNED 6/9 | RAISED 9/9 |
-| d5 | low | True | OK 9/9 | WRONG-WARNED 9/9 | N/A | OK 9/9 | OK 9/9 | RAISED 9/9 | WRONG-WARNED 9/9 | N/A |
-| d6 | high | False | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A |
-| d6 | high | True | OK 7/7 | WRONG-SILENT 4/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-SILENT 4/7 | N/A |
-| d6 | low | False | OK 7/7 | WRONG-SILENT 2/7 | N/A | OK 7/7 | WRONG-WARNED 1/7 | RAISED 7/7 | WRONG-SILENT 2/7 | RAISED 7/7 |
-| d6 | low | True | OK 7/7 | WRONG-WARNED 7/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 7/7 | N/A |
-| d7 | high | False | OK 7/7 | OK 7/7 | N/A | OK 7/7 | OK 7/7 | OK 7/7 | OK 7/7 | WRONG-SILENT 1/7 |
-| d7 | high | True | OK 7/7 | WRONG-WARNED 6/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 6/7 | N/A |
-| d7 | low | False | OK 7/7 | WRONG-SILENT 2/7 | N/A | OK 7/7 | OK 7/7 | WRONG-WARNED 7/7 | WRONG-SILENT 2/7 | WRONG-SILENT 7/7 |
-| d7 | low | True | OK 7/7 | WRONG-WARNED 6/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 6/7 | N/A |
-| d8 | high | False | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | WRONG-SILENT 12/12 |
-| d8 | high | True | OK 12/12 | WRONG-SILENT 4/12 | N/A | OK 12/12 | OK 12/12 | RAISED 12/12 | WRONG-SILENT 4/12 | N/A |
+| d | spin | sf | fit C=truth | fit C=default | fit seed-displaced | fit labelled C=truth | fit labelled C=None | reverse app | reverse app +regime | ratio app | ratio app +regime |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| d2 | high | False | OK 16/16 | OK 16/16 | N/A | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 |
+| d2 | high | True | OK 16/16 | WRONG-SILENT 5/16 | N/A | OK 16/16 | OK 16/16 | RAISED 16/16 | WRONG-SILENT 5/16 | N/A | N/A |
+| d3 | high | False | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 | OK 16/16 |
+| d3 | high | True | OK 16/16 | WRONG-SILENT 2/16 | N/A | OK 16/16 | OK 16/16 | RAISED 16/16 | WRONG-SILENT 2/16 | N/A | N/A |
+| d4 | high | False | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | N/A |
+| d4 | high | True | OK 7/7 | WRONG-WARNED 6/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 6/7 | N/A | N/A |
+| d4 | low | False | OK 7/7 | WRONG-WARNED 6/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 6/7 | RAISED 7/7 | WRONG-WARNED 6/7 |
+| d4 | low | True | OK 7/7 | WRONG-SILENT 1/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-SILENT 1/7 | N/A | N/A |
+| d5 | high | False | RAISED-EXPECTED 9/9 | RAISED-EXPECTED 9/9 | N/A | RAISED-EXPECTED 9/9 | RAISED-EXPECTED 9/9 | N/A | N/A | N/A | N/A |
+| d5 | high | True | OK 9/9 | WRONG-SILENT 2/9 | N/A | OK 9/9 | OK 9/9 | RAISED 9/9 | WRONG-SILENT 2/9 | N/A | N/A |
+| d5 | low | False | OK 9/9 | WRONG-WARNED 6/9 | N/A | OK 9/9 | OK 9/9 | RAISED 9/9 | WRONG-WARNED 6/9 | RAISED 9/9 | WRONG-WARNED 6/9 |
+| d5 | low | True | OK 9/9 | WRONG-WARNED 9/9 | N/A | OK 9/9 | OK 9/9 | RAISED 9/9 | WRONG-WARNED 9/9 | N/A | N/A |
+| d6 | high | False | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | OK-B-UNIDENTIFIED 7/7 | N/A | N/A |
+| d6 | high | True | OK 7/7 | WRONG-SILENT 4/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-SILENT 4/7 | N/A | N/A |
+| d6 | low | False | OK 7/7 | WRONG-SILENT 2/7 | N/A | OK 7/7 | WRONG-WARNED 1/7 | RAISED 7/7 | WRONG-SILENT 2/7 | RAISED 7/7 | WRONG-SILENT 2/7 |
+| d6 | low | True | OK 7/7 | WRONG-WARNED 7/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 7/7 | N/A | N/A |
+| d7 | high | False | OK 7/7 | OK 7/7 | N/A | OK 7/7 | OK 7/7 | OK 7/7 | OK 7/7 | OK 7/7 | OK 7/7 |
+| d7 | high | True | OK 7/7 | WRONG-WARNED 6/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 6/7 | N/A | N/A |
+| d7 | low | False | OK 7/7 | WRONG-SILENT 2/7 | N/A | OK 7/7 | OK 7/7 | WRONG-WARNED 7/7 | WRONG-SILENT 2/7 | WRONG-WARNED 7/7 | WRONG-SILENT 2/7 |
+| d7 | low | True | OK 7/7 | WRONG-WARNED 6/7 | N/A | OK 7/7 | OK 7/7 | RAISED 7/7 | WRONG-WARNED 6/7 | N/A | N/A |
+| d8 | high | False | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 | OK 12/12 |
+| d8 | high | True | OK 12/12 | WRONG-SILENT 4/12 | N/A | OK 12/12 | OK 12/12 | RAISED 12/12 | WRONG-SILENT 4/12 | N/A | N/A |
 
 Headline counts (synthetic runs):
 
@@ -71,24 +71,17 @@ Headline counts (synthetic runs):
 | fit_spectrum (labelled-truth) | 185 | 9 | 14 | 0 | 0 | 0 | 208 |
 | fit_spectrum (seed-displaced) | 28 | 0 | 0 | 0 | 0 | 0 | 28 |
 | fit_spectrum (truth) | 185 | 9 | 14 | 0 | 0 | 0 | 208 |
-| ratio_app (app-default) | 14 | 0 | 0 | 23 | 0 | 44 | 81 |
+| ratio_app (app-default) | 51 | 0 | 0 | 23 | 7 | 0 | 81 |
+| ratio_app (app-regime) | 59 | 0 | 0 | 0 | 18 | 4 | 81 |
 | reverse_app (app-default) | 51 | 0 | 14 | 127 | 7 | 0 | 199 |
 | reverse_app (app-regime) | 69 | 0 | 14 | 0 | 94 | 22 | 199 |
 
 ## 4. Failing synthetic rows
 
-434 rows.
+419 rows.
 
 | d | spin | sf | path | c_mode | truth_Dq | truth_B | truth_C | fit_Dq | fit_B | dDq_pct | dB_pct | warning_kinds | assignment_ok | verdict | failure_classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2 | high | False | ratio_app | app-default | 900.0 | 387.0 | 1548.0 | 939.6 | 400.0 | 4.4 | 3.4 |  | True | WRONG-SILENT | app-grid |
-| 2 | high | False | ratio_app | app-default | 900.0 | 387.0 | 1857.6 | 939.6 | 400.0 | 4.4 | 3.4 |  | True | WRONG-SILENT | app-grid |
-| 2 | high | False | ratio_app | app-default | 1800.0 | 645.0 | 2580.0 | 1725.3 | 606.9 | -4.2 | -5.9 |  | True | WRONG-SILENT | unclassified |
-| 2 | high | False | ratio_app | app-default | 1800.0 | 645.0 | 3096.0 | 1725.3 | 606.9 | -4.2 | -5.9 |  | True | WRONG-SILENT | unclassified |
-| 2 | high | False | ratio_app | app-default | 1800.0 | 989.0 | 3956.0 | 1853.0 | 1020.7 | 2.9 | 3.2 |  | True | WRONG-SILENT | unclassified |
-| 2 | high | False | ratio_app | app-default | 1800.0 | 989.0 | 4747.2 | 1853.0 | 1020.7 | 2.9 | 3.2 |  | True | WRONG-SILENT | unclassified |
-| 2 | high | False | ratio_app | app-default | 900.0 | 1376.0 | 5504.0 | 874.9 | 1351.7 | -2.8 | -1.8 |  | True | WRONG-SILENT | unclassified |
-| 2 | high | False | ratio_app | app-default | 900.0 | 1376.0 | 6604.8 | 874.9 | 1351.7 | -2.8 | -1.8 |  | True | WRONG-SILENT | unclassified |
 | 2 | high | True | fit_spectrum | default | 900.0 | 387.0 | 1548.0 | 352.3 | 201.1 | -60.9 | -48.0 | b-pinned;residual | False | WRONG-WARNED | a;c;e |
 | 2 | high | True | reverse_app | app-default | 900.0 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
 | 2 | high | True | reverse_app | app-regime | 900.0 | 387.0 | 1548.0 | 352.3 | 201.1 | -60.9 | -48.0 | b-pinned;residual | False | WRONG-WARNED | c |
@@ -133,22 +126,6 @@ Headline counts (synthetic runs):
 | 2 | high | True | fit_spectrum | default | 1800.0 | 1376.0 | 6604.8 | 1159.0 | 1498.1 | -35.6 | 8.9 | b-pinned;residual | False | WRONG-WARNED | c;e |
 | 2 | high | True | reverse_app | app-default | 1800.0 | 1376.0 | 6604.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
 | 2 | high | True | reverse_app | app-regime | 1800.0 | 1376.0 | 6604.8 | 1159.0 | 1498.1 | -35.6 | 8.9 | b-pinned;residual | False | WRONG-WARNED | c |
-| 3 | high | False | ratio_app | app-default | 1200.0 | 413.1 | 1652.4 | 1241.4 | 441.4 | 3.5 | 6.9 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 2000.0 | 413.1 | 1652.4 | 2069.0 | 441.4 | 3.5 | 6.9 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 1200.0 | 413.1 | 1982.9 | 1241.4 | 441.4 | 3.5 | 6.9 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 2000.0 | 413.1 | 1982.9 | 2069.0 | 441.4 | 3.5 | 6.9 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 1200.0 | 688.5 | 2754.0 | 1241.4 | 731.0 | 3.5 | 6.2 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 2000.0 | 688.5 | 2754.0 | 2069.0 | 731.0 | 3.5 | 6.2 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 1200.0 | 688.5 | 3304.8 | 1241.4 | 731.0 | 3.5 | 6.2 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 2000.0 | 688.5 | 3304.8 | 2069.0 | 731.0 | 3.5 | 6.2 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 1200.0 | 1055.7 | 4222.8 | 1241.4 | 1103.4 | 3.5 | 4.5 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 2000.0 | 1055.7 | 4222.8 | 2069.0 | 1103.4 | 3.5 | 4.5 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 1200.0 | 1055.7 | 5067.4 | 1241.4 | 1103.4 | 3.5 | 4.5 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 2000.0 | 1055.7 | 5067.4 | 2069.0 | 1103.4 | 3.5 | 4.5 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 1200.0 | 1468.8 | 5875.2 | 1241.4 | 1517.2 | 3.5 | 3.3 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 2000.0 | 1468.8 | 5875.2 | 2069.0 | 1517.2 | 3.5 | 3.3 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 1200.0 | 1468.8 | 7050.2 | 1241.4 | 1517.2 | 3.5 | 3.3 |  | True | WRONG-SILENT | app-lattice |
-| 3 | high | False | ratio_app | app-default | 2000.0 | 1468.8 | 7050.2 | 2069.0 | 1517.2 | 3.5 | 3.3 |  | True | WRONG-SILENT | app-lattice |
 | 3 | high | True | fit_spectrum | default | 1200.0 | 413.1 | 1652.4 | 768.3 | 200.0 | -36.0 | -51.6 | b-pinned;residual | False | WRONG-WARNED | a;c;e |
 | 3 | high | True | reverse_app | app-default | 1200.0 | 413.1 | 1652.4 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
 | 3 | high | True | reverse_app | app-regime | 1200.0 | 413.1 | 1652.4 | 768.3 | 200.0 | -36.0 | -51.6 | b-pinned;residual | False | WRONG-WARNED | c |
@@ -216,28 +193,34 @@ Headline counts (synthetic runs):
 | 4 | low | False | reverse_app | app-default | 1691.9 | 434.2 | 1736.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | reverse_app | app-regime | 1691.9 | 434.2 | 1736.8 | 2252.7 | 200.0 | 33.1 | -53.9 | b-pinned;residual | False | WRONG-WARNED | c |
 | 4 | low | False | ratio_app | app-default | 1691.9 | 434.2 | 1736.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 4 | low | False | ratio_app | app-regime | 1691.9 | 434.2 | 1736.8 | 2252.7 | 200.0 | 33.1 | -53.9 | b-pinned;residual | False | WRONG-WARNED | c |
 | 4 | low | False | fit_spectrum | default | 1963.8 | 434.2 | 2084.2 | 2252.7 | 200.0 | 14.7 | -53.9 | b-pinned;residual | False | WRONG-WARNED | c;e |
 | 4 | low | False | reverse_app | app-default | 1963.8 | 434.2 | 2084.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | reverse_app | app-regime | 1963.8 | 434.2 | 2084.2 | 2252.7 | 200.0 | 14.7 | -53.9 | b-pinned;residual | False | WRONG-WARNED | c |
 | 4 | low | False | ratio_app | app-default | 1963.8 | 434.2 | 2084.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 4 | low | False | ratio_app | app-regime | 1963.8 | 434.2 | 2084.2 | 2252.7 | 200.0 | 14.7 | -53.9 | b-pinned;residual | False | WRONG-WARNED | c |
 | 4 | low | False | fit_spectrum | default | 2821.0 | 723.8 | 2895.2 | 2940.4 | 214.9 | 4.2 | -70.3 | undetermined | False | WRONG-WARNED | c;e |
 | 4 | low | False | reverse_app | app-default | 2821.0 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | reverse_app | app-regime | 2821.0 | 723.8 | 2895.2 | 2940.4 | 214.9 | 4.2 | -70.3 | undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | ratio_app | app-default | 2821.0 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 4 | low | False | ratio_app | app-regime | 2821.0 | 723.8 | 2895.2 | 2940.4 | 214.9 | 4.2 | -70.3 | undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | reverse_app | app-default | 3273.8 | 723.8 | 3474.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | ratio_app | app-default | 3273.8 | 723.8 | 3474.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | fit_spectrum | default | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined | False | WRONG-WARNED | c;e |
 | 4 | low | False | reverse_app | app-default | 4325.2 | 1109.8 | 4439.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | reverse_app | app-regime | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | ratio_app | app-default | 4325.2 | 1109.8 | 4439.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 4 | low | False | ratio_app | app-regime | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | fit_spectrum | default | 5019.6 | 1109.8 | 5327.0 | 4940.9 | 320.9 | -1.6 | -71.1 | undetermined | False | WRONG-WARNED | c;e |
 | 4 | low | False | reverse_app | app-default | 5019.6 | 1109.8 | 5327.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | reverse_app | app-regime | 5019.6 | 1109.8 | 5327.0 | 4940.9 | 320.9 | -1.6 | -71.1 | undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | ratio_app | app-default | 5019.6 | 1109.8 | 5327.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 4 | low | False | ratio_app | app-regime | 5019.6 | 1109.8 | 5327.0 | 4940.9 | 320.9 | -1.6 | -71.1 | undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | fit_spectrum | default | 1851.3 | 723.8 | 2895.2 | 2252.7 | 200.0 | 21.7 | -72.4 | b-pinned;residual | False | WRONG-WARNED | c;d;e |
 | 4 | low | False | reverse_app | app-default | 1851.3 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
 | 4 | low | False | reverse_app | app-regime | 1851.3 | 723.8 | 2895.2 | 2252.7 | 200.0 | 21.7 | -72.4 | b-pinned;residual | False | WRONG-WARNED | c;d |
 | 4 | low | False | ratio_app | app-default | 1851.3 | 723.8 | 2895.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
+| 4 | low | False | ratio_app | app-regime | 1851.3 | 723.8 | 2895.2 | 2252.7 | 200.0 | 21.7 | -72.4 | b-pinned;residual | False | WRONG-WARNED | c;d |
 | 4 | low | True | fit_spectrum | default | 1691.9 | 434.2 | 1736.8 | 2252.8 | 200.0 | 33.2 | -53.9 | b-pinned;residual;undetermined;other-regime | False | WRONG-WARNED | a;c;e |
 | 4 | low | True | reverse_app | app-default | 1691.9 | 434.2 | 1736.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
 | 4 | low | True | reverse_app | app-regime | 1691.9 | 434.2 | 1736.8 | 2252.8 | 200.0 | 33.2 | -53.9 | b-pinned;residual;undetermined;other-regime | False | WRONG-WARNED | c |
@@ -288,14 +271,17 @@ Headline counts (synthetic runs):
 | 5 | low | False | reverse_app | app-default | 1606.7 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | reverse_app | app-regime | 1606.7 | 387.0 | 1548.0 | 2001.5 | 200.0 | 24.6 | -48.3 | b-pinned;residual | n/a | WRONG-WARNED | d |
 | 5 | low | False | ratio_app | app-default | 1606.7 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 5 | low | False | ratio_app | app-regime | 1606.7 | 387.0 | 1548.0 | 2001.5 | 200.0 | 24.6 | -48.3 | b-pinned;residual | False | WRONG-WARNED | c |
 | 5 | low | False | fit_spectrum | default | 1850.0 | 387.0 | 1857.6 | 2001.5 | 200.0 | 8.2 | -48.3 | b-pinned | False | WRONG-WARNED | c;e |
 | 5 | low | False | reverse_app | app-default | 1850.0 | 387.0 | 1857.6 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | reverse_app | app-regime | 1850.0 | 387.0 | 1857.6 | 2001.5 | 200.0 | 8.2 | -48.3 | b-pinned | n/a | WRONG-WARNED | d |
 | 5 | low | False | ratio_app | app-default | 1850.0 | 387.0 | 1857.6 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 5 | low | False | ratio_app | app-regime | 1850.0 | 387.0 | 1857.6 | 2001.5 | 200.0 | 8.2 | -48.3 | b-pinned | False | WRONG-WARNED | c |
 | 5 | low | False | fit_spectrum | default | 2678.0 | 645.0 | 2580.0 | 2765.9 | 639.6 | 3.3 | -0.8 | undetermined | True | WRONG-WARNED | e |
 | 5 | low | False | reverse_app | app-default | 2678.0 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | reverse_app | app-regime | 2678.0 | 645.0 | 2580.0 | 2765.9 | 639.6 | 3.3 | -0.8 | undetermined | True | WRONG-WARNED | unclassified |
 | 5 | low | False | ratio_app | app-default | 2678.0 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 5 | low | False | ratio_app | app-regime | 2678.0 | 645.0 | 2580.0 | 2765.9 | 639.6 | 3.3 | -0.8 | undetermined | True | WRONG-WARNED | unclassified |
 | 5 | low | False | reverse_app | app-default | 3083.5 | 645.0 | 3096.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | ratio_app | app-default | 3083.5 | 645.0 | 3096.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | reverse_app | app-default | 4106.4 | 989.0 | 3956.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
@@ -306,14 +292,17 @@ Headline counts (synthetic runs):
 | 5 | low | False | reverse_app | app-default | 5713.4 | 1376.0 | 5504.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | reverse_app | app-regime | 5713.4 | 1376.0 | 5504.0 | 2514.3 | 670.4 | -56.0 | -51.3 | undetermined | False | WRONG-WARNED | c |
 | 5 | low | False | ratio_app | app-default | 5713.4 | 1376.0 | 5504.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 5 | low | False | ratio_app | app-regime | 5713.4 | 1376.0 | 5504.0 | 2514.3 | 670.4 | -56.0 | -51.3 | undetermined | False | WRONG-WARNED | c |
 | 5 | low | False | fit_spectrum | default | 6578.1 | 1376.0 | 6604.8 | 6373.4 | 1385.0 | -3.1 | 0.7 | undetermined | True | WRONG-WARNED | e |
 | 5 | low | False | reverse_app | app-default | 6578.1 | 1376.0 | 6604.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 5 | low | False | reverse_app | app-regime | 6578.1 | 1376.0 | 6604.8 | 6373.4 | 1385.0 | -3.1 | 0.7 | undetermined | True | WRONG-WARNED | unclassified |
 | 5 | low | False | ratio_app | app-default | 6578.1 | 1376.0 | 6604.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 5 | low | False | ratio_app | app-regime | 6578.1 | 1376.0 | 6604.8 | 6373.4 | 1385.0 | -3.1 | 0.7 | undetermined | True | WRONG-WARNED | unclassified |
 | 5 | low | False | fit_spectrum | default | 1757.4 | 645.0 | 2580.0 | 2001.5 | 200.0 | 13.9 | -69.0 | b-pinned;residual | False | WRONG-WARNED | c;d;e |
 | 5 | low | False | reverse_app | app-default | 1757.4 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
 | 5 | low | False | reverse_app | app-regime | 1757.4 | 645.0 | 2580.0 | 2001.5 | 200.0 | 13.9 | -69.0 | b-pinned;residual | n/a | WRONG-WARNED | d |
 | 5 | low | False | ratio_app | app-default | 1757.4 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
+| 5 | low | False | ratio_app | app-regime | 1757.4 | 645.0 | 2580.0 | 2001.5 | 200.0 | 13.9 | -69.0 | b-pinned;residual | False | WRONG-WARNED | c;d |
 | 5 | low | True | fit_spectrum | default | 1606.7 | 387.0 | 1548.0 | 2001.5 | 200.0 | 24.6 | -48.3 | b-pinned;residual;undetermined | False | WRONG-WARNED | a;c;e |
 | 5 | low | True | reverse_app | app-default | 1606.7 | 387.0 | 1548.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
 | 5 | low | True | reverse_app | app-regime | 1606.7 | 387.0 | 1548.0 | 2001.5 | 200.0 | 24.6 | -48.3 | b-pinned;residual;undetermined | n/a | WRONG-WARNED | d |
@@ -367,18 +356,22 @@ Headline counts (synthetic runs):
 | 6 | low | False | reverse_app | app-default | 1305.6 | 479.2 | 1916.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 6 | low | False | reverse_app | app-regime | 1305.6 | 479.2 | 1916.8 | 1947.3 | 200.0 | 49.1 | -58.3 | b-pinned;residual;undetermined | False | WRONG-WARNED | c;d |
 | 6 | low | False | ratio_app | app-default | 1305.6 | 479.2 | 1916.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 6 | low | False | ratio_app | app-regime | 1305.6 | 479.2 | 1916.8 | 1947.3 | 200.0 | 49.2 | -58.3 | b-pinned;residual;undetermined | False | WRONG-WARNED | c |
 | 6 | low | False | fit_spectrum | default | 1592.1 | 479.2 | 2396.0 | 1947.3 | 200.0 | 22.3 | -58.3 | b-pinned;residual;undetermined | True | WRONG-WARNED | e |
 | 6 | low | False | reverse_app | app-default | 1592.1 | 479.2 | 2396.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 6 | low | False | reverse_app | app-regime | 1592.1 | 479.2 | 2396.0 | 1947.3 | 200.0 | 22.3 | -58.3 | b-pinned;residual;undetermined | False | WRONG-WARNED | c;d |
 | 6 | low | False | ratio_app | app-default | 1592.1 | 479.2 | 2396.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 6 | low | False | ratio_app | app-regime | 1592.1 | 479.2 | 2396.0 | 1947.3 | 200.0 | 22.3 | -58.3 | b-pinned;residual;undetermined | True | WRONG-WARNED | unclassified |
 | 6 | low | False | fit_spectrum | default | 2176.8 | 798.8 | 3195.2 | 2283.1 | 819.1 | 4.9 | 2.5 |  | True | WRONG-SILENT | e |
 | 6 | low | False | reverse_app | app-default | 2176.8 | 798.8 | 3195.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 6 | low | False | reverse_app | app-regime | 2176.8 | 798.8 | 3195.2 | 2283.1 | 819.1 | 4.9 | 2.5 |  | True | WRONG-SILENT | unclassified |
 | 6 | low | False | ratio_app | app-default | 2176.8 | 798.8 | 3195.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 6 | low | False | ratio_app | app-regime | 2176.8 | 798.8 | 3195.2 | 2283.1 | 819.1 | 4.9 | 2.5 |  | True | WRONG-SILENT | unclassified |
 | 6 | low | False | fit_spectrum | default | 2653.5 | 798.8 | 3994.0 | 2719.2 | 807.0 | 2.5 | 1.0 |  | True | WRONG-SILENT | e |
 | 6 | low | False | reverse_app | app-default | 2653.5 | 798.8 | 3994.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 6 | low | False | reverse_app | app-regime | 2653.5 | 798.8 | 3994.0 | 2719.2 | 807.0 | 2.5 | 1.0 |  | True | WRONG-SILENT | unclassified |
 | 6 | low | False | ratio_app | app-default | 2653.5 | 798.8 | 3994.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
+| 6 | low | False | ratio_app | app-regime | 2653.5 | 798.8 | 3994.0 | 2719.2 | 807.0 | 2.5 | 1.0 |  | True | WRONG-SILENT | unclassified |
 | 6 | low | False | reverse_app | app-default | 3338.0 | 1224.8 | 4899.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 6 | low | False | ratio_app | app-default | 3338.0 | 1224.8 | 4899.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 6 | low | False | reverse_app | app-default | 4069.1 | 1224.8 | 6124.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
@@ -387,6 +380,7 @@ Headline counts (synthetic runs):
 | 6 | low | False | reverse_app | app-default | 1428.5 | 798.8 | 3195.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
 | 6 | low | False | reverse_app | app-regime | 1428.5 | 798.8 | 3195.2 | 1947.3 | 200.0 | 36.3 | -75.0 | b-pinned;residual | False | WRONG-WARNED | c;d |
 | 6 | low | False | ratio_app | app-default | 1428.5 | 798.8 | 3195.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;d |
+| 6 | low | False | ratio_app | app-regime | 1428.5 | 798.8 | 3195.2 | 1947.3 | 200.0 | 36.3 | -75.0 | b-pinned;residual | False | WRONG-WARNED | c;d |
 | 6 | low | True | fit_spectrum | default | 1305.6 | 479.2 | 1916.8 | 2235.0 | 200.0 | 71.2 | -58.3 | b-pinned;residual;other-regime | False | WRONG-WARNED | a;c;e |
 | 6 | low | True | reverse_app | app-default | 1305.6 | 479.2 | 1916.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
 | 6 | low | True | reverse_app | app-regime | 1305.6 | 479.2 | 1916.8 | 2235.0 | 200.0 | 71.2 | -58.3 | b-pinned;residual;other-regime | False | WRONG-WARNED | c |
@@ -408,7 +402,6 @@ Headline counts (synthetic runs):
 | 6 | low | True | fit_spectrum | default | 1428.5 | 798.8 | 3195.2 | 2241.4 | 215.7 | 56.9 | -73.0 | residual;other-regime | False | WRONG-WARNED | a;c;d;e |
 | 6 | low | True | reverse_app | app-default | 1428.5 | 798.8 | 3195.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf;d |
 | 6 | low | True | reverse_app | app-regime | 1428.5 | 798.8 | 3195.2 | 2241.4 | 215.7 | 56.9 | -73.0 | residual;other-regime | False | WRONG-WARNED | c;d |
-| 7 | high | False | ratio_app | app-default | 1343.7 | 728.2 | 2912.8 | 1384.4 | 731.0 | 3.0 | 0.4 |  | True | WRONG-SILENT | app-grid;d |
 | 7 | high | True | fit_spectrum | default | 424.2 | 436.9 | 1747.6 | 419.4 | 200.0 | -1.1 | -54.2 | b-pinned;residual;undetermined | False | WRONG-WARNED | c;e |
 | 7 | high | True | reverse_app | app-default | 424.2 | 436.9 | 1747.6 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
 | 7 | high | True | reverse_app | app-regime | 424.2 | 436.9 | 1747.6 | 419.4 | 200.0 | -1.1 | -54.2 | b-pinned;residual;undetermined | False | WRONG-WARNED | c |
@@ -431,27 +424,32 @@ Headline counts (synthetic runs):
 | 7 | low | False | fit_spectrum | default | 1357.6 | 436.9 | 1747.6 | 1737.9 | 200.0 | 28.0 | -54.2 | b-pinned;residual | False | WRONG-WARNED | c;e |
 | 7 | low | False | reverse_app | app-default | 1357.6 | 436.9 | 1747.6 | 900.9 | 321.0 | -33.6 | -26.5 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
 | 7 | low | False | reverse_app | app-regime | 1357.6 | 436.9 | 1747.6 | 1737.9 | 200.0 | 28.0 | -54.2 | b-pinned;residual | False | WRONG-WARNED | c;d |
-| 7 | low | False | ratio_app | app-default | 1357.6 | 436.9 | 1747.6 | 1404.7 | 400.0 | 3.5 | -8.4 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 1357.6 | 436.9 | 1747.6 | 900.9 | 321.0 | -33.6 | -26.5 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
+| 7 | low | False | ratio_app | app-regime | 1357.6 | 436.9 | 1747.6 | 1737.9 | 200.0 | 28.0 | -54.2 | b-pinned;residual | False | WRONG-WARNED | c |
 | 7 | low | False | fit_spectrum | default | 1557.7 | 436.9 | 2097.1 | 1758.2 | 247.7 | 12.9 | -43.3 |  | False | WRONG-SILENT | c;e |
 | 7 | low | False | reverse_app | app-default | 1557.7 | 436.9 | 2097.1 | 1014.1 | 381.6 | -34.9 | -12.7 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
 | 7 | low | False | reverse_app | app-regime | 1557.7 | 436.9 | 2097.1 | 1758.2 | 247.7 | 12.9 | -43.3 |  | False | WRONG-SILENT | c |
-| 7 | low | False | ratio_app | app-default | 1557.7 | 436.9 | 2097.1 | 1456.1 | 400.0 | -6.5 | -8.4 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 1557.7 | 436.9 | 2097.1 | 1014.1 | 381.6 | -34.9 | -12.7 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
+| 7 | low | False | ratio_app | app-regime | 1557.7 | 436.9 | 2097.1 | 1758.2 | 247.7 | 12.9 | -43.3 |  | False | WRONG-SILENT | c |
 | 7 | low | False | fit_spectrum | default | 2263.2 | 728.2 | 2912.8 | 2335.6 | 762.9 | 3.2 | 4.8 |  | True | WRONG-SILENT | e |
 | 7 | low | False | reverse_app | app-default | 2263.2 | 728.2 | 2912.8 | 1501.9 | 535.1 | -33.6 | -26.5 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
 | 7 | low | False | reverse_app | app-regime | 2263.2 | 728.2 | 2912.8 | 2335.6 | 762.9 | 3.2 | 4.8 |  | True | WRONG-SILENT | unclassified |
-| 7 | low | False | ratio_app | app-default | 2263.2 | 728.2 | 2912.8 | 1703.1 | 400.0 | -24.7 | -45.1 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 2263.2 | 728.2 | 2912.8 | 1501.9 | 535.1 | -33.6 | -26.5 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
+| 7 | low | False | ratio_app | app-regime | 2263.2 | 728.2 | 2912.8 | 2335.6 | 762.9 | 3.2 | 4.8 |  | True | WRONG-SILENT | unclassified |
 | 7 | low | False | reverse_app | app-default | 2596.3 | 728.2 | 3495.4 | 1690.3 | 636.0 | -34.9 | -12.7 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
-| 7 | low | False | ratio_app | app-default | 2596.3 | 728.2 | 3495.4 | 1698.9 | 400.0 | -34.6 | -45.1 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 2596.3 | 728.2 | 3495.4 | 1690.3 | 636.0 | -34.9 | -12.7 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
 | 7 | low | False | reverse_app | app-default | 3469.8 | 1116.6 | 4466.4 | 2163.5 | 1083.9 | -37.6 | -2.9 | residual;other-regime | False | WRONG-WARNED | app-hs;c;d |
-| 7 | low | False | ratio_app | app-default | 3469.8 | 1116.6 | 4466.4 | 1631.9 | 400.0 | -53.0 | -64.2 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 3469.8 | 1116.6 | 4466.4 | 2163.5 | 1083.9 | -37.6 | -2.9 | residual;other-regime | False | WRONG-WARNED | app-hs;c;d |
 | 7 | low | False | fit_spectrum | default | 3981.0 | 1116.6 | 5359.7 | 1928.1 | 471.2 | -51.6 | -57.8 | undetermined | False | WRONG-WARNED | c;e |
 | 7 | low | False | reverse_app | app-default | 3981.0 | 1116.6 | 5359.7 | 2343.9 | 1431.7 | -41.1 | 28.2 | residual;other-regime | False | WRONG-WARNED | app-hs;c |
 | 7 | low | False | reverse_app | app-regime | 3981.0 | 1116.6 | 5359.7 | 1928.1 | 471.2 | -51.6 | -57.8 | undetermined | False | WRONG-WARNED | c |
-| 7 | low | False | ratio_app | app-default | 3981.0 | 1116.6 | 5359.7 | 1860.7 | 482.8 | -53.3 | -56.8 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 3981.0 | 1116.6 | 5359.7 | 2343.9 | 1431.7 | -41.1 | 28.2 | residual;other-regime | False | WRONG-WARNED | app-hs;c;d |
+| 7 | low | False | ratio_app | app-regime | 3981.0 | 1116.6 | 5359.7 | 1928.1 | 471.2 | -51.6 | -57.8 | undetermined | False | WRONG-WARNED | c |
 | 7 | low | False | fit_spectrum | default | 1485.2 | 728.2 | 2912.8 | 1746.1 | 219.3 | 17.6 | -69.9 | residual;undetermined | False | WRONG-WARNED | c;d;e |
 | 7 | low | False | reverse_app | app-default | 1485.2 | 728.2 | 2912.8 | 1007.1 | 306.6 | -32.2 | -57.9 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
 | 7 | low | False | reverse_app | app-regime | 1485.2 | 728.2 | 2912.8 | 1746.1 | 219.3 | 17.6 | -69.9 | residual;undetermined | False | WRONG-WARNED | c;d |
-| 7 | low | False | ratio_app | app-default | 1485.2 | 728.2 | 2912.8 | 1484.2 | 400.0 | -0.1 | -45.1 |  | False | WRONG-SILENT | app-hs;c;d |
+| 7 | low | False | ratio_app | app-default | 1485.2 | 728.2 | 2912.8 | 1007.1 | 306.6 | -32.2 | -57.9 | residual;c-note;other-regime | False | WRONG-WARNED | app-hs;c;d |
+| 7 | low | False | ratio_app | app-regime | 1485.2 | 728.2 | 2912.8 | 1746.1 | 219.3 | 17.6 | -69.9 | residual;undetermined | False | WRONG-WARNED | c;d |
 | 7 | low | True | fit_spectrum | default | 1357.6 | 436.9 | 1747.6 | 1751.1 | 200.0 | 29.0 | -54.2 | b-pinned;residual;other-regime | False | WRONG-WARNED | a;b;c;e |
 | 7 | low | True | reverse_app | app-default | 1357.6 | 436.9 | 1747.6 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
 | 7 | low | True | reverse_app | app-regime | 1357.6 | 436.9 | 1747.6 | 1751.1 | 200.0 | 29.0 | -54.2 | b-pinned;residual;other-regime | False | WRONG-WARNED | c |
@@ -471,18 +469,6 @@ Headline counts (synthetic runs):
 | 7 | low | True | fit_spectrum | default | 1485.2 | 728.2 | 2912.8 | 1738.0 | 200.0 | 17.0 | -72.5 | b-pinned;residual;other-regime | False | WRONG-WARNED | a;c;d;e |
 | 7 | low | True | reverse_app | app-default | 1485.2 | 728.2 | 2912.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf;d |
 | 7 | low | True | reverse_app | app-regime | 1485.2 | 728.2 | 2912.8 | 1738.0 | 200.0 | 17.0 | -72.5 | b-pinned;residual;other-regime | False | WRONG-WARNED | c;d |
-| 8 | high | False | ratio_app | app-default | 700.0 | 463.5 | 1854.0 | 724.1 | 482.8 | 3.4 | 4.2 |  | True | WRONG-SILENT | app-grid;app-lattice |
-| 8 | high | False | ratio_app | app-default | 1200.0 | 463.5 | 1854.0 | 1241.4 | 482.8 | 3.5 | 4.2 |  | True | WRONG-SILENT | app-grid;app-lattice |
-| 8 | high | False | ratio_app | app-default | 700.0 | 463.5 | 2224.8 | 724.1 | 482.8 | 3.4 | 4.2 |  | True | WRONG-SILENT | app-grid;app-lattice |
-| 8 | high | False | ratio_app | app-default | 1200.0 | 463.5 | 2224.8 | 1241.4 | 482.8 | 3.5 | 4.2 |  | True | WRONG-SILENT | app-grid;app-lattice |
-| 8 | high | False | ratio_app | app-default | 700.0 | 772.5 | 3090.0 | 724.1 | 813.8 | 3.4 | 5.3 |  | True | WRONG-SILENT | app-lattice |
-| 8 | high | False | ratio_app | app-default | 1200.0 | 772.5 | 3090.0 | 1241.4 | 813.8 | 3.5 | 5.3 |  | True | WRONG-SILENT | app-lattice |
-| 8 | high | False | ratio_app | app-default | 700.0 | 772.5 | 3708.0 | 724.1 | 813.8 | 3.4 | 5.3 |  | True | WRONG-SILENT | app-lattice |
-| 8 | high | False | ratio_app | app-default | 1200.0 | 772.5 | 3708.0 | 1241.4 | 813.8 | 3.5 | 5.3 |  | True | WRONG-SILENT | app-lattice |
-| 8 | high | False | ratio_app | app-default | 700.0 | 1184.5 | 4738.0 | 724.1 | 1227.6 | 3.4 | 3.6 |  | True | WRONG-SILENT | app-lattice |
-| 8 | high | False | ratio_app | app-default | 1200.0 | 1184.5 | 4738.0 | 1241.4 | 1227.6 | 3.5 | 3.6 |  | True | WRONG-SILENT | app-lattice |
-| 8 | high | False | ratio_app | app-default | 700.0 | 1184.5 | 5685.6 | 724.1 | 1227.6 | 3.4 | 3.6 |  | True | WRONG-SILENT | app-lattice |
-| 8 | high | False | ratio_app | app-default | 1200.0 | 1184.5 | 5685.6 | 1241.4 | 1227.6 | 3.5 | 3.6 |  | True | WRONG-SILENT | app-lattice |
 | 8 | high | True | fit_spectrum | default | 700.0 | 463.5 | 1854.0 | 575.2 | 200.0 | -17.8 | -56.9 | b-pinned;residual | False | WRONG-WARNED | c;e |
 | 8 | high | True | reverse_app | app-default | 700.0 | 463.5 | 1854.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
 | 8 | high | True | reverse_app | app-regime | 700.0 | 463.5 | 1854.0 | 575.2 | 200.0 | -17.8 | -56.9 | b-pinned;residual | False | WRONG-WARNED | c |
@@ -539,7 +525,8 @@ Counts (non-R1 rows):
 | fit_spectrum (labelled-default) | 22 | 0 | 0 | 0 | 11 | 9 | 42 |
 | fit_spectrum (labelled-truth) | 11 | 0 | 0 | 0 | 3 | 14 | 28 |
 | fit_spectrum (truth) | 9 | 0 | 0 | 0 | 12 | 7 | 28 |
-| ratio_app (app-default) | 3 | 0 | 0 | 1 | 0 | 19 | 23 |
+| ratio_app (app-default) | 12 | 0 | 0 | 1 | 4 | 6 | 23 |
+| ratio_app (app-regime) | 12 | 0 | 0 | 0 | 5 | 6 | 23 |
 | reverse_app (app-default) | 13 | 0 | 0 | 11 | 8 | 10 | 42 |
 | reverse_app (app-regime) | 12 | 0 | 0 | 0 | 20 | 10 | 42 |
 
@@ -549,14 +536,16 @@ Counts (non-R1 rows):
 | ZnO:Ni2+ | 2 | high | False | Td-equivalent | fit_spectrum | labelled-default | 405.0 | 795.7 | n/a | 515.1 | 790.1 | 27.2 | -0.7 | 882.8 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | ZnO:Ni2+ | 2 | high | False | Td-equivalent | reverse_app | app-default | 405.0 | 795.7 | n/a | 515.1 | 790.1 | 27.2 | -0.7 | 882.8 | 0.2 | True | False | WRONG-WARNED | unclassified |
 | ZnO:Ni2+ | 2 | high | False | Td-equivalent | reverse_app | app-regime | 405.0 | 795.7 | n/a | 515.1 | 790.1 | 27.2 | -0.7 | 882.8 | 0.2 | True | False | WRONG-WARNED | unclassified |
-| ZnO:Ni2+ | 2 | high | False | Td-equivalent | ratio_app | app-default | 405.0 | 795.7 | n/a | 546.2 | 1600.0 | 34.9 | 101.1 | 882.8 | 3886.5 | False | False | WRONG-SILENT | c |
+| ZnO:Ni2+ | 2 | high | False | Td-equivalent | ratio_app | app-default | 405.0 | 795.7 | n/a | 515.1 | 790.1 | 27.2 | -0.7 | 882.8 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| ZnO:Ni2+ | 2 | high | False | Td-equivalent | ratio_app | app-regime | 405.0 | 795.7 | n/a | 515.1 | 790.1 | 27.2 | -0.7 | 882.8 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | Al2O3:V3+ | 2 | high | False | Oh | fit_spectrum | truth | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | Al2O3:V3+ | 2 | high | False | Oh | fit_spectrum | default | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | Al2O3:V3+ | 2 | high | False | Oh | fit_spectrum | labelled-truth | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | Al2O3:V3+ | 2 | high | False | Oh | fit_spectrum | labelled-default | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | Al2O3:V3+ | 2 | high | False | Oh | reverse_app | app-default | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.3 | True | False | WRONG-WARNED | unclassified |
 | Al2O3:V3+ | 2 | high | False | Oh | reverse_app | app-regime | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.3 | True | False | WRONG-WARNED | unclassified |
-| Al2O3:V3+ | 2 | high | False | Oh | ratio_app | app-default | 1823.0 | 570.0 | 2600.0 | 1810.3 | 565.5 | -0.7 | -0.8 | 580.3 | 730.1 | True | False | OK |  |
+| Al2O3:V3+ | 2 | high | False | Oh | ratio_app | app-default | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| Al2O3:V3+ | 2 | high | False | Oh | ratio_app | app-regime | 1823.0 | 570.0 | 2600.0 | 1875.0 | 583.3 | 2.9 | 2.3 | 580.3 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | Al2O3:V3+ | 2 | high | True | Oh | fit_spectrum | truth | 1823.0 | 570.0 | 2600.0 | 763.8 | 630.5 | -58.1 | 10.6 | 640.2 | 87.8 | False | False | WRONG-SILENT | a;c;f |
 | Al2O3:V3+ | 2 | high | True | Oh | fit_spectrum | default | 1823.0 | 570.0 | 2600.0 | 766.4 | 326.8 | -58.0 | -42.7 | 640.2 | 3.5 | False | False | WRONG-WARNED | a;c |
 | Al2O3:V3+ | 2 | high | True | Oh | fit_spectrum | labelled-truth | 1823.0 | 570.0 | 2600.0 | 1857.0 | 616.1 | 1.9 | 8.1 | 640.2 | 304.4 | True | False | WRONG-SILENT | a;f |
@@ -567,19 +556,22 @@ Counts (non-R1 rows):
 | [V(H2O)6]3+ | 2 | high | False | Oh | fit_spectrum | labelled-default | 1860.0 | 664.3 | n/a | 1854.1 | 649.4 | -0.3 | -2.2 | 171.0 | 0.0 | True | False | OK |  |
 | [V(H2O)6]3+ | 2 | high | False | Oh | reverse_app | app-default | 1860.0 | 664.3 | n/a | 1854.1 | 649.4 | -0.3 | -2.2 | 171.0 | 0.4 | True | False | OK |  |
 | [V(H2O)6]3+ | 2 | high | False | Oh | reverse_app | app-regime | 1860.0 | 664.3 | n/a | 1854.1 | 649.4 | -0.3 | -2.2 | 171.0 | 0.4 | True | False | OK |  |
-| [V(H2O)6]3+ | 2 | high | False | Oh | ratio_app | app-default | 1860.0 | 664.3 | n/a | 1957.2 | 689.7 | 5.2 | 3.8 | 171.0 | 1241.1 | True | False | WRONG-SILENT | unclassified |
+| [V(H2O)6]3+ | 2 | high | False | Oh | ratio_app | app-default | 1860.0 | 664.3 | n/a | 1854.1 | 649.4 | -0.3 | -2.2 | 171.0 | 0.0 | True | False | OK |  |
+| [V(H2O)6]3+ | 2 | high | False | Oh | ratio_app | app-regime | 1860.0 | 664.3 | n/a | 1854.1 | 649.4 | -0.3 | -2.2 | 171.0 | 0.0 | True | False | OK |  |
 | [V(H2O)6]2+ | 3 | high | False | Oh | fit_spectrum | default | 1230.0 | 633.4 | n/a | 1228.4 | 627.8 | -0.1 | -0.9 | 271.8 | 266.1 | True | False | OK |  |
 | [V(H2O)6]2+ | 3 | high | False | Oh | fit_spectrum | labelled-default | 1230.0 | 633.4 | n/a | 1228.4 | 627.8 | -0.1 | -0.9 | 271.8 | 266.1 | True | False | OK |  |
 | [V(H2O)6]2+ | 3 | high | False | Oh | reverse_app | app-default | 1230.0 | 633.4 | n/a | 1228.4 | 627.8 | -0.1 | -0.9 | 271.8 | 266.1 | True | False | OK |  |
 | [V(H2O)6]2+ | 3 | high | False | Oh | reverse_app | app-regime | 1230.0 | 633.4 | n/a | 1228.4 | 627.8 | -0.1 | -0.9 | 271.8 | 266.1 | True | False | OK |  |
-| [V(H2O)6]2+ | 3 | high | False | Oh | ratio_app | app-default | 1230.0 | 633.4 | n/a | 1272.4 | 648.3 | 3.4 | 2.4 | 271.8 | 772.7 | True | False | WRONG-SILENT | app-grid;app-lattice |
+| [V(H2O)6]2+ | 3 | high | False | Oh | ratio_app | app-default | 1230.0 | 633.4 | n/a | 1228.4 | 627.8 | -0.1 | -0.9 | 271.8 | 266.1 | True | False | OK |  |
+| [V(H2O)6]2+ | 3 | high | False | Oh | ratio_app | app-regime | 1230.0 | 633.4 | n/a | 1228.4 | 627.8 | -0.1 | -0.9 | 271.8 | 266.1 | True | False | OK |  |
 | [Cr(H2O)6]3+ | 3 | high | False | Oh | fit_spectrum | truth | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | f |
 | [Cr(H2O)6]3+ | 3 | high | False | Oh | fit_spectrum | default | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | f |
 | [Cr(H2O)6]3+ | 3 | high | False | Oh | fit_spectrum | labelled-truth | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | f |
 | [Cr(H2O)6]3+ | 3 | high | False | Oh | fit_spectrum | labelled-default | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | f |
 | [Cr(H2O)6]3+ | 3 | high | False | Oh | reverse_app | app-default | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | estimator-disagreement |
 | [Cr(H2O)6]3+ | 3 | high | False | Oh | reverse_app | app-regime | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | unclassified |
-| [Cr(H2O)6]3+ | 3 | high | False | Oh | ratio_app | app-default | 1720.0 | 765.1 | 3060.5 | 1800.0 | 648.3 | 4.7 | -15.3 | 1070.8 | 1474.8 | True | True | WRONG-SILENT | app-lattice |
+| [Cr(H2O)6]3+ | 3 | high | False | Oh | ratio_app | app-default | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | unclassified |
+| [Cr(H2O)6]3+ | 3 | high | False | Oh | ratio_app | app-regime | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 1070.8 | 723.8 | True | True | WRONG-SILENT | unclassified |
 | [Cr(H2O)6]3+ | 3 | high | True | Oh | fit_spectrum | truth | 1720.0 | 765.1 | 3060.5 | 373.8 | 925.2 | -78.3 | 20.9 | 486.9 | 67.8 | False | True | WRONG-WARNED | c |
 | [Cr(H2O)6]3+ | 3 | high | True | Oh | fit_spectrum | default | 1720.0 | 765.1 | 3060.5 | 938.9 | 726.5 | -45.4 | -5.1 | 486.9 | 91.9 | False | True | WRONG-WARNED | c |
 | [Cr(H2O)6]3+ | 3 | high | True | Oh | fit_spectrum | labelled-truth | 1720.0 | 765.1 | 3060.5 | 1674.5 | 741.6 | -2.6 | -3.1 | 927.7 | 644.6 | False | True | WRONG-SILENT | c;f |
@@ -592,7 +584,8 @@ Counts (non-R1 rows):
 | KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | labelled-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | reverse_app | app-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | reverse_app | app-regime | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | ratio_app | app-default | 1724.0 | 724.1 | 2484.3 | 1782.9 | 731.0 | 3.4 | 1.0 | 4.8 | 653.6 | True | False | WRONG-SILENT | app-grid;app-lattice |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | ratio_app | app-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | ratio_app | app-regime | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | truth | 1724.0 | 724.1 | 2484.3 | 818.9 | 400.6 | -52.5 | -44.7 | 435.3 | 7.1 | False | False | WRONG-WARNED | a;c |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | default | 1724.0 | 724.1 | 2484.3 | 1197.6 | 670.5 | -30.5 | -7.4 | 435.3 | 1.8 | False | False | WRONG-WARNED | a;c |
 | KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | labelled-truth | 1724.0 | 724.1 | 2484.3 | 1749.8 | 652.6 | 1.5 | -9.9 | 435.3 | 275.2 | True | False | WRONG-SILENT | a;f |
@@ -603,7 +596,8 @@ Counts (non-R1 rows):
 | [Cr(oxalate)3]3- | 3 | high | False | Oh | fit_spectrum | labelled-default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | [Cr(oxalate)3]3- | 3 | high | False | Oh | reverse_app | app-default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.1 | True | False | WRONG-WARNED | unclassified |
 | [Cr(oxalate)3]3- | 3 | high | False | Oh | reverse_app | app-regime | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.1 | True | False | WRONG-WARNED | unclassified |
-| [Cr(oxalate)3]3- | 3 | high | False | Oh | ratio_app | app-default | 1750.0 | 659.9 | n/a | 1810.3 | 648.3 | 3.4 | -1.8 | 277.6 | 797.6 | True | False | WRONG-SILENT | app-grid;app-lattice |
+| [Cr(oxalate)3]3- | 3 | high | False | Oh | ratio_app | app-default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| [Cr(oxalate)3]3- | 3 | high | False | Oh | ratio_app | app-regime | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | [Cr(oxalate)3]3- | 3 | high | True | Oh | fit_spectrum | default | 1750.0 | 659.9 | n/a | 376.5 | 239.2 | -78.5 | -63.8 | 1775.8 | 6.5 | False | False | WRONG-WARNED | c |
 | [Cr(oxalate)3]3- | 3 | high | True | Oh | fit_spectrum | labelled-default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 1775.8 | 1574.8 | True | False | WRONG-WARNED | unclassified |
 | [Cr(oxalate)3]3- | 3 | high | True | Oh | reverse_app | app-default | 1750.0 | 659.9 | n/a | 1202.0 | 383.6 | -31.3 | -41.9 | 1861.4 | 1736.1 | False | False | WRONG-WARNED | app-sf;c |
@@ -614,7 +608,8 @@ Counts (non-R1 rows):
 | Al2O3:Cr3+ | 3 | high | False | Oh | fit_spectrum | labelled-default | 1810.0 | 649.9 | 3119.6 | 1814.9 | 619.9 | 0.3 | -4.6 | 140.8 | 0.0 | True | False | OK |  |
 | Al2O3:Cr3+ | 3 | high | False | Oh | reverse_app | app-default | 1810.0 | 649.9 | 3119.6 | 1814.9 | 619.9 | 0.3 | -4.6 | 140.8 | 0.2 | True | False | OK |  |
 | Al2O3:Cr3+ | 3 | high | False | Oh | reverse_app | app-regime | 1810.0 | 649.9 | 3119.6 | 1814.9 | 619.9 | 0.3 | -4.6 | 140.8 | 0.2 | True | False | OK |  |
-| Al2O3:Cr3+ | 3 | high | False | Oh | ratio_app | app-default | 1810.0 | 649.9 | 3119.6 | 1877.5 | 648.3 | 3.7 | -0.2 | 140.8 | 778.3 | True | False | WRONG-SILENT | app-grid;app-lattice |
+| Al2O3:Cr3+ | 3 | high | False | Oh | ratio_app | app-default | 1810.0 | 649.9 | 3119.6 | 1814.9 | 619.9 | 0.3 | -4.6 | 140.8 | 0.0 | True | False | OK |  |
+| Al2O3:Cr3+ | 3 | high | False | Oh | ratio_app | app-regime | 1810.0 | 649.9 | 3119.6 | 1814.9 | 619.9 | 0.3 | -4.6 | 140.8 | 0.0 | True | False | OK |  |
 | Al2O3:Cr3+ | 3 | high | True | Oh | fit_spectrum | truth | 1810.0 | 649.9 | 3119.6 | 354.5 | 661.2 | -80.4 | 1.7 | 163.5 | 3.3 | False | False | WRONG-WARNED | a;c |
 | Al2O3:Cr3+ | 3 | high | True | Oh | fit_spectrum | default | 1810.0 | 649.9 | 3119.6 | 376.2 | 254.9 | -79.2 | -60.8 | 163.5 | 3.9 | False | False | WRONG-WARNED | a;c |
 | Al2O3:Cr3+ | 3 | high | True | Oh | fit_spectrum | labelled-truth | 1810.0 | 649.9 | 3119.6 | 1800.6 | 655.5 | -0.5 | 0.9 | 163.5 | 149.6 | True | False | OK |  |
@@ -625,7 +620,8 @@ Counts (non-R1 rows):
 | [Cr(NH3)6]3+ | 3 | high | False | Oh | fit_spectrum | labelled-default | 2170.0 | 657.0 | n/a | 2155.0 | 657.4 | -0.7 | 0.1 | 152.1 | 0.0 | True | False | OK |  |
 | [Cr(NH3)6]3+ | 3 | high | False | Oh | reverse_app | app-default | 2170.0 | 657.0 | n/a | 2155.0 | 657.4 | -0.7 | 0.1 | 152.1 | 0.0 | True | False | OK |  |
 | [Cr(NH3)6]3+ | 3 | high | False | Oh | reverse_app | app-regime | 2170.0 | 657.0 | n/a | 2155.0 | 657.4 | -0.7 | 0.1 | 152.1 | 0.0 | True | False | OK |  |
-| [Cr(NH3)6]3+ | 3 | high | False | Oh | ratio_app | app-default | 2170.0 | 657.0 | n/a | 2229.3 | 689.7 | 2.7 | 5.0 | 152.1 | 919.5 | True | False | WRONG-SILENT | app-lattice |
+| [Cr(NH3)6]3+ | 3 | high | False | Oh | ratio_app | app-default | 2170.0 | 657.0 | n/a | 2155.0 | 657.4 | -0.7 | 0.1 | 152.1 | 0.0 | True | False | OK |  |
+| [Cr(NH3)6]3+ | 3 | high | False | Oh | ratio_app | app-regime | 2170.0 | 657.0 | n/a | 2155.0 | 657.4 | -0.7 | 0.1 | 152.1 | 0.0 | True | False | OK |  |
 | [Cr(NH3)6]3+ | 3 | high | True | Oh | fit_spectrum | default | 2170.0 | 657.0 | n/a | 1065.0 | 363.7 | -50.9 | -44.6 | 1293.8 | 7.6 | False | False | WRONG-WARNED | a;c |
 | [Cr(NH3)6]3+ | 3 | high | True | Oh | fit_spectrum | labelled-default | 2170.0 | 657.0 | n/a | 2155.0 | 657.4 | -0.7 | 0.1 | 1293.8 | 1287.6 | True | False | OK |  |
 | [Cr(NH3)6]3+ | 3 | high | True | Oh | reverse_app | app-default | 2170.0 | 657.0 | n/a | 1378.1 | 572.5 | -36.5 | -12.9 | 3754.8 | 1856.7 | False | False | WRONG-WARNED | app-sf;c |
@@ -636,7 +632,8 @@ Counts (non-R1 rows):
 | K3Cr(CN)6 | 3 | high | False | Oh | fit_spectrum | labelled-default | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | K3Cr(CN)6 | 3 | high | False | Oh | reverse_app | app-default | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.1 | True | False | WRONG-WARNED | unclassified |
 | K3Cr(CN)6 | 3 | high | False | Oh | reverse_app | app-regime | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.1 | True | False | WRONG-WARNED | unclassified |
-| K3Cr(CN)6 | 3 | high | False | Oh | ratio_app | app-default | 2660.0 | 480.0 | 2670.1 | 2751.7 | 565.5 | 3.4 | 17.8 | 358.2 | 1125.5 | True | False | WRONG-SILENT | app-lattice |
+| K3Cr(CN)6 | 3 | high | False | Oh | ratio_app | app-default | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | unclassified |
+| K3Cr(CN)6 | 3 | high | False | Oh | ratio_app | app-regime | 2660.0 | 480.0 | 2670.1 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | truth | 2660.0 | 480.0 | 2670.1 | 1161.3 | 591.7 | -56.3 | 23.3 | 485.8 | 4.3 | False | False | WRONG-WARNED | a;c |
 | K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | default | 2660.0 | 480.0 | 2670.1 | 1281.8 | 936.1 | -51.8 | 95.0 | 485.8 | 2.5 | False | False | WRONG-WARNED | a;c |
 | K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | labelled-truth | 2660.0 | 480.0 | 2670.1 | 2637.9 | 573.9 | -0.8 | 19.6 | 635.5 | 255.2 | False | False | WRONG-SILENT | a;c;f |
@@ -650,6 +647,7 @@ Counts (non-R1 rows):
 | [Mn(CN)6]3- | 4 | low | False | Oh | reverse_app | app-default | 3400.0 | 659.9 | 3279.9 | n/a | n/a | n/a | n/a | 261.4 | n/a | n/a | False | RAISED | app-hs |
 | [Mn(CN)6]3- | 4 | low | False | Oh | reverse_app | app-regime | 3400.0 | 659.9 | 3279.9 | 3267.6 | 1105.0 | -3.9 | 67.4 | 261.4 | 0.2 | False | False | WRONG-WARNED | c |
 | [Mn(CN)6]3- | 4 | low | False | Oh | ratio_app | app-default | 3400.0 | 659.9 | 3279.9 | n/a | n/a | n/a | n/a | 261.4 | n/a | n/a | False | RAISED | app-hs |
+| [Mn(CN)6]3- | 4 | low | False | Oh | ratio_app | app-regime | 3400.0 | 659.9 | 3279.9 | 3267.6 | 1105.0 | -3.9 | 67.4 | 261.4 | 0.0 | False | False | WRONG-WARNED | c |
 | [Mn(CN)6]3- | 4 | low | True | Oh | fit_spectrum | truth | 3400.0 | 659.9 | 3279.9 | 2374.5 | 1268.2 | -30.2 | 92.2 | 246.6 | 27.3 | False | False | WRONG-WARNED | a;c |
 | [Mn(CN)6]3- | 4 | low | True | Oh | fit_spectrum | default | 3400.0 | 659.9 | 3279.9 | 2476.3 | 358.4 | -27.2 | -45.7 | 246.6 | 6.1 | False | False | WRONG-WARNED | a;c |
 | [Mn(CN)6]3- | 4 | low | True | Oh | fit_spectrum | labelled-truth | 3400.0 | 659.9 | 3279.9 | 3408.0 | 594.2 | 0.2 | -10.0 | 246.6 | 116.5 | True | False | WRONG-SILENT | a;f |
@@ -697,11 +695,13 @@ Counts (non-R1 rows):
 | [Co(oxalate)3]3- | 6 | low | False | Oh | reverse_app | app-default | 1815.0 | 535.6 | n/a | n/a | n/a | n/a | n/a | 3956.1 | n/a | n/a | False | RAISED-R1 | app-hs |
 | [Co(oxalate)3]3- | 6 | low | False | Oh | reverse_app | app-regime | 1815.0 | 535.6 | n/a | 2012.5 | 495.4 | 10.9 | -7.5 | 3956.1 | 265.1 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(oxalate)3]3- | 6 | low | False | Oh | ratio_app | app-default | 1815.0 | 535.6 | n/a | n/a | n/a | n/a | n/a | 3956.1 | n/a | n/a | False | RAISED-R1 | app-hs |
+| [Co(oxalate)3]3- | 6 | low | False | Oh | ratio_app | app-regime | 1815.0 | 535.6 | n/a | 2012.5 | 495.4 | 10.9 | -7.5 | 3956.1 | 264.9 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(H2O)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | n/a | 615.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(H2O)6]3+ | 6 | low | False | Oh | fit_spectrum | labelled-default | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | n/a | 615.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(H2O)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 1841.0 | 705.1 | n/a | n/a | n/a | n/a | n/a | 5115.8 | n/a | n/a | False | RAISED-R1 | app-hs |
 | [Co(H2O)6]3+ | 6 | low | False | Oh | reverse_app | app-regime | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | 5115.8 | 4484.0 | False | False | WRONG-WARNED-R1 | c;d |
 | [Co(H2O)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 1841.0 | 705.1 | n/a | n/a | n/a | n/a | n/a | 5115.8 | n/a | n/a | False | RAISED-R1 | app-hs |
+| [Co(H2O)6]3+ | 6 | low | False | Oh | ratio_app | app-regime | 1841.0 | 705.1 | n/a | 2040.5 | 624.5 | 10.8 | -11.4 | 5115.8 | 615.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | truth | 2293.0 | 635.0 | 3886.9 | 2359.2 | 635.5 | 2.9 | 0.1 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | default | 2293.0 | 635.0 | 3886.9 | 2428.6 | 643.8 | 5.9 | 1.4 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | fit_spectrum | labelled-truth | 2293.0 | 635.0 | 3886.9 | 2359.2 | 635.5 | 2.9 | 0.1 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
@@ -709,6 +709,7 @@ Counts (non-R1 rows):
 | [Co(NH3)6]3+ | 6 | low | False | Oh | reverse_app | app-default | 2293.0 | 635.0 | 3886.9 | n/a | n/a | n/a | n/a | 671.4 | n/a | n/a | False | RAISED-R1 | app-hs |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | reverse_app | app-regime | 2293.0 | 635.0 | 3886.9 | 2428.6 | 643.8 | 5.9 | 1.4 | 671.4 | 0.5 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NH3)6]3+ | 6 | low | False | Oh | ratio_app | app-default | 2293.0 | 635.0 | 3886.9 | n/a | n/a | n/a | n/a | 671.4 | n/a | n/a | False | RAISED-R1 | app-hs |
+| [Co(NH3)6]3+ | 6 | low | False | Oh | ratio_app | app-regime | 2293.0 | 635.0 | 3886.9 | 2428.6 | 643.8 | 5.9 | 1.4 | 671.4 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NH3)6]3+ | 6 | low | True | Oh | fit_spectrum | truth | 2293.0 | 635.0 | 3886.9 | 1592.5 | 273.1 | -30.5 | -57.0 | 665.2 | 64.1 | False | False | WRONG-WARNED-R1 | a;c |
 | [Co(NH3)6]3+ | 6 | low | True | Oh | fit_spectrum | default | 2293.0 | 635.0 | 3886.9 | 2118.8 | 989.7 | -7.6 | 55.9 | 665.2 | 612.4 | False | False | WRONG-WARNED-R1 | a;c |
 | [Co(NH3)6]3+ | 6 | low | True | Oh | fit_spectrum | labelled-truth | 2293.0 | 635.0 | 3886.9 | 2387.2 | 611.2 | 4.1 | -3.8 | 861.7 | 166.9 | True | False | WRONG-SILENT-R1 | a;f |
@@ -720,13 +721,15 @@ Counts (non-R1 rows):
 | [Co(NO2)6]3- | 6 | low | False | Oh | reverse_app | app-default | 2900.0 | 438.7 | n/a | n/a | n/a | n/a | n/a | 2406.8 | n/a | n/a | False | RAISED-R1 | app-hs |
 | [Co(NO2)6]3- | 6 | low | False | Oh | reverse_app | app-regime | 2900.0 | 438.7 | n/a | 3094.6 | 502.1 | 6.7 | 14.5 | 2406.8 | 0.5 | True | False | WRONG-WARNED-R1 | unclassified |
 | [Co(NO2)6]3- | 6 | low | False | Oh | ratio_app | app-default | 2900.0 | 438.7 | n/a | n/a | n/a | n/a | n/a | 2406.8 | n/a | n/a | False | RAISED-R1 | app-hs |
+| [Co(NO2)6]3- | 6 | low | False | Oh | ratio_app | app-regime | 2900.0 | 438.7 | n/a | 3094.6 | 502.1 | 6.7 | 14.5 | 2406.8 | 0.0 | True | False | WRONG-WARNED-R1 | unclassified |
 | AgCl:Co2+ | 7 | high | False | Oh | fit_spectrum | truth | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
 | AgCl:Co2+ | 7 | high | False | Oh | fit_spectrum | default | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
 | AgCl:Co2+ | 7 | high | False | Oh | fit_spectrum | labelled-truth | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
 | AgCl:Co2+ | 7 | high | False | Oh | fit_spectrum | labelled-default | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
 | AgCl:Co2+ | 7 | high | False | Oh | reverse_app | app-default | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
 | AgCl:Co2+ | 7 | high | False | Oh | reverse_app | app-regime | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
-| AgCl:Co2+ | 7 | high | False | Oh | ratio_app | app-default | 680.0 | 789.8 | 3319.4 | 699.8 | 772.4 | 2.9 | -2.2 | 225.2 | 397.9 | True | False | WRONG-SILENT | app-grid |
+| AgCl:Co2+ | 7 | high | False | Oh | ratio_app | app-default | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
+| AgCl:Co2+ | 7 | high | False | Oh | ratio_app | app-regime | 680.0 | 789.8 | 3319.4 | 673.0 | 794.9 | -1.0 | 0.6 | 225.2 | 207.7 | True | False | OK |  |
 | AgCl:Co2+ | 7 | high | True | Oh | fit_spectrum | truth | 680.0 | 789.8 | 3319.4 | 378.8 | 211.9 | -44.3 | -73.2 | 195.1 | 68.9 | False | False | WRONG-WARNED | c |
 | AgCl:Co2+ | 7 | high | True | Oh | fit_spectrum | default | 680.0 | 789.8 | 3319.4 | 335.0 | 668.0 | -50.7 | -15.4 | 195.1 | 114.4 | False | False | WRONG-WARNED | c |
 | AgCl:Co2+ | 7 | high | True | Oh | fit_spectrum | labelled-truth | 680.0 | 789.8 | 3319.4 | 668.6 | 822.1 | -1.7 | 4.1 | 458.2 | 371.5 | False | False | OK |  |
@@ -739,7 +742,8 @@ Counts (non-R1 rows):
 | CoCl2 | 7 | high | False | Oh | fit_spectrum | labelled-default | 690.0 | 779.7 | 3430.5 | 720.3 | 788.4 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | f |
 | CoCl2 | 7 | high | False | Oh | reverse_app | app-default | 690.0 | 779.7 | 3430.5 | 720.3 | 788.4 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | estimator-disagreement |
 | CoCl2 | 7 | high | False | Oh | reverse_app | app-regime | 690.0 | 779.7 | 3430.5 | 720.3 | 788.4 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | unclassified |
-| CoCl2 | 7 | high | False | Oh | ratio_app | app-default | 690.0 | 779.7 | 3430.5 | 751.0 | 772.4 | 8.8 | -0.9 | 479.8 | 440.3 | True | False | WRONG-SILENT | unclassified |
+| CoCl2 | 7 | high | False | Oh | ratio_app | app-default | 690.0 | 779.7 | 3430.5 | 720.3 | 788.4 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | unclassified |
+| CoCl2 | 7 | high | False | Oh | ratio_app | app-regime | 690.0 | 779.7 | 3430.5 | 720.3 | 788.4 | 4.4 | 1.1 | 479.8 | 217.4 | True | False | WRONG-SILENT | unclassified |
 | CoCl2 | 7 | high | True | Oh | fit_spectrum | truth | 690.0 | 779.7 | 3430.5 | 304.5 | 281.3 | -55.9 | -63.9 | 454.3 | 49.9 | False | False | WRONG-WARNED | c |
 | CoCl2 | 7 | high | True | Oh | fit_spectrum | default | 690.0 | 779.7 | 3430.5 | 281.0 | 293.3 | -59.3 | -62.4 | 454.3 | 102.2 | False | False | WRONG-WARNED | c |
 | CoCl2 | 7 | high | True | Oh | fit_spectrum | labelled-truth | 690.0 | 779.7 | 3430.5 | 717.5 | 805.7 | 4.0 | 3.3 | 515.7 | 277.5 | True | False | WRONG-SILENT | f |
@@ -752,7 +756,8 @@ Counts (non-R1 rows):
 | KCoF3 | 7 | high | False | Oh | fit_spectrum | labelled-default | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | f |
 | KCoF3 | 7 | high | False | Oh | reverse_app | app-default | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | estimator-disagreement |
 | KCoF3 | 7 | high | False | Oh | reverse_app | app-regime | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | unclassified |
-| KCoF3 | 7 | high | False | Oh | ratio_app | app-default | 770.0 | 880.0 | 3872.0 | 813.6 | 855.2 | 5.7 | -2.8 | 582.9 | 195.6 | True | False | WRONG-SILENT | unclassified |
+| KCoF3 | 7 | high | False | Oh | ratio_app | app-default | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | unclassified |
+| KCoF3 | 7 | high | False | Oh | ratio_app | app-regime | 770.0 | 880.0 | 3872.0 | 814.5 | 878.1 | 5.8 | -0.2 | 582.9 | 41.1 | True | False | WRONG-SILENT | unclassified |
 | KCoF3 | 7 | high | True | Oh | fit_spectrum | truth | 770.0 | 880.0 | 3872.0 | 778.5 | 206.1 | 1.1 | -76.6 | 534.3 | 99.9 | False | False | WRONG-WARNED | c |
 | KCoF3 | 7 | high | True | Oh | fit_spectrum | default | 770.0 | 880.0 | 3872.0 | 817.9 | 1012.0 | 6.2 | 15.0 | 534.3 | 48.5 | False | False | WRONG-WARNED | c |
 | KCoF3 | 7 | high | True | Oh | fit_spectrum | labelled-truth | 770.0 | 880.0 | 3872.0 | 812.7 | 889.4 | 5.5 | 1.1 | 534.3 | 136.3 | True | False | WRONG-SILENT | f |
@@ -763,7 +768,8 @@ Counts (non-R1 rows):
 | [Co(H2O)6]2+ | 7 | high | False | Oh | fit_spectrum | labelled-default | 920.0 | 850.3 | n/a | 921.5 | 827.7 | 0.2 | -2.7 | 213.4 | 0.0 | True | False | OK |  |
 | [Co(H2O)6]2+ | 7 | high | False | Oh | reverse_app | app-default | 920.0 | 850.3 | n/a | 921.5 | 827.7 | 0.2 | -2.7 | 213.4 | 0.3 | True | False | OK |  |
 | [Co(H2O)6]2+ | 7 | high | False | Oh | reverse_app | app-regime | 920.0 | 850.3 | n/a | 921.5 | 827.7 | 0.2 | -2.7 | 213.4 | 0.3 | True | False | OK |  |
-| [Co(H2O)6]2+ | 7 | high | False | Oh | ratio_app | app-default | 920.0 | 850.3 | n/a | 921.7 | 1600.0 | 0.2 | 88.2 | 213.4 | 1677.1 | False | False | WRONG-SILENT | c |
+| [Co(H2O)6]2+ | 7 | high | False | Oh | ratio_app | app-default | 920.0 | 850.3 | n/a | 921.5 | 827.7 | 0.2 | -2.7 | 213.4 | 0.0 | True | False | OK |  |
+| [Co(H2O)6]2+ | 7 | high | False | Oh | ratio_app | app-regime | 920.0 | 850.3 | n/a | 921.5 | 827.7 | 0.2 | -2.7 | 213.4 | 0.0 | True | False | OK |  |
 | [Co(H2O)6]2+ | 7 | high | True | Oh | fit_spectrum | default | 920.0 | 850.3 | n/a | 435.4 | 574.4 | -52.7 | -32.4 | 560.5 | 1.8 | False | False | WRONG-WARNED | c |
 | [Co(H2O)6]2+ | 7 | high | True | Oh | fit_spectrum | labelled-default | 920.0 | 850.3 | n/a | 921.5 | 827.7 | 0.2 | -2.7 | 560.5 | 407.3 | True | False | OK |  |
 | [Co(H2O)6]2+ | 7 | high | True | Oh | reverse_app | app-default | 920.0 | 850.3 | n/a | 1012.6 | 931.0 | 10.1 | 9.5 | 1110.4 | 506.8 | False | False | WRONG-SILENT | app-sf;c |
@@ -774,7 +780,8 @@ Counts (non-R1 rows):
 | CoSiF6·6H2O | 7 | high | False | Oh | fit_spectrum | labelled-default | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | f |
 | CoSiF6·6H2O | 7 | high | False | Oh | reverse_app | app-default | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | estimator-disagreement |
 | CoSiF6·6H2O | 7 | high | False | Oh | reverse_app | app-regime | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | unclassified |
-| CoSiF6·6H2O | 7 | high | False | Oh | ratio_app | app-default | 965.0 | 870.2 | 3915.7 | 965.0 | 855.2 | 0.0 | -1.7 | 1053.7 | 1065.2 | True | False | OK |  |
+| CoSiF6·6H2O | 7 | high | False | Oh | ratio_app | app-default | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | unclassified |
+| CoSiF6·6H2O | 7 | high | False | Oh | ratio_app | app-regime | 965.0 | 870.2 | 3915.7 | 889.6 | 915.0 | -7.8 | 5.2 | 1053.7 | 462.7 | True | False | WRONG-SILENT | unclassified |
 | CoSiF6·6H2O | 7 | high | True | Oh | fit_spectrum | truth | 965.0 | 870.2 | 3915.7 | 965.1 | 869.9 | 0.0 | 0.0 | 2.6 | 1.0 | False | False | OK |  |
 | CoSiF6·6H2O | 7 | high | True | Oh | fit_spectrum | default | 965.0 | 870.2 | 3915.7 | 443.6 | 249.4 | -54.0 | -71.3 | 2.6 | 62.0 | False | False | WRONG-WARNED | c;e |
 | CoSiF6·6H2O | 7 | high | True | Oh | fit_spectrum | labelled-truth | 965.0 | 870.2 | 3915.7 | 891.8 | 902.0 | -7.6 | 3.7 | 912.5 | 427.6 | False | False | WRONG-SILENT | c;f |
@@ -785,7 +792,8 @@ Counts (non-R1 rows):
 | Co(bipy)3Br2·6H2O | 7 | high | False | Oh | fit_spectrum | labelled-default | 1267.0 | 790.9 | n/a | 1259.7 | 799.8 | -0.6 | 1.1 | 66.1 | 0.0 | True | False | OK |  |
 | Co(bipy)3Br2·6H2O | 7 | high | False | Oh | reverse_app | app-default | 1267.0 | 790.9 | n/a | 1259.7 | 799.8 | -0.6 | 1.1 | 66.1 | 0.6 | True | False | OK |  |
 | Co(bipy)3Br2·6H2O | 7 | high | False | Oh | reverse_app | app-regime | 1267.0 | 790.9 | n/a | 1259.7 | 799.8 | -0.6 | 1.1 | 66.1 | 0.6 | True | False | OK |  |
-| Co(bipy)3Br2·6H2O | 7 | high | False | Oh | ratio_app | app-default | 1267.0 | 790.9 | n/a | 1285.9 | 813.8 | 1.5 | 2.9 | 66.1 | 341.9 | True | False | OK |  |
+| Co(bipy)3Br2·6H2O | 7 | high | False | Oh | ratio_app | app-default | 1267.0 | 790.9 | n/a | 1259.7 | 799.8 | -0.6 | 1.1 | 66.1 | 0.0 | True | False | OK |  |
+| Co(bipy)3Br2·6H2O | 7 | high | False | Oh | ratio_app | app-regime | 1267.0 | 790.9 | n/a | 1259.7 | 799.8 | -0.6 | 1.1 | 66.1 | 0.0 | True | False | OK |  |
 | Co(bipy)3Br2·6H2O | 7 | high | True | Oh | fit_spectrum | default | 1267.0 | 790.9 | n/a | 599.2 | 464.8 | -52.7 | -41.2 | 142.9 | 7.9 | False | False | WRONG-WARNED | c |
 | Co(bipy)3Br2·6H2O | 7 | high | True | Oh | fit_spectrum | labelled-default | 1267.0 | 790.9 | n/a | 1259.7 | 799.8 | -0.6 | 1.1 | 572.3 | 539.6 | False | False | OK |  |
 | Co(bipy)3Br2·6H2O | 7 | high | True | Oh | reverse_app | app-default | 1267.0 | 790.9 | n/a | 1170.2 | 593.7 | -7.6 | -24.9 | 1990.4 | 430.6 | False | False | WRONG-SILENT | app-sf;c |
@@ -796,7 +804,8 @@ Counts (non-R1 rows):
 | AgCl:Ni2+ | 8 | high | False | Oh | fit_spectrum | labelled-default | 670.0 | 805.3 | 3131.0 | 669.3 | 805.4 | -0.1 | 0.0 | 12.7 | 9.6 | True | False | OK |  |
 | AgCl:Ni2+ | 8 | high | False | Oh | reverse_app | app-default | 670.0 | 805.3 | 3131.0 | 669.3 | 805.4 | -0.1 | 0.0 | 12.7 | 9.6 | True | False | OK |  |
 | AgCl:Ni2+ | 8 | high | False | Oh | reverse_app | app-regime | 670.0 | 805.3 | 3131.0 | 669.3 | 805.4 | -0.1 | 0.0 | 12.7 | 9.6 | True | False | OK |  |
-| AgCl:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 670.0 | 805.3 | 3131.0 | 691.0 | 855.2 | 3.1 | 6.2 | 12.7 | 635.1 | True | False | WRONG-SILENT | app-lattice |
+| AgCl:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 670.0 | 805.3 | 3131.0 | 669.3 | 805.4 | -0.1 | 0.0 | 12.7 | 9.6 | True | False | OK |  |
+| AgCl:Ni2+ | 8 | high | False | Oh | ratio_app | app-regime | 670.0 | 805.3 | 3131.0 | 669.3 | 805.4 | -0.1 | 0.0 | 12.7 | 9.6 | True | False | OK |  |
 | AgCl:Ni2+ | 8 | high | True | Oh | fit_spectrum | truth | 670.0 | 805.3 | 3131.0 | 664.4 | 818.4 | -0.8 | 1.6 | 147.4 | 124.0 | True | False | OK |  |
 | AgCl:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 670.0 | 805.3 | 3131.0 | 398.0 | 373.6 | -40.6 | -53.6 | 147.4 | 203.3 | False | False | WRONG-SILENT | c;e |
 | AgCl:Ni2+ | 8 | high | True | Oh | fit_spectrum | labelled-truth | 670.0 | 805.3 | 3131.0 | 664.4 | 818.4 | -0.8 | 1.6 | 147.4 | 124.0 | True | False | OK |  |
@@ -807,7 +816,8 @@ Counts (non-R1 rows):
 | [NiF6]4- | 8 | high | False | Oh | fit_spectrum | labelled-default | 740.0 | 948.7 | n/a | 748.1 | 933.7 | 1.1 | -1.6 | 110.4 | 57.2 | True | False | OK |  |
 | [NiF6]4- | 8 | high | False | Oh | reverse_app | app-default | 740.0 | 948.7 | n/a | 748.1 | 933.7 | 1.1 | -1.6 | 110.4 | 57.2 | True | False | OK |  |
 | [NiF6]4- | 8 | high | False | Oh | reverse_app | app-regime | 740.0 | 948.7 | n/a | 748.1 | 933.7 | 1.1 | -1.6 | 110.4 | 57.2 | True | False | OK |  |
-| [NiF6]4- | 8 | high | False | Oh | ratio_app | app-default | 740.0 | 948.7 | n/a | 765.5 | 979.3 | 3.4 | 3.2 | 110.4 | 556.5 | True | False | WRONG-SILENT | app-lattice |
+| [NiF6]4- | 8 | high | False | Oh | ratio_app | app-default | 740.0 | 948.7 | n/a | 748.1 | 933.7 | 1.1 | -1.6 | 110.4 | 57.2 | True | False | OK |  |
+| [NiF6]4- | 8 | high | False | Oh | ratio_app | app-regime | 740.0 | 948.7 | n/a | 748.1 | 933.7 | 1.1 | -1.6 | 110.4 | 57.2 | True | False | OK |  |
 | [NiF6]4- | 8 | high | True | Oh | fit_spectrum | default | 740.0 | 948.7 | n/a | 760.1 | 782.2 | 2.7 | -17.6 | 746.9 | 231.5 | False | False | WRONG-SILENT | c |
 | [NiF6]4- | 8 | high | True | Oh | fit_spectrum | labelled-default | 740.0 | 948.7 | n/a | 748.1 | 933.7 | 1.1 | -1.6 | 746.9 | 695.0 | True | False | OK |  |
 | [NiF6]4- | 8 | high | True | Oh | reverse_app | app-default | 740.0 | 948.7 | n/a | n/a | n/a | n/a | n/a | 1331.1 | n/a | n/a | False | RAISED | app-sf |
@@ -818,7 +828,8 @@ Counts (non-R1 rows):
 | MgO:Ni2+ | 8 | high | False | Oh | fit_spectrum | labelled-default | 815.0 | 889.7 | 3914.8 | 816.0 | 877.2 | 0.1 | -1.4 | 141.1 | 109.7 | True | True | OK |  |
 | MgO:Ni2+ | 8 | high | False | Oh | reverse_app | app-default | 815.0 | 889.7 | 3914.8 | 816.0 | 877.2 | 0.1 | -1.4 | 141.1 | 109.7 | True | True | OK |  |
 | MgO:Ni2+ | 8 | high | False | Oh | reverse_app | app-regime | 815.0 | 889.7 | 3914.8 | 816.0 | 877.2 | 0.1 | -1.4 | 141.1 | 109.7 | True | True | OK |  |
-| MgO:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 815.0 | 889.7 | 3914.8 | 828.6 | 937.9 | 1.7 | 5.4 | 141.1 | 618.1 | True | True | WRONG-SILENT | app-lattice |
+| MgO:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 815.0 | 889.7 | 3914.8 | 816.0 | 877.2 | 0.1 | -1.4 | 141.1 | 109.7 | True | True | OK |  |
+| MgO:Ni2+ | 8 | high | False | Oh | ratio_app | app-regime | 815.0 | 889.7 | 3914.8 | 816.0 | 877.2 | 0.1 | -1.4 | 141.1 | 109.7 | True | True | OK |  |
 | MgO:Ni2+ | 8 | high | True | Oh | fit_spectrum | truth | 815.0 | 889.7 | 3914.8 | 799.2 | 1242.9 | -1.9 | 39.7 | 141.1 | 12.9 | False | True | WRONG-WARNED | c |
 | MgO:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 815.0 | 889.7 | 3914.8 | 487.2 | 467.8 | -40.2 | -47.4 | 141.1 | 29.1 | False | True | WRONG-WARNED | c |
 | MgO:Ni2+ | 8 | high | True | Oh | fit_spectrum | labelled-truth | 815.0 | 889.7 | 3914.8 | 816.0 | 877.2 | 0.1 | -1.4 | 141.1 | 109.7 | True | True | OK |  |
@@ -831,7 +842,8 @@ Counts (non-R1 rows):
 | [Ni(H2O)6]2+ | 8 | high | False | Oh | fit_spectrum | labelled-default | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | f |
 | [Ni(H2O)6]2+ | 8 | high | False | Oh | reverse_app | app-default | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | estimator-disagreement |
 | [Ni(H2O)6]2+ | 8 | high | False | Oh | reverse_app | app-regime | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | unclassified |
-| [Ni(H2O)6]2+ | 8 | high | False | Oh | ratio_app | app-default | 860.0 | 939.9 | 3853.6 | 879.3 | 937.9 | 2.2 | -0.2 | 499.5 | 727.7 | True | False | WRONG-SILENT | app-grid;app-lattice |
+| [Ni(H2O)6]2+ | 8 | high | False | Oh | ratio_app | app-default | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | unclassified |
+| [Ni(H2O)6]2+ | 8 | high | False | Oh | ratio_app | app-regime | 860.0 | 939.9 | 3853.6 | 819.1 | 962.0 | -4.8 | 2.4 | 499.5 | 221.0 | True | False | WRONG-SILENT | unclassified |
 | [Ni(H2O)6]2+ | 8 | high | True | Oh | fit_spectrum | truth | 860.0 | 939.9 | 3853.6 | 812.8 | 1068.9 | -5.5 | 13.7 | 569.4 | 233.2 | False | False | WRONG-SILENT | c;f |
 | [Ni(H2O)6]2+ | 8 | high | True | Oh | fit_spectrum | default | 860.0 | 939.9 | 3853.6 | 519.9 | 548.5 | -39.5 | -41.6 | 569.4 | 177.7 | False | False | WRONG-SILENT | c;f |
 | [Ni(H2O)6]2+ | 8 | high | True | Oh | fit_spectrum | labelled-truth | 860.0 | 939.9 | 3853.6 | 808.4 | 989.9 | -6.0 | 5.3 | 569.4 | 320.9 | True | False | WRONG-SILENT | f |
@@ -844,7 +856,8 @@ Counts (non-R1 rows):
 | LiGa5O8:Ni2+ | 8 | high | False | Oh | fit_spectrum | labelled-default | 977.0 | 899.6 | 3148.7 | 983.5 | 882.6 | 0.7 | -1.9 | 95.9 | 50.5 | True | False | OK |  |
 | LiGa5O8:Ni2+ | 8 | high | False | Oh | reverse_app | app-default | 977.0 | 899.6 | 3148.7 | 983.5 | 882.6 | 0.7 | -1.9 | 95.9 | 50.5 | True | False | OK |  |
 | LiGa5O8:Ni2+ | 8 | high | False | Oh | reverse_app | app-regime | 977.0 | 899.6 | 3148.7 | 983.5 | 882.6 | 0.7 | -1.9 | 95.9 | 50.5 | True | False | OK |  |
-| LiGa5O8:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 977.0 | 899.6 | 3148.7 | 1010.7 | 937.9 | 3.4 | 4.3 | 95.9 | 736.9 | True | False | WRONG-SILENT | app-lattice |
+| LiGa5O8:Ni2+ | 8 | high | False | Oh | ratio_app | app-default | 977.0 | 899.6 | 3148.7 | 983.5 | 882.6 | 0.7 | -1.9 | 95.9 | 50.5 | True | False | OK |  |
+| LiGa5O8:Ni2+ | 8 | high | False | Oh | ratio_app | app-regime | 977.0 | 899.6 | 3148.7 | 983.5 | 882.6 | 0.7 | -1.9 | 95.9 | 50.5 | True | False | OK |  |
 | LiGa5O8:Ni2+ | 8 | high | True | Oh | fit_spectrum | truth | 977.0 | 899.6 | 3148.7 | 982.4 | 887.8 | 0.6 | -1.3 | 85.2 | 48.1 | True | False | OK |  |
 | LiGa5O8:Ni2+ | 8 | high | True | Oh | fit_spectrum | default | 977.0 | 899.6 | 3148.7 | 637.4 | 452.6 | -34.8 | -49.7 | 85.2 | 158.7 | False | False | WRONG-SILENT | c;e |
 | LiGa5O8:Ni2+ | 8 | high | True | Oh | fit_spectrum | labelled-truth | 977.0 | 899.6 | 3148.7 | 982.4 | 887.8 | 0.6 | -1.3 | 85.2 | 48.1 | True | False | OK |  |
@@ -855,11 +868,12 @@ Counts (non-R1 rows):
 | [Ni(NH3)6]2+ | 8 | high | False | Oh | fit_spectrum | labelled-default | 1030.0 | n/a | n/a | 1084.6 | 823.9 | 5.3 | n/a | n/a | 222.0 | True | False | WRONG-SILENT | unclassified |
 | [Ni(NH3)6]2+ | 8 | high | False | Oh | reverse_app | app-default | 1030.0 | n/a | n/a | 1084.6 | 823.9 | 5.3 | n/a | n/a | 222.0 | True | False | WRONG-SILENT | unclassified |
 | [Ni(NH3)6]2+ | 8 | high | False | Oh | reverse_app | app-regime | 1030.0 | n/a | n/a | 1084.6 | 823.9 | 5.3 | n/a | n/a | 222.0 | True | False | WRONG-SILENT | unclassified |
-| [Ni(NH3)6]2+ | 8 | high | False | Oh | ratio_app | app-default | 1030.0 | n/a | n/a | 1096.6 | 896.6 | 6.5 | n/a | n/a | 696.3 | True | False | WRONG-SILENT | app-lattice |
+| [Ni(NH3)6]2+ | 8 | high | False | Oh | ratio_app | app-default | 1030.0 | n/a | n/a | 1084.6 | 823.9 | 5.3 | n/a | n/a | 222.0 | True | False | WRONG-SILENT | unclassified |
+| [Ni(NH3)6]2+ | 8 | high | False | Oh | ratio_app | app-regime | 1030.0 | n/a | n/a | 1084.6 | 823.9 | 5.3 | n/a | n/a | 222.0 | True | False | WRONG-SILENT | unclassified |
 
 ## 6. Follow-up scope
 
-Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 84. 85 of the failing rows carry the infeasible_at_c tag (R1 rows excluded; Section 7 S4 counts them too). Classes (a), bounds-exclude-truth, (b) and (f) apply to fit_spectrum only, (e) to its C=default runs; app-hs to flagless app rows, app-sf to flagless reverse-app rows, app-grid to ratio-app rows, app-lattice to d3/d8 ratio-app rows; estimator-disagreement to flagless JCE reverse-app rows; (c), (d) and single-band to every row. The OK columns apply the same rules to rows graded OK. The last column pools both sources over the rows each rule can fire on (failing vs OK) and calls a class discriminating only if its OK rate is under a quarter of its failing rate; a precondition co-occurs with failures but does not separate them from successes, so it alone does not size a fix.
+Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 84. 97 of the failing rows carry the infeasible_at_c tag (R1 rows excluded; Section 7 S4 counts them too). Classes (a), bounds-exclude-truth, (b) and (f) apply to fit_spectrum only, (e) to its C=default runs; app-hs to flagless app rows, app-sf to flagless reverse-app rows, app-grid to ratio-app rows, app-lattice to d3/d8 ratio-app rows; estimator-disagreement to flagless JCE reverse-app rows; (c), (d) and single-band to every row. The OK columns apply the same rules to rows graded OK. The last column pools both sources over the rows each rule can fire on (failing vs OK) and calls a class discriminating only if its OK rate is under a quarter of its failing rate; a precondition co-occurs with failures but does not separate them from successes, so it alone does not size a fix.
 
 Class (e) measures the bias of holding C at the default. Whether a free C would be identifiable is NOT measured by this audit; a fix that fits C must establish that per configuration and band set.
 
@@ -868,17 +882,17 @@ Class (e) measures the bias of holding C at the default. Whether a free C would 
 | a | generic seed obs[0]/10 (_initial_seed) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, <3 bands, or spin-forbidden bands included) and seed Dq / truth Dq outside the local-start span [0.8, 1.25] | 54 | 170 | 18 | 4 | 72/203 vs 174/677: precondition |
 | bounds-exclude-truth | default dq_bounds (default_dq_bounds) exclude the truth | fit_spectrum only, not seed-displaced: the truth Dq lies outside default_dq_bounds(bands, seed), the seed being _initial_seed's | 0 | 0 | 0 | 0 | 0/203 vs 0/677: never fires on a failure |
 | b | the start set misses the truth basin (_search_starts) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 3 | 4 | 1 | 1 | 4/203 vs 5/705: precondition |
-| c | a band's nearest level at the returned point does not carry its label | assignment_ok is False | 220 | 132 | 70 | 7 | 290/599 vs 139/867: precondition |
-| d | regime penalty / crossover proximity (fit_spectrum objective) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 63 | 57 | 0 | 0 | 63/599 vs 57/867: precondition |
+| c | a band's nearest level at the returned point does not carry its label | assignment_ok is False | 236 | 129 | 69 | 7 | 305/586 vs 136/984: precondition |
+| d | regime penalty / crossover proximity (fit_spectrum objective) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 66 | 59 | 0 | 0 | 66/586 vs 59/984: precondition |
 | e | C-misspecification bias: C never fitted | fit_spectrum only: C = default (labelled or not) and the same case at C = truth, with the same labelling, is OK | 117 | 253 | 3 | 17 | 120/167 vs 270/287: precondition |
 | f | no ambiguity check | fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C) | 0 | 0 | 32 | 0 | 32/203 vs 0/705: discriminates |
-| app-hs | app called without the case's spin regime: it fits on the high-spin default | app row with spin=low, called without spin_state (c_mode app-default) | 90 | 0 | 3 | 0 | 93/250 vs 0/81: discriminates |
+| app-hs | app called without the case's spin regime: it fits on the high-spin default | app row with spin=low, called without spin_state (c_mode app-default) | 90 | 0 | 3 | 0 | 93/204 vs 0/127: discriminates |
 | app-sf | app called without include_spin_forbidden: forbidden bands fitted as allowed | reverse-app row with spin-forbidden bands in its input, called without include_spin_forbidden (c_mode app-default) | 104 | 0 | 18 | 0 | 122/163 vs 0/64: discriminates |
-| app-lattice | ratio app: the Dq grid has no node at nu1/10 for d3/d8, so the returned Dq is the node nearest nu1/10, not nu1/10 itself | ratio-app row, d3 or d8 (nu1 = 10Dq), no Dq grid node within rounding of nu1/10, and the returned Dq is the node nearest nu1/10 | 28 | 0 | 13 | 0 | 41/41 vs 0/0: untested (no eligible OK row) |
-| app-grid | ratio-app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 400..1600, 30 steps | ratio-app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 7 | 14 | 6 | 2 | 13/87 vs 16/17: precondition |
-| single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 0 | 0 | 0 | 0 | 0/599 vs 0/867: never fires on a failure |
+| app-lattice | ratio app: the Dq grid has no node at nu1/10 for d3/d8, so the returned Dq is the node nearest nu1/10, not nu1/10 itself | ratio-app row, d3 or d8 (nu1 = 10Dq), no Dq grid node within rounding of nu1/10, and the returned Dq is the node nearest nu1/10 | 0 | 0 | 0 | 0 | 0/10 vs 0/72: never fires on a failure |
+| app-grid | ratio-app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 200..1500, 30 steps | ratio-app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 0 | 0 | 0 | 0 | 0/74 vs 0/134: never fires on a failure |
+| single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 0 | 0 | 0 | 0 | 0/586 vs 0/984: never fires on a failure |
 | estimator-disagreement | published values are not the minimum of this objective (reverse app; fit_spectrum is covered by (f)) | JCE, sf=False, reverse app, every band assigned, more than two bands, reported C given: RMSE at the returned point < RMSE at the reported (Dq, B, C) | 0 | 0 | 5 | 4 | 5/29 vs 4/13: precondition |
-| unclassified | matches no rule | a failing row no rule above matched | 19 | - | 37 | - | - |
+| unclassified | matches no rule | a failing row no rule above matched | 19 | - | 54 | - | - |
 
 ## 7. Findings
 
@@ -894,6 +908,6 @@ Live: 5 failing non-R1 JCE reverse-app rows qualify (CoCl2, CoSiF6·6H2O, KCoF3,
 Live, low-spin fit_spectrum C=default, Spearman between signed dC and dDq: d4 sf=False: rho +0.90 (n=7); d4 sf=True: rho +0.94 (n=7); d5 sf=False: rho +0.95 (n=9); d5 sf=True: rho +0.85 (n=9); d6 sf=False: rho +0.94 (n=7); d6 sf=True: rho +0.94 (n=7); d7 sf=False: rho +0.94 (n=7); d7 sf=True: rho +0.99 (n=7). Among the 10 of those runs graded OK, mean |dDq| = 0.9 %. dC is set by the B factor and C/B together, so the pooled rho alone could be a B effect; holding B fixed, the C/B change moves dDq the same way as dC in 23 of 26 pairs.
 
 **S4. Infeasible-at-C runs come mostly from the low-B truth points, not from the near-crossover ones.** At the default C their truth Dq lies in the other spin regime, so no fit pinned to the requested regime can reach it. The tag explains the failure; it does not excuse it, so the run stays a failure.
-Live: 95 failing runs carry the tag, 10 of them R1 rows that Section 6 leaves out (25 synthetic fit_spectrum: 17 at 0.45 x default B, 8 near-crossover). JCE systems with tagged runs: [Co(H2O)6]3+, [Co(oxalate)3]3-.
+Live: 109 failing runs carry the tag, 12 of them R1 rows that Section 6 leaves out (25 synthetic fit_spectrum: 17 at 0.45 x default B, 8 near-crossover). JCE systems with tagged runs: [Co(H2O)6]3+, [Co(oxalate)3]3-.
 
 **Design note for the fix.** Scope by ablation -- {grid multistart vs current seed} x {labelled vs unlabelled matching} x {C truth / default / free} -- rather than by row tags alone. This is a recommendation, not done here.
