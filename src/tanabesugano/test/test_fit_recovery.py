@@ -542,3 +542,124 @@ def test_free_c_recovers_across_c_over_b(dq: float, b: float, c_over_b: float) -
     fit = fit_spectrum(5, energies, include_spin_forbidden=True, band_labels=labels)
     assert fit.c_fitted
     assert_recovered(fit, dq, b, c)
+
+
+# F1: holding the default C on unlabelled bands. Truths are oracle inputs (rows of the
+# 29420b6 audit, F1-mechanism.md); bands come from the oracle, never from the package.
+D6_LS_TIE = (2176.8, 798.8, 3195.2)
+"""Audit row 971 (d6 low-spin, spin-allowed, default C): WRONG-SILENT at 29420b6."""
+D2_HS_INCONSISTENT = (900.0, 989.0, 3956.0)
+"""F1-evidence-3b row 1 (d2 high-spin, six merged bands with spin-forbidden)."""
+
+
+def test_held_default_c_tie_is_undetermined() -> None:
+    """Branch (i): a fitted C ties the held fit at a distinct (Dq, B), so Dq and B are open.
+
+    Before the fix the held fit (2283, 819, RMSE 11) came back 'fitted' with no warning,
+    4.9 % off in Dq; the oracle truth fits the same bands exactly at its own C.
+    Observed red: ``assert ('fitted', 'fitted') == ('undetermined', 'undetermined')``.
+    """
+    bands = [e for e, _u in oracle_bands(6, *D6_LS_TIE, spin_allowed_only=True)[:3]]
+    fit = fit_spectrum(6, bands, spin_state="low")
+    assert (fit.dq_provenance, fit.b_provenance) == ("undetermined", "undetermined")
+    assert fit.c_provenance == "default"
+    assert fit.free_c_minima
+    hits = [w for w in fit.warnings if "Dq and B undetermined: C is not determined" in w]
+    assert len(hits) == 1, fit.warnings
+
+
+def test_held_default_c_inconsistent_is_undetermined() -> None:
+    """Branch (ii): a fitted C fits the bands far better than the default C can.
+
+    The (Dq, B) assertion is a regression pin that the returned point did not move
+    (the fix reports, it does not refit), not a truth claim. Truth fits at RMSE 0.
+    Observed red: the pin held, then
+    ``assert ('fitted', 'fitted', 'default') == ('undetermined', 'undetermined', 'default')``.
+    """
+    fit = fit_spectrum(2, merged_bands(2, *D2_HS_INCONSISTENT, 6), include_spin_forbidden=True)
+    assert abs(fit.Dq - 898.2) <= 0.5
+    assert abs(fit.B - 1008.4) <= 0.5
+    assert (fit.dq_provenance, fit.b_provenance, fit.c_provenance) == (
+        "undetermined",
+        "undetermined",
+        "default",
+    )
+    hits = [w for w in fit.warnings if "is inconsistent with these bands" in w]
+    assert len(hits) == 1, fit.warnings
+    assert "fits 159 cm^-1 better" in hits[0]
+    assert min(m[3] for m in fit.free_c_minima) < 1.0
+
+
+def _off_trigger_cases() -> list[tuple[str, int, list[float], dict[str, object]]]:
+    d6 = oracle_bands(6, *D6_LS_TIE, spin_allowed_only=True)[:3]
+    energies = [e for e, _u in d6]
+    d3 = [e for e, _u in oracle_bands(3, 1200.0, 688.5, 3200.0, spin_allowed_only=True)[:3]]
+    return [
+        ("C given", 6, energies, {"C": 3195.2, "spin_state": "low"}),
+        (
+            "labelled, C held",
+            6,
+            energies,
+            {"spin_state": "low", "band_labels": term_labels(d6), "fit_c": False},
+        ),
+        ("two bands", 6, energies[:2], {"spin_state": "low"}),
+        ("C does not move the levels", 3, d3, {}),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("d", "bands", "kwargs"),
+    [case[1:] for case in _off_trigger_cases()],
+    ids=[case[0] for case in _off_trigger_cases()],
+)
+def test_free_c_check_does_not_run_off_trigger(
+    d: int, bands: list[float], kwargs: dict[str, object], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review Focus 1: no free-C refit and no new warning outside the trigger.
+
+    The spy pins that the refit is not even run, which is what the C-moves and
+    label conditions save; the later guards would hide a missing one otherwise.
+    Valid red, one mutation per trigger condition deleted from ``fit_spectrum`` /
+    ``_held_c_check``: [C given] and [two bands] failed on ``free_c_minima``;
+    [labelled, C held] and [C does not move the levels] failed on the spy
+    (``assert [True] == []``).
+    """
+    from tanabesugano.mcp import _compute
+
+    real = _compute._fit_one_regime
+    refits: list[bool] = []
+
+    def spy(*args: object, **kw: object) -> object:
+        if kw.get("fit_c") is True:
+            refits.append(True)
+        return real(*args, **kw)  # ty: ignore[invalid-argument-type]
+
+    monkeypatch.setattr(_compute, "_fit_one_regime", spy)
+    fit = fit_spectrum(d, bands, **kwargs)  # ty: ignore[invalid-argument-type]
+    assert refits == []
+    assert fit.free_c_minima == ()
+    assert not any(w.startswith("Dq and B undetermined: C is") for w in fit.warnings)
+    assert not any(w.startswith("Dq and B undetermined: the default C") for w in fit.warnings)
+
+
+def test_free_c_refit_failure_keeps_held_fit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review Focus 2: a free-C refit that raises leaves the held fit as it was.
+
+    Valid red (mutation: ``except ValueError`` narrowed away):
+    ``ValueError: fit never escaped`` propagated out of ``fit_spectrum``.
+    """
+    from tanabesugano.mcp import _compute
+
+    real = _compute._fit_one_regime
+
+    def failing(*args: object, **kwargs: object) -> object:
+        if kwargs.get("fit_c"):
+            msg = "fit never escaped"
+            raise ValueError(msg)
+        return real(*args, **kwargs)  # ty: ignore[invalid-argument-type]
+
+    monkeypatch.setattr(_compute, "_fit_one_regime", failing)
+    bands = [e for e, _u in oracle_bands(6, *D6_LS_TIE, spin_allowed_only=True)[:3]]
+    fit = fit_spectrum(6, bands, spin_state="low")
+    assert fit.dq_provenance == "fitted"
+    assert fit.free_c_minima == ()

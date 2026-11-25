@@ -407,6 +407,11 @@ class SpectrumFit:
     it by more than :data:`MINIMA_DISTINCT`. ``c_candidates`` then holds those tied
     minima and ``c_range`` their (lowest, highest) C; when C is undetermined the
     reported point is the best-objective one, a display value, not a result.
+    ``Dq`` and ``B`` are also ``undetermined`` when C was held at its default on
+    unlabelled bands that C moves, and a fit with C free reaches a distinct (Dq, B)
+    as well, or fits more than :data:`BAND_RESOLUTION_CM1` better: the held point is
+    then one choice of C among several. ``free_c_minima`` holds those free-C minima,
+    lowest objective first; the returned point is still the held one.
 
     ``assignment`` is the pairing the fit made, one ``(observed, computed, level_uid)``
     per band in the caller's order: the injective :func:`assign_bands` result at the
@@ -433,6 +438,7 @@ class SpectrumFit:
     c_candidates: tuple[tuple[float, float, float, float], ...] = ()
     c_range: tuple[float, float] | None = None
     assignment: tuple[tuple[float, float, str], ...] = ()
+    free_c_minima: tuple[tuple[float, float, float, float], ...] = ()
 
 
 def crossover_dq(
@@ -928,8 +934,90 @@ def fit_spectrum(
             f"{other.rmse_cm1:.0f} cm^-1 (this fit: {fit.rmse_cm1:.0f}); the bands alone do "
             "not decide the spin state"
         )
-        return replace(fit, warnings=[*fit.warnings, note])
+        fit = replace(fit, warnings=[*fit.warnings, note])
+    if C is None and band_labels is None:
+        fit = _held_c_check(
+            d_count,
+            observed_peaks_cm1,
+            fit,
+            include_spin_forbidden=include_spin_forbidden,
+            dq_bounds=dq_bounds,
+            b_bounds=b_bounds,
+        )
     return fit
+
+
+def _held_c_check(
+    d_count: int,
+    observed: list[float],
+    fit: SpectrumFit,
+    *,
+    include_spin_forbidden: bool,
+    dq_bounds: tuple[float, float] | None,
+    b_bounds: tuple[float, float],
+) -> SpectrumFit:
+    """Say when holding the default C hides another (Dq, B): refit with C free and compare.
+
+    Runs only for a held default C on three or more unlabelled bands that C moves
+    (the caller checks C and labels). The refit's own warnings are discarded; its
+    minima are compared with the held objective. Either outcome keeps the held
+    point and marks Dq and B undetermined: the fix reports the C-misspecification,
+    it does not remove it.
+    """
+    if fit.c_fitted or len(observed) < 3 or not fit.c_constrained or not fit.minima:
+        return fit
+    try:
+        free = _fit_one_regime(
+            d_count,
+            observed,
+            None,
+            spin_state=fit.spin_state,
+            include_spin_forbidden=include_spin_forbidden,
+            dq_bounds=dq_bounds,
+            b_bounds=b_bounds,
+            fit_c=True,
+        )
+    except ValueError:
+        return fit
+    if not free.c_fitted or not free.minima:
+        return fit
+    held = fit.minima[0][3]
+    alts = tuple(sorted(free.minima, key=lambda m: m[3]))
+    low = alts[0]
+    if low[3] < held - BAND_RESOLUTION_CM1:
+        note = (
+            f"Dq and B undetermined: the default C = {fit.C:.0f} cm^-1 is inconsistent with "
+            f"these bands; a fitted C = {low[2]:.0f} cm^-1 fits {held - low[3]:.0f} cm^-1 "
+            f"better (RMSE {low[3]:.0f} vs {held:.0f}, Dq = {low[0]:.0f}, B = {low[1]:.0f}); "
+            "supply C or label the bands to constrain it"
+        )
+    else:
+        tied = [
+            m
+            for m in alts
+            if m[3] <= held + BAND_RESOLUTION_CM1
+            and (
+                abs(m[0] / fit.Dq - 1) > MINIMA_DISTINCT[0]
+                or abs(m[1] / fit.B - 1) > MINIMA_DISTINCT[1]
+            )
+        ]
+        if not tied:
+            return fit
+        alt = tied[0]
+        note = (
+            "Dq and B undetermined: C is not determined by these bands; holding it at its "
+            f"default {fit.C:.0f} cm^-1 gives this fit, but a fitted C = {alt[2]:.0f} gives "
+            f"Dq = {alt[0]:.0f}, B = {alt[1]:.0f} cm^-1 within {BAND_RESOLUTION_CM1:.0f} cm^-1 "
+            f"(RMSE {alt[3]:.0f} vs {held:.0f}); Dq and B depend on the assumed C -- supply C "
+            "or label the bands to constrain it"
+        )
+    return replace(
+        fit,
+        dq_provenance="undetermined",
+        b_provenance="undetermined",
+        free_c_minima=alts,
+        warnings=[*fit.warnings, note],
+    )
 
 
 BAND_RESOLUTION_CM1 = 100.0
