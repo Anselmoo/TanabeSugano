@@ -177,8 +177,16 @@ def register(mcp: FastMCP) -> None:
             for (observed, computed, uid), record in zip(fit.assignment, records, strict=True)
         ]
 
-        def _minimum(m: tuple[float, float, float, float]) -> FitMinimum:
-            return FitMinimum(Dq=m[0], B=m[1], C=m[2], objective_cm1=m[3])
+        def _minimum(
+            m: tuple[float, float, float, float], source: Literal["held", "free_c"] = "held"
+        ) -> FitMinimum:
+            return FitMinimum(Dq=m[0], B=m[1], C=m[2], objective_cm1=m[3], source=source)
+
+        minima = [_minimum(m) for m in fit.minima]
+        minima += [_minimum(m, "free_c") for m in fit.free_c_minima]
+        if minima:
+            lowest = min(minima, key=lambda m: (m.objective_cm1, m.source != "held"))
+            lowest.lowest_rmse = True
 
         return FitResult(
             d_count=d_count,
@@ -204,7 +212,7 @@ def register(mcp: FastMCP) -> None:
             c_fitted=fit.c_fitted,
             c_candidates=[_minimum(m) for m in fit.c_candidates],
             c_range=fit.c_range,
-            minima=[_minimum(m) for m in fit.minima],
+            minima=minima,
             band_assignments=band_assignments,
         )
 

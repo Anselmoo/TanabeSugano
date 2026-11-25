@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 from pydantic import Field
 
@@ -66,6 +68,21 @@ class FitMinimum(BaseModel):
     C: float = Field(description="Racah C at this minimum (cm^-1).")
     objective_cm1: float = Field(
         description="Fit objective at this minimum (cm^-1 RMSE, label penalties included).",
+    )
+    source: Literal["held", "free_c"] = Field(
+        default="held",
+        description=(
+            "'held': a minimum at the reported C. 'free_c': a minimum of a refit with C "
+            "free, listed when holding the default C hid it; its C is fitted, not the "
+            "reported one."
+        ),
+    )
+    lowest_rmse: bool = Field(
+        default=False,
+        description=(
+            "True on the one entry of minima with the lowest objective_cm1 (cm^-1); "
+            "on a tie, the held entry. A fact about the fit, not a recommendation."
+        ),
     )
 
 
@@ -133,8 +150,9 @@ class FitResult(BaseModel):
     minima: list[FitMinimum] = Field(
         default_factory=list,
         description=(
-            "Every distinct minimum the search reached, the returned one first. Lists "
-            "what the search found, not necessarily every minimum that exists."
+            "Every distinct minimum the search reached, the returned one first, then "
+            "any free-C minima (source 'free_c', at their own fitted C). Lists what the "
+            "search found, not necessarily every minimum that exists."
         ),
     )
     band_assignments: list[BandAssignment] = Field(

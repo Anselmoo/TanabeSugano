@@ -1139,6 +1139,45 @@ def test_fit_result_schema_lists_provenance_enum() -> None:
     assert set(enum) == {"fitted", "given", "default", "undetermined"}
 
 
+def test_fit_spectrum_tool_lists_free_c_alternative() -> None:
+    """Held default C contradicted by the bands: the free-C points sit in ``minima``.
+
+    User ruling (2026-11-25): the alternative is part of the result, flagged as the
+    lowest-RMSE point -- a fact, so no schema text calls it best or preferred.
+    Truth (900, 989, 3956) is an oracle input; the bands come from the oracle.
+    Observed red: ``AttributeError: 'Root' object has no attribute 'source'``.
+    """
+    from tanabesugano.test.test_fit_recovery import merged_bands
+
+    args = {
+        "d_count": 2,
+        "observed_peaks_cm1": merged_bands(2, 900.0, 989.0, 3956.0, 6),
+        "include_spin_forbidden": True,
+    }
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert (data.Dq_source, data.B_source, data.C_source) == (
+        "undetermined",
+        "undetermined",
+        "default",
+    )
+    assert data.minima[0].source == "held"
+    free = [m for m in data.minima if m.source == "free_c"]
+    assert free
+    flagged = [m for m in data.minima if m.lowest_rmse]
+    assert len(flagged) == 1
+    assert flagged[0].source == "free_c"
+    assert flagged[0].objective_cm1 == min(m.objective_cm1 for m in data.minima)
+
+    server = create_server()
+
+    async def go():
+        return await server.get_tool("ts_fit_spectrum")
+
+    text = str(run_loop_free(go).output_schema).lower()
+    assert "best" not in text
+    assert "preferred" not in text
+
+
 def test_old_call_keeps_old_fields() -> None:
     """A call with yesterday's arguments returns every field yesterday's FitResult had.
 
