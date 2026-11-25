@@ -59,7 +59,7 @@ def test_ratio_app_d3_has_no_lattice_offset() -> None:
 def test_ratio_app_matches_fit_spectrum(d_count: int, energies: list[float]) -> None:
     """App defaults and fit_spectrum defaults give the same Dq and B: one solver.
 
-    Observed red: ``KeyError: 'Dq'`` (the answer was a grid node, in the title only).
+    Observed red (c09f535): ``KeyError: 'Dq'`` (the answer was a grid node, in the title only).
     """
     direct = fit_spectrum(d_count, energies)
     payload = call_ratio_fit(d_count=d_count, **bands_kwargs(energies))
@@ -70,7 +70,7 @@ def test_ratio_app_matches_fit_spectrum(d_count: int, energies: list[float]) -> 
 def test_ratio_app_fits_low_spin_when_told() -> None:
     """d6 low-spin bands with spin_state='low' (C held at the truth, as in the reverse app).
 
-    Observed red: ``TypeError: ... unexpected keyword argument 'C'``.
+    Observed red (c09f535): ``TypeError: ... unexpected keyword argument 'C'``.
     """
     energies = [e for e, _u in oracle_bands(6, 2500.0, 700.0, 3080.0, spin_allowed_only=True)[:2]]
     payload = call_ratio_fit(d_count=6, C=3080.0, spin_state="low", **bands_kwargs(energies))
@@ -81,7 +81,7 @@ def test_ratio_app_fits_low_spin_when_told() -> None:
 def test_ratio_app_reports_its_grid_as_diagnostic() -> None:
     """The ratio grid's best node survives as a diagnostic with a positive cell size.
 
-    Observed red: ``KeyError: 'ratio_grid_best'``.
+    Observed red (c09f535): ``KeyError: 'ratio_grid_best'``.
     """
     payload = call_ratio_fit(d_count=8, **bands_kwargs(NI_BANDS))
     node = payload["ratio_grid_best"]

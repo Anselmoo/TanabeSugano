@@ -120,7 +120,7 @@ class TSInput(BaseModel):
     Defaults match the typical first-row-transition-metal regime.
     """
 
-    d_count: D_COUNT_LITERAL = Field(  # type: ignore[valid-type]
+    d_count: D_COUNT_LITERAL = Field(
         default=5,
         title="d-electron count",
         description="Number of d-electrons (d2 ... d8).",
@@ -134,7 +134,7 @@ class TSInput(BaseModel):
         default=True,
         title="Normalize by B (Tanabe-Sugano x/y axes)",
     )
-    energy_unit: EnergyUnit = Field(  # type: ignore[valid-type]
+    energy_unit: EnergyUnit = Field(
         default="cm1",
         title="Energy unit for y-axis",
         description="cm1 = wavenumbers, eV = electron volts, nm = nanometres (inverted axis).",

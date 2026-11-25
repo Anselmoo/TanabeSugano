@@ -1230,3 +1230,20 @@ class TestUnitGuard:
         from tanabesugano.mcp._inputs import suspect_unit
 
         assert suspect_unit([3300.0]) is None
+
+
+def test_malformed_label_is_compute_error() -> None:
+    """A label that is no term key at all (``3_X_9``) is a ComputeError naming it.
+
+    Green on arrival (33dcf7d): closes the D review's missing schema-rejection case;
+    the label is refused by fit_spectrum's level lookup, not by the JSON schema.
+    """
+    data = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 8,
+            "observed_peaks_cm1": NI_BANDS,
+            "band_labels": ["3_X_9", "3_T_1", "3_T_1"],
+        },
+    ).data  # type: ignore[attr-defined]
+    assert "3_X_9" in data.error

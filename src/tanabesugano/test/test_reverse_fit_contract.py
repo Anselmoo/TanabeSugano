@@ -272,3 +272,26 @@ def test_reverse_app_names_energy_unit_for_ev_peaks() -> None:
     data = extract_fit_data(result) or result.structured_content
     assert "energy_unit" in data["error"]
     assert "eV" in data["error"]
+
+
+def test_reverse_app_shuffled_labelled_peaks_pair_by_label() -> None:
+    """Shuffled labelled oracle bands plus a dropped 0.0 peak: each band keeps its label.
+
+    The 0.0 entry is dropped *with* its label; were it not, every later label would
+    shift by one and pair a band with the wrong level. Green on arrival (33dcf7d):
+    coverage for the D review's deferred case, not the red of a fix.
+    """
+    from tanabesugano.test.test_fit_recovery import oracle_bands
+    from tanabesugano.test.test_fit_recovery import term_labels
+
+    bands = oracle_bands(8, 850.0, 907.0, 4850.0, spin_allowed_only=True)
+    order = [2, 0, 1]
+    peaks = [bands[order[0]][0], 0.0, bands[order[1]][0], bands[order[2]][0]]
+    labels = term_labels([bands[i] for i in order])
+    labels.insert(1, "3_T_2")
+    result = call_reverse_fit(d_count=8, observed_peaks=peaks, band_labels=labels)
+    data = extract_fit_data(result) or result.structured_content
+    assert "error" not in data, data.get("error")
+    kept = [p for p in peaks if p > 0]
+    assert [r["observed_cm1"] for r in data["residuals"]] == pytest.approx(kept, abs=0.1)
+    assert all(abs(r["delta_cm1"]) < 1.0 for r in data["residuals"]), data["residuals"]

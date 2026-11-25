@@ -28,7 +28,7 @@ def register(mcp: FastMCP) -> None:
         annotations=READONLY,
         meta=TS_META,
     )
-    def ts_explain(d_count: D_COUNT_LITERAL) -> str:  # type: ignore[valid-type]
+    def ts_explain(d_count: D_COUNT_LITERAL) -> str:
         """Multi-paragraph explanation of a d^n configuration in plain English.
 
         Combines the universal "why use a Tanabe-Sugano diagram" rationale

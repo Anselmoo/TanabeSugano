@@ -62,7 +62,7 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_terms_table_data(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         Dq: float = 900.0,
         B: float | None = None,
         C: float | None = None,

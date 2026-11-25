@@ -37,7 +37,7 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_plot_png(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         dq_min: float = 0.0,
         dq_max: float = 1500.0,
         steps: int = 60,

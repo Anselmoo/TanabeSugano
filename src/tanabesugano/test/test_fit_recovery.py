@@ -77,14 +77,14 @@ def test_oracle_bands_d8_nu1_is_ten_dq() -> None:
     assert term_labels(bands) == ["3_T_2", "3_T_1", "3_T_1"]
 
 
-# The four B1 cases whose truth lay outside the old default bounds (B6 idx 77, 91,
-# 169, 183): (d, Dq, B, C, spin_state, n_bands), spin-forbidden bands included.
 BOUNDS_EXCLUDED_TRUTH = [
     (4, 1675.0, 723.8, 2895.2, "high", 4),
     (4, 1851.3, 723.8, 2895.2, "low", 6),
     (7, 1343.7, 728.2, 2912.8, "high", 6),
     (7, 1485.2, 728.2, 2912.8, "low", 6),
 ]
+"""The four B1 cases whose truth lay outside the old default bounds (B6 idx 77, 91,
+169, 183): (d, Dq, B, C, spin_state, n_bands), spin-forbidden bands included."""
 
 
 @pytest.mark.parametrize(("d", "dq", "b", "c", "_spin", "n_bands"), BOUNDS_EXCLUDED_TRUTH)
@@ -135,11 +135,6 @@ def merged_bands(d: int, dq: float, b: float, c: float, n_bands: int) -> list[fl
     return [sum(g) / len(g) for g in groups[:n_bands]]
 
 
-# Synthetic rows that fail unlabelled at C = truth after the bounds fix (audit at
-# 8135f29): the six d5 high-spin spin-forbidden misses, and the d3 row that had been
-# right only by a closed-form seed built from 2E. (d, Dq, B, C, n_bands)
-# Two further audit misses (d5 Dq 836.9 and 1283.3) already pass on these oracle
-# bands before the grid exists, so they are not red tests and are left out.
 SEARCH_MISSES = [
     (5, 963.6, 645.0, 3096.0, 3),
     (5, 1785.4, 1376.0, 5504.0, 3),
@@ -147,6 +142,11 @@ SEARCH_MISSES = [
     (5, 1590.1, 645.0, 2580.0, 3),
     (3, 1200.0, 1468.8, 7050.2, 6),
 ]
+"""Synthetic rows that fail unlabelled at C = truth after the bounds fix (audit at
+8135f29): the six d5 high-spin spin-forbidden misses, and the d3 row that had been
+right only by a closed-form seed built from 2E. (d, Dq, B, C, n_bands)
+Two further audit misses (d5 Dq 836.9 and 1283.3) already pass on these oracle
+bands before the grid exists, so they are not red tests and are left out."""
 
 
 @pytest.mark.parametrize(("d", "dq", "b", "c", "n_bands"), SEARCH_MISSES)
@@ -162,13 +162,13 @@ def test_grid_search_recovers_unlabelled(
     assert_recovered(fit, dq, b)
 
 
-# Two spin-allowed bands, two parameters: several assignments fit exactly. The truth
-# is the exact minimum nearest the generic seed (obs[0] / 10, default B) in log
-# distance; the alternatives sit about three times farther. (d, Dq, B, C)
 TWO_BAND_TIES = [
     (7, 1267.0, 791.0, 4499.0),
     (2, 1800.0, 700.0, 3801.0),
 ]
+"""Two spin-allowed bands, two parameters: several assignments fit exactly. The truth
+is the exact minimum nearest the generic seed (obs[0] / 10, default B) in log
+distance; the alternatives sit about three times farther. (d, Dq, B, C)"""
 
 
 @pytest.mark.parametrize(("d", "dq", "b", "c"), TWO_BAND_TIES)
@@ -284,7 +284,6 @@ def merged_labelled_bands(
     return energies, labels
 
 
-# The nine synthetic d5 high-spin spin-forbidden points of the audit: (Dq, B, C).
 D5_HS_POINTS = [
     (502.1, 387.0, 1548.0),
     (578.1, 387.0, 1857.6),
@@ -296,6 +295,7 @@ D5_HS_POINTS = [
     (2055.7, 1376.0, 6604.8),
     (1590.1, 645.0, 2580.0),
 ]
+"""The nine synthetic d5 high-spin spin-forbidden points of the audit: (Dq, B, C)."""
 
 
 @pytest.mark.parametrize(("dq", "b", "c"), D5_HS_POINTS)
@@ -417,12 +417,12 @@ def test_bounds_excluding_minimum_warns() -> None:
     assert any("Dq pinned" in w for w in fit.warnings)
 
 
-# Audit near-crossover points (0.95 x crossover, high-spin side, spin-allowed bands) that
-# the other spin regime reproduces too (C5 scan): d6 one band exactly, d7 three to 10 cm^-1.
 OTHER_REGIME_CASES = [
     (6, 1292.5, 798.8, 3195.2, "low"),
     (7, 1343.7, 728.2, 2912.8, "low"),
 ]
+"""Audit near-crossover points (0.95 x crossover, high-spin side, spin-allowed bands) that
+the other spin regime reproduces too (C5 scan): d6 one band exactly, d7 three to 10 cm^-1."""
 
 
 @pytest.mark.parametrize(("d", "dq", "b", "c", "other"), OTHER_REGIME_CASES)
@@ -526,3 +526,19 @@ def test_c_free_but_irrelevant_is_held_at_default() -> None:
     assert (fit.c_provenance, fit.c_is_default) == ("default", True)
     assert DEFAULTS[8]["default_C"] == fit.C
     assert any("do not move with C" in w for w in fit.warnings)
+
+
+@pytest.mark.parametrize("c_over_b", [3.5, 5.5])
+@pytest.mark.parametrize(("dq", "b"), [(963.6, 645.0), (1477.4, 989.0)])
+def test_free_c_recovers_across_c_over_b(dq: float, b: float, c_over_b: float) -> None:
+    """Free C away from C/B 4.0 and 4.8, the only ratios measured before (Fable O3, plan C).
+
+    High-spin d5, three labelled bands: the configuration where C is fitted at all
+    (d3 and d8 spin-allowed bands do not depend on C). 3.5 and 5.5 sit inside the
+    (3, 6) window on either side. Green on arrival (33dcf7d): coverage, not a fix.
+    """
+    c = c_over_b * b
+    energies, labels = merged_labelled_bands(5, dq, b, c, 3)
+    fit = fit_spectrum(5, energies, include_spin_forbidden=True, band_labels=labels)
+    assert fit.c_fitted
+    assert_recovered(fit, dq, b, c)

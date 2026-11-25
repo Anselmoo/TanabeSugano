@@ -217,7 +217,7 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_nephelauxetic(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         fitted_B: float,
         ion: str | None = None,
     ) -> NephelauxeticResult | ComputeError:
