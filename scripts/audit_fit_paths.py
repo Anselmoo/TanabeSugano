@@ -1947,6 +1947,27 @@ def discrimination(key: str, rows: list[Row]) -> str:
     return f"{rates}: {verdict}"
 
 
+REGIME_KEY = ("source", "system", "d", "spin", "sf", "truth_Dq", "truth_B", "truth_C", "n_bands")
+
+
+def regime_mismatches(rows: list[Row]) -> int:
+    """Count app-regime rows whose verdict differs from fit_spectrum C=default on the same case."""
+
+    def key(row: Row) -> tuple[str, ...]:
+        return tuple(row.values[c] for c in REGIME_KEY)
+
+    reference = {
+        key(r): r.values["verdict"]
+        for r in rows
+        if r.run.path == "fit_spectrum" and r.run.c_mode == "default"
+    }
+    return sum(
+        1
+        for r in rows
+        if r.run.c_mode == "app-regime" and reference.get(key(r)) != r.values["verdict"]
+    )
+
+
 def section_scope(rows: list[Row]) -> list[str]:
     """Render section 6."""
     fires: Counter[tuple[str, str, str]] = Counter()
@@ -1992,7 +2013,11 @@ def section_scope(rows: list[Row]) -> list[str]:
             "app-sf to flagless reverse-app rows, app-grid to ratio-app rows, app-lattice to "
             "d3/d8 ratio-app rows; estimator-disagreement to flagless JCE reverse-app rows; "
             "(c), (d) and single-band to "
-            "every row. The OK columns apply the same rules to rows graded OK. The last "
+            "every row. An `app-regime` row answers with `fit_spectrum` at C=default on the "
+            f"same case ({regime_mismatches(rows)} app-regime rows differ in verdict from that "
+            "row), so its failures have the causes classified on the fit_spectrum row; they "
+            "are left unclassified here rather than counted twice. "
+            "The OK columns apply the same rules to rows graded OK. The last "
             "column pools both sources over the rows each rule can fire on (failing vs OK) "
             "and calls a class discriminating only if its OK rate is under a quarter of its "
             "failing rate; a precondition co-occurs with failures but does not separate them "

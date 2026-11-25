@@ -89,3 +89,47 @@ def test_ratio_app_reports_its_grid_as_diagnostic() -> None:
     assert node["cell"]["B"] > 0
     assert payload["C_source"] == "default"
     assert isinstance(payload["warnings"], list)
+
+
+def test_ratio_app_short_label_list_is_an_error_payload() -> None:
+    """Fewer labels than bands comes back as an error payload, not an exception.
+
+    Observed red (62797f6, final review): ``IndexError: list index out of range``.
+    """
+    payload = call_ratio_fit(d_count=8, band_labels=["3_T_2"], **bands_kwargs(NI_BANDS))
+    assert "one label per band" in payload["error"]
+
+
+def test_ratio_grid_marker_sits_at_the_node() -> None:
+    """The dashed diagnostic marker is drawn at the node's own 10Dq/B.
+
+    Observed red (62797f6, final review): labelled 9.286 (node Dq over the fit's B),
+    the node (879.3, 962.1) sits at 9.139.
+    """
+    payload = call_ratio_fit(d_count=8, **bands_kwargs(NI_BANDS))
+    node = payload["ratio_grid_best"]
+    marker = next(s for s in payload["series"] if "diagnostic" in s["label"])
+    assert marker["data"][0]["x"] == pytest.approx(10.0 * node["Dq"] / node["B"], abs=2e-3)
+
+
+def test_ratio_grid_is_withheld_for_spin_forbidden_fits() -> None:
+    """The ratio grid scores spin-allowed lines only: withheld when the fit uses forbidden ones.
+
+    d3 with the spin-forbidden ²E line as v1: the ratio grid would read ²E as nu1.
+    High-spin d5 cannot show this -- it has no spin-allowed line, so its grid is empty.
+    Observed red (62797f6, final review): a ``ratio_grid_best`` node was returned.
+    """
+    bands = [
+        (e, u)
+        for e, u in oracle_bands(3, 1700.0, 700.0, 2800.0, spin_allowed_only=False)
+        if u in {"2_E#0", "4_T_2#0", "4_T_1#0"}
+    ]
+    payload = call_ratio_fit(
+        d_count=3,
+        C=2800.0,
+        include_spin_forbidden=True,
+        band_labels=[u.split("#")[0] for _e, u in bands],
+        **bands_kwargs([e for e, _u in bands]),
+    )
+    assert "error" not in payload, payload.get("error")
+    assert payload["ratio_grid_best"] is None

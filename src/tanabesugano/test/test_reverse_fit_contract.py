@@ -250,3 +250,13 @@ class TestOneSolverOneAnswer:
         assert data["minima"][0]["Dq"] == pytest.approx(data["Dq"], abs=0.051)
         assert isinstance(data["warnings"], list)
         assert data["C_source"] == "default"
+
+
+def test_reverse_app_short_label_list_is_an_error_card() -> None:
+    """Fewer labels than peaks is reported, not raised.
+
+    Observed red (62797f6, final review): ``IndexError: list index out of range``.
+    """
+    result = call_reverse_fit(d_count=8, observed_peaks=BANDS, band_labels=["3_T_2", None])
+    data = extract_fit_data(result) or result.structured_content
+    assert "one label per band" in data["error"]

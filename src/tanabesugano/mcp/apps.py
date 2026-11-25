@@ -1776,9 +1776,9 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
         # its label.
         kept = [i for i, p in enumerate(observed_peaks) if p > 0]
         peaks_cm = [to_cm1(observed_peaks[i]) for i in kept]
-        labels = None if band_labels is None else [band_labels[i] for i in kept]
-        if band_labels is not None and len(band_labels) != len(observed_peaks):
-            labels = band_labels  # let fit_spectrum report the count mismatch
+        labels = band_labels  # a count mismatch is passed through for fit_spectrum to report
+        if band_labels is not None and len(band_labels) == len(observed_peaks):
+            labels = [band_labels[i] for i in kept]
         if not peaks_cm:
             with PrefabApp() as app, pf.Column(gap=3, css_class="p-6"):
                 pf.Heading(content="No valid peaks provided", level=3)
@@ -2023,9 +2023,9 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         given = [v1, v2] + ([v3] if v3 else [])
         kept = [i for i, x in enumerate(given) if x > 0]
         bands = [to_cm1(given[i]) for i in kept]
-        labels = None if band_labels is None else [band_labels[i] for i in kept]
-        if band_labels is not None and len(band_labels) != len(given):
-            labels = band_labels  # let fit_spectrum report the count mismatch
+        labels = band_labels  # a count mismatch is passed through for fit_spectrum to report
+        if band_labels is not None and len(band_labels) == len(given):
+            labels = [band_labels[i] for i in kept]
         obs = sorted(bands)
         if len(obs) < 2:
             return ToolResult(
@@ -2117,7 +2117,9 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                     "B": round((b_max - b_min) / steps, 1),
                 },
             }
-            if 0 < best_dq < 1e7 and 0 < best_b < 1e7
+            # The grid scores spin-allowed lines only, so beside a fit that uses
+            # forbidden ones it would read a forbidden band as nu1: withheld.
+            if 0 < best_dq < 1e7 and 0 < best_b < 1e7 and not include_spin_forbidden
             else None
         )
 
@@ -2163,8 +2165,8 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
             },
         )
         if ratio_grid_best is not None and b_fit:
-            # Same normalisation as the fit marker: the diagram's x axis is 10Dq/B at B = b_fit.
-            x_grid_norm = round(best_dq * 10.0 / b_fit, 3)
+            # The node's own 10Dq/B: the x axis is 10Dq/B, and the node has its own B.
+            x_grid_norm = round(best_dq * 10.0 / best_b, 3)
             all_series.append(
                 {
                     "label": f"Ratio-grid node 10Dq/B = {x_grid_norm:g} (diagnostic)",
