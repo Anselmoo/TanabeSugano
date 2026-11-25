@@ -54,6 +54,14 @@ nu1 near 3300, and an octahedral d2-d8 list always reaches well past 3000: the
 lowest maximum over the 208 synthetic audit cases is 4080 (d6, Dq 408).
 """
 
+DD_CEILING_CM1 = 100_000.0
+"""A peak list reaching past this many cm^-1 is no d-d spectrum.
+
+d-d bands end at about 50000 cm^-1 (200 nm). The case this catches is a kK list
+declared as eV -- energy_unit has no kK, and Ni(H2O)6 at 8.5/13.8/25.3 kK read as
+eV lands at 68557-204056 -- or a cm^-1 list declared as eV.
+"""
+
 
 def suspect_unit(peaks_cm1: Sequence[float]) -> tuple[Literal["eV", "nm"], list[float]] | None:
     """Return the unit a cm^-1 peak list was probably given in, with its cm^-1 values.
@@ -78,6 +86,13 @@ def unit_error(peaks_cm1: Sequence[float], *, unit_param: str | None = None) -> 
     ``unit_param`` names a sibling parameter (``energy_unit``) that can declare the
     unit; without one the caller is shown the converted values to pass instead.
     """
+    top = max((p for p in peaks_cm1 if p > 0), default=0.0)
+    if top > DD_CEILING_CM1:
+        return (
+            f"the largest peak is {top:.0f} cm^-1, above any d-d band (they end near "
+            "50000) -- if these were kK given as eV, multiply the kK values by 1000 and "
+            "pass them in cm^-1."
+        )
     guess = suspect_unit(peaks_cm1)
     if guess is None:
         return None
@@ -86,14 +101,11 @@ def unit_error(peaks_cm1: Sequence[float], *, unit_param: str | None = None) -> 
     if unit == "eV":
         kilo = [round(p * 1000.0) for p in peaks_cm1 if p > 0]
         meaning = f"eV (= {shown} cm^-1) or kK (= {kilo} cm^-1)"
+        cm1 = "if kK, multiply by 1000 and pass cm^-1"
+        fix = f"if eV, pass {unit_param}='eV'; {cm1}" if unit_param else f"{cm1}; if eV, convert"
     else:
         meaning = f"nm (= {shown} cm^-1)"
-    if unit_param is not None:
-        fix = (
-            f"pass {unit_param}='{unit}' (or 'nm'/'eV' as appropriate), or give the values in cm^-1"
-        )
-    else:
-        fix = "pass the values in cm^-1"
+        fix = f"pass {unit_param}='nm', or give cm^-1" if unit_param else "pass cm^-1"
     return f"these peaks look like {meaning}, but they are read in cm^-1 -- {fix}."
 
 

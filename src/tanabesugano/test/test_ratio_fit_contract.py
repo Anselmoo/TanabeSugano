@@ -143,3 +143,12 @@ def test_ratio_app_names_energy_unit_for_ev_peaks() -> None:
     payload = call_ratio_fit(d_count=8, v1=1.05, v2=1.71, v3=3.14)
     assert "energy_unit" in payload["error"]
     assert "eV" in payload["error"]
+
+
+def test_ratio_app_refuses_kk_peaks_declared_as_ev() -> None:
+    """Values v1-v3 in kK sent with energy_unit='eV' are refused, not fitted (final review I1).
+
+    Observed red (562491b): no ``error`` key -- the payload carried a fitted Dq.
+    """
+    payload = call_ratio_fit(d_count=8, v1=8.5, v2=13.8, v3=25.3, energy_unit="eV")
+    assert "kK" in payload.get("error", "")

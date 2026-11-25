@@ -295,3 +295,15 @@ def test_reverse_app_shuffled_labelled_peaks_pair_by_label() -> None:
     kept = [p for p in peaks if p > 0]
     assert [r["observed_cm1"] for r in data["residuals"]] == pytest.approx(kept, abs=0.1)
     assert all(abs(r["delta_cm1"]) < 1.0 for r in data["residuals"]), data["residuals"]
+
+
+def test_reverse_app_refuses_kk_peaks_declared_as_ev() -> None:
+    """Values in kK sent with energy_unit='eV' are refused, not fitted (final review I1).
+
+    Ni(H2O)6 in kK read as eV lands at 68557-204056 cm^-1, above any d-d band.
+    Observed red (562491b): no ``error`` key -- a fit came back, Dq 9331, B 1500
+    (pinned at its bound), warnings only.
+    """
+    result = call_reverse_fit(d_count=8, observed_peaks=[8.5, 13.8, 25.3], energy_unit="eV")
+    data = extract_fit_data(result) or result.structured_content
+    assert "kK" in data.get("error", "")

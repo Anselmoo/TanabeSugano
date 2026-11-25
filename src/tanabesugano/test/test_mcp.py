@@ -1213,6 +1213,30 @@ class TestUnitGuard:
         ).data  # type: ignore[attr-defined]
         assert data.fitted_Dq > 0
 
+    def test_kk_advice_says_multiply_by_1000(self) -> None:
+        """For an eV-or-kK list the advice covers both readings (final review I1).
+
+        energy_unit has no kK, so pointing a kK user at energy_unit='eV' led to a
+        wrong fit. Observed red (562491b): the text said ``pass energy_unit='eV'
+        (or 'nm'/'eV' as appropriate)`` and never ``multiply by 1000``.
+        """
+        from tanabesugano.mcp._inputs import unit_error
+
+        text = unit_error([8.5, 13.8, 25.3], unit_param="energy_unit")
+        assert text is not None
+        assert "multiply by 1000" in text
+        assert "energy_unit='eV'" in text
+
+    def test_peaks_above_any_dd_band_are_refused(self) -> None:
+        """A cm^-1 list reaching past 100000 is no d-d spectrum (final review I1).
+
+        Observed red (562491b): DID NOT RAISE -- a fit came back.
+        """
+        from tanabesugano.mcp._compute import fit_spectrum
+
+        with pytest.raises(ValueError, match="above any d-d band"):
+            fit_spectrum(8, [68557.0, 111304.0, 204056.0])
+
     def test_stray_small_value_is_not_ev(self) -> None:
         """The guard reads the maximum: one stray small entry does not turn cm^-1 into eV.
 
