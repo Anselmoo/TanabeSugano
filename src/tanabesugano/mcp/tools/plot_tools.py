@@ -155,12 +155,14 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_fit_script(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         observed_peaks: list[float],
         C: float | None = None,
         spin_state: SpinState = "high",
         include_spin_forbidden: bool = False,
         title: str | None = None,
+        band_labels: list[str | list[str] | None] | None = None,
+        fit_c: bool | None = None,
     ) -> ToolResult:
         """Return Python source that draws the observed-vs-computed band figure.
 
@@ -179,6 +181,9 @@ def register(mcp: FastMCP) -> None:
         The generated script imports matplotlib and nothing else -- notably not
         tanabesugano -- so a reviewer can run it without installing this
         package or matching its version.
+
+        ``band_labels`` and ``fit_c`` mean exactly what they mean on
+        ``ts_fit_spectrum``; the figure shows the assignment the fit made.
         """
         try:
             source = fit_figure_script(
@@ -187,6 +192,8 @@ def register(mcp: FastMCP) -> None:
                 C=C,
                 spin_state=spin_state,
                 include_spin_forbidden=include_spin_forbidden,
+                band_labels=band_labels,
+                fit_c=fit_c,
                 title=title,
             )
         except (ValueError, KeyError) as exc:

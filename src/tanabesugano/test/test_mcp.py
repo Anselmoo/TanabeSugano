@@ -965,3 +965,93 @@ def test_spin_crossover_app_finds_the_crossing_at_its_own_defaults(d_count: int)
         f"d{d_count}: tool returned critical_delta_cm1=None at its own defaults; "
         f"the swept Dq range does not reach this configuration's crossing."
     )
+
+
+# ─────────────────── plan C inputs on the fit tools ───────────────────
+
+MN_BANDS = [19070.0, 22710.0, 24500.0]
+MN_LABELS = ["4_T_1", "4_T_2", ["4_E", "4_A_1"]]
+CROWDED_D3 = [17000.0, 17800.0, 37552.0]
+
+
+def test_ts_fit_spectrum_takes_labels_and_fits_c() -> None:
+    """Labels and fit_c reach fit_spectrum unchanged: the tool's numbers equal a direct call.
+
+    A pass-through claim needs no reference number. Whether this Mn fit is right
+    belongs to an IonFixture, not here.
+
+    Observed red (6e2ca5b): ``ToolError: Input validation error: 'band_labels' ...
+    Unexpected keyword argument``.
+    """
+    from tanabesugano.mcp._compute import fit_spectrum
+
+    direct = fit_spectrum(5, MN_BANDS, include_spin_forbidden=True, band_labels=MN_LABELS)
+    result = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 5,
+            "observed_peaks_cm1": MN_BANDS,
+            "include_spin_forbidden": True,
+            "band_labels": MN_LABELS,
+        },
+    )
+    data = result.data  # type: ignore[attr-defined]
+    pairs = ((data.fitted_Dq, direct.Dq), (data.fitted_B, direct.B), (data.fitted_C, direct.C))
+    for got, want in pairs:
+        assert got == pytest.approx(want, rel=1e-9)
+
+
+def test_unknown_label_is_a_compute_error() -> None:
+    """A label naming no spin-allowed level comes back as ComputeError naming the label.
+
+    Observed red (6e2ca5b): the unknown-argument validation error for ``band_labels``.
+    """
+    result = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 8,
+            "observed_peaks_cm1": [8500, 13800, 25300],
+            "band_labels": ["3_T_2", "3_T_1", "1_A_1"],
+        },
+    )
+    data = result.data  # type: ignore[attr-defined]
+    assert "1_A_1" in data.error
+
+
+def test_label_count_mismatch_is_a_compute_error() -> None:
+    """Two labels for three peaks is a ComputeError, not a silent truncation.
+
+    Observed red (6e2ca5b): the unknown-argument validation error for ``band_labels``.
+    """
+    result = _call(
+        "ts_fit_spectrum",
+        {"d_count": 8, "observed_peaks_cm1": [8500, 13800, 25300], "band_labels": ["3_T_2", None]},
+    )
+    data = result.data  # type: ignore[attr-defined]
+    assert "one label per band" in data.error
+
+
+def test_figure_tools_accept_labels() -> None:
+    """Both figure tools take band_labels and show the level the fit assigned.
+
+    Observed red (6e2ca5b): ``TypeError: ts_fit_plot_app() got an unexpected
+    keyword argument 'band_labels'``.
+    """
+
+    async def go():
+        server = create_server()
+        app = await server.get_tool("ts_fit_plot_app")
+        script = await server.get_tool("ts_fit_script")
+        labels = ["4_T_2", "4_T_1", "4_T_1"]
+        return (
+            app.fn(d_count=3, observed_peaks=CROWDED_D3, C=2800.0, band_labels=labels),
+            script.fn(d_count=3, observed_peaks=CROWDED_D3, C=2800.0, band_labels=labels),
+        )
+
+    app_result, script_result = run_loop_free(go)
+    assert not app_result.is_error, app_result.content[0].text
+    import json
+
+    assert "⁴T₁g(F)" in json.dumps(json.loads(app_result.content[0].text), ensure_ascii=False)
+    assert not script_result.is_error, script_result.content[0].text
+    assert "T_{1g}(F)" in script_result.content[0].text

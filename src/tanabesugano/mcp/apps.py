@@ -1387,6 +1387,8 @@ def _register_fit_plot(mcp: FastMCP) -> None:
         C: float | None = None,
         spin_state: SpinState = "high",
         include_spin_forbidden: bool = False,
+        band_labels: list[str | list[str] | None] | None = None,
+        fit_c: bool | None = None,
     ) -> ToolResult:
         """Plot how far each computed band sits from the band that was measured.
 
@@ -1413,6 +1415,8 @@ def _register_fit_plot(mcp: FastMCP) -> None:
             spin_state: which side of a spin crossover to pin the fit to.
             include_spin_forbidden: required for high-spin d5, whose d-d bands
                 are all spin-forbidden.
+            band_labels, fit_c: as on ``ts_fit_spectrum``; each band is drawn
+                against the level the fit assigned it.
 
         """
         import json as _json
@@ -1427,6 +1431,8 @@ def _register_fit_plot(mcp: FastMCP) -> None:
                 C,
                 spin_state=spin_state,
                 include_spin_forbidden=include_spin_forbidden,
+                band_labels=band_labels,
+                fit_c=fit_c,
             )
             bands = labelled_bands(fit, d_count, [float(p) for p in observed_peaks])
         except (ValueError, KeyError) as exc:

@@ -70,7 +70,7 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_fit_spectrum(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         observed_peaks_cm1: list[float],
         C: float | None = None,
         # Deliberately narrower than fit_spectrum's SpinState. "auto"
@@ -80,6 +80,9 @@ def register(mcp: FastMCP) -> None:
         # always fails.
         spin_state: Literal["high", "low"] = "high",
         include_spin_forbidden: bool = False,
+        band_labels: list[str | list[str] | None] | None = None,
+        fit_c: bool | None = None,
+        dq_bounds: tuple[float, float] | None = None,
     ) -> FitResult | ComputeError:
         """Fit observed UV-Vis absorption bands to determine Dq and B parameters.
 
@@ -99,6 +102,16 @@ def register(mcp: FastMCP) -> None:
                 pinned to this regime and refuses solutions that cross it.
             include_spin_forbidden: Also fit against spin-forbidden transitions.
                 Required for high-spin d5, whose d-d bands are all spin-forbidden.
+            band_labels: Optional, one per peak in the order given: a term key
+                ("4_T_1") or level uid ("4_T_1#1") naming the level the band is
+                assigned to, a list of them for a band over near-degenerate levels
+                (an either-or), or null for an unlabelled band. Labels steer the
+                band assignment; a label naming no level is an error.
+            fit_c: Fit Racah C as a free parameter. Default (null): fitted only when
+                C is not given and three or more bands are all labelled; false holds
+                C; true frees it regardless (then a warning says C is one of many).
+            dq_bounds: Optional (lower, upper) Dq search range in cm^-1; by default
+                derived from the lowest band. A Dq pinned at a bound is warned about.
 
         Returns:
             FitResult with the optimized Dq and B, the ground term the fit is
@@ -124,6 +137,9 @@ def register(mcp: FastMCP) -> None:
                 C=C,
                 spin_state=spin_state,
                 include_spin_forbidden=include_spin_forbidden,
+                dq_bounds=dq_bounds,
+                band_labels=band_labels,
+                fit_c=fit_c,
             )
         except (ValueError, RuntimeError) as exc:
             return ComputeError(error=f"Fitting failed: {exc!s}")
