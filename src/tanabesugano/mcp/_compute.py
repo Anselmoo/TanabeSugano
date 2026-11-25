@@ -989,6 +989,7 @@ def _held_c_check(
     alts = tuple(sorted(free.minima, key=lambda m: m[3]))
     low = alts[0]
     if low[3] < held - BAND_RESOLUTION_CM1:
+        named = low
         note = (
             f"Dq and B undetermined: the default C = {fit.C:.0f} cm^-1 is inconsistent with "
             f"these bands; a fitted C = {low[2]:.0f} cm^-1 fits {held - low[3]:.0f} cm^-1 "
@@ -1007,13 +1008,29 @@ def _held_c_check(
         ]
         if not tied:
             return fit
-        alt = tied[0]
+        named = alt = tied[0]
         note = (
             "Dq and B undetermined: C is not determined by these bands; holding it at its "
             f"default {fit.C:.0f} cm^-1 gives this fit, but a fitted C = {alt[2]:.0f} gives "
             f"Dq = {alt[0]:.0f}, B = {alt[1]:.0f} cm^-1 and fits these bands at least as "
             f"well (RMSE {alt[3]:.1f} vs {held:.1f} cm^-1); Dq and B depend on the assumed C -- "
             "supply C or label the bands to constrain it"
+        )
+    rivals = [
+        m
+        for m in alts
+        if m[3] <= named[3] + BAND_RESOLUTION_CM1
+        and (
+            abs(m[0] / named[0] - 1) > MINIMA_DISTINCT[0]
+            or abs(m[1] / named[1] - 1) > MINIMA_DISTINCT[1]
+        )
+    ]
+    if rivals:
+        dqs = [named[0], *(m[0] for m in rivals)]
+        note += (
+            f"; the free-C fit is not unique either: {len(rivals)} other free-C minima fit "
+            f"within {BAND_RESOLUTION_CM1:.0f} cm^-1 of it at a distinct (Dq, B), Dq "
+            f"{min(dqs):.0f}-{max(dqs):.0f} cm^-1"
         )
     return replace(
         fit,

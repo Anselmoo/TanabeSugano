@@ -606,6 +606,39 @@ def test_exact_answer_at_the_default_c_stays_fitted() -> None:
     assert fit.free_c_minima == ()
 
 
+FREE_C_AMBIGUOUS = [
+    pytest.param(5, [7716.37, 9876.12, 11610.0], (1706.1, 370.7), id="683 d5 502.1/387/1548"),
+    pytest.param(5, [8777.78, 10991.02, 13158.0], (1716.9, 477.0), id="689 d5 578.1/387/1857.6"),
+    pytest.param(
+        6, [5463.38, 9586.73, 12925.0, 16814.74], (1725.0, 574.6), id="941 d6 1292.5/798.8/3195.2"
+    ),
+]
+"""Audit rows (29420b6 CSV index) where the free-C point the warning names fits at
+RMSE <= 2 while 70-83 % off in Dq. Bands: the oracle levels at truth exactly as
+``audit_fit_paths.synthetic_bands`` merged them (spin-forbidden, high-spin), copied
+from the audit. The (Dq, B) pair is the held fit from the same CSV: a regression pin
+that the note does not move the returned point, not a truth claim."""
+
+
+@pytest.mark.parametrize(("d", "bands", "held"), FREE_C_AMBIGUOUS)
+def test_ambiguous_free_c_point_is_said_to_be_ambiguous(
+    d: int, bands: list[float], held: tuple[float, float]
+) -> None:
+    """The warning says when the free-C point it names is itself one of several.
+
+    Look-back on the F1 fix (Q3): each row has 4-5 further free-C minima within
+    100 cm^-1 of the named one at a distinct (Dq, B); the warning named one as if
+    it were the answer, and minima flagged it lowest_rmse with no caveat.
+    Observed red (all three): ``assert []`` -- no warning carries "not unique".
+    """
+    fit = fit_spectrum(d, bands, include_spin_forbidden=True)
+    assert abs(fit.Dq - held[0]) <= 0.1
+    assert abs(fit.B - held[1]) <= 0.1
+    notes = [w for w in fit.warnings if w.startswith("Dq and B undetermined:")]
+    assert len(notes) == 1, fit.warnings
+    assert [w for w in notes if "the free-C fit is not unique either" in w]
+
+
 def _off_trigger_cases() -> list[tuple[str, int, list[float], dict[str, object]]]:
     d6 = oracle_bands(6, *D6_LS_TIE, spin_allowed_only=True)[:3]
     energies = [e for e, _u in d6]
