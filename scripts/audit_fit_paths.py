@@ -224,6 +224,8 @@ CSV_COLUMNS = (
     "approx",
     "R1_tainted",
     "geometry",
+    "Dq_source",
+    "free_c_lowest",
     "failure_classes",
 )
 WARNING_KINDS = (
@@ -453,6 +455,8 @@ class Run:
     rmse: float | None = None
     warnings: list[str] = field(default_factory=list)
     raised: str = ""
+    dq_source: str = ""
+    free_c_lowest: tuple[float, float, float, float] | None = None
 
 
 @dataclass
@@ -734,6 +738,9 @@ def run_fit_spectrum(case: Case, c_mode: str) -> Run:
     run.fit_dq, run.fit_b, run.fit_c = fit.Dq, fit.B, fit.C
     run.rmse = fit.rmse_cm1
     run.warnings = list(fit.warnings)
+    run.dq_source = fit.dq_provenance
+    free_c = getattr(fit, "free_c_minima", ())  # absent before 2.1.0's held-C check
+    run.free_c_lowest = min(free_c, key=lambda m: m[3]) if free_c else None
     return run
 
 
@@ -1076,6 +1083,10 @@ def grade(case: Case, run: Run) -> Row:
         "approx": str(case.approx),
         "R1_tainted": str(case.r1),
         "geometry": case.geometry,
+        "Dq_source": run.dq_source,
+        "free_c_lowest": ""
+        if run.free_c_lowest is None
+        else "/".join(fmt(x) for x in run.free_c_lowest),
         "failure_classes": "",
     }
     return Row(
@@ -2198,6 +2209,132 @@ def section_findings(rows: list[Row]) -> list[str]:
     ]
 
 
+F1_ROWS = frozenset(
+    {
+        ("d2-high", "True", "900.0", "645.0", "2580.0"),
+        ("d2-high", "True", "1800.0", "645.0", "2580.0"),
+        ("d2-high", "True", "900.0", "645.0", "3096.0"),
+        ("d2-high", "True", "900.0", "1376.0", "5504.0"),
+        ("d2-high", "True", "900.0", "1376.0", "6604.8"),
+        ("d3-high", "True", "1200.0", "688.5", "3304.8"),
+        ("d3-high", "True", "2000.0", "1055.7", "5067.4"),
+        ("d4-low", "True", "3273.8", "723.8", "3474.2"),
+        ("d5-high", "True", "502.1", "387.0", "1548.0"),
+        ("d5-high", "True", "578.1", "387.0", "1857.6"),
+        ("d6-high", "True", "680.2", "798.8", "3195.2"),
+        ("d6-high", "True", "829.2", "798.8", "3994.0"),
+        ("d6-high", "True", "1043.1", "1224.8", "4899.2"),
+        ("d6-high", "True", "1292.5", "798.8", "3195.2"),
+        ("d6-low", "False", "2176.8", "798.8", "3195.2"),
+        ("d6-low", "False", "2653.5", "798.8", "3994.0"),
+        ("d7-low", "False", "1557.7", "436.9", "2097.1"),
+        ("d7-low", "False", "2263.2", "728.2", "2912.8"),
+        ("d8-high", "True", "1200.0", "772.5", "3090.0"),
+        ("d8-high", "True", "700.0", "772.5", "3708.0"),
+        ("d8-high", "True", "1200.0", "772.5", "3708.0"),
+        ("d8-high", "True", "1200.0", "1184.5", "5685.6"),
+    }
+)
+"""The 22 synthetic rows ``fit_spectrum`` got wrong with no warning at the default C
+(audit at 29420b6): (system, sf, truth Dq, B, C) as the CSV writes them. Plan F's F1
+target is that none of them is WRONG-SILENT."""
+
+FREE_C_WRONG = frozenset(
+    {
+        ("d2-high", "True", "900.0", "1376.0", "6604.8"),
+        ("d4-low", "True", "3273.8", "723.8", "3474.2"),
+        ("d5-high", "True", "502.1", "387.0", "1548.0"),
+        ("d5-high", "True", "578.1", "387.0", "1857.6"),
+        ("d6-high", "True", "1292.5", "798.8", "3195.2"),
+    }
+)
+"""The five F1 rows where an unlabelled free-C fit was itself wrong (F1-mechanism,
+check 7, CSV rows 213/623/683/689/941 at 29420b6): they must come out undetermined."""
+
+F1B_SYSTEMS = frozenset(
+    {"[Cr(H2O)6]3+", "CoCl2", "KCoF3", "CoSiF6·6H2O", "[Ni(H2O)6]2+", "[Ni(NH3)6]2+"}
+)
+"""JCE rows silent at the default C where C does not move the bands (F1b): the
+reference, not the fit, is off; classified in Plan F's F4 work."""
+
+F1B_BASIN_SYSTEMS = ("AgCl:Ni2+", "LiGa5O8:Ni2+")
+"""Spin-forbidden JCE rows whose published point fits the bands better than the
+held fit does; the free-C point should reach the published RMSE."""
+
+
+def row_key(row: Row) -> tuple[str, str, str, str, str]:
+    """Return the (system, sf, truth Dq, B, C) key the F1 constants pin."""
+    v = row.values
+    return (v["system"], v["sf"], v["truth_Dq"], v["truth_B"], v["truth_C"])
+
+
+def section_f1_status(rows: list[Row]) -> list[str]:
+    """Render section 8 and fail the build if any F1 row is still silent."""
+    held = [r for r in rows if r.run.path == "fit_spectrum" and r.run.c_mode == "default"]
+    f1 = [r for r in held if r.case.source == "synthetic" and row_key(r) in F1_ROWS]
+    f1_silent = [r for r in f1 if base_verdict(r) == "WRONG-SILENT"]
+    if len(f1) != len(F1_ROWS):
+        msg = f"F1 rows: {len(f1)} found, {len(F1_ROWS)} pinned"
+        raise SystemExit(msg)
+    if f1_silent:
+        msg = f"{len(f1_silent)} F1 rows still WRONG-SILENT"
+        raise SystemExit(msg)
+    jce = [r for r in held if r.case.source == "jce2023"]
+    f1b = [r for r in jce if r.case.system in F1B_SYSTEMS and not r.case.sf]
+    f1b_silent = sum(base_verdict(r) == "WRONG-SILENT" for r in f1b)
+    rest = [r for r in jce if r not in f1b and not r.case.r1]
+    rest_silent = sum(base_verdict(r) == "WRONG-SILENT" for r in rest)
+    lines = [
+        "## 8. Held default C (plan F, F1)",
+        "",
+        (
+            "With C left at its default on three or more unlabelled bands that C moves, "
+            "`fit_spectrum` refits once with C free. If a free-C minimum ties the held fit at "
+            "a distinct (Dq, B), or fits more than 100 cm^-1 better, Dq and B are reported "
+            "`undetermined` and the free-C minima are listed. The returned point does not "
+            "change: this reports the C-misspecification, it does not remove it."
+        ),
+        "",
+        "| count | silent | of |",
+        "|---|---|---|",
+        f"| F1: synthetic rows silent at 29420b6 | {len(f1_silent)} | {len(F1_ROWS)} |",
+        f"| F1b: JCE rows where C does not move the bands | {f1b_silent} | {len(f1b)} |",
+        (
+            "| remaining JCE `fit_spectrum` rows at the default C (not R1) | "
+            f"{rest_silent} | {len(rest)} |"
+        ),
+        "",
+        "Rows where an unlabelled free-C fit was itself wrong (check 7):",
+        "",
+        "| system | sf | truth Dq/B/C | verdict | Dq_source | lowest-RMSE free-C Dq/B/C/RMSE |",
+        "|---|---|---|---|---|---|",
+    ]
+    for r in sorted((r for r in f1 if row_key(r) in FREE_C_WRONG), key=row_key):
+        v = r.values
+        lines.append(
+            f"| {v['system']} | {v['sf']} | {v['truth_Dq']}/{v['truth_B']}/{v['truth_C']} | "
+            f"{r.verdict} | {v['Dq_source']} | {v['free_c_lowest'] or 'n/a'} |"
+        )
+    lines += [
+        "",
+        "Spin-forbidden rows whose published point fits better than the held fit:",
+        "",
+        "| system | RMSE at published point | lowest-RMSE free-C RMSE | reaches it |",
+        "|---|---|---|---|",
+    ]
+    for r in jce:
+        if r.case.system not in F1B_BASIN_SYSTEMS or not r.case.sf:
+            continue
+        ref = r.obj_truth if r.obj_truth is not None else r.obj_truth_c_used
+        low = r.run.free_c_lowest
+        reach = "n/a" if ref is None or low is None else str(low[3] <= ref + 100.0)
+        lines.append(
+            f"| {r.case.system} | {fmt(ref)} | {fmt(low[3]) if low else 'n/a'} | {reach} |"
+        )
+    lines.append("")
+    return lines
+
+
 def render_md(
     rows: list[Row],
     na_cells: list[str],
@@ -2222,6 +2359,7 @@ def render_md(
     lines.extend(section_jce(rows, jce_labels))
     lines.extend(section_scope(rows))
     lines.extend(section_findings(rows))
+    lines.extend(section_f1_status(rows))
     return "\n".join(lines)
 
 
