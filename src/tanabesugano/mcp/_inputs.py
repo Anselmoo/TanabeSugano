@@ -13,6 +13,7 @@ no tool currently dispatches against it.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Literal
 
@@ -20,6 +21,11 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from tanabesugano.constants import CM1_TO_EV  # noqa: F401  (re-exported for the MCP layer)
+from tanabesugano.constants import WAVENUMBER_PER_EV
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 # Constrains every tool's `d_count` parameter to the eight supported octahedral
@@ -32,6 +38,64 @@ D_COUNT_LITERAL = Literal[2, 3, 4, 5, 6, 7, 8]
 EnergyUnit = Literal["cm1", "eV", "nm"]
 
 # 1 cm^-1 expressed in eV; also used in tanabesugano.tools (racah conversion).
+
+EV_CEILING_CM1 = 100.0
+"""A peak list whose largest entry is below this is not in cm^-1.
+
+d-d band maxima in eV lie at about 0.4-6 (and in kK at 4-50), so both stay under
+100; no d-d band in cm^-1 does.
+"""
+
+NM_CEILING_CM1 = 3000.0
+"""A peak list whose largest entry is below this (and above 100) reads as nm.
+
+d-d bands in nm lie at 200-2500. The lowest real d-d band in cm^-1 is a Td Co(II)
+nu1 near 3300, and an octahedral d2-d8 list always reaches well past 3000: the
+lowest maximum over the 208 synthetic audit cases is 4080 (d6, Dq 408).
+"""
+
+
+def suspect_unit(peaks_cm1: Sequence[float]) -> tuple[Literal["eV", "nm"], list[float]] | None:
+    """Return the unit a cm^-1 peak list was probably given in, with its cm^-1 values.
+
+    Reads the largest entry only, so one stray small value in a real cm^-1 list
+    does not trip it. ``None`` when the list looks like cm^-1 (or is empty).
+    """
+    positive = [p for p in peaks_cm1 if p > 0]
+    if not positive:
+        return None
+    top = max(positive)
+    if top < EV_CEILING_CM1:
+        return "eV", [float(round(p * WAVENUMBER_PER_EV)) for p in positive]
+    if top < NM_CEILING_CM1:
+        return "nm", [float(round(1e7 / p)) for p in positive]
+    return None
+
+
+def unit_error(peaks_cm1: Sequence[float], *, unit_param: str | None = None) -> str | None:
+    """The refusal for a peak list that is not in cm^-1, or ``None`` when it is.
+
+    ``unit_param`` names a sibling parameter (``energy_unit``) that can declare the
+    unit; without one the caller is shown the converted values to pass instead.
+    """
+    guess = suspect_unit(peaks_cm1)
+    if guess is None:
+        return None
+    unit, converted = guess
+    shown = [int(c) for c in converted]
+    if unit == "eV":
+        kilo = [round(p * 1000.0) for p in peaks_cm1 if p > 0]
+        meaning = f"eV (= {shown} cm^-1) or kK (= {kilo} cm^-1)"
+    else:
+        meaning = f"nm (= {shown} cm^-1)"
+    if unit_param is not None:
+        fix = (
+            f"pass {unit_param}='{unit}' (or 'nm'/'eV' as appropriate), or give the values in cm^-1"
+        )
+    else:
+        fix = "pass the values in cm^-1"
+    return f"these peaks look like {meaning}, but they are read in cm^-1 -- {fix}."
+
 
 # Typical maxima used to validate Sliders / range queries.
 DQ_MAX = 5000.0  # cm^-1; well past the strong-field limit for first-row TM ions

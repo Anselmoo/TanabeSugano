@@ -895,6 +895,11 @@ def fit_spectrum(
         its default and says so.
 
     """
+    from tanabesugano.mcp._inputs import unit_error
+
+    misread = unit_error(observed_peaks_cm1)
+    if misread is not None:
+        raise ValueError(misread)
     fit = _fit_one_regime(
         d_count,
         observed_peaks_cm1,

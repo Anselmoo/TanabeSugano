@@ -1164,3 +1164,69 @@ def test_band_assignments_and_residuals_follow_input_order() -> None:
         assert r == pytest.approx(a.residual_cm1)
     assert data.band_assignments[0].level_uid == "3_T_1#1"
     assert data.band_assignments[0].label.endswith("³T₁g(P)")
+
+
+# ─────────────────── cm^-1 magnitude guard (plan E, Task 1) ───────────────────
+
+
+class TestUnitGuard:
+    """eV, kK or nm passed where cm^-1 is read is refused by name, with converted values.
+
+    Before the guard, ``fit_spectrum(8, [1.05, 1.71, 3.14])`` and the nm list both
+    raised ``ValueError: fit never escaped the penalty region -- ... or try
+    spin_state='low'.`` -- not silent, but the unit was never named and the hint
+    pointed the wrong way.
+    """
+
+    def test_ev_list_is_refused_by_name(self) -> None:
+        """Observed red (0aef909): ``assert 'eV' in 'Fitting failed: fit never escaped ...'``."""
+        data = _call(
+            "ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": [1.05, 1.71, 3.14]}
+        ).data  # type: ignore[attr-defined]
+        assert "eV" in data.error
+        assert "8469" in data.error
+
+    def test_nm_list_is_refused_by_name(self) -> None:
+        """Observed red (0aef909): ``assert 'nm' in 'Fitting failed: fit never escaped ...'``."""
+        data = _call(
+            "ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": [1176.0, 725.0, 395.0]}
+        ).data  # type: ignore[attr-defined]
+        assert "nm" in data.error
+        assert "8503" in data.error
+
+    def test_kk_list_names_both(self) -> None:
+        """Below 100 is eV or kK; both conversions are offered (Fable objection 4).
+
+        Observed red (0aef909): ``ValueError: fit never escaped the penalty region``
+        did not match ``kK``.
+        """
+        from tanabesugano.mcp._compute import fit_spectrum
+
+        with pytest.raises(ValueError, match="kK") as info:
+            fit_spectrum(3, [17.4, 24.7, 36.6])
+        assert "17400" in str(info.value)
+
+    def test_low_energy_d8_is_not_flagged(self) -> None:
+        """A real low-energy d8 list fits. Green on arrival: a false-alarm guard, not a red."""
+        data = _call(
+            "ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": [4500.0, 7800.0, 14500.0]}
+        ).data  # type: ignore[attr-defined]
+        assert data.fitted_Dq > 0
+
+    def test_stray_small_value_is_not_ev(self) -> None:
+        """The guard reads the maximum: one stray small entry does not turn cm^-1 into eV.
+
+        Observed red (0aef909): ``ImportError: cannot import name 'suspect_unit'``.
+        """
+        from tanabesugano.mcp._inputs import suspect_unit
+
+        assert suspect_unit([8500.0, 13800.0, 3.1]) is None
+
+    def test_single_td_band_is_not_nm(self) -> None:
+        """A lone Td Co(II) nu1 near 3300 cm^-1 is not read as nm.
+
+        Observed red (0aef909): ``ImportError: cannot import name 'suspect_unit'``.
+        """
+        from tanabesugano.mcp._inputs import suspect_unit
+
+        assert suspect_unit([3300.0]) is None

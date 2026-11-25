@@ -260,3 +260,15 @@ def test_reverse_app_short_label_list_is_an_error_card() -> None:
     result = call_reverse_fit(d_count=8, observed_peaks=BANDS, band_labels=["3_T_2", None])
     data = extract_fit_data(result) or result.structured_content
     assert "one label per band" in data["error"]
+
+
+def test_reverse_app_names_energy_unit_for_ev_peaks() -> None:
+    """Peaks given in eV at the default energy_unit point the caller at energy_unit (plan E R4).
+
+    Observed red (0aef909): the error was ``fit never escaped the penalty region``,
+    which does not mention energy_unit.
+    """
+    result = call_reverse_fit(d_count=8, observed_peaks=[1.05, 1.71, 3.14])
+    data = extract_fit_data(result) or result.structured_content
+    assert "energy_unit" in data["error"]
+    assert "eV" in data["error"]

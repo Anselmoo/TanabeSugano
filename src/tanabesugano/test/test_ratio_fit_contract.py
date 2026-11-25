@@ -133,3 +133,13 @@ def test_ratio_grid_is_withheld_for_spin_forbidden_fits() -> None:
     )
     assert "error" not in payload, payload.get("error")
     assert payload["ratio_grid_best"] is None
+
+
+def test_ratio_app_names_energy_unit_for_ev_peaks() -> None:
+    """Peaks v1-v3 in eV at the default energy_unit name energy_unit (plan E R4).
+
+    Observed red (0aef909): the error was ``fit never escaped the penalty region``.
+    """
+    payload = call_ratio_fit(d_count=8, v1=1.05, v2=1.71, v3=3.14)
+    assert "energy_unit" in payload["error"]
+    assert "eV" in payload["error"]

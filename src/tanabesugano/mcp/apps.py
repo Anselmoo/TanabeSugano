@@ -1762,6 +1762,7 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
         from tanabesugano.levels import LevelSet
         from tanabesugano.mcp._compute import fit_objective
         from tanabesugano.mcp._compute import fit_spectrum
+        from tanabesugano.mcp._inputs import unit_error
         from tanabesugano.script_export import labelled_bands
 
         def to_cm1(e: float) -> float:
@@ -1789,6 +1790,10 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             return _as_tool_result(app, {"d_count": d_count, "error": "no valid peaks"})
 
         try:
+            if energy_unit == "cm1" and (
+                misread := unit_error(observed_peaks, unit_param="energy_unit")
+            ):
+                raise ValueError(misread)  # noqa: TRY301  (reported by the handler below)
             fit = fit_spectrum(
                 d_count,
                 peaks_cm,
@@ -2012,6 +2017,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         from tanabesugano.mcp._compute import compute_point
         from tanabesugano.mcp._compute import fit_spectrum
         from tanabesugano.mcp._compute import transition_candidates
+        from tanabesugano.mcp._inputs import unit_error
 
         def to_cm1(e: float) -> float:
             if energy_unit == "eV":
@@ -2038,6 +2044,8 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
             )
 
         try:
+            if energy_unit == "cm1" and (misread := unit_error(given, unit_param="energy_unit")):
+                raise ValueError(misread)  # noqa: TRY301  (reported by the handler below)
             fit = fit_spectrum(
                 d_count,
                 bands,
