@@ -1,6 +1,6 @@
 [project]
 name = "tanabesugano"
-version = "2.0.0"
+version = "2.1.0"
 description = "A python-solver for Tanabe-Sugano and Energy-Correlation diagrams"
 authors = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
 maintainers = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
@@ -64,6 +64,8 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = "src"
+# The oracle ships in the wheel; its findings ship beside it in the sdist.
+source-include = ["ORACLE-REPORT.md"]
 
 [dependency-groups]
 screenshot = [
