@@ -152,3 +152,15 @@ def test_ratio_app_refuses_kk_peaks_declared_as_ev() -> None:
     """
     payload = call_ratio_fit(d_count=8, v1=8.5, v2=13.8, v3=25.3, energy_unit="eV")
     assert "kK" in payload.get("error", "")
+
+
+def test_ratio_app_states_the_spin_allowed_assumption() -> None:
+    """The ratio app fits unlabelled spin-allowed bands, so it states the same assumption.
+
+    Observed red: ``KeyError: 'assumptions'``.
+    """
+    from tanabesugano.test.test_fit_recovery import SPIN_ALLOWED_ASSUMPTION
+
+    payload = call_ratio_fit(d_count=8, **bands_kwargs(NI_BANDS))
+    assert payload["assumptions"] == [SPIN_ALLOWED_ASSUMPTION]
+    assert SPIN_ALLOWED_ASSUMPTION not in payload["warnings"]

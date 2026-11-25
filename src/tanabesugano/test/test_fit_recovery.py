@@ -717,6 +717,13 @@ def test_free_c_refit_failure_keeps_held_fit(monkeypatch: pytest.MonkeyPatch) ->
 
 # --- F3: both d3/d8 Dq estimators reported ------------------------------------------------
 
+SPIN_ALLOWED_ASSUMPTION = (
+    "all bands are treated as spin-allowed; a spin-forbidden line (e.g. 2E/1E) in the input "
+    "would be misassigned; label the bands or pass include_spin_forbidden=True if one is present"
+)
+"""Copied verbatim from the maintainer's ruling (feedback on tasks 4-7), not from the code."""
+LOWEST_BAND_NU1 = f"nu1 is the lowest band: {SPIN_ALLOWED_ASSUMPTION}"
+
 
 @pytest.mark.parametrize(
     ("nu1", "floor"),
@@ -752,10 +759,11 @@ def test_dq_nu1_reported_for_d3_and_d8() -> None:
     differs = abs(10.0 * fit.Dq - 8500.0) > max(fit.rmse_cm1, nu1_floor(8500.0))
     if differs:
         assert fit.dq_nu1_reason == (
-            f"Dq estimators differ: nu1/10 = 850, least squares = {fit.Dq:.0f} cm^-1"
+            f"{LOWEST_BAND_NU1}; Dq estimators differ: nu1/10 = 850, "
+            f"least squares = {fit.Dq:.0f} cm^-1"
         )
     else:
-        assert fit.dq_nu1_reason is None
+        assert fit.dq_nu1_reason == LOWEST_BAND_NU1
     assert not any("estimators" in w for w in fit.warnings), "report-only: no warning"
 
 
@@ -769,6 +777,57 @@ def test_dq_nu1_labelled_takes_the_t2_band() -> None:
     reordered = list(reversed(bands))
     fit = fit_spectrum(3, [e for e, _u in reordered], band_labels=term_labels(reordered))
     assert fit.dq_nu1 == t2 / 10.0
+
+
+def test_dq_nu1_labelled_ignores_a_lower_spin_forbidden_line() -> None:
+    """Labelled d3 with 2E below 4T2: nu1 is the 4T2 band, not the lowest band.
+
+    The oracle (Dq 1750, B 700, C 2800) places 2E below 4T2; a selection that took
+    ``min(observed)`` would report 2E/10. Only the label can tell them apart.
+
+    Observed red (labelled branch mutated to ``min(observed)``):
+    ``AssertionError: assert 1354.9857537857831 == (17500.000000000004 / 10.0)``.
+    ``test_dq_nu1_labelled_takes_the_t2_band`` stays green under that mutation (its 4T2
+    is also its lowest band), which is why this test exists.
+    """
+    bands = oracle_bands(3, 1750.0, 700.0, 2800.0, spin_allowed_only=False)
+    picked = [next(b for b in bands if b[1].startswith(key)) for key in ("2_E", "4_T_2", "4_T_1")]
+    assert picked[0][0] < picked[1][0], "precondition: 2E lies below 4T2"
+    fit = fit_spectrum(
+        3,
+        [e for e, _u in picked],
+        include_spin_forbidden=True,
+        band_labels=term_labels(picked),
+    )
+    assert fit.dq_nu1 == picked[1][0] / 10.0
+    assert fit.dq_nu1_reason is None or "lowest band" not in fit.dq_nu1_reason
+
+
+def test_unlabelled_spin_allowed_fit_states_its_assumption() -> None:
+    """Unlabelled, spin-allowed only: the result says every band was taken as spin-allowed.
+
+    KZnClSO4·3H2O:Cr3+ printed bands, 2E (11975) included: band positions alone cannot
+    tell it from a spin-allowed band, so the assumption is stated, not warned about.
+
+    Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'assumptions'``.
+    """
+    fit = fit_spectrum(3, [17235.0, 24385.0, 11975.0])
+    assert fit.assumptions == (SPIN_ALLOWED_ASSUMPTION,)
+    assert SPIN_ALLOWED_ASSUMPTION not in fit.warnings
+
+
+@pytest.mark.parametrize("labelled", [True, False], ids=["labelled", "spin-forbidden"])
+def test_labelled_or_spin_forbidden_fit_states_no_assumption(labelled: bool) -> None:
+    """The assumption is the unlabelled spin-allowed path's alone.
+
+    Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'assumptions'``.
+    """
+    bands = [17400.0, 24600.0, 37800.0]
+    if labelled:
+        fit = fit_spectrum(3, bands, band_labels=["4_T_2", "4_T_1", "4_T_1"])
+    else:
+        fit = fit_spectrum(3, bands, include_spin_forbidden=True)
+    assert fit.assumptions == ()
 
 
 @pytest.mark.parametrize(
@@ -819,11 +878,11 @@ def test_oracle_bands_do_not_disagree(
 
     Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'dq_nu1'``.
     Behavioural red (threshold mutated to ``max(rmse, 0.0)``): ``[d8-nu1-half-unit-off]``
-    fails with ``AssertionError: assert 'Dq estimators differ: nu1/10 = 850, least
-    squares = 850 cm^-1' is None``; ``[d3-exact]`` stays green (gap 0.0).
+    fails: the reason gains ``; Dq estimators differ: nu1/10 = 850, least squares =
+    850 cm^-1``; ``[d3-exact]`` stays green (gap 0.0).
     """
     bands = [e for e, _u in oracle_bands(d_count, dq, b, c, spin_allowed_only=True)]
     bands[0] += nu1_offset
     fit = fit_spectrum(d_count, bands, C=c)
     assert fit.dq_nu1 == bands[0] / 10.0
-    assert fit.dq_nu1_reason is None
+    assert fit.dq_nu1_reason == LOWEST_BAND_NU1

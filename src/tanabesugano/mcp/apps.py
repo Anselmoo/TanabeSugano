@@ -1546,6 +1546,7 @@ def _register_fit_plot(mcp: FastMCP) -> None:
                 "ground_term": str(fit.ground_term),
                 "spin_state": str(fit.spin_state),
                 "warnings": list(fit.warnings),
+                "assumptions": list(fit.assumptions),
                 "bands": bands,
             },
         )
@@ -2019,6 +2020,7 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             "grid_candidates": top_results,
             "minima": minima,
             "warnings": warnings,
+            "assumptions": list(fit.assumptions),
             "C_source": fit.c_provenance,
         }
         # NOTE: pass the card as app.to_json(), NOT as the PrefabApp object.
@@ -2271,6 +2273,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 "spin_state": fit.spin_state,
                 "rmse_cm1": fit.rmse_cm1,
                 "warnings": list(fit.warnings),
+                "assumptions": list(fit.assumptions),
                 "ratio_grid_best": ratio_grid_best,
             },
         )

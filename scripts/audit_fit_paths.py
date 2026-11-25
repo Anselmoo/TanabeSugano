@@ -1964,6 +1964,23 @@ def section_jce(rows: list[Row], jce_labels: list[str]) -> list[str]:
     lines.extend(f"- {entry}" for entry in jce_labels or ["none"])
     lines.extend(["", "Counts (rows neither R1 nor REF):", ""])
     lines.extend(verdict_counts([r for r in jce if not r.case.comparison]))
+    lines.extend(
+        [
+            "",
+            (
+                "Why each silent row is wrong (`JCE_SILENT_CAUSES`; the build fails on an "
+                "unclassified or stale row, and on an `identifiability` class the audit's "
+                "`app-sf` class does not confirm):"
+            ),
+            "",
+        ]
+    )
+    lines.extend(
+        md_table(
+            ["row", "cause", "reason"],
+            [[key, cause, reason] for key, (cause, reason) in JCE_SILENT_CAUSES.items()],
+        )
+    )
     lines.append("")
     lines.extend(md_table(columns, [row_cells(r, columns) for r in jce]))
     lines.append("")
@@ -2431,54 +2448,67 @@ def render_md(
     return "\n".join(lines)
 
 
-SilentCause = Literal["reference data", "model limit", "code"]
-_APP_SF = (
-    "app-default omits include_spin_forbidden, so the spin-forbidden line is fitted to a "
-    "spin-allowed level; the spin-allowed oracle minimum over the app's own grid box is the "
-    "app's point"
+SilentCause = Literal["identifiability", "model limit", "reference unverified", "code"]
+"""Why a silent JCE row is wrong. Matching the path's own oracle minimum only rules out
+"code" (the search reached the best point the path can reach); the cause is a separate
+claim. ``identifiability``: band positions alone cannot tell a spin-forbidden line from a
+spin-allowed band, derived from the ``app-sf`` class. ``model limit``: the reason names
+the physics the cubic, no-spin-orbit model lacks (prefix :data:`MODEL_LACKS`).
+``reference unverified``: the reason names what of the source has not been read."""
+MODEL_LACKS = "the model has no "
+_IDENT = (
+    "band positions alone cannot tell a spin-forbidden line from a spin-allowed band: the "
+    "app-default call omits include_spin_forbidden and labels, so the {line} line is fitted "
+    "as a spin-allowed band, and the result states that assumption (SPIN_ALLOWED_ASSUMPTION). "
+    "Not code: fit RMSE {rmse} = the spin-allowed oracle minimum over the app's own box"
 )
 JCE_SILENT_CAUSES: dict[str, tuple[SilentCause, str]] = {
     "Al2O3:V3+ | sf=True | fit_spectrum | truth": (
-        "model limit",
+        "reference unverified",
         (
-            "fit RMSE 87.8 = oracle global minimum 87.8 (Hungarian, all multiplicities, band-span "
-            "box, C at truth); the source does not reproduce its own nu1/nu2 (-2.8/-2.6 sigma), "
-            "640.2 at the reported point; ref 25 not checked"
+            "ref 25 not read: the printed (Dq, B, C) misses its own spin-allowed bands "
+            "(nu1/nu2 at -2.8/-2.6 sigma; RMSE 640.2 at the printed point). Not code: fit RMSE "
+            "87.8 = the oracle global minimum (Hungarian, all multiplicities, C at the printed "
+            "value)"
         ),
     ),
     "Al2O3:V3+ | sf=True | fit_spectrum | labelled-truth": (
-        "model limit",
+        "reference unverified",
         (
-            "fit RMSE 304.4 = labelled oracle minimum 304.4; one (Dq, B) at this C does not place "
-            "1E, 3T2 and 3T1 together (B +8.1 %); 640.2 at the reported point"
+            "ref 25 not read: the printed (Dq, B, C) misses its own spin-allowed bands, so no "
+            "single (Dq, B) at the printed C places 1E, 3T2 and 3T1 together (B +8.1 %). Not "
+            "code: fit RMSE 304.4 = the labelled oracle minimum"
         ),
     ),
     "Al2O3:V3+ | sf=True | reverse_app | app-default": (
-        "model limit",
-        f"{_APP_SF} (857.5 = 857.5)",
+        "identifiability",
+        _IDENT.format(line="1E (9748)", rmse="857.5"),
     ),
     "KZnClSO4·3H2O:Cr3+ | sf=True | fit_spectrum | labelled-truth": (
-        "model limit",
+        "reference unverified",
         (
-            "fit RMSE 275.2 = labelled oracle minimum 275.2; the published C/B does not place 2E "
-            "(+6.3 sigma at the reported point, ref 14 confirmed as printed), so B absorbs it "
-            "(-9.9 %)"
+            "ref 14 confirmed as printed (Dq 1724, B 724, C 2484) but its derivation not read: "
+            "the printed (B, C) puts its own 2E at +6.3 sigma in this model, so B absorbs it "
+            "(-9.9 %). Not code: fit RMSE 275.2 = the labelled oracle minimum"
         ),
     ),
     "KZnClSO4·3H2O:Cr3+ | sf=True | reverse_app | app-default": (
-        "model limit",
-        f"{_APP_SF} (875.7 = 875.7)",
+        "identifiability",
+        _IDENT.format(line="2E (11975)", rmse="875.7"),
     ),
     "K3Cr(CN)6 | sf=True | fit_spectrum | labelled-truth": (
         "model limit",
         (
-            "fit RMSE 94.3 = labelled oracle minimum 94.3, at the original's C = 2800; the 2E line "
-            "(an emission line in the original) sits at -4.6 sigma there, so B absorbs it (+13.7 %)"
+            f"{MODEL_LACKS}distinction between an emission line and an absorption maximum: "
+            "12820 is the 2E -> 4A2 emission line in the original (ref 29), near the zero-phonon "
+            "line, fitted with absorption maxima that lie above theirs; at the original's "
+            "C = 2800 it sits at -4.6 sigma and B absorbs it (+13.7 %). Not code: fit RMSE 94.3 "
+            "= the labelled oracle minimum"
         ),
     ),
     "Co(bipy)3Br2·6H2O | sf=True | reverse_app | app-default": (
-        "model limit",
-        f"{_APP_SF} (430.6 = 430.6)",
+        "identifiability",
+        _IDENT.format(line="2T1 (18500)", rmse="430.6"),
     ),
 }
 """Every JCE WRONG-SILENT row that is neither R1 nor REF, keyed by ``silent_key``: its cause
@@ -2512,14 +2542,13 @@ def check_silent_causes(rows: list[Row]) -> None:
     stale = sorted(set(JCE_SILENT_CAUSES) - set(silent))
     if stale:
         raise SystemExit(f"JCE_SILENT_CAUSES entries no longer silent: {stale}")
-    primary = read_primary()
-    for key, (cause, _evidence) in JCE_SILENT_CAUSES.items():
-        system = key.split(" | ", 1)[0]
-        unobserved = any(
-            s == system and r["status"] != "observed" for (s, _q), r in primary.items()
-        )
-        if cause != "code" and unobserved != (cause == "reference data"):
-            raise SystemExit(f"{key}: {cause!r} contradicts the primary file")
+    by_key = {silent_key(r): r for r in rows if silent_key(r) in JCE_SILENT_CAUSES}
+    for key, (cause, reason) in JCE_SILENT_CAUSES.items():
+        app_sf = "app-sf" in by_key[key].classes
+        if app_sf != (cause == "identifiability"):
+            raise SystemExit(f"{key}: {cause!r}, but app-sf {'fires' if app_sf else 'does not'}")
+        if cause == "model limit" and MODEL_LACKS not in reason:
+            raise SystemExit(f"{key}: a model limit must say what {MODEL_LACKS}...")
 
 
 def check_suffix_order() -> None:

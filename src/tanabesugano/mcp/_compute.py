@@ -418,7 +418,12 @@ class SpectrumFit:
     ions), reported beside the least-squares ``Dq``, never instead of it.
     ``dq_nu1_reason`` says why it is None, or, when it is set, that the two estimators
     differ by more than the larger of the RMSE and :func:`nu1_floor`. It is a report:
-    it adds no warning.
+    it adds no warning. Without labels nu1 is the lowest band, assumed spin-allowed, and
+    the reason says so.
+
+    ``assumptions`` lists what the fit took for granted rather than determined; today
+    only :data:`SPIN_ALLOWED_ASSUMPTION`, on unlabelled spin-allowed fits. Unlike
+    ``warnings`` it does not depend on the result.
 
     ``assignment`` is the pairing the fit made, one ``(observed, computed, level_uid)``
     per band in the caller's order: the injective :func:`assign_bands` result at the
@@ -448,6 +453,18 @@ class SpectrumFit:
     free_c_minima: tuple[tuple[float, float, float, float], ...] = ()
     dq_nu1: float | None = None
     dq_nu1_reason: str | None = None
+    assumptions: tuple[str, ...] = ()
+
+
+SPIN_ALLOWED_ASSUMPTION = (
+    "all bands are treated as spin-allowed; a spin-forbidden line (e.g. 2E/1E) in the input "
+    "would be misassigned; label the bands or pass include_spin_forbidden=True if one is present"
+)
+"""Stated on every unlabelled spin-allowed fit. Band positions alone cannot tell a
+spin-forbidden line from a spin-allowed band (a 2E below 4T2 is fitted as 4T2 with an
+RMSE no worse than a genuine spectrum's), and a refit with spin-forbidden levels always
+fits at least as well, so nothing here can detect it. It is an assumption, not a
+warning: it fires on every such call and carries no per-fit information."""
 
 
 def crossover_dq(
@@ -967,6 +984,8 @@ def fit_spectrum(
             dq_bounds=dq_bounds,
             b_bounds=b_bounds,
         )
+    if band_labels is None and not include_spin_forbidden:
+        fit = replace(fit, assumptions=(*fit.assumptions, SPIN_ALLOWED_ASSUMPTION))
     return _with_nu1(d_count, observed_peaks_cm1, fit, band_labels, include_spin_forbidden)
 
 
@@ -1000,11 +1019,14 @@ def _with_nu1(
         )
     else:
         nu1 = min(observed)
-    reason = None
+    notes = (
+        [] if band_labels is not None else [f"nu1 is the lowest band: {SPIN_ALLOWED_ASSUMPTION}"]
+    )
     if abs(10.0 * fit.Dq - nu1) > max(fit.rmse_cm1, nu1_floor(nu1)):
-        reason = (
+        notes.append(
             f"Dq estimators differ: nu1/10 = {nu1 / 10.0:.0f}, least squares = {fit.Dq:.0f} cm^-1"
         )
+    reason = "; ".join(notes) or None
     return replace(fit, dq_nu1=nu1 / 10.0, dq_nu1_reason=reason)
 
 

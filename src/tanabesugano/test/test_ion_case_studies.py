@@ -1561,8 +1561,9 @@ class TestJce2023Inverse:
         Dq is not observed. Grading their least-squares Dq against nu1/10 was tried and
         missed the a-priori bound on all three (1686.8, 1674.5 vs 1740; 816.0 vs 801) with
         rmse inside 2-sigma and the fit at the oracle's global minimum -- closed-form vs
-        least-squares disagreement, not a fitter finding. nu1/10 grades the nu1/10
-        estimator, which plan F's F3 reports.
+        least-squares disagreement, not a fitter finding. Nor is nu1/10 gradable: the
+        printed 801 (MgO:Ni2+) and F3's ``dq_nu1`` are both the same 8010 band over ten,
+        so comparing them tests nothing (provenance rule 1).
         """
         assert set(JCE_UNNORMALISED) == {
             "[Cr(H2O)6]3+ [allowed]",
@@ -1570,34 +1571,6 @@ class TestJce2023Inverse:
             "MgO:Ni2+ [allowed]",
         }
         assert {f"JCE2023 {k}" for k in JCE_UNNORMALISED} <= set(COMPARISON_ONLY)
-
-    def test_mgo_nu1_estimator_matches_the_original(self) -> None:
-        """MgO:Ni2+'s nu1/10 = 801 is graded against the F3 nu1/10 report, not the LS Dq.
-
-        Provenance: ref 24 (doi:10.1063/1.1732066, Section (d)) states the no-spin-orbit
-        model gives nu1/10 = 801 (``primary_sources.csv``, the MgO:Ni2+ Dq note); the printed
-        Dq 815 adds a predicted spin-orbit stabilisation and stays comparison-only. The
-        tolerance is zero: nu1/10 is a band over ten, so any other value means the wrong
-        band was taken for nu1. The least-squares Dq (816) is not graded here.
-
-        Observed red (``_with_nu1`` mutated to return the fit unchanged):
-        ``AssertionError: assert None == 801.0``.
-        """
-        (record,) = [r for r in jce_records() if r.record_id == "MgO:Ni2+ [allowed]"]
-        note = next(
-            p.note for p in primary_sources() if (p.system, p.quantity) == ("MgO:Ni2+", "Dq")
-        )
-        found = re.search(r"nu1/10 = (\d+)", note)
-        assert found is not None, note
-        printed = float(found.group(1))
-        fit = fit_spectrum(
-            record.d_count,
-            list(record.bands_cm1),
-            record.C,
-            spin_state=record.spin_state,
-            band_labels=list(record.labels),
-        )
-        assert fit.dq_nu1 == printed
 
     def test_errata_name_self_consistent_records(self) -> None:
         """An erratum only matters for a record the forward check would have admitted."""

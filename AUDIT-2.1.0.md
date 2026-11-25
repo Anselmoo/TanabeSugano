@@ -529,6 +529,18 @@ Counts (rows neither R1 nor REF):
 | reverse_app (app-default) | 6 | 0 | 0 | 4 | 5 | 3 | 18 |
 | reverse_app (app-regime) | 6 | 0 | 0 | 0 | 12 | 0 | 18 |
 
+Why each silent row is wrong (`JCE_SILENT_CAUSES`; the build fails on an unclassified or stale row, and on an `identifiability` class the audit's `app-sf` class does not confirm):
+
+| row | cause | reason |
+|---|---|---|
+| Al2O3:V3+ \| sf=True \| fit_spectrum \| truth | reference unverified | ref 25 not read: the printed (Dq, B, C) misses its own spin-allowed bands (nu1/nu2 at -2.8/-2.6 sigma; RMSE 640.2 at the printed point). Not code: fit RMSE 87.8 = the oracle global minimum (Hungarian, all multiplicities, C at the printed value) |
+| Al2O3:V3+ \| sf=True \| fit_spectrum \| labelled-truth | reference unverified | ref 25 not read: the printed (Dq, B, C) misses its own spin-allowed bands, so no single (Dq, B) at the printed C places 1E, 3T2 and 3T1 together (B +8.1 %). Not code: fit RMSE 304.4 = the labelled oracle minimum |
+| Al2O3:V3+ \| sf=True \| reverse_app \| app-default | identifiability | band positions alone cannot tell a spin-forbidden line from a spin-allowed band: the app-default call omits include_spin_forbidden and labels, so the 1E (9748) line is fitted as a spin-allowed band, and the result states that assumption (SPIN_ALLOWED_ASSUMPTION). Not code: fit RMSE 857.5 = the spin-allowed oracle minimum over the app's own box |
+| KZnClSO4·3H2O:Cr3+ \| sf=True \| fit_spectrum \| labelled-truth | reference unverified | ref 14 confirmed as printed (Dq 1724, B 724, C 2484) but its derivation not read: the printed (B, C) puts its own 2E at +6.3 sigma in this model, so B absorbs it (-9.9 %). Not code: fit RMSE 275.2 = the labelled oracle minimum |
+| KZnClSO4·3H2O:Cr3+ \| sf=True \| reverse_app \| app-default | identifiability | band positions alone cannot tell a spin-forbidden line from a spin-allowed band: the app-default call omits include_spin_forbidden and labels, so the 2E (11975) line is fitted as a spin-allowed band, and the result states that assumption (SPIN_ALLOWED_ASSUMPTION). Not code: fit RMSE 875.7 = the spin-allowed oracle minimum over the app's own box |
+| K3Cr(CN)6 \| sf=True \| fit_spectrum \| labelled-truth | model limit | the model has no distinction between an emission line and an absorption maximum: 12820 is the 2E -> 4A2 emission line in the original (ref 29), near the zero-phonon line, fitted with absorption maxima that lie above theirs; at the original's C = 2800 it sits at -4.6 sigma and B absorbs it (+13.7 %). Not code: fit RMSE 94.3 = the labelled oracle minimum |
+| Co(bipy)3Br2·6H2O \| sf=True \| reverse_app \| app-default | identifiability | band positions alone cannot tell a spin-forbidden line from a spin-allowed band: the app-default call omits include_spin_forbidden and labels, so the 2T1 (18500) line is fitted as a spin-allowed band, and the result states that assumption (SPIN_ALLOWED_ASSUMPTION). Not code: fit RMSE 430.6 = the spin-allowed oracle minimum over the app's own box |
+
 | system | d | spin | sf | geometry | path | c_mode | truth_Dq | truth_B | truth_C | fit_Dq | fit_B | dDq_pct | dB_pct | rmse_at_reported | rmse_at_fit | assignment_ok | approx | verdict | failure_classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | ZnO:Ni2+ | 2 | high | False | Td-equivalent | fit_spectrum | default | 405.0 | 795.7 | n/a | 515.1 | 790.1 | 27.2 | -0.7 | 882.8 | 0.0 | True | False | WRONG-WARNED-REF | unclassified |

@@ -307,3 +307,19 @@ def test_reverse_app_refuses_kk_peaks_declared_as_ev() -> None:
     result = call_reverse_fit(d_count=8, observed_peaks=[8.5, 13.8, 25.3], energy_unit="eV")
     data = extract_fit_data(result) or result.structured_content
     assert "kK" in data.get("error", "")
+
+
+def test_reverse_app_states_the_spin_allowed_assumption() -> None:
+    """The app-default call (no labels, no include_spin_forbidden) states its assumption.
+
+    The audit's app-default rows misassign a 2E/1E line exactly here; band positions alone
+    cannot tell (identifiability), so the result says what it assumed.
+
+    Observed red: ``KeyError: 'assumptions'``.
+    """
+    from tanabesugano.test.test_fit_recovery import SPIN_ALLOWED_ASSUMPTION
+
+    data = extract_fit_data(call_reverse_fit(d_count=8, observed_peaks=BANDS))
+    data = data or {}
+    assert data["assumptions"] == [SPIN_ALLOWED_ASSUMPTION]
+    assert SPIN_ALLOWED_ASSUMPTION not in data["warnings"]

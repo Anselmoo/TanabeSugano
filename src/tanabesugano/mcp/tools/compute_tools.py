@@ -216,6 +216,7 @@ def register(mcp: FastMCP) -> None:
             band_assignments=band_assignments,
             Dq_nu1=fit.dq_nu1,
             Dq_nu1_reason=fit.dq_nu1_reason,
+            assumptions=list(fit.assumptions),
         )
 
     @mcp.tool(

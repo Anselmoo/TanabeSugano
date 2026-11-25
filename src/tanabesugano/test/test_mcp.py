@@ -18,6 +18,7 @@ from tanabesugano.mcp._compute import compute_point  # noqa: E402
 from tanabesugano.mcp._compute import sweep_dq  # noqa: E402
 from tanabesugano.mcp.server import create_server  # noqa: E402
 from tanabesugano.test._loop import run_loop_free  # noqa: E402
+from tanabesugano.test.test_fit_recovery import SPIN_ALLOWED_ASSUMPTION  # noqa: E402
 
 
 # ─────────────────────────── core numeric tools ──────────────────────────
@@ -1201,9 +1202,26 @@ def test_ts_fit_spectrum_reports_both_d8_dq_estimators() -> None:
     assert data.Dq_estimator == "least_squares"
     assert data.fitted_Dq != data.Dq_nu1
     assert data.Dq_nu1_reason == (
-        f"Dq estimators differ: nu1/10 = 850, least squares = {data.fitted_Dq:.0f} cm^-1"
+        f"nu1 is the lowest band: {SPIN_ALLOWED_ASSUMPTION}; Dq estimators differ: "
+        f"nu1/10 = 850, least squares = {data.fitted_Dq:.0f} cm^-1"
     )
     assert not any("estimators" in w for w in data.warnings)
+
+
+def test_ts_fit_spectrum_states_the_spin_allowed_assumption() -> None:
+    """An unlabelled spin-allowed call carries the assumption in ``assumptions``, not warnings.
+
+    Observed red: ``AttributeError: 'Root' object has no attribute 'assumptions'``.
+    """
+    data = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": NI_BANDS}).data  # type: ignore[attr-defined]
+    assert data.assumptions == [SPIN_ALLOWED_ASSUMPTION]
+    assert SPIN_ALLOWED_ASSUMPTION not in data.warnings
+    labelled = {
+        "d_count": 8,
+        "observed_peaks_cm1": NI_BANDS,
+        "band_labels": ["3_T_2", "3_T_1", "3_T_1"],
+    }
+    assert _call("ts_fit_spectrum", labelled).data.assumptions == []  # type: ignore[attr-defined]
 
 
 def test_ts_fit_spectrum_dq_nu1_none_off_d3_d8() -> None:

@@ -159,6 +159,14 @@ class FitResult(BaseModel):
         default_factory=list,
         description="Per observed band, in the order given: the level the fit assigned it.",
     )
+    assumptions: list[str] = Field(
+        default_factory=list,
+        description=(
+            "What the fit took for granted rather than determined, e.g. that every band is "
+            "spin-allowed when no band is labelled and include_spin_forbidden is False. Not "
+            "a warning: it does not depend on the result."
+        ),
+    )
     Dq_estimator: Literal["least_squares"] = Field(
         default="least_squares",
         description="How fitted_Dq was obtained: least squares over every fitted band.",
@@ -167,8 +175,9 @@ class FitResult(BaseModel):
         default=None,
         description=(
             "d3 and d8 only: nu1/10, the other Dq estimator (nu1 = 10Dq exactly for these "
-            "ions), reported beside fitted_Dq, never instead of it. None where nu1 is not "
-            "a band; Dq_nu1_reason says why."
+            "ions), reported beside fitted_Dq, never instead of it. nu1 is the band labelled "
+            "4_T_2 / 3_T_2, or without labels the lowest band, assumed spin-allowed. None "
+            "where nu1 is not a band; Dq_nu1_reason says why."
         ),
     )
     Dq_nu1_reason: str | None = Field(
