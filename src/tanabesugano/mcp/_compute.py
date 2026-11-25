@@ -409,7 +409,7 @@ class SpectrumFit:
     reported point is the best-objective one, a display value, not a result.
     ``Dq`` and ``B`` are also ``undetermined`` when C was held at its default on
     unlabelled bands that C moves, and a fit with C free reaches a distinct (Dq, B)
-    as well, or fits more than :data:`BAND_RESOLUTION_CM1` better: the held point is
+    that fits better, or fits more than :data:`BAND_RESOLUTION_CM1` better: the held point is
     then one choice of C among several. ``free_c_minima`` holds those free-C minima,
     lowest objective first; the returned point is still the held one.
 
@@ -960,7 +960,11 @@ def _held_c_check(
 
     Runs only for a held default C on three or more unlabelled bands that C moves
     (the caller checks C and labels). The refit's own warnings are discarded; its
-    minima are compared with the held objective. Either outcome keeps the held
+    minima are compared with the held objective. A free-C minimum counts only if it
+    fits better than the held one by more than :data:`TIE_RMSE_CM1` (a distinct
+    (Dq, B)), or by more than :data:`BAND_RESOLUTION_CM1` (any point): a free-C
+    minimum merely *near* an exact held fit says only that unlabelled bands cannot
+    pin C, which it fired on for 52 of 130 exact answers at the default C. Either outcome keeps the held
     point and marks Dq and B undetermined: the fix reports the C-misspecification,
     it does not remove it.
     """
@@ -995,7 +999,7 @@ def _held_c_check(
         tied = [
             m
             for m in alts
-            if m[3] <= held + BAND_RESOLUTION_CM1
+            if m[3] < held - TIE_RMSE_CM1
             and (
                 abs(m[0] / fit.Dq - 1) > MINIMA_DISTINCT[0]
                 or abs(m[1] / fit.B - 1) > MINIMA_DISTINCT[1]
@@ -1007,9 +1011,9 @@ def _held_c_check(
         note = (
             "Dq and B undetermined: C is not determined by these bands; holding it at its "
             f"default {fit.C:.0f} cm^-1 gives this fit, but a fitted C = {alt[2]:.0f} gives "
-            f"Dq = {alt[0]:.0f}, B = {alt[1]:.0f} cm^-1 within {BAND_RESOLUTION_CM1:.0f} cm^-1 "
-            f"(RMSE {alt[3]:.0f} vs {held:.0f}); Dq and B depend on the assumed C -- supply C "
-            "or label the bands to constrain it"
+            f"Dq = {alt[0]:.0f}, B = {alt[1]:.0f} cm^-1 and fits these bands at least as "
+            f"well (RMSE {alt[3]:.1f} vs {held:.1f} cm^-1); Dq and B depend on the assumed C -- "
+            "supply C or label the bands to constrain it"
         )
     return replace(
         fit,

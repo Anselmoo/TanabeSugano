@@ -2289,8 +2289,9 @@ def section_f1_status(rows: list[Row]) -> list[str]:
         "",
         (
             "With C left at its default on three or more unlabelled bands that C moves, "
-            "`fit_spectrum` refits once with C free. If a free-C minimum ties the held fit at "
-            "a distinct (Dq, B), or fits more than 100 cm^-1 better, Dq and B are reported "
+            "`fit_spectrum` refits once with C free. If a free-C minimum at a distinct (Dq, B) "
+            "fits better than the held fit (by more than 1 cm^-1), or any free-C minimum fits "
+            "more than 100 cm^-1 better, Dq and B are reported "
             "`undetermined` and the free-C minima are listed. The returned point does not "
             "change: this reports the C-misspecification, it does not remove it."
         ),

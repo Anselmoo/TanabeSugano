@@ -590,6 +590,22 @@ def test_held_default_c_inconsistent_is_undetermined() -> None:
     assert min(m[3] for m in fit.free_c_minima) < 1.0
 
 
+def test_exact_answer_at_the_default_c_stays_fitted() -> None:
+    """Negative control: true C equals the default, the held fit is exact, so nothing fires.
+
+    Look-back on the F1 fix (mechanism-first, 9474397): the tie branch marked 52 of
+    130 such exact answers undetermined, because a free-C local minimum within
+    100 cm^-1 of a held RMSE near 0 counted as a tie. d7 low-spin, truth
+    (2263.2, 728.2, default C 4499): held RMSE 0.005, free-C alternative at 12.6.
+    Observed red: ``assert 'undetermined' == 'fitted'``.
+    """
+    c0 = float(DEFAULTS[7]["default_C"])
+    bands = [e for e, _u in oracle_bands(7, 2263.2, 728.2, c0, spin_allowed_only=True)[:3]]
+    fit = fit_spectrum(7, bands, spin_state="low")
+    assert fit.dq_provenance == "fitted"
+    assert fit.free_c_minima == ()
+
+
 def _off_trigger_cases() -> list[tuple[str, int, list[float], dict[str, object]]]:
     d6 = oracle_bands(6, *D6_LS_TIE, spin_allowed_only=True)[:3]
     energies = [e for e, _u in d6]

@@ -8,10 +8,10 @@ Bands 19070.0, 22710.0, 24500.0 cm^-1, `include_spin_forbidden=True`. Reference 
 
 | run | Dq | B | C | rmse | r2 | warnings / raised |
 |---|---|---|---|---|---|---|
-| C = default | 933.0 | 387.6 | 3850.0 | 23.2 | 0.9999 | Dq and B undetermined: 2 minima fit these bands to within 100 cm^-1 of each other (the band resolution) but disagree (Dq 933-1940, B 355-388 cm^-1); the reported value is one of them, for display \| the low-spin regime also fits these bands: Dq = 2085, B = 234 cm^-1, ground term 2_T_2, RMSE 96 cm^-1 (this fit: 23); the bands alone do not decide the spin state \| Dq and B undetermined: C is not determined by these bands; holding it at its default 3850 cm^-1 gives this fit, but a fitted C = 2346 gives Dq = 551, B = 653 cm^-1 within 100 cm^-1 (RMSE 0 vs 23); Dq and B depend on the assumed C -- supply C or label the bands to constrain it |
+| C = default | 933.0 | 387.6 | 3850.0 | 23.2 | 0.9999 | Dq and B undetermined: 2 minima fit these bands to within 100 cm^-1 of each other (the band resolution) but disagree (Dq 933-1940, B 355-388 cm^-1); the reported value is one of them, for display \| the low-spin regime also fits these bands: Dq = 2085, B = 234 cm^-1, ground term 2_T_2, RMSE 96 cm^-1 (this fit: 23); the bands alone do not decide the spin state \| Dq and B undetermined: C is not determined by these bands; holding it at its default 3850 cm^-1 gives this fit, but a fitted C = 2346 gives Dq = 551, B = 653 cm^-1 and fits these bands at least as well (RMSE 0.0 vs 23.2 cm^-1); Dq and B depend on the assumed C -- supply C or label the bands to constrain it |
 | C = reference | 760.1 | 828.4 | 3242.8 | 1.7 | 1.0000 | Dq and B undetermined: 6 minima fit these bands to within 100 cm^-1 of each other (the band resolution) but disagree (Dq 566-1979, B 210-828 cm^-1); the reported value is one of them, for display \| the low-spin regime also fits these bands: Dq = 1999, B = 320 cm^-1, ground term 2_T_2, RMSE 24 cm^-1 (this fit: 2); the bands alone do not decide the spin state |
 | reference-blind 25 x 5 start grid (Dq x B), C = reference | 760.1 | 828.4 | 3242.8 | 1.7 | 1.0000 | Dq and B undetermined: 8 minima fit these bands to within 100 cm^-1 of each other (the band resolution) but disagree (Dq 566-1979, B 210-828 cm^-1); the reported value is one of them, for display \| the low-spin regime also fits these bands: Dq = 1973, B = 445 cm^-1, ground term 2_T_2, RMSE 74 cm^-1 (this fit: 2); the bands alone do not decide the spin state |
-| reference-blind 25 x 5 start grid (Dq x B), C = default | 1991.3 | 308.9 | 3850.0 | 0.8 | 1.0000 | Dq and B undetermined: 3 minima fit these bands to within 100 cm^-1 of each other (the band resolution) but disagree (Dq 933-1991, B 309-388 cm^-1); the reported value is one of them, for display \| the low-spin regime also fits these bands: Dq = 2153, B = 364 cm^-1, ground term 2_T_2, RMSE 23 cm^-1 (this fit: 1); the bands alone do not decide the spin state \| Dq and B undetermined: C is not determined by these bands; holding it at its default 3850 cm^-1 gives this fit, but a fitted C = 2139 gives Dq = 1149, B = 433 cm^-1 within 100 cm^-1 (RMSE 0 vs 1); Dq and B depend on the assumed C -- supply C or label the bands to constrain it |
+| reference-blind 25 x 5 start grid (Dq x B), C = default | 1991.3 | 308.9 | 3850.0 | 0.8 | 1.0000 | Dq and B undetermined: 3 minima fit these bands to within 100 cm^-1 of each other (the band resolution) but disagree (Dq 933-1991, B 309-388 cm^-1); the reported value is one of them, for display \| the low-spin regime also fits these bands: Dq = 2153, B = 364 cm^-1, ground term 2_T_2, RMSE 23 cm^-1 (this fit: 1); the bands alone do not decide the spin state |
 | illustration (hand-picked): seed (650, 750), dq_bounds (130, 3250), C = reference | 760.1 | 828.4 | 3242.8 | 1.7 | 1.0000 | Dq and B undetermined: 9 minima fit these bands to within 100 cm^-1 of each other (the band resolution) but disagree (Dq 566-1979, B 219-828 cm^-1); the reported value is one of them, for display \| the low-spin regime also fits these bands: Dq = 1973, B = 445 cm^-1, ground term 2_T_2, RMSE 74 cm^-1 (this fit: 2); the bands alone do not decide the spin state |
 
 The claim that the right minimum exists rests on the oracle, not on this reference: over the 9 synthetic d5 high-spin spin-forbidden fit_spectrum runs with C = truth, the objective at the truth is at most 0.0 cm^-1, and in 0 of them fit_spectrum returns a point whose objective is more than 1 cm^-1 higher (or raises). The minimum is there and fit_spectrum reaches it in every run.
@@ -206,11 +206,11 @@ Headline counts (synthetic runs):
 | 4 | low | False | ratio_app | app-regime | 2821.0 | 723.8 | 2895.2 | 2940.4 | 214.9 | 4.2 | -70.3 | undetermined;undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | reverse_app | app-default | 3273.8 | 723.8 | 3474.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | ratio_app | app-default | 3273.8 | 723.8 | 3474.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
-| 4 | low | False | fit_spectrum | default | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined;undetermined | False | WRONG-WARNED | c;e |
+| 4 | low | False | fit_spectrum | default | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined | False | WRONG-WARNED | c;e |
 | 4 | low | False | reverse_app | app-default | 4325.2 | 1109.8 | 4439.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
-| 4 | low | False | reverse_app | app-regime | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined;undetermined | False | WRONG-WARNED | c |
+| 4 | low | False | reverse_app | app-regime | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | ratio_app | app-default | 4325.2 | 1109.8 | 4439.2 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
-| 4 | low | False | ratio_app | app-regime | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined;undetermined | False | WRONG-WARNED | c |
+| 4 | low | False | ratio_app | app-regime | 4325.2 | 1109.8 | 4439.2 | 4210.6 | 900.0 | -2.6 | -18.9 | undetermined | False | WRONG-WARNED | c |
 | 4 | low | False | fit_spectrum | default | 5019.6 | 1109.8 | 5327.0 | 4940.9 | 320.9 | -1.6 | -71.1 | undetermined;undetermined | False | WRONG-WARNED | c;e |
 | 4 | low | False | reverse_app | app-default | 5019.6 | 1109.8 | 5327.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs |
 | 4 | low | False | reverse_app | app-regime | 5019.6 | 1109.8 | 5327.0 | 4940.9 | 320.9 | -1.6 | -71.1 | undetermined;undetermined | False | WRONG-WARNED | c |
@@ -261,9 +261,9 @@ Headline counts (synthetic runs):
 | 5 | high | True | fit_spectrum | default | 1785.4 | 1376.0 | 5504.0 | 236.3 | 498.7 | -86.8 | -63.8 | undetermined;other-regime;undetermined | False | WRONG-WARNED | a;c;e |
 | 5 | high | True | reverse_app | app-default | 1785.4 | 1376.0 | 5504.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
 | 5 | high | True | reverse_app | app-regime | 1785.4 | 1376.0 | 5504.0 | 236.3 | 498.7 | -86.8 | -63.8 | undetermined;other-regime;undetermined | n/a | WRONG-WARNED | unclassified |
-| 5 | high | True | fit_spectrum | default | 2055.7 | 1376.0 | 6604.8 | 498.6 | 465.2 | -75.7 | -66.2 | undetermined;other-regime;undetermined | False | WRONG-WARNED | a;c;e |
+| 5 | high | True | fit_spectrum | default | 2055.7 | 1376.0 | 6604.8 | 498.6 | 465.2 | -75.7 | -66.2 | undetermined;other-regime | False | WRONG-WARNED | a;c;e |
 | 5 | high | True | reverse_app | app-default | 2055.7 | 1376.0 | 6604.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf |
-| 5 | high | True | reverse_app | app-regime | 2055.7 | 1376.0 | 6604.8 | 498.6 | 465.2 | -75.7 | -66.2 | undetermined;other-regime;undetermined | n/a | WRONG-WARNED | unclassified |
+| 5 | high | True | reverse_app | app-regime | 2055.7 | 1376.0 | 6604.8 | 498.6 | 465.2 | -75.7 | -66.2 | undetermined;other-regime | n/a | WRONG-WARNED | unclassified |
 | 5 | high | True | fit_spectrum | default | 1590.1 | 645.0 | 2580.0 | 2266.4 | 599.1 | 42.5 | -7.1 | undetermined;other-regime;undetermined | False | WRONG-WARNED | a;c;d;e |
 | 5 | high | True | reverse_app | app-default | 1590.1 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-sf;d |
 | 5 | high | True | reverse_app | app-regime | 1590.1 | 645.0 | 2580.0 | 2266.4 | 599.1 | 42.5 | -7.1 | undetermined;other-regime;undetermined | n/a | WRONG-WARNED | d |
@@ -324,9 +324,9 @@ Headline counts (synthetic runs):
 | 5 | low | True | fit_spectrum | default | 5713.4 | 1376.0 | 5504.0 | 2883.3 | 436.0 | -49.5 | -68.3 | undetermined;undetermined | False | WRONG-WARNED | a;c;e |
 | 5 | low | True | reverse_app | app-default | 5713.4 | 1376.0 | 5504.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
 | 5 | low | True | reverse_app | app-regime | 5713.4 | 1376.0 | 5504.0 | 2883.3 | 436.0 | -49.5 | -68.3 | undetermined;undetermined | False | WRONG-WARNED | c |
-| 5 | low | True | fit_spectrum | default | 6578.1 | 1376.0 | 6604.8 | 3273.5 | 418.2 | -50.2 | -69.6 | undetermined;undetermined | False | WRONG-WARNED | a;c;e |
+| 5 | low | True | fit_spectrum | default | 6578.1 | 1376.0 | 6604.8 | 3273.5 | 418.2 | -50.2 | -69.6 | undetermined | False | WRONG-WARNED | a;c;e |
 | 5 | low | True | reverse_app | app-default | 6578.1 | 1376.0 | 6604.8 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf |
-| 5 | low | True | reverse_app | app-regime | 6578.1 | 1376.0 | 6604.8 | 3273.5 | 418.2 | -50.2 | -69.6 | undetermined;undetermined | False | WRONG-WARNED | c |
+| 5 | low | True | reverse_app | app-regime | 6578.1 | 1376.0 | 6604.8 | 3273.5 | 418.2 | -50.2 | -69.6 | undetermined | False | WRONG-WARNED | c |
 | 5 | low | True | fit_spectrum | default | 1757.4 | 645.0 | 2580.0 | 2043.8 | 261.9 | 16.3 | -59.4 | residual;undetermined;undetermined | False | WRONG-WARNED | a;c;d;e |
 | 5 | low | True | reverse_app | app-default | 1757.4 | 645.0 | 2580.0 | n/a | n/a | n/a | n/a |  | n/a | RAISED | app-hs;app-sf;d |
 | 5 | low | True | reverse_app | app-regime | 1757.4 | 645.0 | 2580.0 | 2043.8 | 261.9 | 16.3 | -59.4 | residual;undetermined;undetermined | False | WRONG-WARNED | c;d |
@@ -914,7 +914,7 @@ Live: 109 failing runs carry the tag, 12 of them R1 rows that Section 6 leaves o
 
 ## 8. Held default C (plan F, F1)
 
-With C left at its default on three or more unlabelled bands that C moves, `fit_spectrum` refits once with C free. If a free-C minimum ties the held fit at a distinct (Dq, B), or fits more than 100 cm^-1 better, Dq and B are reported `undetermined` and the free-C minima are listed. The returned point does not change: this reports the C-misspecification, it does not remove it.
+With C left at its default on three or more unlabelled bands that C moves, `fit_spectrum` refits once with C free. If a free-C minimum at a distinct (Dq, B) fits better than the held fit (by more than 1 cm^-1), or any free-C minimum fits more than 100 cm^-1 better, Dq and B are reported `undetermined` and the free-C minima are listed. The returned point does not change: this reports the C-misspecification, it does not remove it.
 
 | count | silent | of |
 |---|---|---|
