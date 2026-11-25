@@ -65,11 +65,14 @@ import sys
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Literal
 from typing import get_args
 
 import numpy as np
 import pytest
+
+from scipy.optimize import fsolve
 
 from tanabesugano.mcp._compute import closed_form_dq_b
 from tanabesugano.mcp._compute import compute_point
@@ -78,6 +81,12 @@ from tanabesugano.mcp._compute import reference_ground_term
 from tanabesugano.mcp._compute import transition_candidates
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.test._determinant_oracle import relative_term_levels
+from tanabesugano.test._oracle_search import oracle_global_min
+from tanabesugano.test._oracle_search import oracle_rmse
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 PublishedQuantity = Literal["Dq", "10Dq", "Delta_o", "unknown"]
@@ -667,12 +676,18 @@ class TestVanadiumIII:
         nu1 = candidates[0][0]
         assert abs(nu1 / 10.0 - fx.published_Dq_cm1) > 100.0, "nu1/10 must NOT recover Dq for d2"
 
-    def test_fit_recovers_literature_parameters(self) -> None:
+    def test_fit_lands_in_the_t1g_ground_term(self) -> None:
+        """The fit runs in the 3T1g regime; its (Dq, B) are no longer graded.
+
+        Plan F, F4: the published 1860/665 are Figgis & Hitchman's values read off a TS
+        diagram (graphical), which have no a-priori tolerance. This test used to assert
+        them at 2 % / 5 % (measured 1854.1, 649.4); the distance is now reported by
+        ``test_comparison_only_reports_delta``.
+        """
         fx = self.FIXTURE
+        assert graded_quantities(fx) == ()
         fit = fit_spectrum(2, self.BANDS)
         assert fit.ground_term == "3_T_1"
-        assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1)  # measured 1854.1
-        assert fx.tol_B.approx(fx.published_B_cm1) == fit.B  # measured 649.4
 
     def test_exactly_determined_fit_is_flagged(self) -> None:
         """2 bands and 2 free parameters => rmse == 0 carries NO information.
@@ -698,16 +713,19 @@ class TestChromiumIII:
 
     @pytest.mark.parametrize("fx", CHROMIUM_III_CASES, ids=_ids(CHROMIUM_III_CASES))
     def test_closed_form_reproduces_literature(self, fx: IonFixture) -> None:
+        """B only where it is graded: [Cr(NH3)6]3+'s B is graphical (COMPARISON_ONLY)."""
         dq, b = closed_form_dq_b(fx.d_count, list(fx.bands_cm1))
         assert dq == fx.closed_form_tol_Dq.approx(fx.published_Dq_cm1), fx.label
-        assert b == fx.closed_form_tol_B.approx(fx.published_B_cm1), fx.label
+        if "B" in graded_quantities(fx):
+            assert b == fx.closed_form_tol_B.approx(fx.published_B_cm1), fx.label
 
     @pytest.mark.parametrize("fx", CHROMIUM_III_CASES, ids=_ids(CHROMIUM_III_CASES))
     def test_least_squares_agrees_with_literature(self, fx: IonFixture) -> None:
         fit = fit_spectrum(fx.d_count, list(fx.bands_cm1))
         assert fit.ground_term == "4_A_2", fx.label
         assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1), f"{fx.label} Dq={fit.Dq}"
-        assert fx.tol_B.approx(fx.published_B_cm1) == fit.B, f"{fx.label} B={fit.B}"
+        if "B" in graded_quantities(fx):
+            assert fx.tol_B.approx(fx.published_B_cm1) == fit.B, f"{fx.label} B={fit.B}"
         assert fit.rmse_cm1 < fx.max_rmse_cm1, f"{fx.label} rmse={fit.rmse_cm1}"
 
     def test_spectrochemical_series_ordering(self) -> None:
@@ -1215,6 +1233,115 @@ def _jce_inverse() -> tuple[tuple[IonFixture, ...], dict[str, str]]:
 
 JCE_FIXTURES, JCE_UNNORMALISED = _jce_inverse()
 
+COMPARISON_SOURCES: dict[str, tuple[str, str]] = {
+    "[V(H2O)6]3+": ("[V(H2O)6]3+", "Dq"),
+    "[Cr(NH3)6]3+": ("[Cr(NH3)6]3+", "B"),
+    "JCE2023 [Cr(H2O)6]3+ [allowed]": ("[Cr(H2O)6]3+", "Dq"),
+    "JCE2023 [Cr(H2O)6]3+ [all]": ("[Cr(H2O)6]3+", "Dq"),
+    "JCE2023 MgO:Ni2+ [allowed]": ("MgO:Ni2+", "Dq"),
+    "JCE2023 CoCl2 [allowed]": ("CoCl2", "Dq"),
+    "JCE2023 KCoF3 [allowed]": ("KCoF3", "Dq"),
+    "JCE2023 CoSiF6·6H2O [allowed]": ("CoSiF6·6H2O", "Dq"),
+    "JCE2023 [Ni(H2O)6]2+ [allowed]": ("[Ni(H2O)6]2+", "Dq"),
+}
+"""Fixture or record id -> the ``primary_sources.csv`` row that says why it is comparison-only.
+
+Declared, not derived: ``test_no_graded_fixture_rests_on_a_graphical_value`` derives the
+graphical and assumed values from the data and requires each to be declared here, and the
+grading tests read only this. The keys hold in a wheel, where the CSV is absent."""
+
+
+def _comparison_reason(system: str, quantity: str) -> str:
+    if not JCE_DIR.exists():
+        return f"{system} {quantity}: see audit/jce2023/primary_sources.csv (not shipped)"
+    row = next(p for p in primary_sources() if (p.system, p.quantity) == (system, quantity))
+    return f"{system} {quantity} {row.status}: {row.note}"
+
+
+COMPARISON_ONLY: dict[str, str] = {
+    key: _comparison_reason(*where) for key, where in COMPARISON_SOURCES.items()
+}
+"""Fixture or record id -> why its printed (Dq, B) are comparison-only, from the primary note.
+
+A comparison-only id is never graded on its printed values; it reports its distance
+(``test_comparison_only_reports_delta``). A literature fixture whose published Dq already
+is nu1/10 of its own observed band keeps that Dq graded ([Cr(NH3)6]3+, 2155); its B is not.
+[Ni(NH3)6]2+ (F1b) has no JCE record -- Table 2 prints no C/B for it -- so its F1b coverage
+is the search test alone."""
+
+
+def graded_quantities(fx: IonFixture) -> tuple[str, ...]:
+    """Which of (Dq, B) a grading test may assert against this fixture's published values."""
+    if fx.label not in COMPARISON_ONLY:
+        return ("Dq", "B")
+    return ("Dq",) if nu1_normalised(fx) else ()
+
+
+F1B_SYSTEMS = (
+    "[Cr(H2O)6]3+",
+    "CoCl2",
+    "KCoF3",
+    "CoSiF6·6H2O",
+    "[Ni(H2O)6]2+",
+    "[Ni(NH3)6]2+",
+)
+"""The six JCE default-C rows the fit-path audit left silent (plan F, F1b): C does not move
+their spin-allowed levels, the bands are assigned right, and the published point fits worse
+than the fit does (F1b-mechanism.md)."""
+
+
+def printed_allowed_bands(system: str) -> tuple[int, list[float]]:
+    """d-count and the spin-allowed Table 1 bands of a system, as JCE printed them."""
+    rows = [b for b in _read_jce_csv("jce2023_table1_bands.csv") if b["system"] == system]
+    d_count = int(rows[0]["block"][1])
+    mult = str(HUND_MULTIPLICITY[d_count])
+    return d_count, sorted(float(b["wavenumber_cm1"]) for b in rows if b["multiplicity"] == mult)
+
+
+def f1b_box(bands: list[float]) -> tuple[tuple[float, float], tuple[float, float]]:
+    """The (Dq, B) box both the fit and the oracle search use: the default band span of Dq
+    (0.5 % to 25 % of the highest band) and the default B bounds.
+
+    Passed to the fit explicitly so the two search the same box. For these six band sets
+    the band span contains the default seed span, so it is the box the audit rows used.
+    """
+    top = max(bands)
+    return (0.005 * top, 0.25 * top), (200.0, 1500.0)
+
+
+def graded_fixtures() -> tuple[IonFixture, ...]:
+    """Every fixture graded against a published (Dq, B): the literature cases and JCE."""
+    return (*(fx for fx in FIXTURES if fx.expected_outcome != "raises"), *JCE_FIXTURES)
+
+
+def nu1_normalised(fx: IonFixture) -> bool:
+    """Is a d3/d8 fixture's Dq exactly nu1/10 of its own nu1 band?"""
+    if fx.d_count not in CLOSED_FORM_CONFIGS or fx.published_Dq_cm1 is None:
+        return False
+    nu1 = min(fx.bands_cm1)
+    if fx.band_labels is not None and NU1_LABEL[fx.d_count] in fx.band_labels:
+        nu1 = fx.bands_cm1[fx.band_labels.index(NU1_LABEL[fx.d_count])]
+    return abs(fx.published_Dq_cm1 - nu1 / 10.0) <= 0.05
+
+
+def fixture_primary_system(fx: IonFixture) -> str | None:
+    """The JCE system whose original this fixture's values come from, if any.
+
+    A JCE fixture names it. A literature fixture traces to one only when its label is a
+    JCE system AND it carries every spin-allowed Table 1 band of that system (to 1 cm^-1):
+    a label alone would tie the textbook [Cr(H2O)6]3+ (17000/24000/37000) to TS 1954.
+    """
+    if fx.label.startswith("JCE2023 "):
+        return fx.label.removeprefix("JCE2023 ").rsplit(" [", 1)[0]
+    rows = [b for b in _read_jce_csv("jce2023_table1_bands.csv") if b["system"] == fx.label]
+    if not rows:
+        return None
+    _d, allowed = printed_allowed_bands(fx.label)
+    if all(any(abs(a - b) <= 1.0 for b in fx.bands_cm1) for a in allowed):
+        return fx.label
+    return None
+
+
 JCE_FINDINGS: dict[str, str] = {}
 """Inverse records that miss their a-priori bound: ``"E4-F<n>: <what, by how much>"``.
 
@@ -1235,6 +1362,52 @@ class TestJce2023Oracle:
         jac = oracle_jacobian(d_count, 1700.0, 700.0, 2800.0, ((key, 0),))
         assert jac[0][0] == pytest.approx(10.0, abs=1e-6)
         assert jac[0][1] == pytest.approx(0.0, abs=1e-6)
+
+    @pytest.mark.parametrize("system", F1B_SYSTEMS)
+    def test_f1b_search_reaches_oracle_minimum(self, system: str) -> None:
+        """The fitter's point is as good as the oracle's global minimum over the same box.
+
+        F1b: six JCE band sets whose published point fits worse than our fit. Before
+        calling that a reference problem, the search itself is checked: a brute grid
+        (1 % steps) over the fit's own (Dq, B) box, Hungarian assignment on the oracle's
+        levels, least-squares polish -- no package code. Green on arrival: this is
+        search coverage, not the red of a fix.
+
+        Sensitivity (2937721): with ``fit_spectrum`` replaced by one returning the
+        published point, KCoF3 fails with ``KCoF3: fit 582.9 > oracle minimum 41.1 + 1``.
+        """
+        d_count, bands = printed_allowed_bands(system)
+        box = f1b_box(bands)
+        fit = fit_spectrum(
+            d_count, bands, None, spin_state="high", dq_bounds=box[0], b_bounds=box[1]
+        )
+        mult = HUND_MULTIPLICITY[d_count]
+        at_fit = oracle_rmse(d_count, bands, fit.Dq, fit.B, fit.C, mult)
+        best = oracle_global_min(d_count, bands, fit.C, box[0], box[1], mult)
+        assert at_fit <= best.rmse_cm1 + 1.0, (
+            f"{system}: fit {at_fit:.1f} > oracle minimum {best.rmse_cm1:.1f} + 1 "
+            f"(at Dq {best.Dq:.1f}, B {best.B:.1f})"
+        )
+
+    def test_zno_td_no_so_value(self) -> None:
+        """ZnO:Ni2+ (Td d8): the no-spin-orbit reference is (515.13, 790.09), oracle only.
+
+        4400 -> 3T2 and 15500 -> 3T1(P) of d8 at -Dq, solved exactly; triplet levels of
+        d8 do not depend on C. The published 405/795 assume ~900 cm^-1 of spin-orbit
+        stabilisation and stay comparison-only. Green on arrival: it pins the reference
+        a Td fit is graded against later.
+        """
+
+        def residual(x: np.ndarray) -> list[float]:
+            levels = relative_term_levels(8, -x[0], x[1], 4.36 * x[1])
+            return [min(levels["3_T_2"]) - 4400.0, sorted(levels["3_T_1"])[1] - 15500.0]
+
+        dq, b = fsolve(residual, [405.0, 795.0])
+        assert dq == pytest.approx(515.13, abs=0.05)
+        assert b == pytest.approx(790.09, abs=0.05)
+        status = {(p.system, p.quantity): p.status for p in primary_sources()}
+        assert status[("ZnO:Ni2+", "Dq")] == "assumed"
+        assert status[("ZnO:Ni2+", "B")] == "assumed"
 
 
 @JCE_SKIP
@@ -1290,6 +1463,35 @@ class TestJce2023Source:
                 bad.append(f"{where}: no value, but status {row.status!r}")
         keys = [(r.system, r.quantity) for r in rows]
         bad.extend(f"{s} {q}: duplicated" for s, q in set(keys) if keys.count((s, q)) > 1)
+        assert not bad, "\n".join(bad)
+
+    def test_no_graded_fixture_rests_on_a_graphical_value(self) -> None:
+        """A graded Dq or B is observed, or (d3/d8 Dq) nu1/10 of the observed band.
+
+        A value its original read off a diagram (``graphical``) or derived under an
+        assumption (``assumed``) has no a-priori tolerance, so it is comparison-only:
+        the fixture must be in COMPARISON_ONLY. When a source's Dq is not observed, its
+        B came from the same derivation and is not either.
+
+        Observed red (2937721, B rows added, COMPARISON_ONLY empty): ``[V(H2O)6]3+ Dq:
+        graphical``, ``[V(H2O)6]3+ B: graphical`` and ``[Cr(NH3)6]3+ B: graphical``.
+        """
+        primary = {(p.system, p.quantity): p for p in primary_sources()}
+        bad: list[str] = []
+        for fx in graded_fixtures():
+            system = fixture_primary_system(fx)
+            if system is None or fx.label in COMPARISON_ONLY:
+                continue
+            dq_src = primary.get((system, "Dq"))
+            for quantity in ("Dq", "B"):
+                src = primary.get((system, quantity))
+                if quantity == "B" and (src is None or src.status == "observed"):
+                    src = dq_src
+                if src is None or src.status == "observed":
+                    continue
+                if quantity == "Dq" and nu1_normalised(fx):
+                    continue
+                bad.append(f"{fx.label} {quantity}: {src.status} ({src.note})")
         assert not bad, "\n".join(bad)
 
     def test_every_graded_record_uses_no_calc_or_unverified_value(self) -> None:
@@ -1355,18 +1557,26 @@ class TestJce2023Inverse:
         """Self-consistent, but their Dq is more than 1 % off nu1/10: forward-only.
 
         The guard is the factor-of-10 trap, and it is not loosened to admit fixtures
-        (plan E ruling R1).
+        (plan E ruling R1). Since plan F all three are also COMPARISON_ONLY: their printed
+        Dq is not observed. Grading their least-squares Dq against nu1/10 was tried and
+        missed the a-priori bound on all three (1686.8, 1674.5 vs 1740; 816.0 vs 801) with
+        rmse inside 2-sigma and the fit at the oracle's global minimum -- closed-form vs
+        least-squares disagreement, not a fitter finding. nu1/10 grades the nu1/10
+        estimator, which plan F's F3 reports.
         """
         assert set(JCE_UNNORMALISED) == {
             "[Cr(H2O)6]3+ [allowed]",
             "[Cr(H2O)6]3+ [all]",
             "MgO:Ni2+ [allowed]",
         }
+        assert {f"JCE2023 {k}" for k in JCE_UNNORMALISED} <= set(COMPARISON_ONLY)
 
     def test_errata_name_self_consistent_records(self) -> None:
         """An erratum only matters for a record the forward check would have admitted."""
         assert set(JCE_SOURCE_ERRATA) <= SELF_CONSISTENT
         assert not {fx.label for fx in JCE_FIXTURES} & {f"JCE2023 {k}" for k in JCE_SOURCE_ERRATA}
+        ct = {p.system for p in primary_sources() if p.status == "CT"}
+        assert {k.rsplit(" [", 1)[0] for k in JCE_SOURCE_ERRATA} <= ct
 
     def test_every_finding_is_numbered(self) -> None:
         """A strict xfail always names its finding, so a later fix that XPASSes is traced."""
@@ -1402,9 +1612,76 @@ class TestJce2023Inverse:
             include_spin_forbidden=fx.include_spin_forbidden,
             band_labels=list(fx.band_labels) if fx.band_labels is not None else None,
         )
-        assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1), f"{fx.label} Dq={fit.Dq:.1f}"
-        if fx.tol_B.value <= B_GRADE_LIMIT:
+        graded = graded_quantities(fx)
+        if "Dq" in graded:
+            assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1), f"{fx.label} Dq={fit.Dq:.1f}"
+        if "B" in graded and fx.tol_B.value <= B_GRADE_LIMIT:
             assert fx.tol_B.approx(fx.published_B_cm1) == fit.B, f"{fx.label} B={fit.B:.1f}"
         assert fit.rmse_cm1 < fx.max_rmse_cm1, f"{fx.label} rmse={fit.rmse_cm1:.1f}"
         if fx.expected_outcome == "warns":
             assert any(re.search(fx.expected_match or "", w) for w in fit.warnings), fit.warnings
+
+
+def comparison_cases() -> list[tuple[str, IonFixture | JceRecord]]:
+    """Every COMPARISON_ONLY id that exists here: literature fixtures always, JCE records
+    only where the audit tables are present.
+    """
+    cases: list[tuple[str, IonFixture | JceRecord]] = [
+        (fx.label, fx) for fx in FIXTURES if fx.label in COMPARISON_ONLY
+    ]
+    cases.extend(
+        (f"JCE2023 {r.record_id}", r)
+        for r in jce_records()
+        if f"JCE2023 {r.record_id}" in COMPARISON_ONLY
+    )
+    return cases
+
+
+class TestComparisonOnly:
+    """Values with no a-priori tolerance: the fit runs, and the distance is reported."""
+
+    def test_every_declared_id_exists_or_is_jce(self) -> None:
+        """A COMPARISON_ONLY key names a fixture or a JCE record, never nothing."""
+        known = {fx.label for fx in FIXTURES} | {f"JCE2023 {r.record_id}" for r in jce_records()}
+        assert all(k in known or k.startswith("JCE2023 ") for k in COMPARISON_ONLY)
+        if JCE_DIR.exists():
+            assert set(COMPARISON_ONLY) <= known
+
+    @pytest.mark.parametrize(
+        ("case_id", "case"), [pytest.param(k, c, id=k) for k, c in comparison_cases()]
+    )
+    def test_comparison_only_reports_delta(
+        self,
+        case_id: str,
+        case: IonFixture | JceRecord,
+        record_property: Callable[[str, object], None],
+    ) -> None:
+        """Asserts only that the fit runs; the distance to the printed point is reported.
+
+        The delta goes to ``record_property`` (junit XML) and the assertion-free log, not to
+        a bound: a value read off a diagram or derived under an assumption has none.
+        """
+        if isinstance(case, IonFixture):
+            d_count, bands, c = case.d_count, list(case.bands_cm1), case.published_C_cm1
+            spin, labels, sf = case.spin_state, case.band_labels, case.include_spin_forbidden
+            printed = (case.published_Dq_cm1, case.published_B_cm1)
+        else:
+            d_count, bands, c = case.d_count, list(case.bands_cm1), case.C
+            spin, labels, sf = case.spin_state, case.labels, case.spin_forbidden
+            printed = (case.Dq, case.B)
+        fit = fit_spectrum(
+            d_count,
+            bands,
+            c,
+            spin_state=spin,
+            include_spin_forbidden=sf,
+            band_labels=list(labels) if labels is not None else None,
+        )
+        assert np.isfinite(fit.Dq)
+        assert np.isfinite(fit.B)
+        delta = {
+            "Dq": None if printed[0] is None else round(fit.Dq - printed[0], 1),
+            "B": None if printed[1] is None else round(fit.B - printed[1], 1),
+            "reason": COMPARISON_ONLY[case_id],
+        }
+        record_property("comparison_delta", delta)
