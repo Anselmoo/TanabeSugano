@@ -57,12 +57,15 @@ term); this is the specification the cases below are drawn from:
 
 from __future__ import annotations
 
+import csv
 import re
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 from typing import get_args
 
+import numpy as np
 import pytest
 
 from tanabesugano.mcp._compute import closed_form_dq_b
@@ -71,6 +74,7 @@ from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import reference_ground_term
 from tanabesugano.mcp._compute import transition_candidates
 from tanabesugano.mcp._defaults import DEFAULTS
+from tanabesugano.test._determinant_oracle import relative_term_levels
 
 
 PublishedQuantity = Literal["Dq", "10Dq", "Delta_o", "unknown"]
@@ -83,6 +87,8 @@ FREE_PARAMETERS = 2  # Dq and B; C is held fixed
 CLOSED_FORM_CONFIGS = (3, 8)  # the only d-counts where nu1 == 10Dq exactly
 DIAGRAM_ERROR_CONFIGS = (5, 6)  # Hormann & Shaw; see R1 in the module docstring
 NU1_NORMALISATION_TOL = 0.01
+NU1_LABEL = {3: "4_T_2", 8: "3_T_2"}
+"""The band that is nu1 == 10Dq, for the configurations where that holds exactly."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,13 +143,31 @@ class IonFixture:
     closed_form_tol_Dq: Tolerance | None
     closed_form_tol_B: Tolerance | None
     tolerance_reason: str
+    band_labels: tuple[str, ...] | None
+    include_spin_forbidden: bool
 
     def __post_init__(self) -> None:
         """Reject an inadmissible fixture at import time."""
         self._check_vocabulary()
         self._check_provenance()
         self._check_outcome_shape()
+        self._check_labels()
         self._check_dq_normalisation()
+
+    def _check_labels(self) -> None:
+        """One label per band; a spin-forbidden fit is only ever run labelled."""
+        if self.band_labels is not None and len(self.band_labels) != len(self.bands_cm1):
+            msg = (
+                f"{self.label}: {len(self.band_labels)} band_labels for "
+                f"{len(self.bands_cm1)} bands -- one label per band"
+            )
+            raise ValueError(msg)
+        if self.include_spin_forbidden and self.band_labels is None:
+            msg = (
+                f"{self.label}: include_spin_forbidden needs band_labels -- unlabelled, a "
+                "spin-forbidden line can be read as any level"
+            )
+            raise ValueError(msg)
 
     def _check_vocabulary(self) -> None:
         for field, allowed in (
@@ -215,6 +239,9 @@ class IonFixture:
         if self.d_count not in CLOSED_FORM_CONFIGS or self.published_Dq_cm1 is None:
             return
         nu1 = min(self.bands_cm1)
+        if self.band_labels is not None and NU1_LABEL[self.d_count] in self.band_labels:
+            # A spin-forbidden line (d3 2E) can sit below nu1; the label says which is nu1.
+            nu1 = self.bands_cm1[self.band_labels.index(NU1_LABEL[self.d_count])]
         if abs(10.0 * self.published_Dq_cm1 - nu1) / nu1 > NU1_NORMALISATION_TOL:
             msg = (
                 f"{self.label}: published_Dq_cm1={self.published_Dq_cm1} implies "
@@ -238,6 +265,8 @@ VANADIUM_III_AQUA = IonFixture(
     d_count=2,
     spin_state="high",
     geometry="Oh",
+    band_labels=None,
+    include_spin_forbidden=False,
     bands_cm1=(17200.0, 25600.0),
     source=TEXTBOOK_PROVENANCE,
     source_tier="textbook",
@@ -269,6 +298,8 @@ CHROMIUM_III_AMMINE = IonFixture(
     d_count=3,
     spin_state="high",
     geometry="Oh",
+    band_labels=None,
+    include_spin_forbidden=False,
     bands_cm1=(21550.0, 28500.0, 46030.0),
     source=TEXTBOOK_PROVENANCE,
     source_tier="textbook",
@@ -299,6 +330,8 @@ CHROMIUM_III_AQUA = IonFixture(
     d_count=3,
     spin_state="high",
     geometry="Oh",
+    band_labels=None,
+    include_spin_forbidden=False,
     bands_cm1=(17000.0, 24000.0, 37000.0),
     source=TEXTBOOK_PROVENANCE,
     source_tier="textbook",
@@ -327,6 +360,8 @@ CHROMIUM_III_MGO = IonFixture(
     d_count=3,
     spin_state="high",
     geometry="Oh",
+    band_labels=None,
+    include_spin_forbidden=False,
     bands_cm1=(16155.0, 22124.0, 35336.0),
     source="Brik, Z. Naturforsch. 60a, 437 (2005), quoting Powell (1998)",
     source_tier="secondary",
@@ -357,6 +392,8 @@ NICKEL_II_AQUA = IonFixture(
     d_count=8,
     spin_state="high",
     geometry="Oh",
+    band_labels=None,
+    include_spin_forbidden=False,
     bands_cm1=(8500.0, 13800.0, 25300.0),
     source=(
         "band maxima: Chemistry LibreTexts / Doc Brown; reference parameters: Lever, "
@@ -392,6 +429,8 @@ NICKEL_II_AMMINE = IonFixture(
     d_count=8,
     spin_state="high",
     geometry="Oh",
+    band_labels=None,
+    include_spin_forbidden=False,
     bands_cm1=(10750.0, 17500.0, 28200.0),
     source=TEXTBOOK_PROVENANCE,
     source_tier="textbook",
@@ -419,6 +458,8 @@ MANGANESE_II_AQUA = IonFixture(
     d_count=5,
     spin_state="high",
     geometry="Oh",
+    band_labels=None,
+    include_spin_forbidden=False,
     bands_cm1=(18800.0, 23100.0, 24900.0, 28000.0, 29700.0),
     source=TEXTBOOK_PROVENANCE,
     source_tier="textbook",
@@ -447,6 +488,8 @@ COBALT_III_AMMINE_HIGH_SPIN = IonFixture(
     d_count=6,
     spin_state="high",
     geometry="Oh",
+    band_labels=None,
+    include_spin_forbidden=False,
     bands_cm1=(21100.0, 29500.0),
     source=TEXTBOOK_PROVENANCE,
     source_tier="textbook",
@@ -504,6 +547,8 @@ class TestFixtureAdmissibility:
         "d_count": 3,
         "spin_state": "high",
         "geometry": "Oh",
+        "band_labels": None,
+        "include_spin_forbidden": False,
         "bands_cm1": (17000.0, 24000.0, 37000.0),
         "source": "probe",
         "source_tier": "textbook",
@@ -557,6 +602,41 @@ class TestFixtureAdmissibility:
         """
         with pytest.raises(ValueError, match="R1"):
             IonFixture(**{**self.BASE, "d_count": d_count})
+
+    def test_band_labels_must_match_the_band_count(self) -> None:
+        """One label per band, or the labels pair with the wrong bands.
+
+        Observed red (95529fa): ``TypeError: IonFixture.__init__() got an unexpected
+        keyword argument 'band_labels'``.
+        """
+        with pytest.raises(ValueError, match="band_labels"):
+            IonFixture(**{**self.BASE, "band_labels": ("4_T_2", "4_T_1")})
+
+    def test_spin_forbidden_needs_labels(self) -> None:
+        """A spin-forbidden fit is only run labelled (the MCP surface's own rule).
+
+        Observed red (95529fa): ``TypeError: ... unexpected keyword argument
+        'include_spin_forbidden'``.
+        """
+        with pytest.raises(ValueError, match="include_spin_forbidden"):
+            IonFixture(**{**self.BASE, "include_spin_forbidden": True})
+
+    def test_labelled_nu1_is_found_by_label_not_by_minimum(self) -> None:
+        """d3 with the 2E line below nu1: the normalisation reads the labelled 4T2.
+
+        Observed red (95529fa): ``TypeError: ... unexpected keyword argument
+        'band_labels'``; before labels, min(bands) = 2E made it ``not normalised to Dq``.
+        """
+        fx = IonFixture(
+            **{
+                **self.BASE,
+                "bands_cm1": (17000.0, 24000.0, 37000.0, 14800.0),
+                "degrees_of_freedom": 2,
+                "band_labels": ("4_T_2", "4_T_1", "4_T_1", "2_E"),
+                "include_spin_forbidden": True,
+            }
+        )
+        assert fx.published_Dq_cm1 == 1700.0
 
     def test_r1_admits_a_refusal_for_the_same_configurations(self) -> None:
         """The escape hatch R1 names: a d5/d6 fixture that asserts a refusal."""
@@ -729,3 +809,365 @@ class TestNickelII:
         ammine = fit_spectrum(8, list(NICKEL_II_AMMINE.bands_cm1))
         aqua = fit_spectrum(8, list(NICKEL_II_AQUA.bands_cm1))
         assert ammine.Dq > aqua.Dq
+
+
+# ---------------------------------------------------------------------------
+# JCE 2023: García Rojas & Pérez Torres, J. Chem. Educ. 2023, 100, 251-258.
+#
+# Read from the committed tables (audit/jce2023/), never retyped: Table 1 gives
+# the bands with their printed assignments, Table 2 the parameters. Only the
+# "reported" columns are used -- the "graphical" ones were read off a TS diagram
+# (R1). The primaries (the paper's refs 1-39) are not resolved here, so every
+# record is source_tier="secondary" with estimator="unknown".
+#
+# Graded forward first: the oracle's bands at the published (Dq, B, C) are
+# compared with Table 1. A source that does not reproduce its own bands is a
+# finding about the source, not about the fitter, and gets no inverse fixture.
+# Only the self-consistent sources are then fitted, at tolerances propagated
+# from the band uncertainty through the oracle's Jacobian -- set before any fit
+# ran, never read off one.
+# ---------------------------------------------------------------------------
+
+
+JCE_DIR = Path(__file__).resolve().parents[3] / "audit" / "jce2023"
+JCE_SOURCE = (
+    "García Rojas & Pérez Torres, J. Chem. Educ. 2023, 100, 251-258, Tables 1-2 "
+    "(reported columns); primary refs not resolved"
+)
+BAND_SIGMA = 0.01
+"""1-sigma uncertainty of a quoted band maximum, relative: d-d bands run 2000-4000 cm^-1
+wide and their maxima are rarely located better than about 1 % (the scale behind
+``BAND_RESOLUTION_CM1`` = 100 cm^-1 at a ~10 000 cm^-1 band)."""
+APPROX_BAND_SIGMA = 0.03
+"""The same for a band the source marks as approximate (a shoulder or an estimate)."""
+COVERAGE = 2.0
+"""Tolerances and the forward consistency test are 2-sigma."""
+RATIO_ROUNDING = 0.0005
+"""Table 2 prints Dq/B and C/B to three decimals; their rounding, relative, in quadrature."""
+B_GRADE_LIMIT = 0.05
+"""Above this propagated 2-sigma, B is not determined by the bands and is not graded."""
+HUND_MULTIPLICITY = {2: 3, 3: 4, 4: 5, 7: 4, 8: 3}
+"""High-spin ground multiplicity; an oracle ground below it means the source is low-spin."""
+
+
+def _jce_term_key(multiplicity: str, irrep: str) -> str:
+    """Table 1's (3, T2) -> ``3_T_2``; (1, E) -> ``1_E``."""
+    return "_".join([multiplicity, irrep[0], *([irrep[1:]] if len(irrep) > 1 else [])])
+
+
+def oracle_level(d_count: int, dq: float, b: float, c: float, key: str, index: int) -> float:
+    """Energy above the ground level of the ``index``-th level of ``key``, from the oracle."""
+    return float(sorted(relative_term_levels(d_count, dq, b, c)[key])[index])
+
+
+def oracle_jacobian(
+    d_count: int, dq: float, b: float, c: float, levels: tuple[tuple[str, int], ...]
+) -> np.ndarray:
+    """d(level energy) / d(Dq, B) at fixed C, central differences on the oracle only."""
+    step = 1.0
+    rows = []
+    for key, index in levels:
+        d_dq = oracle_level(d_count, dq + step, b, c, key, index) - oracle_level(
+            d_count, dq - step, b, c, key, index
+        )
+        d_b = oracle_level(d_count, dq, b + step, c, key, index) - oracle_level(
+            d_count, dq, b - step, c, key, index
+        )
+        rows.append((d_dq / (2 * step), d_b / (2 * step)))
+    return np.array(rows)
+
+
+@dataclass(frozen=True, slots=True)
+class JceRecord:
+    """One JCE system with one band set: its spin-allowed bands, or all of them."""
+
+    record_id: str
+    d_count: int
+    spin_state: SpinState
+    Dq: float
+    B: float
+    C: float
+    bands_cm1: tuple[float, ...]
+    levels: tuple[tuple[str, int], ...]
+    approx: tuple[bool, ...]
+    spin_forbidden: bool
+
+    @property
+    def sigmas(self) -> np.ndarray:
+        """1-sigma of each band, in cm^-1."""
+        rel = [APPROX_BAND_SIGMA if a else BAND_SIGMA for a in self.approx]
+        return np.array(rel) * np.array(self.bands_cm1)
+
+    @property
+    def labels(self) -> tuple[str, ...]:
+        """Bare term keys, as ``fit_spectrum(band_labels=...)`` takes them."""
+        return tuple(key for key, _index in self.levels)
+
+
+def jce_records() -> tuple[JceRecord, ...]:
+    """Every admissible JCE record: d != 5, 6 with reported Dq, Dq/B and C/B.
+
+    The selection reads Table 2 only, never a fit or an audit verdict. Each system
+    gives a spin-allowed record and, when Table 1 lists a spin-forbidden band, an
+    "all" record with every band.
+    """
+    with (JCE_DIR / "jce2023_table2_parameters.csv").open(encoding="utf-8") as fh:
+        params = list(csv.DictReader(fh))
+    with (JCE_DIR / "jce2023_table1_bands.csv").open(encoding="utf-8") as fh:
+        bands = list(csv.DictReader(fh))
+    out: list[JceRecord] = []
+    for row in params:
+        if not (row["Dq_cm1"] and row["Dq_over_B_reported"] and row["C_over_B_reported"]):
+            continue
+        rows = [b for b in bands if b["system"] == row["system"]]
+        d_count = int(rows[0]["block"][1]) if rows else 0
+        if not rows or d_count in DIAGRAM_ERROR_CONFIGS:
+            continue
+        dq = float(row["Dq_cm1"])
+        b_val = dq / float(row["Dq_over_B_reported"])
+        c_val = float(row["C_over_B_reported"]) * b_val
+        ground = min(
+            (
+                (float(min(v)), k)
+                for k, v in relative_term_levels(d_count, dq, b_val, c_val).items()
+            ),
+        )[1]
+        ground_mult = ground.split("_", 1)[0]
+        spin: SpinState = "low" if int(ground_mult) < HUND_MULTIPLICITY[d_count] else "high"
+        entries = [
+            (
+                float(b["wavenumber_cm1"]),
+                (_jce_term_key(b["multiplicity"], b["irrep"]), int(b["ordinal"] or 1) - 1),
+                b["approx"] == "True",
+            )
+            for b in rows
+        ]
+        allowed = [e for e in entries if e[1][0].split("_", 1)[0] == ground_mult]
+        variants = [("allowed", allowed, False)]
+        if len(allowed) < len(entries):
+            variants.append(("all", entries, True))
+        out.extend(
+            JceRecord(
+                record_id=f"{row['system']} [{tag}]",
+                d_count=d_count,
+                spin_state=spin,
+                Dq=dq,
+                B=b_val,
+                C=c_val,
+                bands_cm1=tuple(e[0] for e in chosen),
+                levels=tuple(e[1] for e in chosen),
+                approx=tuple(e[2] for e in chosen),
+                spin_forbidden=sf,
+            )
+            for tag, chosen, sf in variants
+        )
+    return tuple(out)
+
+
+def forward_consistent(record: JceRecord) -> bool:
+    """Does the source reproduce every one of its bands within 2-sigma at its own parameters?"""
+    computed = np.array(
+        [
+            oracle_level(record.d_count, record.Dq, record.B, record.C, key, index)
+            for key, index in record.levels
+        ]
+    )
+    return bool(np.all(np.abs(computed - np.array(record.bands_cm1)) <= COVERAGE * record.sigmas))
+
+
+SELF_CONSISTENT = frozenset(
+    {
+        "[Cr(H2O)6]3+ [allowed]",
+        "[Cr(H2O)6]3+ [all]",
+        "KZnClSO4·3H2O:Cr3+ [allowed]",
+        "Al2O3:Cr3+ [allowed]",
+        "Al2O3:Cr3+ [all]",
+        "K3Cr(CN)6 [allowed]",
+        "[Mn(CN)6]3- [allowed]",
+        "[Mn(CN)6]3- [all]",
+        "AgCl:Ni2+ [allowed]",
+        "MgO:Ni2+ [allowed]",
+        "MgO:Ni2+ [all]",
+        "LiGa5O8:Ni2+ [allowed]",
+        "LiGa5O8:Ni2+ [all]",
+    }
+)
+"""The records whose source reproduces its own bands within 2-sigma, from the oracle only.
+
+Pinned from the forward check before any inverse fit was run. Outside it: Al2O3:V3+
+(nu1, nu2 at -2.8 and -2.6 sigma), the four d7 Co(II) sources (nu1 or nu2 off by 4-11
+sigma -- a different Dq convention in the source, not checked here), [Ni(H2O)6]2+ (nu2
++6 sigma), and the "all" records of KZnClSO4:Cr3+, K3Cr(CN)6 and AgCl:Ni2+ (their
+spin-forbidden line at +6.3, -7.6 and -2.4 sigma: C/B does not fit it)."""
+
+
+def oracle_tolerances(record: JceRecord) -> tuple[float, float]:
+    """2-sigma relative (Dq, B) bounds from the band sigmas through the oracle Jacobian.
+
+    C is held at the published value, as the inverse fit holds it. Rounding of the
+    published Dq (to 1 cm^-1) and of Dq/B (to 1e-3) is added in quadrature.
+    """
+    jac = oracle_jacobian(record.d_count, record.Dq, record.B, record.C, record.levels)
+    weighted = jac / record.sigmas[:, None]
+    sd = np.sqrt(np.diag(np.linalg.inv(weighted.T @ weighted)))
+    tol_dq = float(np.hypot(COVERAGE * sd[0] / record.Dq, 0.5 / record.Dq))
+    tol_b = float(np.hypot(COVERAGE * sd[1] / record.B, RATIO_ROUNDING))
+    return tol_dq, tol_b
+
+
+def jce_fixture(record: JceRecord) -> IonFixture:
+    """The inverse record, with every outcome and bound fixed by rule before any fit.
+
+    DOF <= 0 -> "warns" (the fit is exactly determined and must say so); otherwise
+    "fit". The rmse bound is 2-sigma of the band uncertainty. Construction applies
+    every IonFixture guard, the 1 % nu1 == 10Dq normalisation included.
+    """
+    tol_dq, tol_b = oracle_tolerances(record)
+    dof = len(record.bands_cm1) - FREE_PARAMETERS
+    rms_sigma = float(np.sqrt(np.mean(record.sigmas**2)))
+    b_note = (
+        "B is graded"
+        if tol_b <= B_GRADE_LIMIT
+        else f"B is NOT graded: {100 * tol_b:.1f} % > {100 * B_GRADE_LIMIT:.0f} %, these bands "
+        "do not determine it"
+    )
+    return IonFixture(
+        label=f"JCE2023 {record.record_id}",
+        d_count=record.d_count,
+        spin_state=record.spin_state,
+        geometry="Oh",
+        band_labels=record.labels,
+        include_spin_forbidden=record.spin_forbidden,
+        bands_cm1=record.bands_cm1,
+        source=JCE_SOURCE,
+        source_tier="secondary",
+        published_quantity="Dq",
+        published_Dq_cm1=record.Dq,
+        published_B_cm1=record.B,
+        published_C_cm1=record.C,
+        estimator="unknown",
+        degrees_of_freedom=dof,
+        expected_outcome="warns" if dof <= 0 else "fit",
+        expected_match="determined|degrees of freedom" if dof <= 0 else None,
+        tol_Dq=Tolerance("rel", tol_dq),
+        tol_B=Tolerance("rel", tol_b),
+        max_rmse_cm1=COVERAGE * rms_sigma,
+        closed_form_tol_Dq=None,
+        closed_form_tol_B=None,
+        tolerance_reason=(
+            f"Propagated, not measured: band sigma {100 * BAND_SIGMA:.0f} % "
+            f"({100 * APPROX_BAND_SIGMA:.0f} % if approximate) through the oracle Jacobian "
+            f"at the published (Dq, B, C), 2-sigma: Dq {100 * tol_dq:.2f} %, "
+            f"B {100 * tol_b:.2f} %; {b_note}. A separate source claim from any other "
+            "record of the same ion."
+        ),
+    )
+
+
+def _jce_inverse() -> tuple[tuple[IonFixture, ...], dict[str, str]]:
+    """Inverse records for the self-consistent sources, and those the nu1 guard refuses."""
+    built: list[IonFixture] = []
+    refused: dict[str, str] = {}
+    for record in jce_records():
+        if record.record_id not in SELF_CONSISTENT:
+            continue
+        try:
+            built.append(jce_fixture(record))
+        except ValueError as exc:
+            if "not normalised to Dq" not in str(exc):
+                raise
+            refused[record.record_id] = str(exc)
+    return tuple(built), refused
+
+
+JCE_FIXTURES, JCE_UNNORMALISED = _jce_inverse()
+
+JCE_FINDINGS: dict[str, str] = {}
+"""Inverse records that miss their a-priori bound: ``"E4-F<n>: <what, by how much>"``.
+
+A miss is a finding about the fitter (the source already passed forward), so it is
+recorded here as a strict xfail and never answered by widening a bound."""
+
+
+class TestJce2023Oracle:
+    """T1a checks of the JCE helpers themselves, against nu1 == 10Dq."""
+
+    @pytest.mark.parametrize(("d_count", "key"), [(3, "4_T_2"), (8, "3_T_2")])
+    def test_jacobian_of_nu1_is_ten_dq(self, d_count: int, key: str) -> None:
+        """D nu1 / d Dq == 10 and d nu1 / d B == 0 exactly, for d3 and d8.
+
+        Observed red (95529fa): ``NameError: name 'oracle_jacobian' is not defined``.
+        """
+        jac = oracle_jacobian(d_count, 1700.0, 700.0, 2800.0, ((key, 0),))
+        assert jac[0][0] == pytest.approx(10.0, abs=1e-6)
+        assert jac[0][1] == pytest.approx(0.0, abs=1e-6)
+
+
+class TestJce2023Source:
+    """Forward: does each source reproduce its own bands at its own parameters?"""
+
+    def test_self_consistent_sources_are_pinned(self) -> None:
+        """The split is pinned from the oracle alone, before any inverse fit ran.
+
+        Observed red (95529fa): ``NameError: name 'jce_records' is not defined``.
+        """
+        live = {r.record_id for r in jce_records() if forward_consistent(r)}
+        assert live == SELF_CONSISTENT
+
+
+class TestJce2023Inverse:
+    """Inverse: the fitter recovers each self-consistent source within its oracle bound."""
+
+    def test_unnormalised_sources_are_refused(self) -> None:
+        """Self-consistent, but their Dq is more than 1 % off nu1/10: forward-only.
+
+        The guard is the factor-of-10 trap, and it is not loosened to admit fixtures
+        (plan E ruling R1).
+        """
+        assert set(JCE_UNNORMALISED) == {
+            "[Cr(H2O)6]3+ [allowed]",
+            "[Cr(H2O)6]3+ [all]",
+            "MgO:Ni2+ [allowed]",
+            "MgO:Ni2+ [all]",
+        }
+
+    def test_every_finding_is_numbered(self) -> None:
+        """A strict xfail always names its finding, so a later fix that XPASSes is traced."""
+        assert all(re.match(r"^E4-F\d+: ", reason) for reason in JCE_FINDINGS.values())
+        assert set(JCE_FINDINGS) <= {fx.label for fx in JCE_FIXTURES}
+
+    @pytest.mark.parametrize(
+        "fx",
+        [
+            pytest.param(
+                fx,
+                id=fx.label,
+                marks=[pytest.mark.xfail(strict=True, reason=JCE_FINDINGS[fx.label])]
+                if fx.label in JCE_FINDINGS
+                else [],
+            )
+            for fx in JCE_FIXTURES
+        ],
+    )
+    def test_fit_within_oracle_tolerance(self, fx: IonFixture) -> None:
+        """Dq (and B where determined) within the propagated 2-sigma, rmse within 2-sigma.
+
+        Green on arrival (95529fa): a T3 coverage claim, not the red of a fix -- all nine
+        records passed at the first run, so JCE_FINDINGS is empty. Sensitivity checked
+        then: a published Dq moved by +3 % fails every record (on the assertion, or at
+        construction through the nu1 == 10Dq guard for d3/d8).
+        """
+        fit = fit_spectrum(
+            fx.d_count,
+            list(fx.bands_cm1),
+            fx.published_C_cm1,
+            spin_state=fx.spin_state,
+            include_spin_forbidden=fx.include_spin_forbidden,
+            band_labels=list(fx.band_labels) if fx.band_labels is not None else None,
+        )
+        assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1), f"{fx.label} Dq={fit.Dq:.1f}"
+        if fx.tol_B.value <= B_GRADE_LIMIT:
+            assert fx.tol_B.approx(fx.published_B_cm1) == fit.B, f"{fx.label} B={fit.B:.1f}"
+        assert fit.rmse_cm1 < fx.max_rmse_cm1, f"{fx.label} rmse={fit.rmse_cm1:.1f}"
+        if fx.expected_outcome == "warns":
+            assert any(re.search(fx.expected_match or "", w) for w in fit.warnings), fit.warnings
