@@ -1520,10 +1520,16 @@ def _fit_one_regime(
         )
         raise ValueError(msg)
     if len(seed_candidates) < observed.size:
+        low_spin_hint = (
+            ", or spin_state='low' if the complex is low-spin"
+            if spin_state == "high" and d_count in {4, 5, 6, 7}
+            else ""
+        )
         msg = (
             f"d{d_count} offers only {len(seed_candidates)} spin-allowed transition(s) "
             f"from {reference} but {observed.size} peaks were supplied; the fit is "
-            "under-determined. Supply fewer peaks, or pass include_spin_forbidden=True."
+            "under-determined. Supply fewer peaks, or pass include_spin_forbidden=True"
+            f"{low_spin_hint}."
         )
         raise ValueError(msg)
     if labels is not None:
