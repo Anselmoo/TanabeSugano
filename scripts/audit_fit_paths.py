@@ -218,6 +218,7 @@ CSV_COLUMNS = (
     "warnings",
     "warning_kinds",
     "pertinent_warning",
+    "assumptions",
     "raised",
     "assignment_ok",
     "infeasible_at_c",
@@ -465,6 +466,7 @@ class Run:
     warnings: list[str] = field(default_factory=list)
     raised: str = ""
     dq_source: str = ""
+    assumptions: list[str] = field(default_factory=list)
     free_c_lowest: tuple[float, float, float, float] | None = None
 
 
@@ -747,6 +749,7 @@ def run_fit_spectrum(case: Case, c_mode: str) -> Run:
     run.fit_dq, run.fit_b, run.fit_c = fit.Dq, fit.B, fit.C
     run.rmse = fit.rmse_cm1
     run.warnings = list(fit.warnings)
+    run.assumptions = list(getattr(fit, "assumptions", ()))  # absent before 2.1.0
     run.dq_source = fit.dq_provenance
     free_c = getattr(fit, "free_c_minima", ())  # absent before 2.1.0's held-C check
     run.free_c_lowest = min(free_c, key=lambda m: m[3]) if free_c else None
@@ -793,6 +796,7 @@ def run_reverse(case: Case, tool: Callable[..., Any], *, regime: bool) -> Run:
     run.fit_dq, run.fit_b, run.fit_c = float(data["Dq"]), float(data["B"]), float(data["C"])
     run.rmse = float(data["rmse_cm1"])
     run.warnings = list(data.get("warnings", []))
+    run.assumptions = list(data.get("assumptions", []))
     return run
 
 
@@ -823,6 +827,7 @@ def run_ratio(case: Case, tool: Callable[..., Any], *, regime: bool) -> Run:
     run.fit_c = float(payload["C"])
     run.rmse = float(payload["rmse_cm1"])
     run.warnings = list(payload.get("warnings", []))
+    run.assumptions = list(payload.get("assumptions", []))
     return run
 
 
@@ -1087,6 +1092,7 @@ def grade(case: Case, run: Run) -> Row:
         "warnings": " | ".join(run.warnings),
         "warning_kinds": ";".join(kinds),
         "pertinent_warning": str(any(k not in NON_PERTINENT_KINDS for k in kinds)),
+        "assumptions": " | ".join(run.assumptions),
         "raised": run.raised,
         "assignment_ok": assignment,
         "infeasible_at_c": str(infeasible_at_c(case, run)),
@@ -1789,6 +1795,12 @@ def section_method(na_cells: list[str], self_test: int, jce_labels: list[str]) -
             "band's distance to its nearest predicted line -- the measure the fitters "
             "minimise. A high r2 beside a wrong Dq is therefore the silent-failure signature, "
             "not evidence of a good fit. n/a with no fitted point or fewer than two bands."
+        ),
+        (
+            "- **assumptions.** What the path's result states it assumed (the `assumptions` "
+            "field, e.g. that unlabelled bands are spin-allowed), joined by ` | `. It does "
+            "not change a verdict. A graded wrong row with no pertinent warning and an empty "
+            "assumptions cell is silent, checkable from this CSV alone."
         ),
         (
             "- **Apps.** Both apps answer with `fit_spectrum` (their grids are diagnostics "

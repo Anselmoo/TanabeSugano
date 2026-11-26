@@ -1843,3 +1843,24 @@ def test_no_graded_row_is_silently_wrong() -> None:
             if r["verdict"] == "WRONG-SILENT" and "app-sf" not in r["failure_classes"].split(";")
         ]
     assert silent == []
+
+
+@pytest.mark.skipif(not FIT_AUDIT_CSV.exists(), reason="audit CSV is not shipped")
+def test_silent_is_checkable_from_the_csv() -> None:
+    """Every graded wrong row carries a pertinent warning or a stated assumption, in the CSV.
+
+    "Silent" means no warning and no assumption; the ``assumptions`` column records what
+    the path's result stated, so the claim no longer rests on the ``app-sf`` class.
+
+    Observed red (b219f71): ``KeyError: 'assumptions'`` -- the column did not exist.
+    """
+    with FIT_AUDIT_CSV.open(newline="", encoding="utf-8") as handle:
+        silent = [
+            f"{r['system']} {r['path']} {r['c_mode']}"
+            for r in csv.DictReader(handle)
+            if r["verdict"].startswith("WRONG")
+            and not r["verdict"].endswith(("-R1", "-REF"))
+            and r["pertinent_warning"] != "True"
+            and not r["assumptions"]
+        ]
+    assert silent == []
