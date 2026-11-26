@@ -13,10 +13,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
+from tanabesugano.levels import LevelSet
 from tanabesugano.mcp._compute import BAND_RESOLUTION_CM1
+from tanabesugano.mcp._compute import NM_FATOL_CM1
+from tanabesugano.mcp._compute import NM_XATOL_CM1
 from tanabesugano.mcp._compute import _pick_minimum
+from tanabesugano.mcp._compute import compute_point
+from tanabesugano.mcp._compute import excited_levels
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import nu1_floor
+from tanabesugano.mcp._compute import term_multiplicity
+from tanabesugano.mcp._compute import transition_candidates
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.test._determinant_oracle import relative_term_levels
 
@@ -126,10 +133,31 @@ MERGE_CM1 = 50.0
 """Levels closer than this read as one band, as in the audit (``audit_fit_paths.MERGE_CM1``)."""
 
 
+BAND_RULE_MAX_DELTA_MULT = 2
+"""The user's band rule (plan G, Task 1): a band is a level whose 2S+1 differs from the
+ground's by at most 2 (Delta S = 0, +-1). Written here from the decision, not imported
+from ``_compute``, so the generator cannot inherit a defect in the code under test."""
+
+
+def rule_bands(d: int, dq: float, b: float, c: float) -> list[tuple[float, str]]:
+    """Return the oracle levels within the band rule of the oracle's own ground level."""
+    levels = sorted(
+        (float(e), f"{key}#{i}")
+        for key, values in relative_term_levels(d, dq, b, c).items()
+        for i, e in enumerate(values)
+    )
+    ground_mult = int(levels[0][1].split("_", 1)[0])
+    return [
+        (e, uid)
+        for e, uid in levels[1:]
+        if abs(int(uid.split("_", 1)[0]) - ground_mult) <= BAND_RULE_MAX_DELTA_MULT
+    ]
+
+
 def merged_bands(d: int, dq: float, b: float, c: float, n_bands: int) -> list[float]:
-    """Return the lowest ``n_bands`` oracle bands, all multiplicities, near-degenerate merged."""
+    """Return the lowest ``n_bands`` oracle bands under the band rule, near-degenerate merged."""
     groups: list[list[float]] = []
-    for e, _uid in oracle_bands(d, dq, b, c, spin_allowed_only=False):
+    for e, _uid in rule_bands(d, dq, b, c):
         if groups and e - groups[-1][-1] <= MERGE_CM1:
             groups[-1].append(e)
         else:
@@ -143,12 +171,16 @@ SEARCH_MISSES = [
     (5, 2055.7, 1376.0, 6604.8, 3),
     (5, 1590.1, 645.0, 2580.0, 3),
     (3, 1200.0, 1468.8, 7050.2, 6),
+    (5, 836.9, 645.0, 2580.0, 3),
+    (5, 1283.3, 989.0, 3956.0, 3),
 ]
 """Synthetic rows that fail unlabelled at C = truth after the bounds fix (audit at
-8135f29): the six d5 high-spin spin-forbidden misses, and the d3 row that had been
-right only by a closed-form seed built from 2E. (d, Dq, B, C, n_bands)
-Two further audit misses (d5 Dq 836.9 and 1283.3) already pass on these oracle
-bands before the grid exists, so they are not red tests and are left out."""
+8135f29): the d5 high-spin spin-forbidden misses, and the d3 row that had been right
+only by a closed-form seed built from 2E. (d, Dq, B, C, n_bands)
+
+The d5 bands follow the band rule (plan G, Task 1b: Delta S = 0, +-1 only). Under the
+earlier all-multiplicity bands, 836.9 and 1283.3 passed at 8135f29 and were left out;
+under the rule they miss there too, so they joined the table (the last two rows)."""
 
 
 @pytest.mark.parametrize(("d", "dq", "b", "c", "n_bands"), SEARCH_MISSES)
@@ -158,7 +190,11 @@ def test_grid_search_recovers_unlabelled(
     """High-spin, spin-forbidden bands, C = truth, no labels: the grid search finds the truth.
 
     Observed red at 8135f29 (five local starts around one seed), in table order:
-    ``AssertionError: dDq +125.56 %``, ``+64.33 %``, ``-10.50 %``, ``-15.56 %``, ``+4.83 %``.
+    ``AssertionError: dDq +125.56 %``, ``+64.33 %``, ``-10.50 %``, ``-15.56 %``, ``+4.83 %``
+    on the all-multiplicity bands. Re-run at 8135f29 on the band-rule bands (plan G,
+    Task 1b, throwaway worktree), in table order: dDq ``+125.85 %``, ``-7.87 %``,
+    ``-10.65 %``, ``-19.41 %``, ``+4.83 %``, ``+113.62 %``, ``+71.93 %`` -- every row
+    still beyond DQ_TOL_PCT, so each still fails on the defect it defends.
     """
     fit = fit_spectrum(d, merged_bands(d, dq, b, c, n_bands), c, include_spin_forbidden=True)
     assert_recovered(fit, dq, b)
@@ -275,7 +311,7 @@ def merged_labelled_bands(
 ) -> tuple[list[float], list[tuple[str, ...]]]:
     """As :func:`merged_bands`, with each band's term keys (all merged levels' terms)."""
     groups: list[list[tuple[float, str]]] = []
-    for e, uid in oracle_bands(d, dq, b, c, spin_allowed_only=False):
+    for e, uid in rule_bands(d, dq, b, c):
         if groups and e - groups[-1][-1][0] <= MERGE_CM1:
             groups[-1].append((e, uid))
         else:
@@ -308,7 +344,9 @@ def test_labelled_hs_d5_recovers_c(dq: float, b: float, c: float) -> None:
     eef709b, labelled-default): the default C misplaces every level, and no (Dq, B)
     can compensate. The ninth (1283.3 / 989 / 3956) sits next to the default C/B.
     Observed red: ``AttributeError: 'SpectrumFit' object has no attribute 'c_fitted'``
-    on all nine.
+    on all nine. The eight-of-nine count was measured on all-multiplicity bands.
+    Bands follow the band rule since plan G, Task 1b. The red is not re-run: it is the
+    absence of ``c_fitted``, which fails the same way for any bands.
     """
     energies, labels = merged_labelled_bands(5, dq, b, c, 3)
     fit = fit_spectrum(5, energies, include_spin_forbidden=True, band_labels=labels)
@@ -342,6 +380,8 @@ def test_explicit_c_or_fit_c_false_holds_c() -> None:
     """An explicit C, or fit_c=False, keeps C fixed even with every band labelled.
 
     Observed red: ``TypeError: fit_spectrum() got an unexpected keyword argument 'fit_c'``.
+    Bands follow the band rule since plan G, Task 1b. The red is not re-run: it is the
+    absence of the ``fit_c`` keyword, which fails the same way for any bands.
     """
     dq, b, c = D5_HS_POINTS[3]
     energies, labels = merged_labelled_bands(5, dq, b, c, 3)
@@ -609,17 +649,23 @@ def test_exact_answer_at_the_default_c_stays_fitted() -> None:
 
 
 FREE_C_AMBIGUOUS = [
-    pytest.param(5, [7716.37, 9876.12, 11610.0], (1706.1, 370.7), id="683 d5 502.1/387/1548"),
-    pytest.param(5, [8777.78, 10991.02, 13158.0], (1716.9, 477.0), id="689 d5 578.1/387/1857.6"),
+    pytest.param(5, [7716.37, 9876.12, 11610.0], (1654.0, 200.0), id="683 d5 502.1/387/1548"),
+    pytest.param(5, [8777.78, 10991.02, 13158.0], (1541.25, 200.0), id="689 d5 578.1/387/1857.6"),
     pytest.param(
-        6, [5463.38, 9586.73, 12925.0, 16814.74], (1725.0, 574.6), id="941 d6 1292.5/798.8/3195.2"
+        6, [5463.38, 9586.73, 12925.0, 16814.74], (1641.89, 200.0), id="941 d6 1292.5/798.8/3195.2"
     ),
 ]
 """Audit rows (29420b6 CSV index) where the free-C point the warning names fits at
 RMSE <= 2 while 70-83 % off in Dq. Bands: the oracle levels at truth exactly as
 ``audit_fit_paths.synthetic_bands`` merged them (spin-forbidden, high-spin), copied
 from the audit. The (Dq, B) pair is the held fit from the same CSV: a regression pin
-that the note does not move the returned point, not a truth claim."""
+that the note does not move the returned point, not a truth claim.
+
+Re-pinned in plan G, Task 1f. The old held fits at 3824ce5 -- 1706.1/370.7 (RMSE 406.7),
+1716.9/477.0 (537.5), 1725.0/574.6 (285.1) -- put the lowest band on 2_T_2 (d5) or 1_A_1
+(d6), a Delta S = 2 level the fit no longer matches. Without it the default-C held fit
+runs to the B floor (200): 1654.0 (RMSE 5574.3), 1541.25 (4684.1), 1641.89 (3463.5), all
+'undetermined'. The "not unique" assertion is unchanged and still holds."""
 
 
 @pytest.mark.parametrize(("d", "bands", "held"), FREE_C_AMBIGUOUS)
@@ -1068,3 +1114,244 @@ def test_zno_td_fit_matches_oracle() -> None:
     assert fit.Dq == pytest.approx(515.13, abs=0.5)
     assert pytest.approx(790.09, abs=0.5) == fit.B
     assert fit.dq_convention == "Td"
+
+
+# ── Observed [Mn(H2O)6]2+ (plan G, Task 1) ────────────────────────────────────
+
+MN_OBSERVED_BANDS = (18870.0, 23120.0, 24960.0)
+"""Foster & Gill (1968) *observed* bands of [Mn(H2O)6]2+ (SOURCE-CHECK.md), not the
+calculated column 19070/22710/24500 that the JCE 2023 tables print."""
+MN_QUARTET_LABELS: list[str | list[str]] = ["4_T_1", "4_T_2", ["4_E", "4_A_1"]]
+"""The standard assignment: 4T1(G), 4T2(G), 4E/4A1(G)."""
+MN_REF_C_FIXED = (827.348, 882.564, 3243.0, 93.678)
+"""(Dq, B, C, RMSE) with C held at 3243 under the standard assignment.
+
+Provenance: ``least_squares`` on ``_determinant_oracle`` levels alone (which imports
+nothing from the package), printed to three decimals; re-derived in
+``test_observed_mn_reference_is_an_oracle_minimum``, never by fit code. An independent
+determinant Hamiltonian outside the repository agrees to 0.1 cm^-1."""
+MN_REF_C_FREE = (805.981, 956.800, 3078.400)
+"""(Dq, B, C) with C free, RMSE 0 (three bands, three parameters). Same provenance."""
+
+
+ROUNDING_3DP = 5e-4
+"""Half-width of a value printed to three decimals."""
+
+
+def test_observed_mn_reference_is_an_oracle_minimum() -> None:
+    """The independent reference, re-derived with the package's oracle only (item 1a).
+
+    ``least_squares`` on ``_determinant_oracle`` levels under the standard assignment.
+    Measured: C fixed -> (827.348, 882.564), RMSE 93.678, the same from three starts;
+    C free -> (805.981, 956.800, 3078.400), RMSE 0. The constants are those values
+    printed to three decimals, so the bound is the rounding half-width, 5e-4 (plan G,
+    Task 1c; it replaces a 0.1 bound held against values rounded to one decimal). A
+    provenance check of the reference values, not a test of the fix.
+    """
+    from scipy.optimize import least_squares
+
+    bands = np.asarray(MN_OBSERVED_BANDS)
+
+    def residuals(dq: float, b: float, c: float) -> np.ndarray:
+        levels = relative_term_levels(5, dq, b, c)
+        lowest_4e_4a1 = min(levels["4_E"][0], levels["4_A_1"][0])
+        return np.asarray((levels["4_T_1"][0], levels["4_T_2"][0], lowest_4e_4a1)) - bands
+
+    dq, b, c, rmse = MN_REF_C_FIXED
+    for start in ((dq, b), (700.0, 700.0), (950.0, 1000.0)):
+        fixed = least_squares(lambda p: residuals(p[0], p[1], c), start, xtol=1e-12, ftol=1e-12)
+        assert np.all(np.abs(fixed.x - (dq, b)) <= ROUNDING_3DP), (start, fixed.x)
+        assert abs(float(np.sqrt(np.mean(fixed.fun**2))) - rmse) <= ROUNDING_3DP
+    free = least_squares(lambda p: residuals(*p), MN_REF_C_FREE, xtol=1e-12, ftol=1e-12)
+    assert np.all(np.abs(free.x - MN_REF_C_FREE) <= ROUNDING_3DP), free.x
+    assert float(np.sqrt(np.mean(free.fun**2))) <= 1e-3
+    assert float(np.sqrt(np.mean(residuals(1113.3, 1178.0, 3243.0) ** 2))) > 1000.0
+
+
+def test_labelled_observed_mn_c_fixed() -> None:
+    """Labelled quartets, C = 3243: the reference minimum (item 1d).
+
+    Tolerance: the fit's own stopping criterion (NM_XATOL_CM1 on Dq and B, NM_FATOL_CM1
+    on the RMSE), fixed before measuring (plan G, Task 1c). Green on arrival: 2.1.0 at
+    3824ce5 already returns 827.35 / 882.56 / RMSE 93.68.
+    """
+    dq, b, c, rmse = MN_REF_C_FIXED
+    fit = fit_spectrum(
+        5, list(MN_OBSERVED_BANDS), C=c, band_labels=MN_QUARTET_LABELS, include_spin_forbidden=True
+    )
+    assert abs(fit.Dq - dq) <= NM_XATOL_CM1
+    assert abs(fit.B - b) <= NM_XATOL_CM1
+    assert abs(fit.rmse_cm1 - rmse) <= NM_FATOL_CM1
+    assert (fit.dq_provenance, fit.b_provenance, fit.c_provenance) == ("fitted", "fitted", "given")
+
+
+def test_labelled_observed_mn_c_free() -> None:
+    """Labelled quartets, C free: the exact reference point (item 1d).
+
+    Tolerance: NM_XATOL_CM1 on Dq, B and C, fixed before measuring (plan G, Task 1c).
+    Green on arrival: 2.1.0 at 3824ce5 already returns 805.98 / 956.80 / 3078.40.
+    """
+    fit = fit_spectrum(
+        5, list(MN_OBSERVED_BANDS), band_labels=MN_QUARTET_LABELS, include_spin_forbidden=True
+    )
+    for got, want in zip((fit.Dq, fit.B, fit.C), MN_REF_C_FREE, strict=True):
+        assert abs(got - want) <= NM_XATOL_CM1
+    assert fit.c_provenance == "fitted"
+    assert any("degrees of freedom = 0" in w for w in fit.warnings)
+
+
+def test_unlabelled_observed_mn_assigns_only_quartets() -> None:
+    """Unlabelled, C = 3243: no band lands on a sextet -> doublet (Delta S = 2) level.
+
+    The reference is MN_REF_C_FIXED: C is given and the assignment is the same quartets.
+    Observed red at 3824ce5 (fit Dq 1113.3, B 1178.0):
+    ``AssertionError: assert ['2_T_2#0'] == []``.
+    """
+    dq, b, c, _rmse = MN_REF_C_FIXED
+    fit = fit_spectrum(5, list(MN_OBSERVED_BANDS), C=c, include_spin_forbidden=True)
+    assert [uid for _o, _p, uid in fit.assignment if not uid.startswith("4_")] == []
+    assert abs(fit.Dq - dq) <= NM_XATOL_CM1
+    assert abs(fit.B - b) <= NM_XATOL_CM1
+
+
+SPIN_CHANGE_POINTS = [
+    pytest.param(d, spin, id=f"d{d}-{spin}")
+    for d in range(2, 9)
+    for spin in (("high", "low") if d in (4, 5, 6, 7) else ("high",))
+]
+
+
+def _regime_point(d: int, spin: str) -> tuple[float, float, float]:
+    """A (Dq, B, C) well inside ``spin``'s regime at the default B and C."""
+    b, c = DEFAULTS[d]["default_B"], DEFAULTS[d]["default_C"]
+    return (500.0 if spin == "high" else 3500.0, b, c)
+
+
+@pytest.mark.parametrize(("d", "spin"), SPIN_CHANGE_POINTS)
+def test_spin_forbidden_levels_change_spin_by_one(d: int, spin: str) -> None:
+    """The fit's spin-forbidden match set holds only Delta S = 0, +-1 levels.
+
+    d2, d3, d7, d8 lose nothing: every multiplicity there is within +-2 of the ground's.
+    Observed red at 3824ce5, five cases: d4-high ``['1_T_2#0', ...]`` (23 singlets),
+    d5-high ``['2_T_2#0', ...]`` (32 doublets), d5-low ``['6_A_1#0']``, d6-high
+    ``['1_A_1#0', ...]`` (23 singlets), d6-low ``['5_T_2#0', '5_E#0']``; the rest green.
+    """
+    terms = compute_point(d, *_regime_point(d, spin))
+    ground, levels = excited_levels(terms, spin_allowed_only=False)
+    ground_mult = term_multiplicity(ground)
+    assert [uid for _e, uid in levels if abs(int(uid.split("_")[0]) - ground_mult) > 2] == []
+    every = [lv for lv in LevelSet.from_states(terms).levels if lv.energy_cm1 > 1.0]
+    if d in (2, 3, 7, 8):
+        assert len(levels) == len(every)
+
+
+def test_label_naming_a_delta_s_two_term_is_refused() -> None:
+    """A label on a sextet -> doublet term is refused by name, not dropped.
+
+    Observed red at 3824ce5: ``Failed: DID NOT RAISE ValueError`` (the fit ran).
+    """
+    with pytest.raises(ValueError, match=r"2_T_2.*changes spin by more than one"):
+        fit_spectrum(
+            5,
+            list(MN_OBSERVED_BANDS),
+            C=3243.0,
+            band_labels=["4_T_1", "2_T_2", ["4_E", "4_A_1"]],
+            include_spin_forbidden=True,
+        )
+
+
+MERGED_D5_BANDS = [14628.689639271004, 18328.010222150508, 21930.0]
+"""Three oracle bands of high-spin d5 at (963.6, 645, 3096), the second merging 2_T_2
+with 4_T_2 within MERGE_CM1. Read off the oracle generator before it adopted the band
+rule (plan G, Task 1b), so a Delta S = 2 member sits in a label tuple."""
+
+
+def test_merged_label_drops_delta_s_two_members() -> None:
+    """A tuple with one Delta S = 2 member fits exactly as the tuple without it.
+
+    User decision 1a: drop Delta S = +-2 members of a merged label; refuse only when no
+    allowed member remains. The reference fit is the same call with the member removed,
+    so the expected value is not computed by the path under test.
+
+    Observed red (working tree on 3824ce5): ``ValueError: band label '2_T_2' changes spin
+    by more than one from the 6_A_1 ground term``.
+    """
+    merged = fit_spectrum(
+        5,
+        MERGED_D5_BANDS,
+        C=3096.0,
+        band_labels=[("4_T_1",), ("2_T_2", "4_T_2"), ("4_A_1", "4_E")],
+        include_spin_forbidden=True,
+    )
+    plain = fit_spectrum(
+        5,
+        MERGED_D5_BANDS,
+        C=3096.0,
+        band_labels=[("4_T_1",), ("4_T_2",), ("4_A_1", "4_E")],
+        include_spin_forbidden=True,
+    )
+    assert (merged.Dq, merged.B) == (plain.Dq, plain.B)
+    assert merged.assignment == plain.assignment
+
+
+def test_label_naming_only_delta_s_two_terms_is_refused() -> None:
+    """A tuple of Delta S = 2 terms only is refused, naming every term and the rule.
+
+    Observed red (working tree on 3824ce5): ``AssertionError`` on '2_A_2' -- the message
+    named only the first term, '2_T_2'.
+    """
+    with pytest.raises(ValueError, match=r"Delta S = 0, \+-1") as excinfo:
+        fit_spectrum(
+            5,
+            list(MN_OBSERVED_BANDS),
+            C=3243.0,
+            band_labels=["4_T_1", ("2_T_2", "2_A_2"), ["4_E", "4_A_1"]],
+            include_spin_forbidden=True,
+        )
+    assert "2_T_2" in str(excinfo.value)
+    assert "2_A_2" in str(excinfo.value)
+
+
+def test_d5_refusal_hint_names_the_spin_rule() -> None:
+    """The high-spin d5 refusal says which levels include_spin_forbidden=True matches.
+
+    Observed red (working tree on 3824ce5): ``AssertionError: Regex pattern did not match``
+    -- the hint said only that the bands are all spin-forbidden.
+    """
+    with pytest.raises(ValueError, match=r"only Delta S = 0, \+-1 levels are matched"):
+        fit_spectrum(5, list(MN_OBSERVED_BANDS))
+
+
+DEFAULT_C_REFUSALS = [
+    pytest.param(4, [4953.2, 5287.0, 9058.2, 9545.6], 1736.8, id="d4-high 528.7/434.2/1736.8"),
+    pytest.param(6, [4080.0, 6674.5, 8363.7, 10072.8], 1916.8, id="d6-high 408/479.2/1916.8"),
+]
+"""Audit rows (synthetic, sf, default C) that refuse once Delta S = 2 levels are gone.
+Bands: ``audit_fit_paths.synthetic_bands`` at the truth (oracle levels), to 0.1 cm^-1.
+The third value is the truth C, at which both fit exactly (Task 1e probe)."""
+
+
+@pytest.mark.parametrize(("d", "bands", "_truth_c"), DEFAULT_C_REFUSALS)
+def test_default_c_refusal_names_the_held_c(d: int, bands: list[float], _truth_c: float) -> None:
+    """A refusal at the held default C says so, and says to pass C or label the bands.
+
+    Plan G, Task 1e: with C = truth both rows fit exactly, so the cause is the default C,
+    and a message pointing at the peak list or the d-count sends the user the wrong way.
+    Observed red (working tree on 3824ce5): ``AssertionError: Regex pattern did not
+    match`` -- the message named the peak list, the d-count and spin_state only.
+    """
+    c0 = float(DEFAULTS[d]["default_C"])
+    with pytest.raises(ValueError, match=rf"C was held at the d{d} default {c0:.0f}") as excinfo:
+        fit_spectrum(d, bands, include_spin_forbidden=True)
+    assert "pass C" in str(excinfo.value)
+
+
+def test_transition_candidates_still_lists_every_multiplicity() -> None:
+    """The term list for display keeps doublets: the Delta S rule belongs to fitting.
+
+    Green on arrival: a guard that the fix does not reach the display tables.
+    """
+    _ground, candidates = transition_candidates(
+        compute_point(5, 800.0, 860.0, 3850.0), spin_allowed_only=False
+    )
+    assert any("→2_" in assignment for _e, assignment, _s in candidates)

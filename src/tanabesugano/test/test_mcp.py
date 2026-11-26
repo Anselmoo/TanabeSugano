@@ -1019,6 +1019,44 @@ def test_unknown_label_is_a_compute_error() -> None:
     assert "1_A_1" in data.error
 
 
+def test_delta_s_two_label_is_a_compute_error() -> None:
+    """A label on a Delta S = 2 term comes back as ComputeError naming the term and the rule.
+
+    Observed red at 3824ce5: ``AttributeError: 'Root' object has no attribute 'error'``
+    (the fit succeeded and returned a FitResult).
+    """
+    result = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 5,
+            "observed_peaks_cm1": [18870.0, 23120.0, 24960.0],
+            "band_labels": ["4_T_1", "2_T_2", ["4_E", "4_A_1"]],
+            "include_spin_forbidden": True,
+        },
+    )
+    data = result.data  # type: ignore[attr-defined]
+    assert "2_T_2" in data.error
+    assert "changes spin by more than one" in data.error
+
+
+def test_default_c_refusal_is_a_compute_error() -> None:
+    """The d4 default-C refusal (plan G, Task 1e) reaches the agent as ComputeError.
+
+    Observed red (working tree on 3824ce5): ``AssertionError`` -- the error text did not
+    name the held default C.
+    """
+    result = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 4,
+            "observed_peaks_cm1": [4953.2, 5287.0, 9058.2, 9545.6],
+            "include_spin_forbidden": True,
+        },
+    )
+    data = result.data  # type: ignore[attr-defined]
+    assert "C was held at the d4 default" in data.error
+
+
 def test_label_count_mismatch_is_a_compute_error() -> None:
     """Two labels for three peaks is a ComputeError, not a silent truncation.
 

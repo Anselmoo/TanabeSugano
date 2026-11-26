@@ -771,21 +771,51 @@ BandLabel = str | Sequence[str] | None
 ``("4_E", "4_A_1")``), or ``None`` for an unlabelled band."""
 
 
+NM_XATOL_CM1 = 1e-2
+"""Nelder-Mead ``xatol`` of the fit: the simplex size in (Dq, B[, C]) at which it stops,
+in cm^-1. The fit's own resolution, so tests comparing a fit with an independent
+reference use it as their tolerance (plan G, Task 1c)."""
+NM_FATOL_CM1 = 1e-2
+"""Nelder-Mead ``fatol`` of the fit: the objective (an RMSE in cm^-1) change at which it stops."""
+
+SPIN_FORBIDDEN_MAX_DELTA_MULT = 2
+"""Largest change of multiplicity (2S+1) a fitted band may have: Delta S = 0, +-1.
+
+The spin selection rule, not a tuned value: a Delta S = +-1 line gains intensity
+through first-order spin-orbit coupling, a Delta S = +-2 line needs second order and
+is not observed in d-d spectra. It is also the audit's band rule (AUDIT-2.1.0.md
+Section 2). Admitting Delta S = 2 levels let high-spin d5 [Mn(H2O)6]2+ observed bands
+fit at Dq 1113 on a sextet -> doublet level (plan G, Task 1)."""
+
+
+def within_spin_rule(ground_mult: int, multiplicity: int) -> bool:
+    """Return whether a level of ``multiplicity`` may take a band (Delta S = 0, +-1)."""
+    return abs(multiplicity - ground_mult) <= SPIN_FORBIDDEN_MAX_DELTA_MULT
+
+
 def excited_levels(
     term_energies: dict[str, list[float]], *, spin_allowed_only: bool
 ) -> tuple[str, list[tuple[float, str]]]:
     """Return ``(ground_key, [(energy, uid), ...])`` for the levels a band can land on.
 
-    The same filter as :func:`transition_candidates` (multiplicity of the ground
-    term unless ``spin_allowed_only`` is False, energy above 1 cm^-1), keyed by
-    :attr:`Level.uid` so a label can be checked against it.
+    Energy above 1 cm^-1, keyed by :attr:`Level.uid` so a label can be checked against
+    it. With ``spin_allowed_only`` only the ground multiplicity; otherwise every level
+    with Delta S = 0, +-1 (:data:`SPIN_FORBIDDEN_MAX_DELTA_MULT`), relative to the
+    ground term at this point -- which :func:`_score_point` requires to be the regime's
+    reference. This is narrower than :func:`transition_candidates`, which lists every
+    multiplicity for display.
     """
     ground_key, _ground_energy = ground_term(term_energies)
     ground_mult = term_multiplicity(ground_key)
     levels = [
         (level.energy_cm1, level.uid)
         for level in LevelSet.from_states(term_energies).levels
-        if (not spin_allowed_only or level.multiplicity == ground_mult) and level.energy_cm1 > 1.0
+        if (
+            level.multiplicity == ground_mult
+            if spin_allowed_only
+            else within_spin_rule(ground_mult, level.multiplicity)
+        )
+        and level.energy_cm1 > 1.0
     ]
     return ground_key, sorted(levels)
 
@@ -1334,12 +1364,21 @@ def _fit_one_regime(
         compute_point(d_count, probe_dq, b_seed, C),
         spin_allowed_only=spin_allowed_only,
     )
+    # Count only what the objective can assign (Delta S = 0, +-1), or a fit could pass
+    # this gate and then score None at every point.
+    reference_mult = term_multiplicity(reference)
+    seed_candidates = [
+        cand
+        for cand in seed_candidates
+        if within_spin_rule(reference_mult, int(cand[1].split("→", 1)[1].split("_", 1)[0]))
+    ]
     if not seed_candidates:
         msg = (
             f"d{d_count} has no spin-allowed d-d transitions from its {reference} "
             f"ground term in the {spin_state}-spin regime, so it cannot be fitted "
             "from spin-allowed bands. Pass include_spin_forbidden=True (high-spin "
-            "d5 bands are all spin-forbidden) or spin_state='low'."
+            "d5 bands are all spin-forbidden; only Delta S = 0, +-1 levels are matched, "
+            "i.e. the quartets) or spin_state='low'."
         )
         raise ValueError(msg)
     if len(seed_candidates) < observed.size:
@@ -1350,6 +1389,30 @@ def _fit_one_regime(
         )
         raise ValueError(msg)
     if labels is not None:
+        # A merged label keeps its Delta S = 0, +-1 members; the rest name levels the
+        # fit never matches. Only a label with no such member left is refused.
+        kept_labels: list[tuple[str, ...] | None] = []
+        for label in labels:
+            if label is None:
+                kept_labels.append(None)
+                continue
+            kept = tuple(
+                term
+                for term in label
+                if not term.split("_", 1)[0].isdigit()
+                or within_spin_rule(reference_mult, int(term.split("_", 1)[0]))
+            )
+            if not kept:
+                named = " / ".join(repr(term) for term in label)
+                msg = (
+                    f"band label {named} changes spin by more than one from the "
+                    f"{reference} ground term: only Delta S = 0, +-1 levels are fitted "
+                    "(a Delta S = +-2 line needs second-order spin-orbit coupling and is "
+                    "not observed in d-d spectra)"
+                )
+                raise ValueError(msg)
+            kept_labels.append(kept)
+        labels = kept_labels
         _, probe_levels = excited_levels(
             compute_point(d_count, probe_dq, b_seed, C), spin_allowed_only=spin_allowed_only
         )
@@ -1421,7 +1484,11 @@ def _fit_one_regime(
             objective,
             np.array(start, dtype=float),
             method="Nelder-Mead",
-            options={"maxiter": 2000 if free_c else 800, "xatol": 1e-2, "fatol": 1e-2},
+            options={
+                "maxiter": 2000 if free_c else 800,
+                "xatol": NM_XATOL_CM1,
+                "fatol": NM_FATOL_CM1,
+            },
         )
         for start in starts
     ]
@@ -1445,9 +1512,15 @@ def _fit_one_regime(
         msg = f"fit did not converge: {best.message}"
         raise ValueError(msg)
     if best.fun >= base:
+        held_c = (
+            f" C was held at the d{d_count} default {C:.0f} cm^-1, an assumption, not a "
+            "property of this complex: pass C, or label every band so C is fitted."
+            if c_is_default and not free_c
+            else ""
+        )
         msg = (
             "fit never escaped the penalty region -- no (Dq, B) in bounds reproduced "
-            f"the observed bands for d{d_count}. Check the peak list, the d-count, "
+            f"the observed bands for d{d_count}.{held_c} Check the peak list, the d-count, "
             "or try spin_state='low'."
         )
         raise ValueError(msg)

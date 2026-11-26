@@ -194,7 +194,9 @@ class TestOneSolverOneAnswer:
 
         Observed red (3bff962): d3 differs (grid node, not the fitted point);
         d6-low / d5-high-sf: unexpected keyword argument ``spin_state`` /
-        ``include_spin_forbidden``.
+        ``include_spin_forbidden``. The d5 bands follow the band rule since plan G,
+        Task 1b; that red is not re-run, as a missing keyword fails the same way for any
+        bands.
         """
         from tanabesugano.mcp._compute import fit_spectrum
         from tanabesugano.test.test_fit_recovery import D5_HS_POINTS
