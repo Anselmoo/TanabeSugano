@@ -39,24 +39,61 @@ C_TOL_PCT = 5.0
 """B7's criterion for a fitted C; the audit grades no C."""
 
 
+BAND_RULE_MAX_DELTA_MULT = 2
+"""The user's band rule (plan G, Task 1): a band is a level whose 2S+1 differs from the
+ground's by at most 2 (Delta S = 0, +-1). Written here from the decision, not imported
+from ``_compute``, so the generator cannot inherit a defect in the code under test."""
+
+
 def oracle_bands(
     d: int, dq: float, b: float, c: float, *, spin_allowed_only: bool
 ) -> list[tuple[float, str]]:
-    """Return ``(energy above ground, "<term>#<index>")`` for every excited oracle level.
+    """Return ``(energy above ground, "<term>#<index>")`` for the excited oracle levels.
 
-    The multiplicity filter uses the oracle's own ground level, never the package's.
+    ``spin_allowed_only`` keeps the ground's multiplicity; otherwise the band rule
+    (``BAND_RULE_MAX_DELTA_MULT``) applies. The filter uses the oracle's own ground
+    level, never the package's.
     """
     levels = sorted(
         (float(e), f"{key}#{i}")
         for key, values in relative_term_levels(d, dq, b, c).items()
         for i, e in enumerate(values)
     )
-    ground_mult = levels[0][1].split("_", 1)[0]
+    ground_mult = int(levels[0][1].split("_", 1)[0])
+    max_delta = 0 if spin_allowed_only else BAND_RULE_MAX_DELTA_MULT
     return [
         (e, uid)
         for e, uid in levels[1:]
-        if not spin_allowed_only or uid.split("_", 1)[0] == ground_mult
+        if abs(int(uid.split("_", 1)[0]) - ground_mult) <= max_delta
     ]
+
+
+@pytest.mark.parametrize("d", [4, 5, 6])
+def test_oracle_bands_follow_the_band_rule(d: int) -> None:
+    """With spin-forbidden bands on, the generator yields only Delta S = 0, +-1 levels.
+
+    The band rule (plan G, Task 1b; ``BAND_RULE_MAX_DELTA_MULT``) applies to every
+    generator a fit is fed from, not only to ``merged_bands``. d4-d6 are the d-counts
+    with levels two multiplicity steps from the ground (singlets for a quintet ground,
+    doublets for a sextet).
+
+    Observed red (b219f71, the generator unfiltered): d4 ``['1_T_2#0', ...]``, d5
+    ``['2_T_2#0', ...]``, d6 (low-spin 1A1 ground at these parameters) ``['5_T_2#0', '5_E#0']``.
+    """
+    bands = oracle_bands(d, 1500.0, 700.0, 3000.0, spin_allowed_only=False)
+    ground_mult = int(relative_term_ground(d, 1500.0, 700.0, 3000.0).split("_", 1)[0])
+    beyond = [
+        uid
+        for _e, uid in bands
+        if abs(int(uid.split("_", 1)[0]) - ground_mult) > BAND_RULE_MAX_DELTA_MULT
+    ]
+    assert beyond == []
+
+
+def relative_term_ground(d: int, dq: float, b: float, c: float) -> str:
+    """The oracle's ground term key, read from its lowest level."""
+    levels = relative_term_levels(d, dq, b, c)
+    return min(((min(v), k) for k, v in levels.items()), key=lambda x: x[0])[1]
 
 
 def term_labels(bands: list[tuple[float, str]]) -> list[str]:
@@ -133,31 +170,10 @@ MERGE_CM1 = 50.0
 """Levels closer than this read as one band, as in the audit (``audit_fit_paths.MERGE_CM1``)."""
 
 
-BAND_RULE_MAX_DELTA_MULT = 2
-"""The user's band rule (plan G, Task 1): a band is a level whose 2S+1 differs from the
-ground's by at most 2 (Delta S = 0, +-1). Written here from the decision, not imported
-from ``_compute``, so the generator cannot inherit a defect in the code under test."""
-
-
-def rule_bands(d: int, dq: float, b: float, c: float) -> list[tuple[float, str]]:
-    """Return the oracle levels within the band rule of the oracle's own ground level."""
-    levels = sorted(
-        (float(e), f"{key}#{i}")
-        for key, values in relative_term_levels(d, dq, b, c).items()
-        for i, e in enumerate(values)
-    )
-    ground_mult = int(levels[0][1].split("_", 1)[0])
-    return [
-        (e, uid)
-        for e, uid in levels[1:]
-        if abs(int(uid.split("_", 1)[0]) - ground_mult) <= BAND_RULE_MAX_DELTA_MULT
-    ]
-
-
 def merged_bands(d: int, dq: float, b: float, c: float, n_bands: int) -> list[float]:
     """Return the lowest ``n_bands`` oracle bands under the band rule, near-degenerate merged."""
     groups: list[list[float]] = []
-    for e, _uid in rule_bands(d, dq, b, c):
+    for e, _uid in oracle_bands(d, dq, b, c, spin_allowed_only=False):
         if groups and e - groups[-1][-1] <= MERGE_CM1:
             groups[-1].append(e)
         else:
@@ -311,7 +327,7 @@ def merged_labelled_bands(
 ) -> tuple[list[float], list[tuple[str, ...]]]:
     """As :func:`merged_bands`, with each band's term keys (all merged levels' terms)."""
     groups: list[list[tuple[float, str]]] = []
-    for e, uid in rule_bands(d, dq, b, c):
+    for e, uid in oracle_bands(d, dq, b, c, spin_allowed_only=False):
         if groups and e - groups[-1][-1][0] <= MERGE_CM1:
             groups[-1].append((e, uid))
         else:
