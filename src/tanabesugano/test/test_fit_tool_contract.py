@@ -453,3 +453,51 @@ def test_undetermined_point_is_not_called_fitted_or_best(name: str) -> None:
     else:
         labels = [s["label"] for s in _payload(result)["series"]]
         assert not [label for label in labels if label.startswith("Fitted")], labels
+
+
+AL2O3_CR_ALL_BANDS = [18149.0, 24570.0, 14405.0]
+"""Al2O3:Cr3+, the three observed bands of ``audit/jce2023/primary_sources.csv`` (4T2,
+4T1, 2E), passed unlabelled with spin-forbidden fitting on: Dq and B undetermined, and
+the spin-allowed fit (1814.9) lies outside the tied minima's spread (Task 9, C6)."""
+
+RANGE_NOT_BOUNDS = "the spread spans the tied minima found, not bounds on the answer"
+OUTSIDE = "the true value can lie outside it"
+SF_UNLABELLED = (
+    "unlabelled spin-forbidden fit: labelling the bands, or fitting the spin-allowed "
+    "bands only, may give a different answer"
+)
+
+
+def test_undetermined_warning_says_the_range_is_not_a_bound() -> None:
+    """The spread of tied minima is named as such, not as bounds on Dq.
+
+    Observed red (b219f71): no warning contains the phrase; the undetermined warning
+    ended "...the reported value is one of them, for display".
+    """
+    fit = _tool("ts_fit_spectrum").fn(
+        d_count=3, observed_peaks_cm1=AL2O3_CR_ALL_BANDS, include_spin_forbidden=True
+    )
+    assert fit.Dq_source == "undetermined"
+    joined = " | ".join(fit.warnings)
+    assert RANGE_NOT_BOUNDS in joined
+    assert OUTSIDE in joined
+    assert SF_UNLABELLED in joined
+
+
+def test_provenance_descriptions_say_the_range_is_not_a_bound() -> None:
+    """Dq_source and B_source descriptions carry the same caution as the warning.
+
+    Observed red (b219f71): ``AssertionError: Dq_source`` / ``assert 'not a bound' in
+    "Where fitted_Dq comes from: 'fitted', or 'undetermined' when tied minima disagree
+    on it -- ..."``.
+    """
+    for name in ("Dq_source", "B_source"):
+        description = FitResult.model_fields[name].description or ""
+        assert "not a bound" in description, name
+        assert "can lie outside" in description, name
+
+
+def test_spin_allowed_fit_gets_no_spin_forbidden_caution() -> None:
+    """The unlabelled spin-forbidden caution does not fire on a spin-allowed fit."""
+    fit = _tool("ts_fit_spectrum").fn(d_count=3, observed_peaks_cm1=AL2O3_CR_ALL_BANDS[:2])
+    assert all(SF_UNLABELLED not in w for w in fit.warnings)

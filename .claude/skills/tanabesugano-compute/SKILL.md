@@ -35,7 +35,8 @@ want the AI to drive the computation instead of asking me to run a Python script
 3. For a fit-to-spectrum task: feed measured peaks to `ts_fit_spectrum` to get
    `(Dq, B)` directly, with `band_labels` where the assignment is known. Before
    quoting a value, read `Dq_source` / `B_source` / `C_source`: only 'fitted' or
-   'given' is a result; 'undetermined' means report the range over `minima`.
+   'given' is a result; 'undetermined' means report the range over `minima`,
+   as tied minima, not bounds: the true value can lie outside it.
    Default B and C are an assumption, not a property of the complex: say so.
    If a coarse sweep is needed instead, use `ts_diagram_app` (or `ts_plot_view`)
    at default Racah B/C and read off the candidate region: that is an eyeballed

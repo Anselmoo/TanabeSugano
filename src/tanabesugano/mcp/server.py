@@ -91,7 +91,8 @@ def create_server() -> FastMCP[Any]:
             "fit apps display it. Quote fitted_Dq, fitted_B or fitted_C only "
             "where Dq_source, B_source or C_source is 'fitted' or 'given'; "
             "when one is 'undetermined', report the range over minima, not a "
-            "number, and say why (warnings). Name the assumptions, a default C "
+            "number, as tied minima rather than bounds (the true value can lie "
+            "outside it), and say why (warnings). Name the assumptions, a default C "
             "included, beside any value you quote."
         ),
         version=__version__,

@@ -603,6 +603,19 @@ would grade as the same answer.
 """
 
 
+UNDETERMINED_SPREAD_NOTE = (
+    "the spread spans the tied minima found, not bounds on the answer: the true value "
+    "can lie outside it"
+)
+"""Appended to every 'undetermined' warning: a range over tied minima is not an interval."""
+
+SF_UNLABELLED_NOTE = (
+    "unlabelled spin-forbidden fit: labelling the bands, or fitting the spin-allowed "
+    "bands only, may give a different answer"
+)
+"""Warned when an unlabelled include_spin_forbidden fit leaves Dq or B undetermined."""
+
+
 def ambiguous_minima(minima: Sequence[tuple[float, float, float, float]]) -> list[bool]:
     """Flag each ``(Dq, B, C, objective)`` that another entry ties at a distinct (Dq, B).
 
@@ -1178,6 +1191,12 @@ def fit_spectrum(
         )
     if not every_band_labelled and not include_spin_forbidden:
         fit = replace(fit, assumptions=(*fit.assumptions, SPIN_ALLOWED_ASSUMPTION))
+    if (
+        not every_band_labelled
+        and include_spin_forbidden
+        and "undetermined" in (fit.dq_provenance, fit.b_provenance)
+    ):
+        fit = replace(fit, warnings=[*fit.warnings, SF_UNLABELLED_NOTE])
     if td:
         fit = replace(fit, dq_convention="Td")
     if labels is not None and all(label is None for label in labels):
@@ -1739,7 +1758,8 @@ def _fit_one_regime(
         warnings.append(
             f"{' and '.join(names)} undetermined: {len(tied)} minima fit these bands to within "
             f"{BAND_RESOLUTION_CM1:.0f} cm^-1 of each other (the band resolution) but disagree "
-            f"({spans} cm^-1); the reported value is one of them, for display",
+            f"({spans} cm^-1); the reported value is one of them, for display; "
+            f"{UNDETERMINED_SPREAD_NOTE}",
         )
     if not c_constrained:
         warnings.append(

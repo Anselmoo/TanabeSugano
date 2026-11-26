@@ -145,7 +145,8 @@ class FitResult(BaseModel):
         description=(
             "Where fitted_Dq comes from: 'fitted', or 'undetermined' when tied minima "
             "disagree on it -- including when C was held at the default C on unlabelled "
-            "bands and a fit with C free reaches a better, distinct (Dq, B)."
+            "bands and a fit with C free reaches a better, distinct (Dq, B). The spread "
+            "of tied minima is not a bound: the true value can lie outside it."
         ),
     )
     B_source: ParameterProvenance = Field(
@@ -153,7 +154,8 @@ class FitResult(BaseModel):
         description=(
             "Where fitted_B comes from: 'fitted', or 'undetermined' when tied minima "
             "disagree on it -- including when C was held at the default C on unlabelled "
-            "bands and a fit with C free reaches a better, distinct (Dq, B)."
+            "bands and a fit with C free reaches a better, distinct (Dq, B). The spread "
+            "of tied minima is not a bound: the true value can lie outside it."
         ),
     )
     C_source: ParameterProvenance = Field(
