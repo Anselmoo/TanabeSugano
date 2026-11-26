@@ -1307,20 +1307,23 @@ def _comparison_reason(system: str, quantity: str) -> str:
 
 
 def source_unverified(fx: IonFixture) -> bool:
-    """A literature fixture, textbook or secondary, with no primary source recorded (user
-    ruling, 2026-11-26): its published values are unverified, so it is comparison-only.
+    """A literature fixture, textbook or secondary, whose source is not verified (user
+    rulings, 2026-11-26): its published values are unverified, so it is comparison-only.
+
+    The tier decides, not the source text: [Ni(H2O)6]2+ names Lever 1984, but no textbook
+    or secondary source is verified in ``audit/jce2023/SOURCE-CHECK.md``.
 
     JCE records are secondary too but are checked row by row against their originals
     (``primary_sources.csv``), so they are not covered by this rule.
     """
     if fx.label.startswith("JCE2023 ") or fx.expected_outcome != "fit":
         return False
-    return fx.source.startswith(TEXTBOOK_PROVENANCE) or fx.source_tier == "secondary"
+    return fx.source_tier in {"textbook", "secondary"}
 
 
 UNVERIFIED_REASON = (
-    "source unverified: a textbook or secondary value with no primary source recorded "
-    "(re-grading from Tanabe & Sugano 1954 is in docs/BACKLOG-2.2.md)"
+    "source unverified: a textbook or secondary value not verified in SOURCE-CHECK.md "
+    "(re-grading from a primary source is in docs/BACKLOG-2.2.md)"
 )
 
 COMPARISON_ONLY: dict[str, str] = {
@@ -1743,9 +1746,18 @@ def comparison_cases() -> list[tuple[str, IonFixture | JceRecord]]:
     return cases
 
 
-UNVERIFIED_BY_RULING = ("[Cr(H2O)6]3+", "[Ni(NH3)6]2+", "[Cr(NH3)6]3+", "MgO:Cr3+")
-"""The user's ruling (2026-11-26): textbook and secondary fixtures with no recorded primary
-source are unverified, so comparison-only for 2.1.0. Copied from the ruling, not derived."""
+UNVERIFIED_BY_RULING = (
+    "[Cr(H2O)6]3+",
+    "[Ni(NH3)6]2+",
+    "[Cr(NH3)6]3+",
+    "MgO:Cr3+",
+    "[Ni(H2O)6]2+",
+)
+"""The user's rulings (2026-11-26): textbook and secondary fixtures with no recorded primary
+source are unverified, so comparison-only for 2.1.0. [Ni(H2O)6]2+ was added under the later
+ground-truth rule: a published parameter grades only if its source is verified and it was
+obtained from the same bands; its bands (LibreTexts / Doc Brown) and parameters (Lever 1984)
+come from different sources, neither verified. Copied from the rulings, not derived."""
 
 
 @pytest.mark.parametrize("label", UNVERIFIED_BY_RULING)
@@ -1755,7 +1767,8 @@ def test_unverified_fixtures_are_never_graded(label: str) -> None:
     No nu1/10 exception: a Dq that is nu1/10 of an unverified band is unverified too.
 
     Observed red (b219f71): ``[Cr(H2O)6]3+``, ``[Ni(NH3)6]2+`` and ``MgO:Cr3+`` graded
-    ``('Dq', 'B')``; ``[Cr(NH3)6]3+`` graded ``('Dq',)``.
+    ``('Dq', 'B')``; ``[Cr(NH3)6]3+`` graded ``('Dq',)``. ``[Ni(H2O)6]2+`` (056663e+):
+    ``assert (('Dq', 'B'), False) == ((), True)``.
     """
     fx = next(f for f in FIXTURES if f.label == label)
     assert (graded_quantities(fx), label in COMPARISON_ONLY) == ((), True)

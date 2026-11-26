@@ -73,8 +73,9 @@ Deferred because these are needed only if those systems enter a later study.
 
 ## Re-grade the textbook fixtures from primary sources
 
-[Cr(H2O)6]3+, [Ni(NH3)6]2+, [Cr(NH3)6]3+ and MgO:Cr3+ are literature fixtures with no
-recorded primary source. In 2.1.0 they are comparison-only: each reports its distance
+[Cr(H2O)6]3+, [Ni(NH3)6]2+, [Cr(NH3)6]3+, MgO:Cr3+ and [Ni(H2O)6]2+ are literature
+fixtures whose source is not verified ([Ni(H2O)6]2+ also takes its bands and its parameters
+from different sources). In 2.1.0 they are comparison-only: each reports its distance
 from the printed values and grades neither Dq nor B. Re-grade them against Tanabe &
 Sugano 1954, which `audit/jce2023/SOURCE-CHECK.md` verifies, or against another primary
 source.

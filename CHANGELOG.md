@@ -128,9 +128,11 @@
   `include_spin_forbidden=True` that leaves Dq or B undetermined also says that
   labelling the bands, or fitting only the spin-allowed bands, may give a
   different answer.
-- Four literature fixtures with no recorded primary source ([Cr(H2O)6]3+,
-  [Ni(NH3)6]2+, [Cr(NH3)6]3+, MgO:Cr3+) are comparison-only: their tests report
-  the distance to the printed values and grade neither Dq nor B.
+- Five textbook or secondary literature fixtures whose source is not verified
+  ([Cr(H2O)6]3+, [Ni(NH3)6]2+, [Cr(NH3)6]3+, MgO:Cr3+, [Ni(H2O)6]2+) are
+  comparison-only: their tests report the distance to the printed values and
+  grade neither Dq nor B. [Ni(H2O)6]2+ also takes its bands and its parameters
+  from different sources.
 
 ### Known limitations
 
