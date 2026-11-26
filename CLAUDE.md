@@ -141,6 +141,21 @@ mandatory `tolerance_reason` are all validated at construction. **R1 — never v
 fixture against a published TS *diagram*:** the published d5/d6 diagrams carry a propagated error
 (Hormann & Shaw, *J. Chem. Educ.* **1987**, 64, 918), so such a test validates the error.
 
+**Ground truth.** The determinant oracle decides correctness: package and oracle agree to
+2.3e-10 cm⁻¹ (`ORACLE-REPORT.md`), and agreement on the same inputs means the code is right,
+whatever a paper says. Literature values are not ground truth. The values used here include
+calc columns printed as observed bands, parameters taken from a different source than the bands,
+values read off diagrams, spin-orbit-corrected Dq, assumed C/B, an emission line and a CT band
+listed as d-d. Observed bands from a verified original may be *input*. A published parameter may
+*grade* only if (a) its source is verified in `audit/jce2023/SOURCE-CHECK.md` /
+`primary_sources.csv`, (b) it was obtained from those same bands, and (c) with an estimator this
+model shares. Anything else is comparison-only (`-REF`). When a fit disagrees with literature:
+compute the oracle's best point for the same bands, assignment rule and path (labels, C, spin
+rule). If the package returns that point, the code is correct: classify the row (reference data,
+model limit, identifiability), make it comparison-only, change nothing else. If it does not, that
+is a code defect: fix it with a red test whose expected value comes from the oracle. Never tune a
+tolerance, threshold or default toward a literature value.
+
 ## MCP design notes (when adding tools)
 
 - `ts_plot_png` takes a `format` of `png` (inline image), `pdf` or `svg` (vector, returned as an embedded blob resource). Vector MIME types are spelled out in `plotting.EXPORT_MIME_TYPES`; do **not** switch to FastMCP's `File(format=...)`, which maps a bare extension to `application/<ext>` and so emits the unregistered `application/svg`.
