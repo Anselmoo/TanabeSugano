@@ -123,6 +123,9 @@
   measured again on the release tree: 0, with 127 raised). Unlabelled bands that
   fit the spin-allowed count are still fitted as spin-allowed and say so in
   `assumptions`; Co(bipy)3Br2·6H2O is the graded JCE row where that is wrong.
+- Regenerating the example tables and the UV-vis reference figures differs by
+  environment (up to 8.7e-11 in the last float digits, and in PNG bytes). This
+  predates this branch; the committed files are left as they were.
 - An `undetermined` warning now says that its range spans the tied minima found,
   not bounds, and that the true value can lie outside it. An unlabelled fit with
   `include_spin_forbidden=True` that leaves Dq or B undetermined also says that
@@ -148,8 +151,10 @@
   `undetermined` mark report *identifiability* (the bands do not fix C), not
   an error in the returned numbers.
 - The default-C check counts a free-C minimum only if it fits better than the
-  held one by more than `TIE_RMSE_CM1`. Synthetic default-C OK audit rows
-  carrying its warning: limit 14 when it was added, 17 measured then
+  held one by more than `TIE_RMSE_CM1`. Synthetic OK audit rows carrying its
+  warning, counted on `fit_spectrum` at the default C (the reverse app with
+  regime flags repeats the same rows one for one; the ratio app adds 7 more):
+  limit 14 when it was added, 17 measured then
   (`9474397`), 13 with that threshold (`9f75cdc`), which removed 52 false
   alarms on exact answers at the default C. Measured on the release tree: 14.
   The extra row is d5 low-spin (Dq 4106.4, B 989, C 3956), whose verdict moved
