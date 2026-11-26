@@ -11,7 +11,7 @@ from fastmcp.tools import ToolResult
 from mcp import types
 
 from tanabesugano import __version__
-from tanabesugano.mcp._compute import SpinState
+from tanabesugano.mcp._compute import FitSpinState
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
 from tanabesugano.mcp.plotting import EXPORT_MIME_TYPES
 from tanabesugano.mcp.plotting import render_diagram
@@ -37,7 +37,7 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_plot_png(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         dq_min: float = 0.0,
         dq_max: float = 1500.0,
         steps: int = 60,
@@ -58,7 +58,36 @@ def register(mcp: FastMCP) -> None:
         render an in-chat Prefab LineChart with per-term legend toggling.
 
         Args:
-            x_min, x_max, y_min, y_max: Crop the drawn axes, in the units of
+            d_count: d-electron count (2–8).
+            dq_min: Lower Dq of the sweep, in cm^-1.
+            dq_max: Upper Dq of the sweep, in cm^-1.
+            steps: Number of Dq grid points.
+            B: Racah B in cm^-1; per-configuration default when omitted.
+            C: Racah C in cm^-1; per-configuration default when omitted.
+            normalize: Plot E/B against 10Dq/B (standard Tanabe-Sugano).
+            dpi: Raster resolution for ``format="png"``.
+            x_min: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
+                identical axes: their normalised extents differ with B, so
+                matching them by tuning ``dq_max`` per ion is arithmetic that
+                cannot work for the y-axis at all. Cropping does not re-sweep --
+                the curves run through the window rather than stopping at it.
+            x_max: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
+                identical axes: their normalised extents differ with B, so
+                matching them by tuning ``dq_max`` per ion is arithmetic that
+                cannot work for the y-axis at all. Cropping does not re-sweep --
+                the curves run through the window rather than stopping at it.
+            y_min: Crop the drawn axes, in the units of
+                the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
+                otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
+                identical axes: their normalised extents differ with B, so
+                matching them by tuning ``dq_max`` per ion is arithmetic that
+                cannot work for the y-axis at all. Cropping does not re-sweep --
+                the curves run through the window rather than stopping at it.
+            y_max: Crop the drawn axes, in the units of
                 the axis as drawn -- 10Dq/B and E/B when ``normalize=True``,
                 otherwise 10Dq in cm^-1 and cm^-1. Use these to put two ions on
                 identical axes: their normalised extents differ with B, so
@@ -155,14 +184,21 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_fit_script(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         observed_peaks: list[float],
         C: float | None = None,
-        spin_state: SpinState = "high",
+        spin_state: FitSpinState = "high",
         include_spin_forbidden: bool = False,
         title: str | None = None,
+        band_labels: list[str | list[str] | None] | None = None,
+        fit_c: bool | None = None,
     ) -> ToolResult:
         """Return Python source that draws the observed-vs-computed band figure.
+
+        ts_fit_spectrum is the numeric fit; call it first. This tool displays that
+        same fit, and the script's header carries its Dq_source, B_source,
+        C_source and assumptions; an undetermined Dq or B is titled as a range.
+        Oh only; a geometry='Td' fit cannot be reproduced here.
 
         Prefer this over writing matplotlib by hand for a fit. The script
         carries the fitter's own Dq, B, transition energies and residuals as
@@ -179,6 +215,22 @@ def register(mcp: FastMCP) -> None:
         The generated script imports matplotlib and nothing else -- notably not
         tanabesugano -- so a reviewer can run it without installing this
         package or matching its version.
+
+        ``band_labels`` and ``fit_c`` mean exactly what they mean on
+        ``ts_fit_spectrum``; the figure shows the assignment the fit made.
+
+        Args:
+            d_count: d-electron count (2–8).
+            observed_peaks: Measured band maxima in cm^-1.
+            C: Racah C in cm^-1; per-configuration default when omitted.
+            spin_state: Which side of a spin crossover to fit on.
+            include_spin_forbidden: Also fit against spin-forbidden transitions,
+                ΔS = 0, ±1 from the ground term only; required for high-spin d5.
+            title: Figure title; a default naming the ion's fit is used when omitted.
+            band_labels: As on ``ts_fit_spectrum``, one label per band; only
+                ΔS = 0, ±1 levels are fitted.
+            fit_c: As on ``ts_fit_spectrum``: fit Racah C as a free parameter.
+
         """
         try:
             source = fit_figure_script(
@@ -187,6 +239,8 @@ def register(mcp: FastMCP) -> None:
                 C=C,
                 spin_state=spin_state,
                 include_spin_forbidden=include_spin_forbidden,
+                band_labels=band_labels,
+                fit_c=fit_c,
                 title=title,
             )
         except (ValueError, KeyError) as exc:

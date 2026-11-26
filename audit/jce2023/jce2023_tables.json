@@ -1,0 +1,1427 @@
+{
+ "source": {
+  "citation": "García Rojas, V.; Pérez Torres, J. F. Derivation of Dq/B and C/B from Electronic Spectra of Transition Metal Ions in Cubic Fields Using Auxiliary Tanabe–Sugano Diagrams. J. Chem. Educ. 2023, 100, 251-258",
+  "doi": "10.1021/acs.jchemed.2c00885",
+  "transcribed": "2026-11-24, from the PDF; checked against pdftotext -layout and the rendered pages",
+  "notes": [
+   "Wavenumbers in cm-1; term labels as printed (cubic, no g subscript); '^3E' carries no ordinal in the source.",
+   "approx=true marks values printed with ≈.",
+   "Table 2 'reported' values come from the cited original works; 'graphical' values are the authors' readings from auxiliary TS diagrams.",
+   "refs are the paper's own reference numbers, not resolved citations.",
+   "Text example (p. 4) gives a 17330 cm-1 band for [Co(H2O)6]2+ that Table 1 does not list."
+  ]
+ },
+ "table1": [
+  {
+   "block": "d2(Oh)/d8(Td)",
+   "system": "ZnO:Ni2+",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 4400.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 15500.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 24"
+  },
+  {
+   "block": "d2(Oh)/d8(Td)",
+   "system": "Al2O3:V3+",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 17500.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 25000.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1E)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "E",
+     "wavenumber_cm1": 9748.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 25"
+  },
+  {
+   "block": "d2(Oh)/d8(Td)",
+   "system": "[V(H2O)6]3+",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 17200.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 25600.0,
+     "approx": false
+    }
+   ],
+   "refs": "refs 26-28"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "[V(H2O)6]2+",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 12300.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 18500.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T1)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 27900.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 3"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "[Cr(H2O)6]3+",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 17400.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 24700.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T1)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 36600.0,
+     "approx": true
+    },
+    {
+     "printed": "E(1^2E)",
+     "ordinal": 1,
+     "multiplicity": 2,
+     "irrep": "E",
+     "wavenumber_cm1": 14800.0,
+     "approx": false
+    }
+   ],
+   "refs": "refs 1,26"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "KZnClSO4·3H2O:Cr3+",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 17235.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 24385.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^2E)",
+     "ordinal": 1,
+     "multiplicity": 2,
+     "irrep": "E",
+     "wavenumber_cm1": 11975.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 14"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "[Cr(oxalate)3]3-",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 17500.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 23800.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^2E)",
+     "ordinal": 1,
+     "multiplicity": 2,
+     "irrep": "E",
+     "wavenumber_cm1": 14300.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 22"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "Al2O3:Cr3+",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 18149.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 24570.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^2E)",
+     "ordinal": 1,
+     "multiplicity": 2,
+     "irrep": "E",
+     "wavenumber_cm1": 14420.0,
+     "approx": false
+    }
+   ],
+   "refs": "refs 11,21,25"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "[Cr(NH3)6]3+",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 21550.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 28500.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^2E)",
+     "ordinal": 1,
+     "multiplicity": 2,
+     "irrep": "E",
+     "wavenumber_cm1": 15200.0,
+     "approx": false
+    }
+   ],
+   "refs": "refs 1,7"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "K3Cr(CN)6",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 26600.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 32500.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^2E)",
+     "ordinal": 1,
+     "multiplicity": 2,
+     "irrep": "E",
+     "wavenumber_cm1": 12820.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 29"
+  },
+  {
+   "block": "d4(Oh)/d6(Td)",
+   "system": "[Mn(CN)6]3-",
+   "bands": [
+    {
+     "printed": "E(^3E)",
+     "ordinal": null,
+     "multiplicity": 3,
+     "irrep": "E",
+     "wavenumber_cm1": 31100.0,
+     "approx": false
+    },
+    {
+     "printed": "E(^3A1)",
+     "ordinal": null,
+     "multiplicity": 3,
+     "irrep": "A1",
+     "wavenumber_cm1": 33150.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1A1)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "A1",
+     "wavenumber_cm1": 21000.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 29"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "MnI2",
+   "bands": [
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 18450.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 20960.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4E)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "E",
+     "wavenumber_cm1": 22000.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "MnBr2",
+   "bands": [
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 19240.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 21890.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4E)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "E",
+     "wavenumber_cm1": 23000.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "MnCl2",
+   "bands": [
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 19180.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 22130.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4E)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "E",
+     "wavenumber_cm1": 23370.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "MnF2",
+   "bands": [
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 19720.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 23260.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4E)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "E",
+     "wavenumber_cm1": 24980.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "[Mn(H2O)6]2+",
+   "bands": [
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 19070.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 22710.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4E)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "E",
+     "wavenumber_cm1": 24500.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "LiGa5O8:Fe3+",
+   "bands": [
+    {
+     "printed": "E(1^4T1)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 18349.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 21505.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4E)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "E",
+     "wavenumber_cm1": 24627.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T2)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 27036.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 15"
+  },
+  {
+   "block": "d6(Oh)/d4(Td)",
+   "system": "[Co(oxalate)3]3-",
+   "bands": [
+    {
+     "printed": "E(1^1T1)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "T1",
+     "wavenumber_cm1": 16611.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1T2)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "T2",
+     "wavenumber_cm1": 23529.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 31"
+  },
+  {
+   "block": "d6(Oh)/d4(Td)",
+   "system": "[Co(H2O)6]3+",
+   "bands": [
+    {
+     "printed": "E(1^1T1)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "T1",
+     "wavenumber_cm1": 16474.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1T2)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "T2",
+     "wavenumber_cm1": 25381.0,
+     "approx": false
+    }
+   ],
+   "refs": "refs 26,31"
+  },
+  {
+   "block": "d6(Oh)/d4(Td)",
+   "system": "[Co(NH3)6]3+",
+   "bands": [
+    {
+     "printed": "E(1^1T1)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "T1",
+     "wavenumber_cm1": 21053.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1T2)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "T2",
+     "wavenumber_cm1": 29499.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^3T1)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 13400.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 17230.0,
+     "approx": false
+    }
+   ],
+   "refs": "refs 31,32"
+  },
+  {
+   "block": "d6(Oh)/d4(Td)",
+   "system": "[Co(NO2)6]3-",
+   "bands": [
+    {
+     "printed": "E(1^1T1)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "T1",
+     "wavenumber_cm1": 27397.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1T2)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "T2",
+     "wavenumber_cm1": 34483.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 31"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "AgCl:Co2+",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 6150.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4A2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "A2",
+     "wavenumber_cm1": 12400.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T1)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 16850.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^2T1)",
+     "ordinal": 2,
+     "multiplicity": 2,
+     "irrep": "T1",
+     "wavenumber_cm1": 19000.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 33"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "CoCl2",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 6600.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4A2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "A2",
+     "wavenumber_cm1": 13300.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T1)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 17150.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^2T1)",
+     "ordinal": 2,
+     "multiplicity": 2,
+     "irrep": "T1",
+     "wavenumber_cm1": 19030.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 34"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "KCoF3",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 7150.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4A2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "A2",
+     "wavenumber_cm1": 15200.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T1)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 19200.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^2T1)",
+     "ordinal": 2,
+     "multiplicity": 2,
+     "irrep": "T1",
+     "wavenumber_cm1": 21130.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 34"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "[Co(H2O)6]2+",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 8100.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T1)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 19400.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^2T1)",
+     "ordinal": 2,
+     "multiplicity": 2,
+     "irrep": "T1",
+     "wavenumber_cm1": 21600.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 27"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "CoSiF6·6H2O",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 8480.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^4A2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "A2",
+     "wavenumber_cm1": 16305.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T1)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 20360.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^2T1)",
+     "ordinal": 2,
+     "multiplicity": 2,
+     "irrep": "T1",
+     "wavenumber_cm1": 21001.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 35"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "Co(bipy)3Br2·6H2O",
+   "bands": [
+    {
+     "printed": "E(1^4T2)",
+     "ordinal": 1,
+     "multiplicity": 4,
+     "irrep": "T2",
+     "wavenumber_cm1": 11300.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^4T1)",
+     "ordinal": 2,
+     "multiplicity": 4,
+     "irrep": "T1",
+     "wavenumber_cm1": 22000.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^2T1)",
+     "ordinal": 2,
+     "multiplicity": 2,
+     "irrep": "T1",
+     "wavenumber_cm1": 18500.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 36"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "AgCl:Ni2+",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 6680.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^3T1)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 11250.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 20920.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1E)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "E",
+     "wavenumber_cm1": 12470.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 33"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "[NiF6]4-",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 7400.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^3T1)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 12660.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 23840.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1E)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "E",
+     "wavenumber_cm1": 15150.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 27"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "MgO:Ni2+",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 8010.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^3T1)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 13670.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 24070.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1E)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "E",
+     "wavenumber_cm1": 13670.0,
+     "approx": true
+    }
+   ],
+   "refs": "ref 24"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "[Ni(H2O)6]2+",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 8500.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^3T1)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 13500.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 25300.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1E)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "E",
+     "wavenumber_cm1": 15400.0,
+     "approx": false
+    }
+   ],
+   "refs": "refs 26,37"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "LiGa5O8:Ni2+",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 9770.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^3T1)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 16050.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 26740.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^1E)",
+     "ordinal": 1,
+     "multiplicity": 1,
+     "irrep": "E",
+     "wavenumber_cm1": 12987.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 38"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "[Ni(NH3)6]2+",
+   "bands": [
+    {
+     "printed": "E(1^3T2)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T2",
+     "wavenumber_cm1": 10600.0,
+     "approx": false
+    },
+    {
+     "printed": "E(1^3T1)",
+     "ordinal": 1,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 17500.0,
+     "approx": false
+    },
+    {
+     "printed": "E(2^3T1)",
+     "ordinal": 2,
+     "multiplicity": 3,
+     "irrep": "T1",
+     "wavenumber_cm1": 27600.0,
+     "approx": false
+    }
+   ],
+   "refs": "ref 1"
+  }
+ ],
+ "table2": [
+  {
+   "block": "d2(Oh)/d8(Td)",
+   "system": "ZnO:Ni2+",
+   "Dq_cm1": 405.0,
+   "Dq_over_B_reported": 0.509,
+   "Dq_over_B_graphical": 0.6,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": null,
+   "refs": "ref 24"
+  },
+  {
+   "block": "d2(Oh)/d8(Td)",
+   "system": "Al2O3:V3+",
+   "Dq_cm1": 1823.0,
+   "Dq_over_B_reported": 3.198,
+   "Dq_over_B_graphical": 3.2,
+   "C_over_B_reported": 4.561,
+   "C_over_B_graphical": 5.0,
+   "refs": "ref 25"
+  },
+  {
+   "block": "d2(Oh)/d8(Td)",
+   "system": "[V(H2O)6]3+",
+   "Dq_cm1": 1860.0,
+   "Dq_over_B_reported": 2.8,
+   "Dq_over_B_graphical": 2.8,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": null,
+   "refs": "ref 27"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "[V(H2O)6]2+",
+   "Dq_cm1": 1230.0,
+   "Dq_over_B_reported": 1.942,
+   "Dq_over_B_graphical": 1.95,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": null,
+   "refs": "ref 3"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "[Cr(H2O)6]3+",
+   "Dq_cm1": 1720.0,
+   "Dq_over_B_reported": 2.248,
+   "Dq_over_B_graphical": 2.35,
+   "C_over_B_reported": 4.0,
+   "C_over_B_graphical": 4.25,
+   "refs": "ref 1"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "KZnClSO4·3H2O:Cr3+",
+   "Dq_cm1": 1724.0,
+   "Dq_over_B_reported": 2.381,
+   "Dq_over_B_graphical": 2.4,
+   "C_over_B_reported": 3.431,
+   "C_over_B_graphical": 3.13,
+   "refs": "ref 14"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "[Cr(oxalate)3]3-",
+   "Dq_cm1": 1750.0,
+   "Dq_over_B_reported": 2.652,
+   "Dq_over_B_graphical": 2.85,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": 5.25,
+   "refs": "ref 22"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "Al2O3:Cr3+",
+   "Dq_cm1": 1810.0,
+   "Dq_over_B_reported": 2.785,
+   "Dq_over_B_graphical": 2.95,
+   "C_over_B_reported": 4.8,
+   "C_over_B_graphical": 5.25,
+   "refs": "ref 25"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "[Cr(NH3)6]3+",
+   "Dq_cm1": 2170.0,
+   "Dq_over_B_reported": 3.303,
+   "Dq_over_B_graphical": 3.3,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": 5.25,
+   "refs": "refs 1,7"
+  },
+  {
+   "block": "d3(Oh)/d7(Td)",
+   "system": "K3Cr(CN)6",
+   "Dq_cm1": 2660.0,
+   "Dq_over_B_reported": 5.542,
+   "Dq_over_B_graphical": 5.1,
+   "C_over_B_reported": 5.563,
+   "C_over_B_graphical": 5.5,
+   "refs": "ref 29"
+  },
+  {
+   "block": "d4(Oh)/d6(Td)",
+   "system": "[Mn(CN)6]3-",
+   "Dq_cm1": 3400.0,
+   "Dq_over_B_reported": 5.152,
+   "Dq_over_B_graphical": 6.2,
+   "C_over_B_reported": 4.97,
+   "C_over_B_graphical": 6.0,
+   "refs": "ref 29"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "MnI2",
+   "Dq_cm1": 550.0,
+   "Dq_over_B_reported": 0.798,
+   "Dq_over_B_graphical": 0.75,
+   "C_over_B_reported": 4.386,
+   "C_over_B_graphical": 4.0,
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "MnBr2",
+   "Dq_cm1": 580.0,
+   "Dq_over_B_reported": 0.804,
+   "Dq_over_B_graphical": 0.75,
+   "C_over_B_reported": 4.38,
+   "C_over_B_graphical": 4.0,
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "MnCl2",
+   "Dq_cm1": 620.0,
+   "Dq_over_B_reported": 0.805,
+   "Dq_over_B_graphical": 0.8,
+   "C_over_B_reported": 4.068,
+   "C_over_B_graphical": 4.0,
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "MnF2",
+   "Dq_cm1": 750.0,
+   "Dq_over_B_reported": 0.909,
+   "Dq_over_B_graphical": 0.9,
+   "C_over_B_reported": 4.068,
+   "C_over_B_graphical": 4.0,
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "[Mn(H2O)6]2+",
+   "Dq_cm1": 760.0,
+   "Dq_over_B_reported": 0.918,
+   "Dq_over_B_graphical": 0.95,
+   "C_over_B_reported": 3.917,
+   "C_over_B_graphical": 4.0,
+   "refs": "ref 30"
+  },
+  {
+   "block": "d5(Oh,Td)",
+   "system": "LiGa5O8:Fe3+",
+   "Dq_cm1": 906.0,
+   "Dq_over_B_reported": 1.525,
+   "Dq_over_B_graphical": 1.5,
+   "C_over_B_reported": 6.289,
+   "C_over_B_graphical": 6.25,
+   "refs": "ref 15"
+  },
+  {
+   "block": "d6(Oh)/d4(Td)",
+   "system": "[Co(oxalate)3]3-",
+   "Dq_cm1": 1815.0,
+   "Dq_over_B_reported": 3.389,
+   "Dq_over_B_graphical": 3.45,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": null,
+   "refs": "ref 31"
+  },
+  {
+   "block": "d6(Oh)/d4(Td)",
+   "system": "[Co(H2O)6]3+",
+   "Dq_cm1": 1841.0,
+   "Dq_over_B_reported": 2.611,
+   "Dq_over_B_graphical": 2.55,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": null,
+   "refs": "ref 31"
+  },
+  {
+   "block": "d6(Oh)/d4(Td)",
+   "system": "[Co(NH3)6]3+",
+   "Dq_cm1": 2293.0,
+   "Dq_over_B_reported": 3.611,
+   "Dq_over_B_graphical": 3.65,
+   "C_over_B_reported": 6.121,
+   "C_over_B_graphical": 5.63,
+   "refs": "refs 20,31"
+  },
+  {
+   "block": "d6(Oh)/d4(Td)",
+   "system": "[Co(NO2)6]3-",
+   "Dq_cm1": 2900.0,
+   "Dq_over_B_reported": 6.611,
+   "Dq_over_B_graphical": 5.85,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": null,
+   "refs": "ref 31"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "AgCl:Co2+",
+   "Dq_cm1": 680.0,
+   "Dq_over_B_reported": 0.861,
+   "Dq_over_B_graphical": 0.9,
+   "C_over_B_reported": 4.203,
+   "C_over_B_graphical": 4.75,
+   "refs": "ref 33"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "CoCl2",
+   "Dq_cm1": 690.0,
+   "Dq_over_B_reported": 0.885,
+   "Dq_over_B_graphical": 0.95,
+   "C_over_B_reported": 4.4,
+   "C_over_B_graphical": 4.63,
+   "refs": "ref 34"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "KCoF3",
+   "Dq_cm1": 770.0,
+   "Dq_over_B_reported": 0.875,
+   "Dq_over_B_graphical": 0.9,
+   "C_over_B_reported": 4.4,
+   "C_over_B_graphical": 4.5,
+   "refs": "ref 34"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "[Co(H2O)6]2+",
+   "Dq_cm1": 920.0,
+   "Dq_over_B_reported": 1.082,
+   "Dq_over_B_graphical": 1.1,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": 5.0,
+   "refs": "ref 27"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "CoSiF6·6H2O",
+   "Dq_cm1": 965.0,
+   "Dq_over_B_reported": 1.109,
+   "Dq_over_B_graphical": 1.1,
+   "C_over_B_reported": 4.5,
+   "C_over_B_graphical": 4.5,
+   "refs": "ref 35"
+  },
+  {
+   "block": "d7(Oh)/d3(Td)",
+   "system": "Co(bipy)3Br2·6H2O",
+   "Dq_cm1": 1267.0,
+   "Dq_over_B_reported": 1.602,
+   "Dq_over_B_graphical": 1.55,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": 4.0,
+   "refs": "ref 36"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "AgCl:Ni2+",
+   "Dq_cm1": 670.0,
+   "Dq_over_B_reported": 0.832,
+   "Dq_over_B_graphical": 0.8,
+   "C_over_B_reported": 3.888,
+   "C_over_B_graphical": 3.75,
+   "refs": "ref 33"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "[NiF6]4-",
+   "Dq_cm1": 740.0,
+   "Dq_over_B_reported": 0.78,
+   "Dq_over_B_graphical": 0.8,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": 4.5,
+   "refs": "ref 27"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "MgO:Ni2+",
+   "Dq_cm1": 815.0,
+   "Dq_over_B_reported": 0.916,
+   "Dq_over_B_graphical": 0.9,
+   "C_over_B_reported": 4.4,
+   "C_over_B_graphical": 4.0,
+   "refs": "ref 24"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "[Ni(H2O)6]2+",
+   "Dq_cm1": 860.0,
+   "Dq_over_B_reported": 0.915,
+   "Dq_over_B_graphical": 0.9,
+   "C_over_B_reported": 4.1,
+   "C_over_B_graphical": 4.5,
+   "refs": "ref 39"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "LiGa5O8:Ni2+",
+   "Dq_cm1": 977.0,
+   "Dq_over_B_reported": 1.086,
+   "Dq_over_B_graphical": 1.05,
+   "C_over_B_reported": 3.5,
+   "C_over_B_graphical": 3.25,
+   "refs": "ref 38"
+  },
+  {
+   "block": "d8(Oh)/d2(Td)",
+   "system": "[Ni(NH3)6]2+",
+   "Dq_cm1": 1030.0,
+   "Dq_over_B_reported": null,
+   "Dq_over_B_graphical": 1.2,
+   "C_over_B_reported": null,
+   "C_over_B_graphical": null,
+   "refs": "ref 1"
+  }
+ ]
+}

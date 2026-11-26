@@ -8,16 +8,22 @@ from typing import Literal
 from tanabesugano import __version__
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
 from tanabesugano.mcp._compute import fit_spectrum
+from tanabesugano.mcp._compute import minima_records
 from tanabesugano.mcp._compute import nephelauxetic_analysis
+from tanabesugano.mcp._compute import spin_rule_transitions
+from tanabesugano.mcp._compute import td_partner
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
+from tanabesugano.mcp.models import BandAssignment
 from tanabesugano.mcp.models import ComputeError
+from tanabesugano.mcp.models import FitMinimum
 from tanabesugano.mcp.models import FitResult
 from tanabesugano.mcp.models import NephelauxeticResult
 from tanabesugano.mcp.models import SpectrumPeak
 from tanabesugano.mcp.models import SupportedConfig
 from tanabesugano.mcp.tools._shared import READONLY
 from tanabesugano.mcp.tools._shared import TS_META
+from tanabesugano.script_export import labelled_bands
 
 
 if TYPE_CHECKING:
@@ -70,7 +76,7 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_fit_spectrum(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         observed_peaks_cm1: list[float],
         C: float | None = None,
         # Deliberately narrower than fit_spectrum's SpinState. "auto"
@@ -80,13 +86,30 @@ def register(mcp: FastMCP) -> None:
         # always fails.
         spin_state: Literal["high", "low"] = "high",
         include_spin_forbidden: bool = False,
+        band_labels: list[str | list[str] | None] | None = None,
+        fit_c: bool | None = None,
+        dq_bounds: tuple[float, float] | None = None,
+        geometry: Literal["Oh", "Td"] = "Oh",
     ) -> FitResult | ComputeError:
         """Fit observed UV-Vis absorption bands to determine Dq and B parameters.
 
-        Given a list of absorption peak positions measured in the lab (in cm^-1),
-        this tool performs a least-squares optimization to find the crystal-field
-        strength (Dq) and Racah B parameter that best reproduce the observed
-        spectrum.
+        ts_fit_spectrum is the numeric fit; call it first. ts_reverse_fit_app,
+        ts_ratio_fit_app, ts_fit_plot_app and ts_fit_script display this same fit.
+
+        Given absorption maxima in cm^-1, a least-squares fit finds the
+        crystal-field strength (Dq) and Racah B that best reproduce them.
+
+        Read the provenance before quoting a number: fitted_Dq, fitted_B and fitted_C
+        are results only where Dq_source, B_source and C_source say 'fitted' or
+        'given'. 'undetermined' means tied minima disagree; then no single entry of
+        minima is the answer and lowest_rmse marks a fact, not a choice. Read
+        band_assignments for which level each band was fitted to (peak_assignments
+        lists every candidate transition), assumptions for what was taken for
+        granted, and warnings. Returns a ComputeError when the problem is ill-posed.
+
+        Example, labelled [Ni(H2O)6]2+ (d8): Dq and B come back fitted; C stays the d8
+        default (C_source 'default'), an assumption these bands cannot fix:
+        ts_fit_spectrum(d_count=8, observed_peaks_cm1=[8500, 13800, 25300], band_labels=["3_T_2", "3_T_1#0", "3_T_1#1"])
 
         Args:
             d_count: d-electron count (2..8).
@@ -97,19 +120,31 @@ def register(mcp: FastMCP) -> None:
                 manifold of d2 and d8 is independent of C.
             spin_state: Which side of the spin crossover to fit on. The fit is
                 pinned to this regime and refuses solutions that cross it.
-            include_spin_forbidden: Also fit against spin-forbidden transitions.
-                Required for high-spin d5, whose d-d bands are all spin-forbidden.
+            include_spin_forbidden: Also fit against spin-forbidden transitions,
+                ΔS = 0, ±1 from the ground term only (a ΔS = ±2 line is never
+                matched). Required for high-spin d5, whose d-d bands are all
+                spin-forbidden.
+            band_labels: Optional, one per peak in the order given: a term key
+                ("4_T_1") or level uid ("4_T_1#1") naming the level the band is
+                assigned to, a list of them for a band over near-degenerate levels
+                (an either-or), or null for an unlabelled band. Labels steer the
+                band assignment; a label naming no level is an error. Only
+                ΔS = 0, ±1 levels are fitted: a ΔS = ±2 member of a list is dropped,
+                and a label left with none is an error.
+            fit_c: Fit Racah C as a free parameter. Default (null): fitted only when
+                C is not given and three or more bands are all labelled; false holds
+                C; true frees it regardless (then a warning says C is one of many).
+            dq_bounds: Optional (lower, upper) Dq search range in cm^-1; by default
+                derived from the lowest band. A Dq pinned at a bound is warned about.
+            geometry: "Oh" (default) or "Td". Td fits d^n on the Oh d^(10-n) manifold
+                with this ion's default B and C and returns the tetrahedral Dq_t
+                (Dq_convention "Td"), never an Oh-equivalent. High-spin only.
 
         Returns:
-            FitResult with the optimized Dq and B, the ground term the fit is
-            referenced to, per-peak residuals and any non-fatal warnings; or a
-            ComputeError when the problem is ill-posed (for example high-spin d5,
-            which has no spin-allowed d-d transitions at all) or the optimizer
-            cannot reach a physically valid minimum.
-
-        Example:
-            Fitting [Ni(H2O)6]2+ (d8) from its three spin-allowed bands:
-            ts_fit_spectrum(d_count=8, observed_peaks_cm1=[8500, 13800, 25300])
+            FitResult: fitted_Dq / fitted_B / fitted_C with Dq_source / B_source /
+            C_source, minima (each with source, lowest_rmse, ambiguous),
+            band_assignments, assumptions and warnings; or a ComputeError when the
+            problem is ill-posed or no physically valid minimum is reached.
 
         """
         if not observed_peaks_cm1:
@@ -124,10 +159,16 @@ def register(mcp: FastMCP) -> None:
                 C=C,
                 spin_state=spin_state,
                 include_spin_forbidden=include_spin_forbidden,
+                dq_bounds=dq_bounds,
+                band_labels=band_labels,
+                fit_c=fit_c,
+                geometry=geometry,
             )
         except (ValueError, RuntimeError) as exc:
             return ComputeError(error=f"Fitting failed: {exc!s}")
 
+        # Delta S = 0, +-1 only: the levels a band can be fitted to (plan G, Task 5).
+        transitions = spin_rule_transitions(fit)
         peak_assignments = [
             SpectrumPeak(
                 energy_cm1=energy,
@@ -135,7 +176,7 @@ def register(mcp: FastMCP) -> None:
                 # Mirrors ts_spectrum_app: spin-forbidden bands are drawn faint.
                 intensity=1.0 if spin_allowed else 0.05,
             )
-            for energy, assignment, spin_allowed in fit.transitions
+            for energy, assignment, spin_allowed in transitions
         ]
 
         # Proper R^2, against the variance of the observed peaks. The previous
@@ -145,6 +186,25 @@ def register(mcp: FastMCP) -> None:
         total_ss = sum((p - mean_observed) ** 2 for p in observed_peaks_cm1)
         residual_ss = sum(r**2 for r in fit.residuals_cm1)
         r_squared = None if total_ss <= 0 else max(0.0, min(1.0, 1.0 - residual_ss / total_ss))
+
+        # The assignment uids name levels of the fitted manifold, which under Td is d^(10-n).
+        manifold_d = td_partner(d_count) if geometry == "Td" else d_count
+        records = labelled_bands(fit, manifold_d, observed_peaks_cm1)
+        band_assignments = [
+            BandAssignment(
+                observed_cm1=observed,
+                computed_cm1=computed,
+                residual_cm1=computed - observed,
+                level_uid=uid,
+                label=record["assignment_unicode"],
+            )
+            for (observed, computed, uid), record in zip(fit.assignment, records, strict=True)
+        ]
+
+        def _minimum(m: tuple[float, float, float, float]) -> FitMinimum:
+            return FitMinimum(Dq=m[0], B=m[1], C=m[2], objective_cm1=m[3])
+
+        minima = [FitMinimum.model_validate(record) for record in minima_records(fit)]
 
         return FitResult(
             d_count=d_count,
@@ -156,12 +216,26 @@ def register(mcp: FastMCP) -> None:
             r_squared=r_squared,
             rmse_cm1=fit.rmse_cm1,
             observed_peaks_cm1=observed_peaks_cm1,
-            predicted_peaks_cm1=[energy for energy, _a, _s in fit.transitions],
+            predicted_peaks_cm1=[energy for energy, _a, _s in transitions],
             peak_assignments=peak_assignments,
             ground_term=fit.ground_term,
             spin_state=fit.spin_state,
-            residuals_cm1=fit.residuals_cm1,
+            # From the assignment, not fit.residuals_cm1: that one is in sorted band
+            # order, and this field is documented per input peak.
+            residuals_cm1=[a.residual_cm1 for a in band_assignments],
             warnings=fit.warnings,
+            Dq_source=fit.dq_provenance,
+            B_source=fit.b_provenance,
+            C_source=fit.c_provenance,
+            c_fitted=fit.c_fitted,
+            c_candidates=[_minimum(m) for m in fit.c_candidates],
+            c_range=fit.c_range,
+            minima=minima,
+            band_assignments=band_assignments,
+            Dq_nu1=fit.dq_nu1,
+            Dq_nu1_reason=fit.dq_nu1_reason,
+            assumptions=list(fit.assumptions),
+            Dq_convention=fit.dq_convention,
         )
 
     @mcp.tool(
@@ -173,7 +247,7 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_nephelauxetic(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         fitted_B: float,
         ion: str | None = None,
     ) -> NephelauxeticResult | ComputeError:

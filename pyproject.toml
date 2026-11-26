@@ -1,6 +1,6 @@
 [project]
 name = "tanabesugano"
-version = "2.0.0"
+version = "2.1.0"
 description = "A python-solver for Tanabe-Sugano and Energy-Correlation diagrams"
 authors = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
 maintainers = [{ name = "Anselm Hahn", email = "anselm.hahn@gmail.com" }]
@@ -64,6 +64,8 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = "src"
+# The oracle ships in the wheel; its findings ship beside it in the sdist.
+source-include = ["ORACLE-REPORT.md"]
 
 [dependency-groups]
 screenshot = [
@@ -92,6 +94,10 @@ dev = [
 target-version = "py312"
 line-length = 100
 src = ["src"]
+# audit/ holds one-off provenance tools (the JCE 2023 transcription re-checks
+# its values against the source PDF); they are kept verbatim, not restyled, so
+# the pre-commit ruff hook must not rewrite them. Mirrors [tool.ty.src] exclude.
+extend-exclude = ["audit"]
 
 [tool.ruff.lint]
 # `select = ["ALL"]` turns on every rule ruff ships, including mutually
@@ -206,7 +212,11 @@ required-imports = ["from __future__ import annotations"]
 # `**dict` unpacking into `Literal` fields and `Tolerance | None` narrowing in
 # test_ion_case_studies.py. Left unscoped the hook fails on every commit
 # forever, which is how a gate gets deleted rather than fixed.
-exclude = ["src/tanabesugano/test"]
+#
+# audit/ holds standalone, one-off provenance tools (e.g. the JCE 2023 table
+# transcription, which shells out to pdftotext). They are inputs to the audit,
+# not package code; scripts/audit_fit_paths.py, which consumes them, IS checked.
+exclude = ["src/tanabesugano/test", "audit"]
 
 [tool.rrt]
 release_branch = "release/v{version}"
@@ -310,6 +320,21 @@ pattern = "(?m)(^version: )([0-9][^\\n]*)()"
   [tool.poe.tasks.regen-all]
   sequence = ["regen-diagrams", "regen-examples", "regen-uvvis"]
   help     = "Regenerate every committed artifact"
+
+  # -- Audits ----------------------------------------------------------------
+  # Slow (~50 s), so deliberately NOT part of `check`.
+
+  [tool.poe.tasks.audit-fit]
+  cmd  = "python scripts/audit_fit_paths.py"
+  help = "Rewrite the 2.1.0 fit-path audit (audit/2.1.0/fit_audit.csv, AUDIT-2.1.0.md)"
+
+  [tool.poe.tasks.audit-fit-check]
+  cmd  = "python scripts/audit_fit_paths.py --check"
+  help = "Fail if the committed fit-path audit has drifted (not part of `check`)"
+
+  [tool.poe.tasks.audit-default-c-control]
+  cmd  = "python scripts/control_default_c.py"
+  help = "Fail if the held-C check fires on an exact answer at the default C (~4 min)"
 
   # -- Release ---------------------------------------------------------------
 

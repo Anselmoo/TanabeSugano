@@ -29,12 +29,16 @@ from typing import TYPE_CHECKING
 from tanabesugano import __version__
 from tanabesugano.levels import LevelSet
 from tanabesugano.mcp._compute import SpinState
+from tanabesugano.mcp._compute import fit_headline
 from tanabesugano.mcp._compute import fit_spectrum
+from tanabesugano.mcp._compute import undetermined_ranges
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from tanabesugano.levels import Level
+    from tanabesugano.mcp._compute import BandLabel
     from tanabesugano.mcp._compute import SpectrumFit
 
 
@@ -75,29 +79,23 @@ def _labelled_transitions(fit: SpectrumFit, d_count: int) -> list[tuple[float, s
             # own string rather than borrowing a neighbouring level's name.
             labelled.append((float(energy), _assignment, _assignment))
             continue
-        # The `{}` before the second superscript is required, not cosmetic:
-        # `A \rightarrow ^{3}T` is a superscript with no base, which both
-        # mathtext and LaTeX reject.
-        arrow = (
-            rf"{ground.parent_latex.strip('$')} \rightarrow "
-            rf"{{}}{level.parent_latex.strip('$')}"
-        )
-        labelled.append(
-            (
-                float(energy),
-                f"${arrow}$",
-                f"{ground.parent_unicode} \u2192 {level.parent_unicode}",
-            ),
-        )
+        labelled.append((float(energy), *_arrow(ground, level)))
     return labelled
+
+
+def _arrow(ground: Level, level: Level) -> tuple[str, str]:
+    """Return the ``(latex, unicode)`` transition label ground -> level, by parentage."""
+    # The `{}` before the second superscript is required, not cosmetic:
+    # `A \rightarrow ^{3}T` is a superscript with no base, which both
+    # mathtext and LaTeX reject.
+    arrow = rf"{ground.parent_latex.strip('$')} \rightarrow {{}}{level.parent_latex.strip('$')}"
+    return f"${arrow}$", f"{ground.parent_unicode} \u2192 {level.parent_unicode}"
 
 
 def labelled_bands(
     fit: SpectrumFit,
     d_count: int,
     observed_peaks_cm1: Sequence[float],
-    *,
-    _labelled: list[tuple[float, str, str]] | None = None,
 ) -> list[dict]:
     """One record per observed band: measured, computed, residual, assignment.
 
@@ -108,15 +106,27 @@ def labelled_bands(
     problem this module exists to remove: they could silently disagree about
     which computed line a band was assigned to.
 
-    Each observed band takes the nearest computed line, which is the rule the
-    fitting objective itself minimises, so the reported pairing is the pairing
-    that was actually fitted. Residuals are computed minus observed, stated
-    once here so both surfaces sign them the same way.
+    Band *i* takes the level the fit assigned it, read from
+    :attr:`SpectrumFit.assignment` by level uid -- no nearest-line search and no
+    spin filter. Nearest-line pairing disagreed with the injective fit whenever two
+    bands crowded one level, and it dropped spin-forbidden lines, so high-spin d5
+    had nothing to pair with. Residuals are computed minus observed, stated once
+    here so both surfaces sign them the same way.
     """
-    labelled = _labelled if _labelled is not None else _labelled_transitions(fit, d_count)
+    if len(fit.assignment) != len(observed_peaks_cm1):
+        msg = (
+            f"{len(observed_peaks_cm1)} bands given but the fit assigned "
+            f"{len(fit.assignment)}; pass the bands the fit was made from"
+        )
+        raise ValueError(msg)
+    manifold = LevelSet.solve(d_count, dq=fit.Dq, b=fit.B, c=fit.C)
+    by_uid = {lv.uid: lv for lv in manifold.levels}
+    ground = min(manifold.levels, key=lambda lv: lv.energy_cm1)
     records: list[dict] = []
-    for peak in (float(p) for p in observed_peaks_cm1):
-        energy, latex, unicode_label = min(labelled, key=lambda t: abs(t[0] - peak))
+    for peak, (_observed, energy, uid) in zip(
+        (float(p) for p in observed_peaks_cm1), fit.assignment, strict=True
+    ):
+        latex, unicode_label = _arrow(ground, by_uid[uid])
         records.append(
             {
                 "observed_cm1": peak,
@@ -136,6 +146,8 @@ def fit_figure_script(
     C: float | None = None,
     spin_state: SpinState = "high",
     include_spin_forbidden: bool = False,
+    band_labels: Sequence[BandLabel] | None = None,
+    fit_c: bool | None = None,
     title: str | None = None,
 ) -> str:
     """Return runnable Python that draws the observed-vs-computed figure.
@@ -151,16 +163,26 @@ def fit_figure_script(
         C,
         spin_state=spin_state,
         include_spin_forbidden=include_spin_forbidden,
+        band_labels=band_labels,
+        fit_c=fit_c,
     )
     labelled = _labelled_transitions(fit, d_count)
     observed = [float(p) for p in observed_peaks_cm1]
-    bands = labelled_bands(fit, d_count, observed, _labelled=labelled)
+    bands = labelled_bands(fit, d_count, observed)
     pairs = [
         (b["observed_cm1"], b["computed_cm1"], b["assignment"], b["residual_cm1"]) for b in bands
     ]
 
-    heading = title or f"d{d_count} fit: Dq = {fit.Dq:,.1f}, B = {fit.B:,.1f} cm$^{{-1}}$"
+    heading = title or f"d{d_count} fit: {fit_headline(fit, unit='cm$^{-1}$')}"
     warnings = "\n".join(f"#   ! {w}" for w in fit.warnings) or "#   (none)"
+    assumptions = "\n".join(f"#   - {a}" for a in fit.assumptions) or "#   (none)"
+    ranges = undetermined_ranges(fit)
+    shown = {
+        name: f"  (display value; range over minima {span[0]:.4f} - {span[1]:.4f})"
+        if span is not None
+        else ""
+        for name, span in ranges.items()
+    }
 
     from tanabesugano import plot_style  # deferred: pulls matplotlib
 
@@ -190,10 +212,15 @@ Fit provenance
   estimator      least-squares over all supplied bands
   spin regime    {fit.spin_state} (the fit was pinned to this side of any crossover)
   ground term    {fit.ground_term}
-  Dq             {fit.Dq:.4f} cm^-1
-  Racah B        {fit.B:.4f} cm^-1
+  Dq             {fit.Dq:.4f} cm^-1{shown["Dq"]}
+  Racah B        {fit.B:.4f} cm^-1{shown["B"]}
   Racah C        {fit.C:.4f} cm^-1
+  Dq_source      {fit.dq_provenance}
+  B_source       {fit.b_provenance}
+  C_source       {fit.c_provenance}
   RMS residual   {fit.rmse_cm1:.4f} cm^-1
+  assumptions
+{assumptions}
   warnings
 {warnings}
 

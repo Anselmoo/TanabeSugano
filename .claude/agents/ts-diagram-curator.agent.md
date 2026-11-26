@@ -23,15 +23,21 @@ description: >-
 2. **Call `ts_supported_configs`** to confirm the configuration is supported.
 3. **Call `ts_explain`** to ground the discussion in the correct ground-state term.
 4. **Call `ts_diagram_app`** (or `ts_plot_view`) with the default sweep + per-config
-   Racah defaults to surface the Tanabe-Sugano landscape.
-5. **If absorption peaks were provided**, prefer `ts_fit_spectrum` to back out
-   (Dq, B) in one call; otherwise scan the swept diagram for a Dq where the
+   Racah defaults to surface the Tanabe-Sugano landscape. The defaults are an
+   assumption, not a property of the complex.
+5. **If absorption peaks were provided**, call `ts_fit_spectrum` to back out
+   (Dq, B) in one call, with `band_labels` where the assignment is known. Read
+   `Dq_source` / `B_source` / `C_source` before reporting: only 'fitted' or
+   'given' is a result; for 'undetermined' report the range over `minima`.
+   Only if the fit is refused, scan the swept diagram for a Dq where the
    spin-allowed excited-state energies match the peaks (cm^-1) within ~5%, then
-   re-call `ts_diagram_app` with a narrower `dq_min`/`dq_max` to refine.
+   re-call `ts_diagram_app` with a narrower `dq_min`/`dq_max`. That is an
+   eyeballed estimate, not a fit: label it so in the report.
 6. **Call `ts_plot_png`** once on the final fitted range when a static image is
    wanted; otherwise leave the interactive `ts_diagram_app` panel as the final
    visual.
-7. **Report**: fitted Dq, Racah B, assigned transitions (ground -> excited terms), and
+7. **Report**: fitted Dq and Racah B with their sources, the assumptions the fit
+   lists, assigned transitions (ground -> excited terms, from `band_assignments`), and
    any deviations that hint at distortion, low-spin behavior, or charge-transfer
    contamination of the spectrum.
 
@@ -39,7 +45,8 @@ description: >-
 
 - Metal ion + oxidation state (for d_count).
 - Absorption maxima in cm^-1 (or nm — convert).
-- Geometry — assume octahedral; flag if user implies otherwise (tool is octahedral-only).
+- Geometry — octahedral by default. For a tetrahedral complex pass `geometry='Td'` to
+  `ts_fit_spectrum` (high-spin only); the diagram tools stay octahedral (Oh).
 
 ## Outputs
 
@@ -51,5 +58,6 @@ description: >-
 ## Do not
 
 - Call `ts_plot_view` by default; the payload is expensive.
-- Invent Dq or B values; either fit from provided peaks or use the configuration default.
-- Attempt non-octahedral geometries.
+- Invent Dq or B values; either fit from provided peaks or use the configuration
+  default and state it as an assumption.
+- Attempt geometries other than Oh, or Td through `ts_fit_spectrum`.

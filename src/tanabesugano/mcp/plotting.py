@@ -21,6 +21,7 @@ import numpy as np
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
+from tanabesugano.constants import CM1_TO_EV
 from tanabesugano.figure_style import series_styles
 from tanabesugano.mcp._compute import sweep_dq
 from tanabesugano.plot_style import LABEL_FONT_PT
@@ -58,13 +59,11 @@ Spelled out rather than derived from the extension. FastMCP's
 PDF and SVG backends all accept these three via ``fig.savefig(format=...)``.
 """
 
-_CM1_TO_EV_PNG: float = 1.0 / 8065.54
-
 
 def _convert_energy_png(e_cm: float, unit: str) -> float:
     """Convert cm^-1 to the requested unit for matplotlib rendering."""
     if unit == "eV":
-        return e_cm * _CM1_TO_EV_PNG
+        return e_cm * CM1_TO_EV
     if unit == "nm":
         return 1e7 / e_cm if e_cm else float("nan")
     return e_cm

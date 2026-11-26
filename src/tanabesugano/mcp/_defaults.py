@@ -135,17 +135,17 @@ NEPHELAUXETIC_SERIES: tuple[tuple[str, float], ...] = (
 
 
 WHY_TANABE_SUGANO = (
-    "Why use a Tanabe-Sugano diagram? They normalise all term energies by "
-    "Racah B, so one chart is universal for every metal ion with a given "
-    "d-electron count. The chart shows spin-allowed AND spin-forbidden d-d "
-    "transitions side-by-side, exposes the high-spin / low-spin crossover "
-    "for d4-d7 as a discontinuity in the ground term, and lets chemists fit "
-    "Dq and B from two experimental band ratios (the 'two-ratio method') "
-    "without numerical optimisation. That is why TS diagrams remain the "
-    "go-to tool 70+ years after Tanabe & Sugano (1954) for interpreting "
-    "visible/UV absorption spectra of octahedral transition-metal complexes "
-    "-- a single coarse approximation (crystal-field theory + Racah "
-    "parameters) that nails both paired and unpaired d-electron systems."
+    "Why use a Tanabe-Sugano diagram? It plots term energies in units of "
+    "Racah B, so for a fixed C/B one chart serves every metal ion with a "
+    "given d-electron count. It shows spin-allowed and spin-forbidden d-d "
+    "transitions side by side, shows the high-spin / low-spin crossover of "
+    "d4-d7 as a change of ground term, and supports reading Dq and B off "
+    "band-energy ratios (the 'two-ratio method'), a graphical estimate that "
+    "a least-squares fit refines. TS diagrams remain a standard tool for "
+    "assigning visible/UV absorption spectra of octahedral complexes, within "
+    "their model: crystal-field theory with Racah B and C, no spin-orbit "
+    "coupling, no covalency beyond a reduced B, and no low-symmetry "
+    "distortion."
 )
 
 
@@ -153,7 +153,11 @@ GROUND_STATE_NOTES: dict[int, str] = {
     2: "d2 (e.g. Ti2+, V3+): octahedral ground state 3T1g, three spin-allowed d-d transitions.",
     3: "d3 (e.g. V2+, Cr3+): 4A2g ground state; classic three-band spectrum used to fit Dq, B.",
     4: "d4 (e.g. Cr2+, Mn3+): high-spin 5Eg or low-spin 3T1g across the spin-crossover point.",
-    5: "d5 (e.g. Mn2+, Fe3+): high-spin 6A1g; all d-d transitions are spin-forbidden (weak bands).",
+    5: (
+        "d5 (e.g. Mn2+, Fe3+): high-spin 6A1g; all d-d transitions are spin-forbidden "
+        "(weak bands). The 4Eg, 4A1g(G) pair sits at 10B+5C above 6A1g at every Dq: "
+        "Dq-independent, so its sharp band fixes 10B+5C directly."
+    ),
     6: "d6 (e.g. Fe2+, Co3+): 5T2g high-spin or 1A1g low-spin; spin-crossover region near 2Dq/B~2.",
     7: "d7 (e.g. Co2+, Ni3+): 4T1g(F) high-spin or 2Eg low-spin.",
     8: (

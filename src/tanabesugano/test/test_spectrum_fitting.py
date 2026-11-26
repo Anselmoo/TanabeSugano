@@ -297,6 +297,22 @@ class TestIllPosedInputsRaise:
         with pytest.raises(ValueError, match="under-determined"):
             fit_spectrum(d_count, bands)
 
+    def test_under_determined_message_names_the_other_regime(self) -> None:
+        """Too many peaks for high-spin d6 may be a low-spin complex: say so, where one exists.
+
+        A flagless call on low-spin d6 bands hit this message, and it named only
+        ``include_spin_forbidden=True``. d8 has no low-spin regime, so it must not be offered.
+        Observed red (0a6fe18+): ``assert "spin_state='low'" in 'd6 offers only 1 spin-allowed
+        transition(s) from 5_T_2 but 2 peaks were supplied; ... or pass
+        include_spin_forbidden=True.'``.
+        """
+        with pytest.raises(ValueError, match="include_spin_forbidden=True") as d6:
+            fit_spectrum(6, [16000.0, 22000.0])
+        assert "spin_state='low'" in str(d6.value)
+        with pytest.raises(ValueError, match="under-determined") as d8:
+            fit_spectrum(8, [8500.0, 13800.0, 25300.0, 30000.0])
+        assert "spin_state" not in str(d8.value)
+
     def test_no_low_spin_runaway(self) -> None:
         """The fit must never cross the spin crossover to reach a denser manifold."""
         fit = fit_spectrum(5, [18800.0, 23100.0, 24900.0], include_spin_forbidden=True)

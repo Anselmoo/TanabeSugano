@@ -62,7 +62,7 @@ def register(mcp: FastMCP) -> None:
         meta=TS_META,
     )
     def ts_terms_table_data(
-        d_count: D_COUNT_LITERAL,  # type: ignore[valid-type]
+        d_count: D_COUNT_LITERAL,
         Dq: float = 900.0,
         B: float | None = None,
         C: float | None = None,
@@ -72,6 +72,13 @@ def register(mcp: FastMCP) -> None:
         Useful for agent workflows that need a flat tabular view ("which term
         is at ~17500 cm^-1 for Cr3+?") rather than a JSON blob keyed by term.
         Drives the DataTable surfaces in `ts_diagram_app` and friends.
+
+        Args:
+            d_count: d-electron count (2–8).
+            Dq: Crystal-field strength Dq in cm^-1 (10Dq = Delta_o).
+            B: Racah B in cm^-1; per-configuration default when omitted.
+            C: Racah C in cm^-1; per-configuration default when omitted.
+
         """
         b_val, c_val = resolve_bc(d_count, B, C)
         if b_val <= 0:

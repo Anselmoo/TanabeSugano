@@ -7,12 +7,18 @@ crunch numbers.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from collections.abc import Sequence
 from dataclasses import dataclass
+from dataclasses import replace
+from decimal import Decimal
 from typing import Literal
 from typing import TypedDict
 
 import numpy as np
 
+from scipy.optimize import OptimizeResult
+from scipy.optimize import linear_sum_assignment
 from scipy.optimize import minimize
 
 from tanabesugano.batch import ELECTRON_CONFIG_SOLVERS
@@ -93,6 +99,18 @@ against the 100 the surrounding sweep already pays to draw the curves.
 """
 
 SpinState = Literal["high", "low", "auto"]
+FitSpinState = Literal["high", "low"]
+"""The spin_state a fit tool without a Dq argument offers: 'auto' picks the regime
+from Dq, which such a tool does not take, so it always failed there (plan G, Task 5)."""
+ParameterProvenance = Literal["fitted", "given", "default", "undetermined"]
+"""Where a reported Dq, B or C comes from.
+
+``fitted``: determined by the bands. ``given``: the caller's value, held.
+``default``: the per-configuration default, held. ``undetermined``: free in the fit,
+but minima that fit the bands equally well (:data:`BAND_RESOLUTION_CM1`) disagree on
+it beyond :data:`MINIMA_DISTINCT`; the reported value is one of them, for display.
+Same rule as free-ion parentage: where the data cannot decide, nothing guesses.
+"""
 
 
 def term_multiplicity(term_key: str) -> int:
@@ -336,9 +354,34 @@ def closed_form_dq_b(d_count: int, observed_peaks_cm1: list[float]) -> tuple[flo
     return nu1 / 10.0, (nu3 + nu2 - 3.0 * nu1) / 15.0
 
 
+DQ_BOUNDS_SEED_SPAN = (0.2, 5.0)
+"""Default Dq bounds as multiples of the seed, the historical window."""
+
+DQ_BOUNDS_BAND_SPAN = (0.005, 0.25)
+"""Default Dq bounds as fractions of the highest observed band.
+
+The seed span alone fails whenever the lowest band is a weak low-lying
+spin-forbidden level: ``min(obs) / 10`` then sits far below the real Dq, and the
+fit-path audit found four cases whose truth lay above ``5 * dq_seed``. The band
+span reads only the observed bands, never a reference value. It is the span the
+B6 ablation widened to: it contains every audited truth, and a lone d3/d8 nu1
+(Dq = nu1 / 10) sits well inside it. It is an empirical window, not a bound
+derived from the Hamiltonian.
+"""
+
+
+def default_dq_bounds(observed_peaks_cm1: Sequence[float], dq_seed: float) -> tuple[float, float]:
+    """Return the default ``dq_bounds``: the seed window widened by the band span."""
+    top = max(observed_peaks_cm1)
+    return (
+        min(DQ_BOUNDS_SEED_SPAN[0] * dq_seed, DQ_BOUNDS_BAND_SPAN[0] * top),
+        max(DQ_BOUNDS_SEED_SPAN[1] * dq_seed, DQ_BOUNDS_BAND_SPAN[1] * top),
+    )
+
+
 @dataclass(frozen=True)
 class SpectrumFit:
-    """Result of fitting observed absorption bands to (Dq, B).
+    """Result of fitting observed absorption bands to (Dq, B); all energies in cm^-1.
 
     ``transitions`` carries every term (not only the fitted spin-allowed ones)
     with an ``spin_allowed`` flag, so the assignment table loses no information.
@@ -353,6 +396,42 @@ class SpectrumFit:
     caller. ``c_constrained`` is the physical one -- whether the observed bands
     could have pinned C at all, measured per fit by
     :func:`c_constrains_manifold` rather than assumed from ``d_count``.
+    ``c_fitted`` says whether C was a free parameter of this fit (see the
+    ``fit_c`` argument of :func:`fit_spectrum`); when it is True, ``C`` is a
+    result, not an input.
+
+    ``minima`` lists every distinct minimum the search converged to, as
+    ``(Dq, B, C, objective)``: the returned point first, then the others by
+    objective (cm^-1, label penalties included). It lists what the search reached,
+    not necessarily every minimum that exists.
+
+    ``dq_provenance``, ``b_provenance`` and ``c_provenance`` say where each value
+    comes from (:data:`ParameterProvenance`). A parameter is ``undetermined`` when
+    the minima within :data:`BAND_RESOLUTION_CM1` of the best objective disagree on
+    it by more than :data:`MINIMA_DISTINCT`. ``c_candidates`` then holds those tied
+    minima and ``c_range`` their (lowest, highest) C; when C is undetermined the
+    reported point is the best-objective one, a display value, not a result.
+    ``Dq`` and ``B`` are also ``undetermined`` when C was held at its default on
+    unlabelled bands that C moves, and a fit with C free reaches a distinct (Dq, B)
+    that fits better, or fits more than :data:`BAND_RESOLUTION_CM1` better: the held point is
+    then one choice of C among several. ``free_c_minima`` holds those free-C minima,
+    lowest objective first; the returned point is still the held one.
+
+    ``dq_nu1`` is the other d3/d8 estimator, nu1/10 (nu1 = 10Dq exactly for these two
+    ions), reported beside the least-squares ``Dq``, never instead of it.
+    ``dq_nu1_reason`` says why it is None, or, when it is set, that the two estimators
+    differ by more than the larger of the RMSE and :func:`nu1_floor`. It is a report:
+    it adds no warning. Without labels nu1 is the lowest band, assumed spin-allowed, and
+    the reason says so.
+
+    ``assumptions`` lists what the fit took for granted rather than determined; today
+    only :data:`SPIN_ALLOWED_ASSUMPTION`, on unlabelled spin-allowed fits. Unlike
+    ``warnings`` it does not depend on the result.
+
+    ``assignment`` is the pairing the fit made, one ``(observed, computed, level_uid)``
+    per band in the caller's order: the injective :func:`assign_bands` result at the
+    returned point. Anything that names the level a band was fitted to reads it
+    here; a nearest-line search would disagree whenever two bands crowd one level.
     """
 
     Dq: float
@@ -366,6 +445,45 @@ class SpectrumFit:
     warnings: list[str]
     c_is_default: bool
     c_constrained: bool
+    c_fitted: bool = False
+    minima: tuple[tuple[float, float, float, float], ...] = ()
+    dq_provenance: ParameterProvenance = "fitted"
+    b_provenance: ParameterProvenance = "fitted"
+    c_provenance: ParameterProvenance = "default"
+    c_candidates: tuple[tuple[float, float, float, float], ...] = ()
+    c_range: tuple[float, float] | None = None
+    assignment: tuple[tuple[float, float, str], ...] = ()
+    free_c_minima: tuple[tuple[float, float, float, float], ...] = ()
+    dq_nu1: float | None = None
+    dq_nu1_reason: str | None = None
+    assumptions: tuple[str, ...] = ()
+    dq_convention: Literal["Oh", "Td"] = "Oh"
+
+
+TD_REFUSAL = (
+    "geometry='Td' is high-spin only: Dq_t is about 4/9 of Dq_o, below every spin crossover"
+)
+
+
+def td_partner(n: int) -> int:
+    """The Oh d-count whose manifold is Td d^n at the same Dq: d^(10-n) (hole conjugation).
+
+    Td inverts the d-orbital splitting, and d^n at -Dq equals d^(10-n) at +Dq level for
+    level (asserted against the determinant oracle's native Td, not re-derived from this).
+    Dq stays the Td Dq_t; nothing converts it to an Oh-equivalent.
+    """
+    return 10 - n
+
+
+SPIN_ALLOWED_ASSUMPTION = (
+    "all bands are treated as spin-allowed; a spin-forbidden line (e.g. 2E/1E) in the input "
+    "would be misassigned; label the bands or pass include_spin_forbidden=True if one is present"
+)
+"""Stated on every unlabelled spin-allowed fit. Band positions alone cannot tell a
+spin-forbidden line from a spin-allowed band (a 2E below 4T2 is fitted as 4T2 with an
+RMSE no worse than a genuine spectrum's), and a refit with spin-forbidden levels always
+fits at least as well, so nothing here can detect it. It is an assumption, not a
+warning: it fires on every such call and carries no per-fit information."""
 
 
 def crossover_dq(
@@ -406,6 +524,556 @@ def crossover_dq(
     return hi
 
 
+SEARCH_GRID_NODES = (12, 4)
+"""Dq x B nodes of the start grid, log-spaced over ``dq_bounds`` and ``b_bounds``.
+
+Every node is refined, none is ranked away. Measured on the 208-case synthetic
+audit matrix at the true C (plan C0m, private prototype): 186 recovered with no
+previously recovered case lost; 185 in the shipped fit, whose nearest-seed
+tie-break returns the seed's B on one single-band case. Keeping only the six best of a finer 24 x 6 grid recovered
+174 and lost 7, because a coarse node's objective does not predict which basin
+holds the truth.
+"""
+
+CROSSOVER_START_FACTORS = (0.9, 1.1)
+"""Extra Dq starts either side of the spin crossover at the seed's B."""
+
+
+TIE_RMSE_CM1 = 1.0
+"""Minima whose objective is within this of the best count as tied.
+
+The scale of ``C_SENSITIVITY_TOL_CM1``: far above the optimizer's ``fatol`` and far
+below any band-position difference a spectrum can resolve.
+"""
+
+
+def nu1_floor(nu1: float) -> float:
+    """Half the last printed digit of ``nu1``, never below :data:`TIE_RMSE_CM1` (cm^-1).
+
+    A band printed as 17400 is known to the hundred, so a nu1/10 that differs from the
+    least-squares Dq by less than 50 cm^-1 in 10 Dq is round-off, not disagreement. A
+    float carrying many digits (an oracle band) has no printing precision; the tie
+    threshold is then the floor. Trailing zeros cannot claim more than
+    :data:`BAND_RESOLUTION_CM1`: 20000 is not known only to the ten-thousand.
+    """
+    exponent = Decimal(repr(float(nu1))).normalize().as_tuple().exponent
+    if not isinstance(exponent, int):
+        return TIE_RMSE_CM1
+    return max(TIE_RMSE_CM1, min(BAND_RESOLUTION_CM1, 0.5 * 10.0**exponent))
+
+
+def _pick_minimum(
+    results: Sequence[OptimizeResult], seed: tuple[float, float], *, determined: bool
+) -> OptimizeResult:
+    """Return the lowest minimum; if the data cannot choose, the tied one nearest the seed.
+
+    ``determined`` is True when there are more bands than free parameters. Then the
+    lowest objective wins outright: on oracle d4 low-spin three bands the truth fits
+    to 0.001 cm^-1 and a seed-nearer point to 0.09, both inside ``TIE_RMSE_CM1``,
+    and the bands do discriminate. With as many bands as free parameters or fewer,
+    several assignments fit exactly and the data cannot choose. Nearest-to-seed (log distance in Dq and B) is a convention
+    chosen by the maintainer: it restores the textbook answer the old local-start
+    fit returned by accident (two-band [Co(H2O)6]2+), and it keeps the choice
+    deterministic. It is not a physical argument.
+    """
+    # A run that did not converge must not win over a converged one at a similar
+    # objective, which would make the fit raise although a converged run got there.
+    results = [r for r in results if r.success] or list(results)
+    lowest = min(float(r.fun) for r in results)
+    if determined:
+        return min(results, key=lambda r: float(r.fun))
+    tied = [r for r in results if float(r.fun) <= lowest + TIE_RMSE_CM1]
+    log_seed = np.log(np.asarray(seed, dtype=float))
+
+    def distance(result: OptimizeResult) -> float:
+        point = np.asarray(result.x[:2], dtype=float)
+        if np.any(point <= 0):
+            return float("inf")
+        return float(np.linalg.norm(np.log(point) - log_seed))
+
+    # min() keeps the first of equal distances, i.e. start order, so ties stay stable.
+    return min(tied, key=distance)
+
+
+MINIMA_DISTINCT = (0.02, 0.05, 0.05)
+"""Relative Dq, B, C differences above which two minima count as distinct.
+
+The audit's recovery tolerances: two minima closer than this in every parameter
+would grade as the same answer.
+"""
+
+
+UNDETERMINED_SPREAD_NOTE = (
+    "the spread spans the tied minima found, not bounds on the answer: the true value "
+    "can lie outside it"
+)
+"""Appended to every 'undetermined' warning: a range over tied minima is not an interval."""
+
+SF_UNLABELLED_NOTE = (
+    "unlabelled spin-forbidden fit: labelling the bands, or fitting the spin-allowed "
+    "bands only, may give a different answer"
+)
+"""Warned when an unlabelled include_spin_forbidden fit leaves Dq or B undetermined."""
+
+
+def ambiguous_minima(minima: Sequence[tuple[float, float, float, float]]) -> list[bool]:
+    """Flag each ``(Dq, B, C, objective)`` that another entry ties at a distinct (Dq, B).
+
+    A tie is an objective within :data:`BAND_RESOLUTION_CM1` (the bands cannot tell the
+    two apart); distinct is a relative Dq or B difference above :data:`MINIMA_DISTINCT`.
+    Held and free-C minima are compared in one list (plan G, Task 2).
+    """
+    return [
+        any(
+            j != i
+            and abs(other[3] - entry[3]) <= BAND_RESOLUTION_CM1
+            and (
+                abs(other[0] / entry[0] - 1) > MINIMA_DISTINCT[0]
+                or abs(other[1] / entry[1] - 1) > MINIMA_DISTINCT[1]
+            )
+            for j, other in enumerate(minima)
+        )
+        for i, entry in enumerate(minima)
+    ]
+
+
+def spin_rule_transitions(fit: SpectrumFit) -> list[tuple[float, str, bool]]:
+    """``fit.transitions`` without the Delta S = +-2 lines the fit never matches.
+
+    ``fit.transitions`` stays complete for display; anything that reports the
+    transitions a band could be follows :func:`within_spin_rule` instead.
+    """
+    ground = term_multiplicity(fit.ground_term)
+    return [
+        entry
+        for entry in fit.transitions
+        if within_spin_rule(ground, term_multiplicity(entry[1].split("→", 1)[-1].split("(")[0]))
+    ]
+
+
+def fit_provenance(fit: SpectrumFit) -> dict[str, object]:
+    """``Dq_source`` / ``B_source`` / ``C_source`` and ``assumptions``, for every fit surface.
+
+    One dict so the four fit displays and :func:`fit_spectrum`'s tool cannot spell
+    the provenance differently (plan G, Task 5).
+    """
+    return {
+        "Dq_source": fit.dq_provenance,
+        "B_source": fit.b_provenance,
+        "C_source": fit.c_provenance,
+        "assumptions": list(fit.assumptions),
+    }
+
+
+def minima_records(fit: SpectrumFit) -> list[dict[str, object]]:
+    """Held then free-C minima, each with ``source``, ``lowest_rmse`` and ``ambiguous``.
+
+    ``lowest_rmse`` marks the lowest objective, a held entry winning a tie; it is not
+    the answer when a source is undetermined. ``ambiguous`` is :func:`ambiguous_minima`.
+    """
+    entries = [(m, "held") for m in fit.minima] + [(m, "free_c") for m in fit.free_c_minima]
+    records: list[dict[str, object]] = [
+        {"Dq": m[0], "B": m[1], "C": m[2], "objective_cm1": m[3], "source": source}
+        for m, source in entries
+    ]
+    flags = ambiguous_minima([m for m, _ in entries])
+    for record, flag in zip(records, flags, strict=True):
+        record["lowest_rmse"] = False
+        record["ambiguous"] = flag
+    if records:
+        index = min(range(len(entries)), key=lambda i: (entries[i][0][3], entries[i][1] != "held"))
+        records[index]["lowest_rmse"] = True
+    return records
+
+
+def undetermined_ranges(fit: SpectrumFit) -> dict[str, tuple[float, float] | None]:
+    """``{"Dq": (lo, hi), "B": (lo, hi)}`` for each undetermined parameter, else None.
+
+    The range spans the reported point and every minimum, held or free-C, within
+    :data:`BAND_RESOLUTION_CM1` of the lowest objective: the set the bands cannot
+    tell apart, the same tie :data:`ParameterProvenance` is decided on.
+    """
+    every = [*fit.minima, *fit.free_c_minima]
+    best = min((m[3] for m in every), default=0.0)
+    tied = [(m[0], m[1]) for m in every if m[3] <= best + BAND_RESOLUTION_CM1]
+    tied.append((fit.Dq, fit.B))
+    ranges: dict[str, tuple[float, float] | None] = {}
+    for index, (name, source) in enumerate((("Dq", fit.dq_provenance), ("B", fit.b_provenance))):
+        values = [point[index] for point in tied]
+        ranges[name] = (min(values), max(values)) if source == "undetermined" else None
+    return ranges
+
+
+def format_range(span: tuple[float, float]) -> str:
+    """``406–806``: floored and ceiled, so the printed bounds contain every tied value."""
+    import math
+
+    return f"{math.floor(span[0]):,}–{math.ceil(span[1]):,}"
+
+
+def fit_headline(fit: SpectrumFit, *, unit: str = "cm⁻¹") -> str:
+    """``Dq = 827, B = 883 cm⁻¹``, or the range over minima for an undetermined value.
+
+    An undetermined Dq or B is never shown as one number: the reported point is a
+    display value there, and a headline is what a reader quotes. Bounds are floored
+    and ceiled so the printed range contains every tied minimum.
+    """
+    ranges = undetermined_ranges(fit)
+    parts = []
+    for name, value in (("Dq", fit.Dq), ("B", fit.B)):
+        span = ranges[name]
+        if span is None:
+            parts.append(f"{name} = {value:,.0f}")
+        else:
+            parts.append(f"{name} {format_range(span)}")
+    text = f"{', '.join(parts)} {unit}"
+    if any(span is not None for span in ranges.values()):
+        text += " (undetermined: range over minima)"
+    return text
+
+
+def _distinct_minima(
+    results: Sequence[OptimizeResult],
+    best: OptimizeResult,
+    C: float,
+    *,
+    ceiling: float,
+) -> tuple[tuple[float, float, float, float], ...]:
+    """Return ``(Dq, B, C, objective)`` of each distinct converged minimum.
+
+    A run counts if it converged and escaped the penalty region (objective below
+    ``ceiling``). ``best``, the point actually returned, comes first, so a
+    near-duplicate never displaces it; the others follow by objective.
+    """
+
+    def point(r: OptimizeResult) -> tuple[float, float, float, float]:
+        c = float(r.x[2]) if len(r.x) > 2 else C
+        return (float(r.x[0]), float(r.x[1]), c, float(r.fun))
+
+    converged = sorted(
+        (r for r in results if r.success and float(r.fun) < ceiling), key=lambda r: float(r.fun)
+    )
+    kept = [point(best)]
+    for candidate in map(point, converged):
+        if all(
+            any(abs(a / b - 1) > tol for a, b, tol in zip(candidate[:3], k[:3], MINIMA_DISTINCT))
+            for k in kept
+        ):
+            kept.append(candidate)
+    return (kept[0], *sorted(kept[1:], key=lambda m: m[3]))
+
+
+def _undetermined(
+    minima: Sequence[tuple[float, float, float, float]],
+) -> tuple[list[tuple[float, float, float, float]], tuple[bool, bool, bool]]:
+    """Return the minima tied with the best, and per (Dq, B, C) whether they disagree.
+
+    Tied: objective within :data:`BAND_RESOLUTION_CM1` of the lowest, i.e. no
+    spectrum could tell them apart. Disagree: spread (max / min - 1) above
+    :data:`MINIMA_DISTINCT`.
+    """
+    lowest = min(m[3] for m in minima)
+    tied = [m for m in minima if m[3] <= lowest + BAND_RESOLUTION_CM1]
+    open_ = tuple(
+        max(m[k] for m in tied) / min(m[k] for m in tied) - 1 > MINIMA_DISTINCT[k] for k in range(3)
+    )
+    return tied, (open_[0], open_[1], open_[2])
+
+
+def _local_starts(dq_seed: float, b_seed: float) -> list[tuple[float, float]]:
+    """Return the five starts around the seed: itself, Dq x 0.8 / 1.25, B x 0.7 / 1.2."""
+    return [
+        (dq_seed, b_seed),
+        (0.8 * dq_seed, b_seed),
+        (1.25 * dq_seed, b_seed),
+        (dq_seed, 0.7 * b_seed),
+        (dq_seed, 1.2 * b_seed),
+    ]
+
+
+def _search_starts(
+    d_count: int,
+    C: float,
+    dq_seed: float,
+    b_seed: float,
+    dq_bounds: tuple[float, float],
+    b_bounds: tuple[float, float],
+) -> list[tuple[float, float]]:
+    """Return every Nelder-Mead start: the grid, the five local starts, the crossover pair."""
+    n_dq, n_b = SEARCH_GRID_NODES
+    starts = [
+        (float(dq), float(b))
+        for dq in np.geomspace(*dq_bounds, n_dq)
+        for b in np.geomspace(*b_bounds, n_b)
+    ]
+    starts += _local_starts(dq_seed, b_seed)
+    # The order C0m measured with. With the tie-break in _pick_minimum it matters
+    # only between runs tied at the same distance from the seed.
+    low_spin_ground = reference_ground_term(d_count, b_seed, C, "low")
+    crossover = crossover_dq(d_count, b_seed, C, low_spin_ground)
+    if crossover < STRONG_FIELD_DQ_CM1:
+        starts += [(f * crossover, b_seed) for f in CROSSOVER_START_FACTORS]
+    return starts
+
+
+C_OVER_B_WINDOW = (3.0, 6.0)
+"""Admissible Racah C/B while C is fitted; outside it the objective is penalised.
+
+The per-configuration defaults in ``_defaults.py`` (free-ion C and B from
+Tanabe & Sugano's original parametrisation) put C/B at 4.42-4.81 for every d2-d8,
+and the window brackets that by a factor of about 1.5 either side. It was not
+tuned on the audit. Widening it is not free: at (2, 8) a labelled d5 high-spin
+spectrum near the crossover admits a second exact minimum at C/B 2.25 (plan B7,
+objection O2(iii)). A fit that lands on an edge is warned about, because there C
+was stopped by the window, not by the bands.
+"""
+
+FREE_C_GRID_NODES = (24, 6)
+"""Dq x B nodes of the free-C scan grid, log-spaced over the bounds."""
+
+FREE_C_GRID_RATIOS = (3.5, 4.5, 5.5)
+"""C/B values of the free-C scan grid: C = ratio * B at each (Dq, B) node."""
+
+FREE_C_GRID_KEEP = 6
+"""How many scan nodes are refined when C is free.
+
+Refining every node, as at held C, costs 3 x 151 Nelder-Mead runs in three
+dimensions (17.5 s worst case in plan C0m). Keeping the six best nodes pairwise
+more than one (Dq, B) step apart recovered 186 of the 208 audit cases with C free
+and labels given in the C0m prototype (184 in the shipped fit), lost none recovered
+at held C, and took at most 2.0 s. This is
+measured only for labelled fits, which is the only case that frees C by default.
+"""
+
+
+def _free_c_starts(
+    objective: Callable[[np.ndarray], float],
+    dq_bounds: tuple[float, float],
+    b_bounds: tuple[float, float],
+    local: Sequence[tuple[float, float, float]],
+) -> list[tuple[float, float, float]]:
+    """Return the free-C starts: the best spread-out scan nodes, then the local starts."""
+    n_dq, n_b = FREE_C_GRID_NODES
+    nodes = {
+        (i, j, k): (float(dq), float(b), float(ratio * b))
+        for i, dq in enumerate(np.geomspace(*dq_bounds, n_dq))
+        for j, b in enumerate(np.geomspace(*b_bounds, n_b))
+        for k, ratio in enumerate(FREE_C_GRID_RATIOS)
+    }
+    values = {key: objective(np.asarray(x)) for key, x in nodes.items()}
+    kept: list[tuple[int, int, int]] = []
+    # Separation is measured in (Dq, B) steps only: two ratios at one node are one start.
+    for key in sorted(nodes, key=lambda k: (values[k], k)):
+        if all(max(abs(key[0] - q[0]), abs(key[1] - q[1])) > 1 for q in kept):
+            kept.append(key)
+        if len(kept) == FREE_C_GRID_KEEP:
+            break
+    return [nodes[key] for key in kept] + list(local)
+
+
+def _initial_seed(
+    d_count: int,
+    observed_sorted: list[float],
+    *,
+    include_spin_forbidden: bool,
+    defaults_d: int | None = None,
+) -> tuple[float, float]:
+    """Return the (Dq, B) seed: the d3/d8 closed form where it applies, else (obs[0]/10, B0).
+
+    The closed form reads the lowest three bands as nu1..nu3. With spin-forbidden
+    bands in the list one of those can be a doublet or singlet (d8: 1_E sits
+    between nu2 and nu3), and the seed is then built from the wrong level, so it
+    is used only for spin-allowed fits. One function, so the audit can displace
+    the seed on every path by patching a single name.
+    """
+    from tanabesugano.mcp._defaults import DEFAULTS
+
+    if not include_spin_forbidden:
+        try:
+            return closed_form_dq_b(d_count, observed_sorted)
+        except ValueError:
+            pass  # not d3/d8, or fewer than three bands -- generic seed stands
+    ion = d_count if defaults_d is None else defaults_d
+    return observed_sorted[0] / 10.0, float(DEFAULTS[ion]["default_B"])
+
+
+BandLabel = str | Sequence[str] | None
+"""One band's label: a term key (``4_T_1``, any level of that term), a level uid
+(``4_T_1#1``), several of either (a band covering near-degenerate levels, e.g.
+``("4_E", "4_A_1")``), or ``None`` for an unlabelled band."""
+
+
+NM_XATOL_CM1 = 1e-2
+"""Nelder-Mead ``xatol`` of the fit: the simplex size in (Dq, B[, C]) at which it stops,
+in cm^-1. The fit's own resolution, so tests comparing a fit with an independent
+reference use it as their tolerance (plan G, Task 1c)."""
+NM_FATOL_CM1 = 1e-2
+"""Nelder-Mead ``fatol`` of the fit: the objective (an RMSE in cm^-1) change at which it stops."""
+
+SPIN_FORBIDDEN_MAX_DELTA_MULT = 2
+"""Largest change of multiplicity (2S+1) a fitted band may have: Delta S = 0, +-1.
+
+The spin selection rule, not a tuned value: a Delta S = +-1 line gains intensity
+through first-order spin-orbit coupling, a Delta S = +-2 line needs second order and
+is not observed in d-d spectra. It is also the audit's band rule (AUDIT-2.1.0.md
+Section 2). Admitting Delta S = 2 levels let high-spin d5 [Mn(H2O)6]2+ observed bands
+fit at Dq 1113 on a sextet -> doublet level (plan G, Task 1)."""
+
+
+def within_spin_rule(ground_mult: int, multiplicity: int) -> bool:
+    """Return whether a level of ``multiplicity`` may take a band (Delta S = 0, +-1)."""
+    return abs(multiplicity - ground_mult) <= SPIN_FORBIDDEN_MAX_DELTA_MULT
+
+
+def excited_levels(
+    term_energies: dict[str, list[float]], *, spin_allowed_only: bool
+) -> tuple[str, list[tuple[float, str]]]:
+    """Return ``(ground_key, [(energy, uid), ...])`` for the levels a band can land on.
+
+    Energy above 1 cm^-1, keyed by :attr:`Level.uid` so a label can be checked against
+    it. With ``spin_allowed_only`` only the ground multiplicity; otherwise every level
+    with Delta S = 0, +-1 (:data:`SPIN_FORBIDDEN_MAX_DELTA_MULT`), relative to the
+    ground term at this point -- which :func:`_score_point` requires to be the regime's
+    reference. This is narrower than :func:`transition_candidates`, which lists every
+    multiplicity for display.
+    """
+    ground_key, _ground_energy = ground_term(term_energies)
+    ground_mult = term_multiplicity(ground_key)
+    levels = [
+        (level.energy_cm1, level.uid)
+        for level in LevelSet.from_states(term_energies).levels
+        if (
+            level.multiplicity == ground_mult
+            if spin_allowed_only
+            else within_spin_rule(ground_mult, level.multiplicity)
+        )
+        and level.energy_cm1 > 1.0
+    ]
+    return ground_key, sorted(levels)
+
+
+def _score_point(
+    d_count: int,
+    observed: np.ndarray,
+    labels: Sequence[tuple[str, ...] | None] | None,
+    point: tuple[float, float, float],
+    *,
+    reference: str,
+    spin_allowed_only: bool,
+    penalty: float,
+) -> float | None:
+    """The fit objective at one (Dq, B, C): band RMSE under the injective assignment.
+
+    ``observed`` is sorted and ``labels`` normalised and in the same order. Returns
+    None when the point is outside the regime the fit is pinned to -- the ground
+    term is not ``reference``, or there are fewer levels than bands. Refusing those
+    matters: the low-spin manifolds are far denser (d5: 31 lines vs 0), and a dense
+    forest of candidates fits any band list, so a search that scored them would be
+    rewarded for ending up in the wrong regime. Solver errors propagate.
+    """
+    dq, b, c = point
+    found_ground, levels = excited_levels(
+        compute_point(d_count, dq, b, c), spin_allowed_only=spin_allowed_only
+    )
+    if found_ground != reference or len(levels) < observed.size:
+        return None
+    return assign_bands(observed, levels, labels, penalty=penalty)[1]
+
+
+def fit_objective(
+    d_count: int,
+    observed_peaks_cm1: Sequence[float],
+    Dq: float,
+    B: float,
+    C: float,
+    *,
+    spin_state: SpinState = "high",
+    include_spin_forbidden: bool = False,
+    band_labels: Sequence[BandLabel] | None = None,
+) -> float | None:
+    """Score one (Dq, B, C) exactly as :func:`fit_spectrum` scores it (cm^-1).
+
+    For a landscape or a diagnostic grid: the same assignment, label penalty and
+    regime pin as the fit, so a grid drawn from it cannot rank points differently
+    from the fit. Returns None for a point outside the requested spin regime or one
+    the solver cannot evaluate. Not a fit: nothing here searches.
+    """
+    order = sorted(range(len(observed_peaks_cm1)), key=lambda i: float(observed_peaks_cm1[i]))
+    observed = np.asarray([float(observed_peaks_cm1[i]) for i in order], dtype=float)
+    labels = None
+    if band_labels is not None:
+        normalised = _normalise_labels(band_labels, len(observed_peaks_cm1))
+        labels = [normalised[i] for i in order]
+    if Dq <= 0 or B <= 0 or C <= 0:
+        return None
+    try:
+        return _score_point(
+            d_count,
+            observed,
+            labels,
+            (Dq, B, C),
+            reference=reference_ground_term(d_count, B, C, spin_state),
+            spin_allowed_only=not include_spin_forbidden,
+            penalty=float(np.sqrt(np.mean(observed**2))),
+        )
+    except (ValueError, KeyError, np.linalg.LinAlgError):
+        return None
+
+
+def _label_matches(uid: str, label: tuple[str, ...]) -> bool:
+    """Whether a level uid satisfies one band's label (term key or exact uid)."""
+    term = uid.split("#", maxsplit=1)[0]
+    return any(lab in {uid, term} for lab in label)
+
+
+def assign_bands(
+    observed: np.ndarray,
+    levels: Sequence[tuple[float, str]],
+    labels: Sequence[tuple[str, ...] | None] | None,
+    *,
+    penalty: float,
+) -> tuple[np.ndarray, float]:
+    """Assign each observed band to a distinct level; return the level indices and the cost.
+
+    Injective: two bands can no longer share one level, which nearest-line matching
+    allowed and which let a dense manifold absorb several bands at once. A band
+    whose label the level does not satisfy pays ``penalty**2`` on top of its squared
+    distance, so a label steers the assignment without making the objective
+    discontinuous. The cost is an RMSE over bands, penalties included.
+    """
+    predicted = np.asarray([e for e, _uid in levels], dtype=float)
+    cost = (observed[:, None] - predicted[None, :]) ** 2
+    if labels is not None:
+        mismatch = np.array(
+            [
+                [label is not None and not _label_matches(uid, label) for _e, uid in levels]
+                for label in labels
+            ],
+            dtype=bool,
+        )
+        cost = cost + np.where(mismatch, penalty**2, 0.0)
+    rows, columns = linear_sum_assignment(cost)
+    return columns[np.argsort(rows)], float(np.sqrt(cost[rows, columns].mean()))
+
+
+def _normalise_labels(
+    band_labels: Sequence[BandLabel], n_bands: int
+) -> list[tuple[str, ...] | None]:
+    """Return one tuple of label strings (or None) per band; raise on a count mismatch."""
+    if len(band_labels) != n_bands:
+        msg = f"band_labels needs one label per band: {len(band_labels)} for {n_bands} bands"
+        raise ValueError(msg)
+    out: list[tuple[str, ...] | None] = []
+    for label in band_labels:
+        if label is None:
+            out.append(None)
+        elif isinstance(label, str):
+            out.append((label,))
+        else:
+            out.append(tuple(label))
+    return out
+
+
 def fit_spectrum(
     d_count: int,
     observed_peaks_cm1: list[float],
@@ -415,6 +1083,9 @@ def fit_spectrum(
     include_spin_forbidden: bool = False,
     dq_bounds: tuple[float, float] | None = None,
     b_bounds: tuple[float, float] = (200.0, 1500.0),
+    band_labels: Sequence[BandLabel] | None = None,
+    fit_c: bool | None = None,
+    geometry: Literal["Oh", "Td"] = "Oh",
 ) -> SpectrumFit:
     """Fit observed absorption peaks to determine Dq and Racah B.
 
@@ -438,10 +1109,327 @@ def fit_spectrum(
         Fit against spin-forbidden transitions too. Required for high-spin d5,
         whose d-d bands are *all* spin-forbidden.
     dq_bounds:
-        Defaults to ``(0.2 * dq_seed, 5 * dq_seed)``. The lower bound must stay
+        Defaults to :func:`default_dq_bounds`: the seed window
+        ``(0.2, 5) * dq_seed`` widened to ``(0.005, 0.25) * max(observed)``. The lower bound must stay
         strictly positive: the solver silently returns corrupted energies for
         Dq < 0 (the ground level stops being the zero point) with no error.
+    band_labels:
+        One :data:`BandLabel` per observed band, in the order given.
+    fit_c:
+        Whether Racah C is fitted alongside Dq and B, inside
+        :data:`C_OVER_B_WINDOW`. An explicit ``C`` is always held. ``None`` (the
+        default) frees C when at least three bands are given and every one is
+        labelled: unlabelled, a high-spin d5 spectrum has 37-60 exact (Dq, B, C)
+        minima, and two labelled bands still leave a one-parameter family.
+        ``True`` frees C regardless and warns when that gate is not met. If C
+        turns out not to move the fitted bands, the fit is redone with C held at
+        its default and says so.
+    geometry:
+        ``"Td"`` fits a tetrahedral ion: d^n is fitted on the Oh d^(10-n) manifold
+        (:func:`td_partner`) with the caller's ion's default B and C, labels unchanged,
+        and the returned ``Dq`` is the Td ``Dq_t`` (``dq_convention="Td"``); nothing
+        converts it by 9/4. High-spin only: Dq_t lies below every spin crossover, so
+        any other ``spin_state`` raises.
 
+    """
+    from tanabesugano.mcp._inputs import unit_error
+
+    misread = unit_error(observed_peaks_cm1)
+    if misread is not None:
+        raise ValueError(misread)
+    td = geometry == "Td"
+    if td and spin_state != "high":
+        raise ValueError(TD_REFUSAL)
+    manifold_d = td_partner(d_count) if td else d_count
+    fit = _fit_one_regime(
+        manifold_d,
+        observed_peaks_cm1,
+        C,
+        spin_state=spin_state,
+        include_spin_forbidden=include_spin_forbidden,
+        dq_bounds=dq_bounds,
+        b_bounds=b_bounds,
+        band_labels=band_labels,
+        fit_c=fit_c,
+        defaults_d=d_count,
+    )
+    other = (
+        None
+        if td
+        else _other_regime_fit(
+            d_count,
+            observed_peaks_cm1,
+            C,
+            spin_state=spin_state,
+            include_spin_forbidden=include_spin_forbidden,
+            b_bounds=b_bounds,
+            band_labels=band_labels,
+            fit_c=fit_c,
+        )
+    )
+    if other is not None and other.rmse_cm1 <= max(fit.rmse_cm1, BAND_RESOLUTION_CM1):
+        note = (
+            f"the {other.spin_state}-spin regime also fits these bands: Dq = {other.Dq:.0f}, "
+            f"B = {other.B:.0f} cm^-1, ground term {other.ground_term}, RMSE "
+            f"{other.rmse_cm1:.0f} cm^-1 (this fit: {fit.rmse_cm1:.0f}); the bands alone do "
+            "not decide the spin state"
+        )
+        fit = replace(fit, warnings=[*fit.warnings, note])
+    labels = (
+        None if band_labels is None else _normalise_labels(band_labels, len(observed_peaks_cm1))
+    )
+    every_band_labelled = labels is not None and all(label is not None for label in labels)
+    if C is None and not every_band_labelled:
+        fit = _held_c_check(
+            manifold_d,
+            observed_peaks_cm1,
+            fit,
+            include_spin_forbidden=include_spin_forbidden,
+            dq_bounds=dq_bounds,
+            b_bounds=b_bounds,
+            defaults_d=d_count,
+        )
+    if not every_band_labelled and not include_spin_forbidden:
+        fit = replace(fit, assumptions=(*fit.assumptions, SPIN_ALLOWED_ASSUMPTION))
+    if (
+        not every_band_labelled
+        and include_spin_forbidden
+        and "undetermined" in (fit.dq_provenance, fit.b_provenance)
+    ):
+        fit = replace(fit, warnings=[*fit.warnings, SF_UNLABELLED_NOTE])
+    if td:
+        fit = replace(fit, dq_convention="Td")
+    if labels is not None and all(label is None for label in labels):
+        labels = None
+    return _with_nu1(manifold_d, observed_peaks_cm1, fit, labels, include_spin_forbidden)
+
+
+NU1_TERM = {3: "4_T_2", 8: "3_T_2"}
+"""The term whose energy above the ground is exactly 10Dq, for the two ions where one is."""
+
+
+def _with_nu1(
+    d_count: int,
+    observed: list[float],
+    fit: SpectrumFit,
+    band_labels: Sequence[tuple[str, ...] | None] | None,
+    include_spin_forbidden: bool,
+) -> SpectrumFit:
+    """Attach nu1/10 beside the least-squares Dq, and say when the two differ.
+
+    ``d_count`` is the fitted manifold's (Td d7 is fitted as d3, whose 4T2 is 10 Dq_t).
+    ``band_labels`` are normalised, and None when no band carries a label. A band is
+    nu1 when its one label names the term, as a term key or a level uid.
+    """
+    term = NU1_TERM.get(d_count)
+    if term is None:
+        reason = (
+            "nu1 = 10Dq_t holds only for d2 and d7 in Td"
+            if fit.dq_convention == "Td"
+            else "nu1 = 10Dq holds only for d3 and d8"
+        )
+        return replace(fit, dq_nu1_reason=reason)
+    if band_labels is not None:
+        named = [
+            e
+            for e, label in zip(observed, band_labels, strict=True)
+            if label is not None and len(label) == 1 and label[0].split("#")[0] == term
+        ]
+        if not named:
+            return replace(fit, dq_nu1_reason=f"no band is labelled {term}")
+        nu1 = min(named)
+    elif include_spin_forbidden:
+        return replace(
+            fit, dq_nu1_reason="unlabelled spin-forbidden bands: the lowest band may be 2E/1E"
+        )
+    else:
+        nu1 = min(observed)
+    notes = (
+        [] if band_labels is not None else [f"nu1 is the lowest band: {SPIN_ALLOWED_ASSUMPTION}"]
+    )
+    if abs(10.0 * fit.Dq - nu1) > max(fit.rmse_cm1, nu1_floor(nu1)):
+        notes.append(
+            f"Dq estimators differ: nu1/10 = {nu1 / 10.0:.0f}, least squares = {fit.Dq:.0f} cm^-1"
+        )
+    reason = "; ".join(notes) or None
+    return replace(fit, dq_nu1=nu1 / 10.0, dq_nu1_reason=reason)
+
+
+def _held_c_check(
+    d_count: int,
+    observed: list[float],
+    fit: SpectrumFit,
+    *,
+    include_spin_forbidden: bool,
+    dq_bounds: tuple[float, float] | None,
+    b_bounds: tuple[float, float],
+    defaults_d: int | None = None,
+) -> SpectrumFit:
+    """Say when holding the default C hides another (Dq, B): refit with C free and compare.
+
+    Runs only for a held default C on three or more unlabelled bands that C moves
+    (the caller checks C and labels). The refit's own warnings are discarded; its
+    minima are compared with the held objective. A free-C minimum counts only if it
+    fits better than the held one by more than :data:`TIE_RMSE_CM1` (a distinct
+    (Dq, B)), or by more than :data:`BAND_RESOLUTION_CM1` (any point): a free-C
+    minimum merely *near* an exact held fit says only that unlabelled bands cannot
+    pin C, which it fired on for 52 of 130 exact answers at the default C. Either outcome keeps the held
+    point and marks Dq and B undetermined: the fix reports the C-misspecification,
+    it does not remove it.
+    """
+    if fit.c_fitted or len(observed) < 3 or not fit.c_constrained or not fit.minima:
+        return fit
+    try:
+        free = _fit_one_regime(
+            d_count,
+            observed,
+            None,
+            spin_state=fit.spin_state,
+            include_spin_forbidden=include_spin_forbidden,
+            dq_bounds=dq_bounds,
+            b_bounds=b_bounds,
+            fit_c=True,
+            defaults_d=defaults_d,
+        )
+    except ValueError:
+        return fit
+    if not free.c_fitted or not free.minima:
+        return fit
+    held = fit.minima[0][3]
+    alts = tuple(sorted(free.minima, key=lambda m: m[3]))
+    low = alts[0]
+    if low[3] < held - BAND_RESOLUTION_CM1:
+        named = low
+        note = (
+            f"Dq and B undetermined: the default C = {fit.C:.0f} cm^-1 is inconsistent with "
+            f"these bands; a fitted C = {low[2]:.0f} cm^-1 fits {held - low[3]:.0f} cm^-1 "
+            f"better (RMSE {low[3]:.0f} vs {held:.0f}, Dq = {low[0]:.0f}, B = {low[1]:.0f}); "
+            "supply C or label the bands to constrain it"
+        )
+    else:
+        tied = [
+            m
+            for m in alts
+            if m[3] < held - TIE_RMSE_CM1
+            and (
+                abs(m[0] / fit.Dq - 1) > MINIMA_DISTINCT[0]
+                or abs(m[1] / fit.B - 1) > MINIMA_DISTINCT[1]
+            )
+        ]
+        if not tied:
+            return fit
+        named = alt = tied[0]
+        note = (
+            "Dq and B undetermined: C is not determined by these bands; holding it at its "
+            f"default {fit.C:.0f} cm^-1 gives this fit, but a fitted C = {alt[2]:.0f} gives "
+            f"Dq = {alt[0]:.0f}, B = {alt[1]:.0f} cm^-1 and fits these bands at least as "
+            f"well (RMSE {alt[3]:.1f} vs {held:.1f} cm^-1); Dq and B depend on the assumed C -- "
+            "supply C or label the bands to constrain it"
+        )
+    rivals = [
+        m
+        for m in alts
+        if m[3] <= named[3] + BAND_RESOLUTION_CM1
+        and (
+            abs(m[0] / named[0] - 1) > MINIMA_DISTINCT[0]
+            or abs(m[1] / named[1] - 1) > MINIMA_DISTINCT[1]
+        )
+    ]
+    if rivals:
+        dqs = [named[0], *(m[0] for m in rivals)]
+        note += (
+            f"; the free-C fit is not unique either: {len(rivals)} other free-C minima fit "
+            f"within {BAND_RESOLUTION_CM1:.0f} cm^-1 of it at a distinct (Dq, B), Dq "
+            f"{min(dqs):.0f}-{max(dqs):.0f} cm^-1"
+        )
+    return replace(
+        fit,
+        dq_provenance="undetermined",
+        b_provenance="undetermined",
+        free_c_minima=alts,
+        warnings=[*fit.warnings, note],
+    )
+
+
+BAND_RESOLUTION_CM1 = 100.0
+"""How well a broad d-d band maximum is located; RMSE differences below it are not evidence.
+
+Two uses: minima within it of the best count as tied when deciding whether a
+parameter is undetermined (:data:`ParameterProvenance`), and the other spin regime
+counts as also fitting when it comes within it. On the 134 audit fits that free C,
+it marks C undetermined on 10, including both whose C is off by more than 5 %;
+1 cm^-1 marks 4.
+
+d-d bands run 2000-4000 cm^-1 wide, and their maxima are rarely quoted better
+than about +-100 cm^-1. A fit in the other spin regime whose RMSE is within this
+(or within this fit's own RMSE, if larger) fits as well as any spectrum can tell.
+Set by that physical scale, not on the audit: on its oracle (noise-free) d4-d7
+cases the other regime comes within 50 cm^-1 on 11 of 111 unlabelled cases and
+on none labelled, where the labels themselves decide the regime.
+"""
+
+
+def _other_regime_fit(
+    d_count: int,
+    observed_peaks_cm1: list[float],
+    C: float | None,
+    *,
+    spin_state: SpinState,
+    include_spin_forbidden: bool,
+    b_bounds: tuple[float, float],
+    band_labels: Sequence[BandLabel] | None,
+    fit_c: bool | None,
+) -> SpectrumFit | None:
+    """Fit the same bands in the other spin regime, or return None where there is none.
+
+    Only d4-d7 have two regimes, and only where the crossover lies below
+    ``STRONG_FIELD_DQ_CM1`` at the default B (and the caller's C, else the default)
+    is the other one reachable.
+    The default ``dq_bounds`` are used, since the caller's were chosen for one regime.
+    """
+    from tanabesugano.mcp._defaults import DEFAULTS
+
+    if d_count not in {4, 5, 6, 7}:
+        return None
+    b0 = float(DEFAULTS[d_count]["default_B"])
+    c0 = float(DEFAULTS[d_count]["default_C"]) if C is None else C
+    if crossover_dq(d_count, b0, c0, reference_ground_term(d_count, b0, c0, "low")) >= (
+        STRONG_FIELD_DQ_CM1
+    ):
+        return None
+    other: SpinState = "low" if spin_state == "high" else "high"
+    try:
+        return _fit_one_regime(
+            d_count,
+            observed_peaks_cm1,
+            C,
+            spin_state=other,
+            include_spin_forbidden=include_spin_forbidden,
+            b_bounds=b_bounds,
+            band_labels=band_labels,
+            fit_c=fit_c,
+        )
+    except ValueError:
+        return None  # the other regime cannot carry these bands (or labels) at all
+
+
+def _fit_one_regime(
+    d_count: int,
+    observed_peaks_cm1: list[float],
+    C: float | None = None,
+    *,
+    spin_state: SpinState = "high",
+    include_spin_forbidden: bool = False,
+    dq_bounds: tuple[float, float] | None = None,
+    b_bounds: tuple[float, float] = (200.0, 1500.0),
+    band_labels: Sequence[BandLabel] | None = None,
+    fit_c: bool | None = None,
+    defaults_d: int | None = None,
+) -> SpectrumFit:
+    """Fit in the requested spin regime only; :func:`fit_spectrum` adds the regime check.
+
+    ``defaults_d`` is the ion whose default B and C are used, when it is not the
+    manifold's ``d_count`` (Td: the caller's ion, fitted on the d^(10-n) manifold).
     """
     from tanabesugano.mcp._defaults import DEFAULTS
 
@@ -454,25 +1442,42 @@ def fit_spectrum(
 
     c_is_default = C is None
     if C is None:
-        C = float(DEFAULTS[d_count]["default_C"])
-    observed = np.asarray(sorted(float(p) for p in observed_peaks_cm1), dtype=float)
+        C = float(DEFAULTS[d_count if defaults_d is None else defaults_d]["default_C"])
+    labels = (
+        None if band_labels is None else _normalise_labels(band_labels, len(observed_peaks_cm1))
+    )
+    identified = (
+        len(observed_peaks_cm1) >= 3
+        and labels is not None
+        and all(label is not None for label in labels)
+    )
+    free_c = c_is_default and (identified if fit_c is None else fit_c)
+    order = sorted(range(len(observed_peaks_cm1)), key=lambda i: float(observed_peaks_cm1[i]))
+    observed = np.asarray([float(observed_peaks_cm1[i]) for i in order], dtype=float)
+    if labels is not None:
+        labels = [labels[i] for i in order]
     warnings: list[str] = []
+    if free_c and not identified:
+        warnings.append(
+            "C is fitted (fit_c=True) without three or more labelled bands: such a "
+            "spectrum is matched exactly by many (Dq, B, C), so the returned C is one "
+            "of them, not a determination",
+        )
 
     # --- Seed ---------------------------------------------------------------
-    # For d3/d8 the closed form gives BOTH parameters analytically, so the
-    # optimizer starts on (or beside) the answer instead of hunting for it.
-    b_default = float(DEFAULTS[d_count]["default_B"])
-    dq_seed = float(observed[0]) / 10.0
-    b_seed = b_default
-    try:
-        dq_seed, b_seed = closed_form_dq_b(d_count, observed.tolist())
-    except ValueError:
-        pass  # not d3/d8, or fewer than three bands -- generic seed stands
+    # The seed adds local starts beside the grid. For d3/d8 spin-allowed fits it
+    # is the closed form, which gives both parameters analytically.
+    dq_seed, b_seed = _initial_seed(
+        d_count,
+        observed.tolist(),
+        include_spin_forbidden=include_spin_forbidden,
+        defaults_d=defaults_d,
+    )
     if not b_bounds[0] <= b_seed <= b_bounds[1]:
         b_seed = min(max(b_seed, b_bounds[0]), b_bounds[1])
 
     if dq_bounds is None:
-        dq_bounds = (0.2 * dq_seed, 5.0 * dq_seed)
+        dq_bounds = default_dq_bounds(observed.tolist(), dq_seed)
     if dq_bounds[0] <= 0:
         msg = f"dq_bounds lower limit must be > 0 (Dq <= 0 corrupts the solver); got {dq_bounds}"
         raise ValueError(msg)
@@ -497,21 +1502,77 @@ def fit_spectrum(
         compute_point(d_count, probe_dq, b_seed, C),
         spin_allowed_only=spin_allowed_only,
     )
+    # Count only what the objective can assign (Delta S = 0, +-1), or a fit could pass
+    # this gate and then score None at every point.
+    reference_mult = term_multiplicity(reference)
+    seed_candidates = [
+        cand
+        for cand in seed_candidates
+        if within_spin_rule(reference_mult, int(cand[1].split("→", 1)[1].split("_", 1)[0]))
+    ]
     if not seed_candidates:
         msg = (
             f"d{d_count} has no spin-allowed d-d transitions from its {reference} "
             f"ground term in the {spin_state}-spin regime, so it cannot be fitted "
             "from spin-allowed bands. Pass include_spin_forbidden=True (high-spin "
-            "d5 bands are all spin-forbidden) or spin_state='low'."
+            "d5 bands are all spin-forbidden; only Delta S = 0, +-1 levels are matched, "
+            "i.e. the quartets) or spin_state='low'."
         )
         raise ValueError(msg)
     if len(seed_candidates) < observed.size:
+        low_spin_hint = (
+            ", or spin_state='low' if the complex is low-spin"
+            if spin_state == "high" and d_count in {4, 5, 6, 7}
+            else ""
+        )
         msg = (
             f"d{d_count} offers only {len(seed_candidates)} spin-allowed transition(s) "
             f"from {reference} but {observed.size} peaks were supplied; the fit is "
-            "under-determined. Supply fewer peaks, or pass include_spin_forbidden=True."
+            "under-determined. Supply fewer peaks, or pass include_spin_forbidden=True"
+            f"{low_spin_hint}."
         )
         raise ValueError(msg)
+    if labels is not None:
+        # A merged label keeps its Delta S = 0, +-1 members; the rest name levels the
+        # fit never matches. Only a label with no such member left is refused.
+        kept_labels: list[tuple[str, ...] | None] = []
+        for label in labels:
+            if label is None:
+                kept_labels.append(None)
+                continue
+            kept = tuple(
+                term
+                for term in label
+                if not term.split("_", 1)[0].isdigit()
+                or within_spin_rule(reference_mult, int(term.split("_", 1)[0]))
+            )
+            if not kept:
+                named = " / ".join(repr(term) for term in label)
+                msg = (
+                    f"band label {named} changes spin by more than one from the "
+                    f"{reference} ground term: only Delta S = 0, +-1 levels are fitted "
+                    "(a Delta S = +-2 line needs second-order spin-orbit coupling and is "
+                    "not observed in d-d spectra)"
+                )
+                raise ValueError(msg)
+            kept_labels.append(kept)
+        labels = kept_labels
+        _, probe_levels = excited_levels(
+            compute_point(d_count, probe_dq, b_seed, C), spin_allowed_only=spin_allowed_only
+        )
+        # A label tuple is an either-or (a band over near-degenerate levels), so it
+        # fails only when none of its terms names a candidate level.
+        for label in labels:
+            if label is not None and not any(
+                _label_matches(uid, label) for _e, uid in probe_levels
+            ):
+                kind = "spin-allowed " if spin_allowed_only else ""
+                named = " / ".join(repr(lab) for lab in label)
+                msg = (
+                    f"band label {named} names no {kind}level of d{d_count} from the "
+                    f"{reference} ground term in the {spin_state}-spin regime"
+                )
+                raise ValueError(msg)
     if len(seed_candidates) == 1:
         warnings.append(
             "only one spin-allowed transition (= 10Dq) exists for this configuration, "
@@ -529,57 +1590,81 @@ def fit_spectrum(
     def _relu(x: float) -> float:
         return x if x > 0 else 0.0
 
+    c_lo, c_hi = C_OVER_B_WINDOW
+
     def objective(params: np.ndarray) -> float:
         dq, b = float(params[0]), float(params[1])
+        c = float(params[2]) if free_c else C
         excess = (_relu(dq_bounds[0] - dq) + _relu(dq - dq_bounds[1])) / dq_bounds[1] + (
             _relu(b_bounds[0] - b) + _relu(b - b_bounds[1])
         ) / b_bounds[1]
-        if excess > 0 or dq <= 0 or b <= 0:
+        if free_c and b > 0:
+            excess += (_relu(c_lo - c / b) + _relu(c / b - c_hi)) / c_hi
+        if excess > 0 or dq <= 0 or b <= 0 or c <= 0:
             return base * (2.0 + excess)
         try:
-            terms = compute_point(d_count, dq, b, C)
-            found_ground, candidates = transition_candidates(
-                terms,
+            score = _score_point(
+                d_count,
+                observed,
+                labels,
+                (dq, b, c),
+                reference=reference,
                 spin_allowed_only=spin_allowed_only,
+                penalty=base,
             )
         except (ValueError, KeyError, np.linalg.LinAlgError):
             return base * 3.0
-        if found_ground != reference or not candidates:
-            # Crossed the spin crossover. Refuse it: the low-spin manifolds are
-            # far denser (d5: 31 lines vs 0), and a nearest-neighbour residual
-            # is minimised by a dense forest of candidates, so an unconstrained
-            # search is actively rewarded for ending up in the wrong regime.
-            return base * 2.0
-        return peak_rmse(observed, np.array([e for e, _a, _s in candidates]))
+        # None: crossed the spin crossover, or too few levels for every band.
+        return base * 2.0 if score is None else score
 
-    starts = [
-        (dq_seed, b_seed),
-        (0.8 * dq_seed, b_seed),
-        (1.25 * dq_seed, b_seed),
-        (dq_seed, 0.7 * b_seed),
-        (dq_seed, 1.2 * b_seed),
-    ]
-    best = None
-    for start in starts:
-        result = minimize(
+    starts: Sequence[tuple[float, ...]]
+    if free_c:
+        local = [(dq, b, C) for dq, b in _local_starts(dq_seed, b_seed)]
+        starts = _free_c_starts(objective, dq_bounds, b_bounds, local)
+    else:
+        starts = _search_starts(d_count, C, dq_seed, b_seed, dq_bounds, b_bounds)
+    results = [
+        minimize(
             objective,
             np.array(start, dtype=float),
             method="Nelder-Mead",
-            options={"maxiter": 800, "xatol": 1e-2, "fatol": 1e-2},
+            options={
+                "maxiter": 2000 if free_c else 800,
+                "xatol": NM_XATOL_CM1,
+                "fatol": NM_FATOL_CM1,
+            },
         )
-        if best is None or result.fun < best.fun:
-            best = result
-    assert best is not None  # noqa: S101 - starts is non-empty by construction
+        for start in starts
+    ]
+    free_parameters = 3 if free_c else 2
+    best = _pick_minimum(results, (dq_seed, b_seed), determined=observed.size > free_parameters)
+    minima = _distinct_minima(results, best, C, ceiling=base)
+    tied, (dq_open, b_open, c_open) = (
+        _undetermined(minima) if minima else ([], (False, False, False))
+    )
+    c_open = c_open and free_c
+    if c_open:
+        # C is not decided by the bands: report the best-objective minimum, whole, as a
+        # display value, rather than the seed-nearest one the tie-break would pick.
+        best = min((r for r in results if r.success), key=lambda r: float(r.fun))
+        minima = _distinct_minima(results, best, C, ceiling=base)
 
     # --- Accept or refuse ---------------------------------------------------
     fitted_dq, fitted_b = float(best.x[0]), float(best.x[1])
+    fitted_c = float(best.x[2]) if free_c else C
     if not best.success:
         msg = f"fit did not converge: {best.message}"
         raise ValueError(msg)
     if best.fun >= base:
+        held_c = (
+            f" C was held at the d{d_count} default {C:.0f} cm^-1, an assumption, not a "
+            "property of this complex: pass C, or label every band so C is fitted."
+            if c_is_default and not free_c
+            else ""
+        )
         msg = (
             "fit never escaped the penalty region -- no (Dq, B) in bounds reproduced "
-            f"the observed bands for d{d_count}. Check the peak list, the d-count, "
+            f"the observed bands for d{d_count}.{held_c} Check the peak list, the d-count, "
             "or try spin_state='low'."
         )
         raise ValueError(msg)
@@ -587,7 +1672,7 @@ def fit_spectrum(
         msg = f"fit returned non-physical parameters Dq={fitted_dq}, B={fitted_b}"
         raise ValueError(msg)
 
-    fitted_terms = compute_point(d_count, fitted_dq, fitted_b, C)
+    fitted_terms = compute_point(d_count, fitted_dq, fitted_b, fitted_c)
     found_ground, fitted_candidates = transition_candidates(
         fitted_terms,
         spin_allowed_only=spin_allowed_only,
@@ -600,16 +1685,26 @@ def fit_spectrum(
         raise ValueError(msg)
 
     _, all_transitions = transition_candidates(fitted_terms, spin_allowed_only=False)
-    predicted = np.array([e for e, _a, _s in fitted_candidates])
-    residuals = [float(predicted[int(np.argmin(np.abs(predicted - o)))] - o) for o in observed]
-    rmse = peak_rmse(observed, predicted)
+    _, fitted_levels = excited_levels(fitted_terms, spin_allowed_only=spin_allowed_only)
+    columns, _cost = assign_bands(observed, fitted_levels, labels, penalty=base)
+    predicted = np.asarray([fitted_levels[j][0] for j in columns], dtype=float)
+    residuals = [float(p - o) for p, o in zip(predicted, observed, strict=True)]
+    by_caller: list[tuple[float, float, str]] = [(0.0, 0.0, "")] * observed.size
+    for k, i in enumerate(order):
+        energy, uid = fitted_levels[columns[k]]
+        by_caller[i] = (float(observed_peaks_cm1[i]), float(energy), uid)
+    rmse = float(np.sqrt(np.mean((predicted - observed) ** 2)))
 
     pinned_tol = 0.01
     if abs(fitted_b - b_bounds[0]) / b_bounds[0] < pinned_tol or (
         abs(fitted_b - b_bounds[1]) / b_bounds[1] < pinned_tol
     ):
         warnings.append(f"B pinned at its search bound ({fitted_b:.0f} cm^-1); result suspect")
-    free_parameters = 2  # Dq and B; C is held fixed
+    if min(abs(fitted_dq - edge) / edge for edge in dq_bounds) < pinned_tol:
+        warnings.append(
+            f"Dq pinned at its search bound ({fitted_dq:.0f} cm^-1, dq_bounds {dq_bounds}); "
+            "the best fit may lie outside the bounds",
+        )
     if observed.size <= free_parameters:
         warnings.append(
             f"only {observed.size} band(s) for {free_parameters} free parameters: the fit is "
@@ -628,9 +1723,50 @@ def fit_spectrum(
         d_count,
         fitted_dq,
         fitted_b,
-        C,
+        fitted_c,
         spin_allowed_only=spin_allowed_only,
     )
+    if free_c and not c_constrained:
+        # C was free but the fitted bands do not depend on it, so the returned C
+        # is arbitrary. Refit with it held, and say why.
+        held = _fit_one_regime(
+            d_count,
+            observed_peaks_cm1,
+            C,
+            spin_state=spin_state,
+            include_spin_forbidden=include_spin_forbidden,
+            dq_bounds=dq_bounds,
+            b_bounds=b_bounds,
+            band_labels=band_labels,
+        )
+        note = (
+            "C was to be fitted, but the fitted bands do not move with C, so it was "
+            f"held at its default {C:.0f} cm^-1 and the fit redone"
+        )
+        return replace(
+            held, c_is_default=True, c_provenance="default", warnings=[note, *held.warnings]
+        )
+    if free_c:
+        ratio = fitted_c / fitted_b
+        if min(abs(ratio - edge) / edge for edge in C_OVER_B_WINDOW) < pinned_tol:
+            warnings.append(
+                f"C/B pinned at the edge of its window {C_OVER_B_WINDOW} "
+                f"(C/B = {ratio:.2f}); C was stopped by the window, not by the bands, "
+                "so C and B are suspect",
+            )
+    names = [n for n, o in (("Dq", dq_open), ("B", b_open), ("C", c_open)) if o]
+    if names:
+        spans = ", ".join(
+            f"{n} {min(m[k] for m in tied):.0f}-{max(m[k] for m in tied):.0f}"
+            for k, n in enumerate(("Dq", "B", "C"))
+            if n in names
+        )
+        warnings.append(
+            f"{' and '.join(names)} undetermined: {len(tied)} minima fit these bands to within "
+            f"{BAND_RESOLUTION_CM1:.0f} cm^-1 of each other (the band resolution) but disagree "
+            f"({spans} cm^-1); the reported value is one of them, for display; "
+            f"{UNDETERMINED_SPREAD_NOTE}",
+        )
     if not c_constrained:
         warnings.append(
             f"C = {C:.0f} cm^-1 is reported but was not constrained by these bands: "
@@ -642,15 +1778,27 @@ def fit_spectrum(
     return SpectrumFit(
         Dq=fitted_dq,
         B=fitted_b,
-        C=C,
+        C=fitted_c,
         rmse_cm1=rmse,
         ground_term=found_ground,
         spin_state=spin_state,
         transitions=all_transitions,
         residuals_cm1=residuals,
         warnings=warnings,
-        c_is_default=c_is_default,
+        c_is_default=c_is_default and not free_c,
         c_constrained=c_constrained,
+        c_fitted=free_c,
+        minima=minima,
+        dq_provenance="undetermined" if dq_open else "fitted",
+        b_provenance="undetermined" if b_open else "fitted",
+        c_provenance=(
+            ("undetermined" if c_open else "fitted")
+            if free_c
+            else ("default" if c_is_default else "given")
+        ),
+        c_candidates=tuple(tied) if c_open else (),
+        c_range=(min(m[2] for m in tied), max(m[2] for m in tied)) if c_open else None,
+        assignment=tuple(by_caller),
     )
 
 
@@ -745,6 +1893,7 @@ def nephelauxetic_analysis(
         msg = f"No tabulated free ions for d_count={d_count}"
         raise ValueError(msg)
 
+    ion_given = ion is not None
     if ion is None:
         ion = candidates[0]
     elif ion not in FREE_ION_RACAH_B:
@@ -764,6 +1913,11 @@ def nephelauxetic_analysis(
     )
     if suggested:
         interpretation += f" Consistent with ligands such as {', '.join(suggested)}."
+    if not ion_given:
+        interpretation += (
+            f" ion was not given: beta is relative to {ion}, the first tabulated "
+            f"d{d_count} free ion; pass ion for any other metal."
+        )
 
     return {
         "ion": ion,

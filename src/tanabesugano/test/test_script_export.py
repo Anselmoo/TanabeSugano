@@ -21,6 +21,7 @@ import pytest
 
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.script_export import fit_figure_script
+from tanabesugano.script_export import labelled_bands
 from tanabesugano.test._loop import run_loop_free
 
 
@@ -169,3 +170,52 @@ class TestTheMcpTool:
         result = self._call(d_count=5, observed_peaks=[12000.0, 18000.0, 25000.0])
         assert result.is_error
         assert "spin" in result.content[0].text.lower()
+
+
+CROWDED_D3 = [17000.0, 17800.0, 37552.0]
+"""Two bands crowd ⁴T₂g: nearest-line pairing gives both to it, the fit gives them two levels.
+
+Not an oracle spectrum on purpose. On noise-free bands every band sits on its own
+level, so nearest and assigned coincide and no pairing defect can show.
+"""
+MN_BANDS = [19070.0, 22710.0, 24500.0]
+MN_LABELS = ["4_T_1", "4_T_2", ["4_E", "4_A_1"]]
+
+
+class TestBandsPairAsTheFitAssigned:
+    """The figure records name the level the fit assigned, not the nearest line."""
+
+    def test_figure_pairs_bands_as_the_fit_did(self) -> None:
+        """A band crowding a neighbour keeps the level the fit gave it.
+
+        Observed red (3fa09d5): the second record read ``⁴A₂g → ⁴T₂g``, the nearest
+        line, which band 1 already holds.
+        """
+        fit = fit_spectrum(3, CROWDED_D3, 2800.0)
+        records = labelled_bands(fit, 3, CROWDED_D3)
+        assert records[1]["assignment_unicode"].endswith("⁴T₁g(F)")
+        uids = [uid for _o, _c, uid in fit.assignment]
+        assert uids == ["4_T_2#0", "4_T_1#0", "4_T_1#1"]
+
+    def test_figure_pairs_spin_forbidden_bands(self) -> None:
+        """Spin-forbidden bands get records; the pairing no longer drops forbidden lines.
+
+        Observed red (3fa09d5): ``ValueError: min() iterable argument is empty``.
+        """
+        fit = fit_spectrum(5, MN_BANDS, include_spin_forbidden=True, band_labels=MN_LABELS)
+        records = labelled_bands(fit, 5, MN_BANDS)
+        assert len(records) == 3
+        assert all("⁴" in r["assignment_unicode"].split("→")[1] for r in records)
+
+    def test_figure_pairs_bands_in_caller_order(self) -> None:
+        """Bands given in reverse order come back paired in that order.
+
+        Observed red (3fa09d5): ``AttributeError: 'SpectrumFit' object has no
+        attribute 'assignment'``.
+        """
+        reversed_bands = CROWDED_D3[::-1]
+        fit = fit_spectrum(3, reversed_bands, 2800.0)
+        assert [o for o, _c, _u in fit.assignment] == reversed_bands
+        records = labelled_bands(fit, 3, reversed_bands)
+        assert [r["observed_cm1"] for r in records] == reversed_bands
+        assert records[1]["assignment_unicode"].endswith("⁴T₁g(F)")

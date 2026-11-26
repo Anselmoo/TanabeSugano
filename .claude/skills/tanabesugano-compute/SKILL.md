@@ -23,7 +23,7 @@ want the AI to drive the computation instead of asking me to run a Python script
 | `ts_explain` | Get a one-paragraph orientation on a configuration (ground term, typical spectrum). |
 | `ts_terms_table_data` | Need eigenvalues for a single (Dq, B, C) point as sorted machine-readable rows (replaces the removed `ts_compute`). |
 | `ts_compute_app` | Same data as `ts_terms_table_data` but as an in-chat sortable DataTable for the user. |
-| `ts_fit_spectrum` | Back out Dq and Racah B from observed UV-Vis absorption peaks. |
+| `ts_fit_spectrum` | Back out Dq and Racah B from observed UV-Vis absorption peaks. The numeric fit: call it before any fit app. Octahedral by default; `geometry='Td'` fits a tetrahedral ion (high-spin only). |
 | `ts_diagram_app` | Need a swept Tanabe-Sugano diagram as an in-chat Chart.js plot. |
 | `ts_plot_png` | Need a static visual. Returns a matplotlib PNG. Default visualisation — low token cost. |
 | `ts_plot_view` | Same data as `ts_diagram_app` but plain Chart.js without the title/metric header — slightly cheaper payload. |
@@ -33,8 +33,14 @@ want the AI to drive the computation instead of asking me to run a Python script
 1. Call `ts_supported_configs` if d_count is uncertain.
 2. Call `ts_explain` to ground the discussion in the correct ground term.
 3. For a fit-to-spectrum task: feed measured peaks to `ts_fit_spectrum` to get
-   `(Dq, B)` directly; if a coarse sweep is needed instead, use `ts_diagram_app`
-   (or `ts_plot_view`) at default Racah B/C and read off the candidate region.
+   `(Dq, B)` directly, with `band_labels` where the assignment is known. Before
+   quoting a value, read `Dq_source` / `B_source` / `C_source`: only 'fitted' or
+   'given' is a result; 'undetermined' means report the range over `minima`,
+   as tied minima, not bounds: the true value can lie outside it.
+   Default B and C are an assumption, not a property of the complex: say so.
+   If a coarse sweep is needed instead, use `ts_diagram_app` (or `ts_plot_view`)
+   at default Racah B/C and read off the candidate region: that is an eyeballed
+   estimate, not a fit, and must be reported as one.
 4. Render the final fitted region with `ts_plot_png` for static delivery, or
    `ts_diagram_app` for an interactive in-chat panel.
 
@@ -48,7 +54,9 @@ want the AI to drive the computation instead of asking me to run a Python script
 
 ## Do not use for
 
-- Non-octahedral geometries (tetrahedral, square-planar) — not modeled.
+- Square-planar or other low-symmetry geometries — not modeled. Tetrahedral is
+  fitted by `ts_fit_spectrum` with `geometry='Td'` (high-spin only); the diagram
+  and fit-display tools are octahedral (Oh) only.
 - Spin-orbit coupling or zero-field splitting — not in the Hamiltonian.
 - Arbitrary multireference quantum chemistry — out of scope.
 

@@ -157,3 +157,171 @@ class TestErrorBranchesStillRender:
             observed_peaks=[0.0, -100.0],
             grid_steps=10,
         )
+
+
+class TestOneSolverOneAnswer:
+    """The app's answer is fit_spectrum's; its grid is a landscape, not an answer.
+
+    Oracle truths come from ``_determinant_oracle`` via the recovery module's helpers;
+    the equality cases compare against a direct ``fit_spectrum`` call (pass-through).
+    """
+
+    def test_reverse_app_fits_low_spin_when_told(self) -> None:
+        """d6 low-spin bands with spin_state='low' come back in that regime.
+
+        C is held at the truth: two bands cannot pin C, and with the default C the
+        fit (fit_spectrum's, not the app's) lands at Dq 2620 -- that is plan C's
+        default-C limitation, not this test's claim.
+
+        Observed red (3bff962): ``TypeError: ...ts_reverse_fit_app() got an
+        unexpected keyword argument 'spin_state'``.
+        """
+        from tanabesugano.test.test_fit_recovery import oracle_bands
+
+        bands = oracle_bands(6, 2500.0, 700.0, 3080.0, spin_allowed_only=True)[:2]
+        data = extract_fit_data(
+            call_reverse_fit(
+                d_count=6, observed_peaks=[e for e, _u in bands], C=3080.0, spin_state="low"
+            )
+        )
+        assert data is not None
+        assert data["Dq"] == pytest.approx(2500.0, rel=0.02)
+        assert data["spin_state"] == "low"
+
+    @pytest.mark.parametrize("case", ["d3", "d6-low", "d5-high-sf"])
+    def test_reverse_app_matches_fit_spectrum(self, case: str) -> None:
+        """App defaults and fit_spectrum defaults give the same Dq and B: one solver.
+
+        Observed red (3bff962): d3 differs (grid node, not the fitted point);
+        d6-low / d5-high-sf: unexpected keyword argument ``spin_state`` /
+        ``include_spin_forbidden``. The d5 bands follow the band rule since plan G,
+        Task 1b; that red is not re-run, as a missing keyword fails the same way for any
+        bands.
+        """
+        from tanabesugano.mcp._compute import fit_spectrum
+        from tanabesugano.test.test_fit_recovery import D5_HS_POINTS
+        from tanabesugano.test.test_fit_recovery import merged_labelled_bands
+        from tanabesugano.test.test_fit_recovery import oracle_bands
+
+        kwargs: dict = {}
+        if case == "d3":
+            d, peaks = (
+                3,
+                [e for e, _u in oracle_bands(3, 1200.0, 413.1, 1652.4, spin_allowed_only=True)[:3]],
+            )
+        elif case == "d6-low":
+            d = 6
+            peaks = [
+                e for e, _u in oracle_bands(6, 2500.0, 700.0, 3080.0, spin_allowed_only=True)[:2]
+            ]
+            kwargs = {"spin_state": "low"}
+        else:
+            d = 5
+            peaks, labels = merged_labelled_bands(5, *D5_HS_POINTS[3], 3)
+            kwargs = {"include_spin_forbidden": True, "band_labels": labels}
+        direct = fit_spectrum(d, peaks, **kwargs)
+        data = extract_fit_data(call_reverse_fit(d_count=d, observed_peaks=peaks, **kwargs))
+        assert data is not None
+        # The payload rounds to 0.1 cm^-1, so equality is to that resolution.
+        assert data["Dq"] == pytest.approx(direct.Dq, abs=0.051)
+        assert data["B"] == pytest.approx(direct.B, abs=0.051)
+
+    def test_reverse_app_default_b_range_reaches_low_b(self) -> None:
+        """Oracle d2 at B 387: the default B range must contain it.
+
+        Observed red (3bff962): B pinned at the old 400 floor.
+        """
+        from tanabesugano.test.test_fit_recovery import oracle_bands
+
+        peaks = [e for e, _u in oracle_bands(2, 900.0, 387.0, 1548.0, spin_allowed_only=True)[:3]]
+        data = extract_fit_data(call_reverse_fit(d_count=2, observed_peaks=peaks))
+        assert data is not None
+        assert data["B"] == pytest.approx(387.0, rel=0.02)
+
+    def test_reverse_app_grid_candidates_keep_their_shape(self) -> None:
+        """grid_candidates keeps today's rows; minima, warnings and C_source are new keys.
+
+        Observed red (3bff962): ``KeyError: 'minima'``.
+        """
+        data = extract_fit_data(call_reverse_fit(d_count=8, observed_peaks=BANDS))
+        assert data is not None
+        rows = data["grid_candidates"]
+        assert 0 < len(rows) <= 20
+        assert all(set(r) == {"Dq", "B", "RMS"} for r in rows)
+        assert [r["RMS"] for r in rows] == sorted(r["RMS"] for r in rows)
+        assert data["minima"][0]["Dq"] == pytest.approx(data["Dq"], abs=0.051)
+        assert isinstance(data["warnings"], list)
+        assert data["C_source"] == "default"
+
+
+def test_reverse_app_short_label_list_is_an_error_card() -> None:
+    """Fewer labels than peaks is reported, not raised.
+
+    Observed red (62797f6, final review): ``IndexError: list index out of range``.
+    """
+    result = call_reverse_fit(d_count=8, observed_peaks=BANDS, band_labels=["3_T_2", None])
+    data = extract_fit_data(result) or result.structured_content
+    assert "one label per band" in data["error"]
+
+
+def test_reverse_app_names_energy_unit_for_ev_peaks() -> None:
+    """Peaks given in eV at the default energy_unit point the caller at energy_unit (plan E R4).
+
+    Observed red (0aef909): the error was ``fit never escaped the penalty region``,
+    which does not mention energy_unit.
+    """
+    result = call_reverse_fit(d_count=8, observed_peaks=[1.05, 1.71, 3.14])
+    data = extract_fit_data(result) or result.structured_content
+    assert "energy_unit" in data["error"]
+    assert "eV" in data["error"]
+
+
+def test_reverse_app_shuffled_labelled_peaks_pair_by_label() -> None:
+    """Shuffled labelled oracle bands plus a dropped 0.0 peak: each band keeps its label.
+
+    The 0.0 entry is dropped *with* its label; were it not, every later label would
+    shift by one and pair a band with the wrong level. Green on arrival (33dcf7d):
+    coverage for the D review's deferred case, not the red of a fix.
+    """
+    from tanabesugano.test.test_fit_recovery import oracle_bands
+    from tanabesugano.test.test_fit_recovery import term_labels
+
+    bands = oracle_bands(8, 850.0, 907.0, 4850.0, spin_allowed_only=True)
+    order = [2, 0, 1]
+    peaks = [bands[order[0]][0], 0.0, bands[order[1]][0], bands[order[2]][0]]
+    labels = term_labels([bands[i] for i in order])
+    labels.insert(1, "3_T_2")
+    result = call_reverse_fit(d_count=8, observed_peaks=peaks, band_labels=labels)
+    data = extract_fit_data(result) or result.structured_content
+    assert "error" not in data, data.get("error")
+    kept = [p for p in peaks if p > 0]
+    assert [r["observed_cm1"] for r in data["residuals"]] == pytest.approx(kept, abs=0.1)
+    assert all(abs(r["delta_cm1"]) < 1.0 for r in data["residuals"]), data["residuals"]
+
+
+def test_reverse_app_refuses_kk_peaks_declared_as_ev() -> None:
+    """Values in kK sent with energy_unit='eV' are refused, not fitted (final review I1).
+
+    Ni(H2O)6 in kK read as eV lands at 68557-204056 cm^-1, above any d-d band.
+    Observed red (562491b): no ``error`` key -- a fit came back, Dq 9331, B 1500
+    (pinned at its bound), warnings only.
+    """
+    result = call_reverse_fit(d_count=8, observed_peaks=[8.5, 13.8, 25.3], energy_unit="eV")
+    data = extract_fit_data(result) or result.structured_content
+    assert "kK" in data.get("error", "")
+
+
+def test_reverse_app_states_the_spin_allowed_assumption() -> None:
+    """The app-default call (no labels, no include_spin_forbidden) states its assumption.
+
+    The audit's app-default rows misassign a 2E/1E line exactly here; band positions alone
+    cannot tell (identifiability), so the result says what it assumed.
+
+    Observed red: ``KeyError: 'assumptions'``.
+    """
+    from tanabesugano.test.test_fit_recovery import SPIN_ALLOWED_ASSUMPTION
+
+    data = extract_fit_data(call_reverse_fit(d_count=8, observed_peaks=BANDS))
+    data = data or {}
+    assert data["assumptions"] == [SPIN_ALLOWED_ASSUMPTION]
+    assert SPIN_ALLOWED_ASSUMPTION not in data["warnings"]

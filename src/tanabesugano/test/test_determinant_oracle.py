@@ -353,3 +353,36 @@ class TestPackageAgainstOracle:
         worst = _mismatches(d_count, cls, POINTS)
         assert term in worst, f"mutation in d{d_count} {term} went undetected: {worst}"
         assert max(worst, key=lambda k: worst[k]) == term, _report(d_count, worst)
+
+
+@pytest.mark.parametrize("ratio", [0.3, 0.6, 1.0])
+@pytest.mark.parametrize("n", range(2, 9))
+def test_td_partner_levels_match_oracle_td(n: int, ratio: float) -> None:
+    """T1a: Td d^n is the package's Oh d^(10-n) at the same Dq, against the oracle's native Td.
+
+    The reference is the oracle's own d^n at -Dq (``relative_term_levels(n, -Dq, B, C)``),
+    never ``oracle(10 - n, +Dq)``, which would re-implement the mapping under test. B and C
+    are each n's own defaults; the ground term is the Oh high-spin ground of d^(10-n)
+    (``HIGH_SPIN_GROUND_TERM``, a test-oracle table).
+
+    Observed red: ``ImportError: cannot import name 'td_partner'``.
+    """
+    from tanabesugano.mcp._compute import compute_point
+    from tanabesugano.mcp._compute import td_partner
+    from tanabesugano.mcp._defaults import DEFAULTS
+    from tanabesugano.mcp._defaults import HIGH_SPIN_GROUND_TERM
+
+    b, c = float(DEFAULTS[n]["default_B"]), float(DEFAULTS[n]["default_C"])
+    dq = ratio * b
+    ref = orc.relative_term_levels(n, -dq, b, c)
+    raw = {
+        k: np.sort(np.asarray(v, dtype=float))
+        for k, v in compute_point(td_partner(n), dq, b, c).items()
+    }
+    ground = min(float(v.min()) for v in raw.values())
+    pkg = {str(k): v - ground for k, v in raw.items()}
+    assert set(pkg) == set(ref)
+    worst = max(float(np.max(np.abs(pkg[k] - ref[k]))) for k in ref)
+    assert worst <= TOL_CM1, f"d{n} Td at Dq/B {ratio}: max deviation {worst:.3g} cm^-1"
+    ground_key = min(pkg, key=lambda k: float(pkg[k].min()))
+    assert ground_key == HIGH_SPIN_GROUND_TERM[10 - n]

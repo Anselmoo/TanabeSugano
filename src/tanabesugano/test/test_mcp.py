@@ -18,6 +18,7 @@ from tanabesugano.mcp._compute import compute_point  # noqa: E402
 from tanabesugano.mcp._compute import sweep_dq  # noqa: E402
 from tanabesugano.mcp.server import create_server  # noqa: E402
 from tanabesugano.test._loop import run_loop_free  # noqa: E402
+from tanabesugano.test.test_fit_recovery import SPIN_ALLOWED_ASSUMPTION  # noqa: E402
 
 
 # ─────────────────────────── core numeric tools ──────────────────────────
@@ -965,3 +966,493 @@ def test_spin_crossover_app_finds_the_crossing_at_its_own_defaults(d_count: int)
         f"d{d_count}: tool returned critical_delta_cm1=None at its own defaults; "
         f"the swept Dq range does not reach this configuration's crossing."
     )
+
+
+# ─────────────────── plan C inputs on the fit tools ───────────────────
+
+MN_BANDS = [19070.0, 22710.0, 24500.0]
+MN_LABELS = ["4_T_1", "4_T_2", ["4_E", "4_A_1"]]
+CROWDED_D3 = [17000.0, 17800.0, 37552.0]
+
+
+def test_ts_fit_spectrum_takes_labels_and_fits_c() -> None:
+    """Labels and fit_c reach fit_spectrum unchanged: the tool's numbers equal a direct call.
+
+    A pass-through claim needs no reference number. Whether this Mn fit is right
+    belongs to an IonFixture, not here.
+
+    Observed red (6e2ca5b): ``ToolError: Input validation error: 'band_labels' ...
+    Unexpected keyword argument``.
+    """
+    from tanabesugano.mcp._compute import fit_spectrum
+
+    direct = fit_spectrum(5, MN_BANDS, include_spin_forbidden=True, band_labels=MN_LABELS)
+    result = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 5,
+            "observed_peaks_cm1": MN_BANDS,
+            "include_spin_forbidden": True,
+            "band_labels": MN_LABELS,
+        },
+    )
+    data = result.data  # type: ignore[attr-defined]
+    pairs = ((data.fitted_Dq, direct.Dq), (data.fitted_B, direct.B), (data.fitted_C, direct.C))
+    for got, want in pairs:
+        assert got == pytest.approx(want, rel=1e-9)
+
+
+def test_unknown_label_is_a_compute_error() -> None:
+    """A label naming no spin-allowed level comes back as ComputeError naming the label.
+
+    Observed red (6e2ca5b): the unknown-argument validation error for ``band_labels``.
+    """
+    result = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 8,
+            "observed_peaks_cm1": [8500, 13800, 25300],
+            "band_labels": ["3_T_2", "3_T_1", "1_A_1"],
+        },
+    )
+    data = result.data  # type: ignore[attr-defined]
+    assert "1_A_1" in data.error
+
+
+def test_delta_s_two_label_is_a_compute_error() -> None:
+    """A label on a Delta S = 2 term comes back as ComputeError naming the term and the rule.
+
+    Observed red at 3824ce5: ``AttributeError: 'Root' object has no attribute 'error'``
+    (the fit succeeded and returned a FitResult).
+    """
+    result = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 5,
+            "observed_peaks_cm1": [18870.0, 23120.0, 24960.0],
+            "band_labels": ["4_T_1", "2_T_2", ["4_E", "4_A_1"]],
+            "include_spin_forbidden": True,
+        },
+    )
+    data = result.data  # type: ignore[attr-defined]
+    assert "2_T_2" in data.error
+    assert "changes spin by more than one" in data.error
+
+
+def test_default_c_refusal_is_a_compute_error() -> None:
+    """The d4 default-C refusal (plan G, Task 1e) reaches the agent as ComputeError.
+
+    Observed red (working tree on 3824ce5): ``AssertionError`` -- the error text did not
+    name the held default C.
+    """
+    result = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 4,
+            "observed_peaks_cm1": [4953.2, 5287.0, 9058.2, 9545.6],
+            "include_spin_forbidden": True,
+        },
+    )
+    data = result.data  # type: ignore[attr-defined]
+    assert "C was held at the d4 default" in data.error
+
+
+@pytest.mark.parametrize("row", [0, 1, 2], ids=["683", "689", "941"])
+def test_lowest_rmse_entry_carries_the_ambiguity_flag(row: int) -> None:
+    """The lowest-objective entry says itself that other minima tie it (plan G, Task 2).
+
+    These are the FREE_C_AMBIGUOUS rows, whose warning already states that the free-C
+    fit is not unique (``test_ambiguous_free_c_point_is_said_to_be_ambiguous``). The
+    flag puts that fact on the entry an agent reads, not only in prose.
+
+    Observed red: ``AttributeError: 'Root' object has no attribute 'ambiguous'``.
+    """
+    from tanabesugano.test.test_fit_recovery import FREE_C_AMBIGUOUS
+
+    d, bands, _held = FREE_C_AMBIGUOUS[row].values
+    data = _call(
+        "ts_fit_spectrum",
+        {"d_count": d, "observed_peaks_cm1": bands, "include_spin_forbidden": True},
+    ).data  # type: ignore[attr-defined]
+    (lowest,) = [m for m in data.minima if m.lowest_rmse]
+    assert lowest.ambiguous
+
+
+def test_single_minimum_is_not_ambiguous() -> None:
+    """Labelled Mn quartets at C = 3243: two minima 319 cm^-1 apart, neither ambiguous.
+
+    The minima (827.4, RMSE 93.7) and (444.0, RMSE 412.9) are the Task 1 acceptance
+    run; their gap exceeds BAND_RESOLUTION_CM1, so no entry may carry the flag.
+    Observed red: ``AttributeError: 'Root' object has no attribute 'ambiguous'``.
+    """
+    data = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 5,
+            "observed_peaks_cm1": [18870.0, 23120.0, 24960.0],
+            "C": 3243.0,
+            "band_labels": ["4_T_1", "4_T_2", ["4_E", "4_A_1"]],
+            "include_spin_forbidden": True,
+        },
+    ).data  # type: ignore[attr-defined]
+    assert len(data.minima) >= 2
+    assert not any(m.ambiguous for m in data.minima)
+
+
+def test_label_count_mismatch_is_a_compute_error() -> None:
+    """Two labels for three peaks is a ComputeError, not a silent truncation.
+
+    Observed red (6e2ca5b): the unknown-argument validation error for ``band_labels``.
+    """
+    result = _call(
+        "ts_fit_spectrum",
+        {"d_count": 8, "observed_peaks_cm1": [8500, 13800, 25300], "band_labels": ["3_T_2", None]},
+    )
+    data = result.data  # type: ignore[attr-defined]
+    assert "one label per band" in data.error
+
+
+def test_figure_tools_accept_labels() -> None:
+    """Both figure tools take band_labels and show the level the fit assigned.
+
+    Observed red (6e2ca5b): ``TypeError: ts_fit_plot_app() got an unexpected
+    keyword argument 'band_labels'``.
+    """
+
+    async def go():
+        server = create_server()
+        app = await server.get_tool("ts_fit_plot_app")
+        script = await server.get_tool("ts_fit_script")
+        labels = ["4_T_2", "4_T_1", "4_T_1"]
+        return (
+            app.fn(d_count=3, observed_peaks=CROWDED_D3, C=2800.0, band_labels=labels),
+            script.fn(d_count=3, observed_peaks=CROWDED_D3, C=2800.0, band_labels=labels),
+        )
+
+    app_result, script_result = run_loop_free(go)
+    assert not app_result.is_error, app_result.content[0].text
+    import json
+
+    assert "⁴T₁g(F)" in json.dumps(json.loads(app_result.content[0].text), ensure_ascii=False)
+    assert not script_result.is_error, script_result.content[0].text
+    assert "T_{1g}(F)" in script_result.content[0].text
+
+
+# ─────────────────── provenance and diagnostics in FitResult ───────────────────
+
+NI_BANDS = [8500.0, 13800.0, 25300.0]
+FIT_RESULT_FIELDS_BEFORE_PROVENANCE = {
+    "d_count",
+    "fitted_Dq",
+    "fitted_B",
+    "fitted_C",
+    "c_is_default",
+    "c_constrained",
+    "r_squared",
+    "rmse_cm1",
+    "observed_peaks_cm1",
+    "predicted_peaks_cm1",
+    "peak_assignments",
+    "ground_term",
+    "spin_state",
+    "residuals_cm1",
+    "warnings",
+}
+"""FitResult's fields at 05b8b0c, written out so a removal or rename cannot pass unseen."""
+
+
+@pytest.mark.parametrize(("c_arg", "c_source"), [(None, "default"), (4850.0, "given")])
+def test_fit_result_reports_provenance(c_arg: float | None, c_source: str) -> None:
+    """A held C says where it came from; Dq and B say fitted.
+
+    Observed red (05b8b0c): ``AttributeError: 'Root' object has no attribute
+    'Dq_source'``.
+    """
+    args: dict = {"d_count": 8, "observed_peaks_cm1": NI_BANDS}
+    if c_arg is not None:
+        args["C"] = c_arg
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert (data.Dq_source, data.B_source, data.C_source) == ("fitted", "fitted", c_source)
+    assert data.c_fitted is False
+
+
+def test_fit_result_reports_an_undetermined_c() -> None:
+    """The plan C d6 low-spin valley: C undetermined, with its candidates and range.
+
+    Observed red (05b8b0c): ``AttributeError: 'Root' object has no attribute
+    'C_source'``.
+    """
+    from tanabesugano.test.test_fit_recovery import oracle_bands
+    from tanabesugano.test.test_fit_recovery import term_labels
+
+    bands = oracle_bands(6, 4069.1, 1224.8, 6124.0, spin_allowed_only=True)[:3]
+    args = {
+        "d_count": 6,
+        "observed_peaks_cm1": [e for e, _u in bands],
+        "spin_state": "low",
+        "band_labels": term_labels(bands),
+    }
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert data.C_source == "undetermined"
+    assert data.c_fitted is True
+    assert len(data.c_candidates) >= 2
+    lo, hi = data.c_range
+    assert lo <= data.fitted_C <= hi
+    assert {m.C for m in data.c_candidates} <= {m.C for m in data.minima}
+
+
+def test_fit_result_schema_lists_provenance_enum() -> None:
+    """The output schema gives agents the provenance values as an enum.
+
+    Observed red (05b8b0c): ``KeyError: 'C_source'``.
+    """
+    server = create_server()
+
+    async def go():
+        return await server.get_tool("ts_fit_spectrum")
+
+    tool = run_loop_free(go)
+    schema = tool.output_schema
+    defs = schema.get("$defs", {})
+    fit_result = defs.get("FitResult", schema)
+    prop = fit_result["properties"]["C_source"]
+    enum = prop.get("enum") or defs[prop["$ref"].rsplit("/", 1)[-1]]["enum"]
+    assert set(enum) == {"fitted", "given", "default", "undetermined"}
+
+
+def test_fit_spectrum_tool_lists_free_c_alternative() -> None:
+    """Held default C contradicted by the bands: the free-C points sit in ``minima``.
+
+    User ruling (2026-11-25): the alternative is part of the result, flagged as the
+    lowest-RMSE point -- a fact, so no schema text calls it best or preferred.
+    Truth (900, 989, 3956) is an oracle input; the bands come from the oracle.
+    Observed red: ``AttributeError: 'Root' object has no attribute 'source'``.
+    """
+    from tanabesugano.test.test_fit_recovery import merged_bands
+
+    args = {
+        "d_count": 2,
+        "observed_peaks_cm1": merged_bands(2, 900.0, 989.0, 3956.0, 6),
+        "include_spin_forbidden": True,
+    }
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert (data.Dq_source, data.B_source, data.C_source) == (
+        "undetermined",
+        "undetermined",
+        "default",
+    )
+    assert data.minima[0].source == "held"
+    free = [m for m in data.minima if m.source == "free_c"]
+    assert free
+    flagged = [m for m in data.minima if m.lowest_rmse]
+    assert len(flagged) == 1
+    assert flagged[0].source == "free_c"
+    assert flagged[0].objective_cm1 == min(m.objective_cm1 for m in data.minima)
+
+    server = create_server()
+
+    async def go():
+        return await server.get_tool("ts_fit_spectrum")
+
+    text = str(run_loop_free(go).output_schema).lower()
+    assert "best" not in text
+    assert "preferred" not in text
+
+
+def test_old_call_keeps_old_fields() -> None:
+    """A call with yesterday's arguments returns every field yesterday's FitResult had.
+
+    Never red: a guard that the provenance fields were added, not substituted.
+    """
+    result = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": NI_BANDS})
+    fields = set(result.structured_content["result"])  # type: ignore[attr-defined]
+    assert not FIT_RESULT_FIELDS_BEFORE_PROVENANCE - fields
+
+
+def test_ts_fit_spectrum_reports_both_d8_dq_estimators() -> None:
+    """F3: nu1/10 beside the least-squares Dq, named, and only reported.
+
+    850.0 is the input band 8500 / 10, not a fit value; ``fitted_Dq`` stays the
+    least-squares one and ``Dq_estimator`` says so.
+
+    Observed red: ``AttributeError: 'Root' object has no attribute 'Dq_nu1'``.
+    """
+    data = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": NI_BANDS}).data  # type: ignore[attr-defined]
+    assert data.Dq_nu1 == 850.0
+    assert data.Dq_estimator == "least_squares"
+    assert data.fitted_Dq != data.Dq_nu1
+    assert data.Dq_nu1_reason == (
+        f"nu1 is the lowest band: {SPIN_ALLOWED_ASSUMPTION}; Dq estimators differ: "
+        f"nu1/10 = 850, least squares = {data.fitted_Dq:.0f} cm^-1"
+    )
+    assert not any("estimators" in w for w in data.warnings)
+
+
+def test_ts_fit_spectrum_states_the_spin_allowed_assumption() -> None:
+    """An unlabelled spin-allowed call carries the assumption in ``assumptions``, not warnings.
+
+    Observed red: ``AttributeError: 'Root' object has no attribute 'assumptions'``.
+    """
+    data = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": NI_BANDS}).data  # type: ignore[attr-defined]
+    assert data.assumptions == [SPIN_ALLOWED_ASSUMPTION]
+    assert SPIN_ALLOWED_ASSUMPTION not in data.warnings
+    labelled = {
+        "d_count": 8,
+        "observed_peaks_cm1": NI_BANDS,
+        "band_labels": ["3_T_2", "3_T_1", "3_T_1"],
+    }
+    assert _call("ts_fit_spectrum", labelled).data.assumptions == []  # type: ignore[attr-defined]
+
+
+def test_ts_fit_spectrum_dq_nu1_none_off_d3_d8() -> None:
+    """A d-count without nu1 = 10Dq reports None with the reason.
+
+    Observed red: ``AttributeError: 'Root' object has no attribute 'Dq_nu1'``.
+    """
+    args = {"d_count": 2, "observed_peaks_cm1": [17200, 25600]}
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert data.Dq_nu1 is None
+    assert data.Dq_nu1_reason == "nu1 = 10Dq holds only for d3 and d8"
+
+
+def test_ts_fit_spectrum_td_reports_the_convention_and_partner_uids() -> None:
+    """geometry='Td' through the tool: Dq_convention says Td, and every assigned uid names a
+    level of the manifold that was fitted (d2 for Td d8).
+
+    Observed red: ``pydantic_core.ValidationError`` / unexpected keyword ``geometry``.
+    """
+    from tanabesugano.levels import LevelSet
+
+    args = {"d_count": 8, "observed_peaks_cm1": [4400.0, 15500.0], "geometry": "Td"}
+    data = _call("ts_fit_spectrum", args).data  # type: ignore[attr-defined]
+    assert data.Dq_convention == "Td"
+    assert data.d_count == 8
+    levels = LevelSet.solve(2, dq=data.fitted_Dq, b=data.fitted_B, c=data.fitted_C)
+    uids = {lv.uid for lv in levels.levels}
+    assert {a.level_uid for a in data.band_assignments} <= uids
+    oh = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": NI_BANDS}).data  # type: ignore[attr-defined]
+    assert oh.Dq_convention == "Oh"
+
+
+def test_band_assignments_and_residuals_follow_input_order() -> None:
+    """Peaks given out of order come back paired and signed in that order.
+
+    Observed red (05b8b0c): ``AttributeError: 'Root' object has no attribute
+    'band_assignments'``; and
+    ``residuals_cm1`` was in sorted band order while documented per input peak.
+    """
+    shuffled = [NI_BANDS[2], NI_BANDS[0], NI_BANDS[1]]
+    data = _call("ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": shuffled}).data  # type: ignore[attr-defined]
+    assert [a.observed_cm1 for a in data.band_assignments] == shuffled
+    for a, r in zip(data.band_assignments, data.residuals_cm1, strict=True):
+        assert a.residual_cm1 == pytest.approx(a.computed_cm1 - a.observed_cm1)
+        assert r == pytest.approx(a.residual_cm1)
+    assert data.band_assignments[0].level_uid == "3_T_1#1"
+    assert data.band_assignments[0].label.endswith("³T₁g(P)")
+
+
+# ─────────────────── cm^-1 magnitude guard (plan E, Task 1) ───────────────────
+
+
+class TestUnitGuard:
+    """eV, kK or nm passed where cm^-1 is read is refused by name, with converted values.
+
+    Before the guard, ``fit_spectrum(8, [1.05, 1.71, 3.14])`` and the nm list both
+    raised ``ValueError: fit never escaped the penalty region -- ... or try
+    spin_state='low'.`` -- not silent, but the unit was never named and the hint
+    pointed the wrong way.
+    """
+
+    def test_ev_list_is_refused_by_name(self) -> None:
+        """Observed red (0aef909): ``assert 'eV' in 'Fitting failed: fit never escaped ...'``."""
+        data = _call(
+            "ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": [1.05, 1.71, 3.14]}
+        ).data  # type: ignore[attr-defined]
+        assert "eV" in data.error
+        assert "8469" in data.error
+
+    def test_nm_list_is_refused_by_name(self) -> None:
+        """Observed red (0aef909): ``assert 'nm' in 'Fitting failed: fit never escaped ...'``."""
+        data = _call(
+            "ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": [1176.0, 725.0, 395.0]}
+        ).data  # type: ignore[attr-defined]
+        assert "nm" in data.error
+        assert "8503" in data.error
+
+    def test_kk_list_names_both(self) -> None:
+        """Below 100 is eV or kK; both conversions are offered (Fable objection 4).
+
+        Observed red (0aef909): ``ValueError: fit never escaped the penalty region``
+        did not match ``kK``.
+        """
+        from tanabesugano.mcp._compute import fit_spectrum
+
+        with pytest.raises(ValueError, match="kK") as info:
+            fit_spectrum(3, [17.4, 24.7, 36.6])
+        assert "17400" in str(info.value)
+
+    def test_low_energy_d8_is_not_flagged(self) -> None:
+        """A real low-energy d8 list fits. Green on arrival: a false-alarm guard, not a red."""
+        data = _call(
+            "ts_fit_spectrum", {"d_count": 8, "observed_peaks_cm1": [4500.0, 7800.0, 14500.0]}
+        ).data  # type: ignore[attr-defined]
+        assert data.fitted_Dq > 0
+
+    def test_kk_advice_says_multiply_by_1000(self) -> None:
+        """For an eV-or-kK list the advice covers both readings (final review I1).
+
+        energy_unit has no kK, so pointing a kK user at energy_unit='eV' led to a
+        wrong fit. Observed red (562491b): the text said ``pass energy_unit='eV'
+        (or 'nm'/'eV' as appropriate)`` and never ``multiply by 1000``.
+        """
+        from tanabesugano.mcp._inputs import unit_error
+
+        text = unit_error([8.5, 13.8, 25.3], unit_param="energy_unit")
+        assert text is not None
+        assert "multiply by 1000" in text
+        assert "energy_unit='eV'" in text
+
+    def test_peaks_above_any_dd_band_are_refused(self) -> None:
+        """A cm^-1 list reaching past 100000 is no d-d spectrum (final review I1).
+
+        Observed red (562491b): DID NOT RAISE -- a fit came back.
+        """
+        from tanabesugano.mcp._compute import fit_spectrum
+
+        with pytest.raises(ValueError, match="above any d-d band"):
+            fit_spectrum(8, [68557.0, 111304.0, 204056.0])
+
+    def test_stray_small_value_is_not_ev(self) -> None:
+        """The guard reads the maximum: one stray small entry does not turn cm^-1 into eV.
+
+        Observed red (0aef909): ``ImportError: cannot import name 'suspect_unit'``.
+        """
+        from tanabesugano.mcp._inputs import suspect_unit
+
+        assert suspect_unit([8500.0, 13800.0, 3.1]) is None
+
+    def test_single_td_band_is_not_nm(self) -> None:
+        """A lone Td Co(II) nu1 near 3300 cm^-1 is not read as nm.
+
+        Observed red (0aef909): ``ImportError: cannot import name 'suspect_unit'``.
+        """
+        from tanabesugano.mcp._inputs import suspect_unit
+
+        assert suspect_unit([3300.0]) is None
+
+
+def test_malformed_label_is_compute_error() -> None:
+    """A label that is no term key at all (``3_X_9``) is a ComputeError naming it.
+
+    Green on arrival (33dcf7d): closes the D review's missing schema-rejection case;
+    the label is refused by fit_spectrum's level lookup, not by the JSON schema.
+    """
+    data = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 8,
+            "observed_peaks_cm1": NI_BANDS,
+            "band_labels": ["3_X_9", "3_T_1", "3_T_1"],
+        },
+    ).data  # type: ignore[attr-defined]
+    assert "3_X_9" in data.error
