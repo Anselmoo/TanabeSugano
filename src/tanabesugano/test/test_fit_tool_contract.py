@@ -498,6 +498,10 @@ def test_provenance_descriptions_say_the_range_is_not_a_bound() -> None:
 
 
 def test_spin_allowed_fit_gets_no_spin_forbidden_caution() -> None:
-    """The unlabelled spin-forbidden caution does not fire on a spin-allowed fit."""
+    """The unlabelled spin-forbidden caution does not fire on a spin-allowed fit.
+
+    Green on arrival, by design: it guards against the caution over-firing, and before
+    d863599 the caution did not exist, so no earlier tree could fail it.
+    """
     fit = _tool("ts_fit_spectrum").fn(d_count=3, observed_peaks_cm1=AL2O3_CR_ALL_BANDS[:2])
     assert all(SF_UNLABELLED not in w for w in fit.warnings)
