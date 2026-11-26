@@ -313,12 +313,13 @@ CHROMIUM_III_AMMINE = IonFixture(
     band_labels=None,
     include_spin_forbidden=False,
     bands_cm1=(21550.0, 28500.0, 46030.0),
-    source=TEXTBOOK_PROVENANCE,
+    source=(
+        f"{TEXTBOOK_PROVENANCE}; Dq 2155 is nu1/10 of the 21550 band, not a published "
+        "value: JCE 2023 prints 2170 (graphical, Shriver & Atkins Example 20.8) and "
+        "Tanabe & Sugano 1954 give 2140 (audit/jce2023/primary_sources.csv)"
+    ),
     source_tier="textbook",
     published_quantity="unknown",
-    # 2155 is nu1/10 of the 21550 band, not a published value: JCE 2023 prints 2170
-    # (graphical, Shriver & Atkins Example 20.8) and Tanabe & Sugano 1954 give 2140
-    # (audit/jce2023/primary_sources.csv). Least squares is graded against it as nu1/10.
     published_Dq_cm1=2155.0,
     published_B_cm1=661.0,
     published_C_cm1=None,
@@ -744,7 +745,9 @@ class TestChromiumIII:
         so a fixture with neither quantity graded is skipped, not passed vacuously.
         """
         if fx.closed_form_tol_Dq is None and "B" not in graded_quantities(fx):
-            pytest.skip(f"{fx.label}: Dq = nu1/10 and B comparison-only; nothing to grade")
+            pytest.skip(
+                f"{fx.label}: closed-form Dq not graded, B comparison-only; nothing to grade"
+            )
         dq, b = closed_form_dq_b(fx.d_count, list(fx.bands_cm1))
         if fx.closed_form_tol_Dq is not None:
             assert dq == fx.closed_form_tol_Dq.approx(fx.published_Dq_cm1), fx.label
@@ -755,7 +758,8 @@ class TestChromiumIII:
     def test_least_squares_agrees_with_literature(self, fx: IonFixture) -> None:
         fit = fit_spectrum(fx.d_count, list(fx.bands_cm1))
         assert fit.ground_term == "4_A_2", fx.label
-        assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1), f"{fx.label} Dq={fit.Dq}"
+        if "Dq" in graded_quantities(fx):
+            assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1), f"{fx.label} Dq={fit.Dq}"
         if "B" in graded_quantities(fx):
             assert fx.tol_B.approx(fx.published_B_cm1) == fit.B, f"{fx.label} B={fit.B}"
         assert fit.rmse_cm1 < fx.max_rmse_cm1, f"{fx.label} rmse={fit.rmse_cm1}"
@@ -846,16 +850,19 @@ class TestNickelII:
         """
         assert fx.estimator == "closed_form"
         dq, b = closed_form_dq_b(fx.d_count, list(fx.bands_cm1))
-        if fx.closed_form_tol_Dq is not None:
+        if fx.closed_form_tol_Dq is not None and "Dq" in graded_quantities(fx):
             assert dq == fx.closed_form_tol_Dq.approx(fx.published_Dq_cm1), fx.label
-        assert b == fx.closed_form_tol_B.approx(fx.published_B_cm1), fx.label
+        if "B" in graded_quantities(fx):
+            assert b == fx.closed_form_tol_B.approx(fx.published_B_cm1), fx.label
 
     @pytest.mark.parametrize("fx", NICKEL_II_CASES, ids=_ids(NICKEL_II_CASES))
     def test_least_squares_agrees_with_literature(self, fx: IonFixture) -> None:
         fit = fit_spectrum(fx.d_count, list(fx.bands_cm1))
         assert fit.ground_term == "3_A_2", fx.label
-        assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1), f"{fx.label} Dq={fit.Dq}"
-        assert fx.tol_B.approx(fx.published_B_cm1) == fit.B, f"{fx.label} B={fit.B}"
+        if "Dq" in graded_quantities(fx):
+            assert fit.Dq == fx.tol_Dq.approx(fx.published_Dq_cm1), f"{fx.label} Dq={fit.Dq}"
+        if "B" in graded_quantities(fx):
+            assert fx.tol_B.approx(fx.published_B_cm1) == fit.B, f"{fx.label} B={fit.B}"
         assert fit.rmse_cm1 < fx.max_rmse_cm1, f"{fx.label} rmse={fit.rmse_cm1}"
 
     def test_spectrochemical_series_ordering(self) -> None:
@@ -1299,15 +1306,35 @@ def _comparison_reason(system: str, quantity: str) -> str:
     return f"{system} {quantity} {row.status}: {row.note}"
 
 
+def source_unverified(fx: IonFixture) -> bool:
+    """A literature fixture, textbook or secondary, with no primary source recorded (user
+    ruling, 2026-11-26): its published values are unverified, so it is comparison-only.
+
+    JCE records are secondary too but are checked row by row against their originals
+    (``primary_sources.csv``), so they are not covered by this rule.
+    """
+    if fx.label.startswith("JCE2023 ") or fx.expected_outcome != "fit":
+        return False
+    return fx.source.startswith(TEXTBOOK_PROVENANCE) or fx.source_tier == "secondary"
+
+
+UNVERIFIED_REASON = (
+    "source unverified: a textbook or secondary value with no primary source recorded "
+    "(re-grading from Tanabe & Sugano 1954 is in docs/BACKLOG-2.2.md)"
+)
+
 COMPARISON_ONLY: dict[str, str] = {
-    key: _comparison_reason(*where) for key, where in COMPARISON_SOURCES.items()
+    **{fx.label: f"{fx.label}: {UNVERIFIED_REASON}" for fx in FIXTURES if source_unverified(fx)},
+    **{key: _comparison_reason(*where) for key, where in COMPARISON_SOURCES.items()},
 }
 """Fixture or record id -> why its printed (Dq, B) are comparison-only, from the primary note.
 
 A comparison-only id is never graded on its printed values; it reports its distance
-(``test_comparison_only_reports_delta``). A literature fixture whose published Dq already
-is nu1/10 of its own observed band keeps that Dq graded for least squares ([Cr(NH3)6]3+,
-2155), never for the closed form, which equals nu1/10 by construction; its B is not graded.
+(``test_comparison_only_reports_delta``). A fixture whose published Dq already is nu1/10
+of its own observed band keeps that Dq graded for least squares, never for the closed
+form, which equals nu1/10 by construction -- unless its source is unverified
+(``source_unverified``), when nothing is graded: [Cr(NH3)6]3+'s 2155 is nu1/10 of an
+unverified band.
 [Ni(NH3)6]2+ (F1b) has no JCE record -- Table 2 prints no C/B for it -- so its F1b coverage
 is the search test alone."""
 
@@ -1316,6 +1343,8 @@ def graded_quantities(fx: IonFixture) -> tuple[str, ...]:
     """Which of (Dq, B) a grading test may assert against this fixture's published values."""
     if fx.label not in COMPARISON_ONLY:
         return ("Dq", "B")
+    if source_unverified(fx):
+        return ()
     return ("Dq",) if nu1_normalised(fx) else ()
 
 
@@ -1712,6 +1741,34 @@ def comparison_cases() -> list[tuple[str, IonFixture | JceRecord]]:
         if f"JCE2023 {r.record_id}" in COMPARISON_ONLY
     )
     return cases
+
+
+UNVERIFIED_BY_RULING = ("[Cr(H2O)6]3+", "[Ni(NH3)6]2+", "[Cr(NH3)6]3+", "MgO:Cr3+")
+"""The user's ruling (2026-11-26): textbook and secondary fixtures with no recorded primary
+source are unverified, so comparison-only for 2.1.0. Copied from the ruling, not derived."""
+
+
+@pytest.mark.parametrize("label", UNVERIFIED_BY_RULING)
+def test_unverified_fixtures_are_never_graded(label: str) -> None:
+    """An unverified fixture grades neither Dq nor B, and reports its delta instead.
+
+    No nu1/10 exception: a Dq that is nu1/10 of an unverified band is unverified too.
+
+    Observed red (b219f71): ``[Cr(H2O)6]3+``, ``[Ni(NH3)6]2+`` and ``MgO:Cr3+`` graded
+    ``('Dq', 'B')``; ``[Cr(NH3)6]3+`` graded ``('Dq',)``.
+    """
+    fx = next(f for f in FIXTURES if f.label == label)
+    assert (graded_quantities(fx), label in COMPARISON_ONLY) == ((), True)
+
+
+def test_cr_ammine_source_names_its_dq_provenance() -> None:
+    """[Cr(NH3)6]3+'s Dq provenance is in its source text, not only in a code comment.
+
+    Observed red (b219f71): ``assert 'JCE 2023 prints 2170' in 'textbook worked example;
+    primary source not recorded in this repo'``.
+    """
+    for part in ("nu1/10", "JCE 2023 prints 2170", "Tanabe & Sugano 1954 give 2140"):
+        assert part in CHROMIUM_III_AMMINE.source
 
 
 class TestComparisonOnly:
