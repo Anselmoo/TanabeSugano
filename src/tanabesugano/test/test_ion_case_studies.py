@@ -316,6 +316,9 @@ CHROMIUM_III_AMMINE = IonFixture(
     source=TEXTBOOK_PROVENANCE,
     source_tier="textbook",
     published_quantity="unknown",
+    # 2155 is nu1/10 of the 21550 band, not a published value: JCE 2023 prints 2170
+    # (graphical, Shriver & Atkins Example 20.8) and Tanabe & Sugano 1954 give 2140
+    # (audit/jce2023/primary_sources.csv). Least squares is graded against it as nu1/10.
     published_Dq_cm1=2155.0,
     published_B_cm1=661.0,
     published_C_cm1=None,
@@ -328,12 +331,12 @@ CHROMIUM_III_AMMINE = IonFixture(
     tol_Dq=Tolerance("rel", 0.02),
     tol_B=Tolerance("rel", 0.06),
     max_rmse_cm1=50.0,
-    closed_form_tol_Dq=Tolerance("rel", 0.01),
+    closed_form_tol_Dq=None,  # published Dq = nu1/10: grading the closed form is a tautology
     closed_form_tol_B=Tolerance("rel", 0.03),
     tolerance_reason=(
-        "Closed-form Dq is tight because nu1 == 10Dq is exact for a 4A2g ground term; the "
-        "closed-form B bound is looser because the published 661 is not itself the closed "
-        "form (658.7). Least-squares measured (2155.8, 657.0), rmse 6.4."
+        "Dq 2155 is nu1/10, so the closed-form Dq is not graded (it would equal it by "
+        "construction); the closed-form B bound is loose because the published 661 is not "
+        "itself the closed form (658.7). Least-squares measured (2155.8, 657.0), rmse 6.4."
     ),
 )
 
@@ -358,7 +361,7 @@ CHROMIUM_III_AQUA = IonFixture(
     tol_Dq=Tolerance("rel", 0.02),
     tol_B=Tolerance("rel", 0.06),
     max_rmse_cm1=300.0,
-    closed_form_tol_Dq=Tolerance("rel", 0.01),
+    closed_form_tol_Dq=None,  # published Dq = nu1/10: grading the closed form is a tautology
     closed_form_tol_B=Tolerance("rel", 0.03),
     tolerance_reason=(
         "Least-squares measured (1683.5, 698.8), rmse 215.5. The 300 cm^-1 bound records that "
@@ -390,7 +393,7 @@ CHROMIUM_III_MGO = IonFixture(
     tol_Dq=Tolerance("rel", 0.02),
     tol_B=Tolerance("rel", 0.06),
     max_rmse_cm1=150.0,
-    closed_form_tol_Dq=Tolerance("rel", 0.01),
+    closed_form_tol_Dq=None,  # published Dq = nu1/10: grading the closed form is a tautology
     closed_form_tol_B=Tolerance("rel", 0.03),
     tolerance_reason=(
         "Secondary source, and the published C = 3249 differs from the package default that "
@@ -426,10 +429,11 @@ NICKEL_II_AQUA = IonFixture(
     tol_Dq=Tolerance("rel", 0.03),
     tol_B=Tolerance("rel", 0.06),
     max_rmse_cm1=200.0,
-    closed_form_tol_Dq=Tolerance("abs", 1.0),
+    closed_form_tol_Dq=None,  # published Dq = nu1/10: grading the closed form is a tautology
     closed_form_tol_B=Tolerance("abs", 1.0),
     tolerance_reason=(
-        "The published pair IS the closed form, so the closed-form bound is exact to 1 cm^-1. "
+        "The published pair IS the closed form, so the closed-form B bound is exact to 1 cm^-1 "
+        "(Dq = nu1/10 is not graded: it holds by construction). "
         "The least-squares bounds are relative and looser because least squares legitimately "
         "disagrees -- measured (833.5, 947.0), rmse 118.8. A naive fixture asserting 907 to "
         "1 cm^-1 against the least-squares result would FAIL a correct implementation."
@@ -457,10 +461,11 @@ NICKEL_II_AMMINE = IonFixture(
     tol_Dq=Tolerance("rel", 0.03),
     tol_B=Tolerance("rel", 0.06),
     max_rmse_cm1=150.0,
-    closed_form_tol_Dq=Tolerance("abs", 1.0),
+    closed_form_tol_Dq=None,  # published Dq = nu1/10: grading the closed form is a tautology
     closed_form_tol_B=Tolerance("abs", 1.0),
     tolerance_reason=(
-        "Closed form again exact by construction (896.7), hence the 1 cm^-1 bound. "
+        "Closed-form B again exact by construction (896.7), hence the 1 cm^-1 bound; Dq = "
+        "nu1/10 is not graded. "
         "Least-squares measured (1086.5, 867.7), rmse 97.8."
     ),
 )
@@ -708,14 +713,41 @@ class TestVanadiumIII:
         )
 
 
+def test_no_closed_form_dq_grade_is_nu1_over_ten() -> None:
+    """No fixture grades the closed-form Dq against a 'published' Dq that is nu1/10.
+
+    The closed form returns Dq = nu1/10 for d3/d8 by construction, so grading it against a
+    value that is itself the fixture's nu1/10 tests nothing (plan G, Task 4). To 1 cm^-1:
+    MgO:Cr3+ prints 1615 for nu1 = 16155.
+
+    Observed red: ``AssertionError`` listing [Cr(NH3)6]3+, [Cr(H2O)6]3+, MgO:Cr3+,
+    [Ni(H2O)6]2+ and [Ni(NH3)6]2+.
+    """
+    tautological = [
+        fx.label
+        for fx in FIXTURES
+        if fx.closed_form_tol_Dq is not None
+        and fx.published_Dq_cm1 is not None
+        and abs(fx.published_Dq_cm1 - min(fx.bands_cm1) / 10.0) <= 1.0
+    ]
+    assert tautological == []
+
+
 class TestChromiumIII:
     """d3, 4A2g ground -- the closed form is exact, across three complexes."""
 
     @pytest.mark.parametrize("fx", CHROMIUM_III_CASES, ids=_ids(CHROMIUM_III_CASES))
     def test_closed_form_reproduces_literature(self, fx: IonFixture) -> None:
-        """B only where it is graded: [Cr(NH3)6]3+'s B is graphical (COMPARISON_ONLY)."""
+        """B only where it is graded: [Cr(NH3)6]3+'s B is graphical (COMPARISON_ONLY).
+
+        The closed-form Dq is not graded where the published Dq is nu1/10 (plan G, Task 4),
+        so a fixture with neither quantity graded is skipped, not passed vacuously.
+        """
+        if fx.closed_form_tol_Dq is None and "B" not in graded_quantities(fx):
+            pytest.skip(f"{fx.label}: Dq = nu1/10 and B comparison-only; nothing to grade")
         dq, b = closed_form_dq_b(fx.d_count, list(fx.bands_cm1))
-        assert dq == fx.closed_form_tol_Dq.approx(fx.published_Dq_cm1), fx.label
+        if fx.closed_form_tol_Dq is not None:
+            assert dq == fx.closed_form_tol_Dq.approx(fx.published_Dq_cm1), fx.label
         if "B" in graded_quantities(fx):
             assert b == fx.closed_form_tol_B.approx(fx.published_B_cm1), fx.label
 
@@ -814,7 +846,8 @@ class TestNickelII:
         """
         assert fx.estimator == "closed_form"
         dq, b = closed_form_dq_b(fx.d_count, list(fx.bands_cm1))
-        assert dq == fx.closed_form_tol_Dq.approx(fx.published_Dq_cm1), fx.label
+        if fx.closed_form_tol_Dq is not None:
+            assert dq == fx.closed_form_tol_Dq.approx(fx.published_Dq_cm1), fx.label
         assert b == fx.closed_form_tol_B.approx(fx.published_B_cm1), fx.label
 
     @pytest.mark.parametrize("fx", NICKEL_II_CASES, ids=_ids(NICKEL_II_CASES))
@@ -1273,7 +1306,8 @@ COMPARISON_ONLY: dict[str, str] = {
 
 A comparison-only id is never graded on its printed values; it reports its distance
 (``test_comparison_only_reports_delta``). A literature fixture whose published Dq already
-is nu1/10 of its own observed band keeps that Dq graded ([Cr(NH3)6]3+, 2155); its B is not.
+is nu1/10 of its own observed band keeps that Dq graded for least squares ([Cr(NH3)6]3+,
+2155), never for the closed form, which equals nu1/10 by construction; its B is not graded.
 [Ni(NH3)6]2+ (F1b) has no JCE record -- Table 2 prints no C/B for it -- so its F1b coverage
 is the search test alone."""
 
