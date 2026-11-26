@@ -332,6 +332,10 @@ pattern = "(?m)(^version: )([0-9][^\\n]*)()"
   cmd  = "python scripts/audit_fit_paths.py --check"
   help = "Fail if the committed fit-path audit has drifted (not part of `check`)"
 
+  [tool.poe.tasks.audit-default-c-control]
+  cmd  = "python scripts/control_default_c.py"
+  help = "Fail if the held-C check fires on an exact answer at the default C (~4 min)"
+
   # -- Release ---------------------------------------------------------------
 
   [tool.poe.tasks.build-mcpb]
