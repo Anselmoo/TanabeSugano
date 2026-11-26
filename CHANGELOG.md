@@ -115,6 +115,22 @@
   and `ts_fit_script` is `"high"` or `"low"`: `"auto"` needs a Dq these tools do
   not take and always failed. This narrows a schema enum.
 - `ts_nephelauxetic` says when β is relative to a default ion.
+- Calls that omit the regime flags (`include_spin_forbidden`, `spin_state`) on
+  bands that need them now raise instead of returning a wrong number without a
+  warning: high-spin d5 bands without `include_spin_forbidden=True`, or more
+  bands than the regime has spin-allowed transitions. On the synthetic audit
+  rows, the reverse app without flags went from 124 WRONG-SILENT to 0 (`c09f535`;
+  measured again on the release tree: 0, with 127 raised). Unlabelled bands that
+  fit the spin-allowed count are still fitted as spin-allowed and say so in
+  `assumptions`; Co(bipy)3Br2·6H2O is the graded JCE row where that is wrong.
+- An `undetermined` warning now says that its range spans the tied minima found,
+  not bounds, and that the true value can lie outside it. An unlabelled fit with
+  `include_spin_forbidden=True` that leaves Dq or B undetermined also says that
+  labelling the bands, or fitting only the spin-allowed bands, may give a
+  different answer.
+- Four literature fixtures with no recorded primary source ([Cr(H2O)6]3+,
+  [Ni(NH3)6]2+, [Cr(NH3)6]3+, MgO:Cr3+) are comparison-only: their tests report
+  the distance to the printed values and grade neither Dq nor B.
 
 ### Known limitations
 
@@ -130,10 +146,17 @@
   `undetermined` mark report *identifiability* (the bands do not fix C), not
   an error in the returned numbers.
 - The default-C check counts a free-C minimum only if it fits better than the
-  held one by more than `TIE_RMSE_CM1`. Its warnings on OK audit rows went
-  14 → 17 when it was added and 17 → 13 with that threshold (`9f75cdc`), which
-  removed 52 false alarms on exact answers at the default C. The cost: a held
-  C that ties a distinct exact free-C solution goes unreported.
+  held one by more than `TIE_RMSE_CM1`. Synthetic default-C OK audit rows
+  carrying its warning: limit 14 when it was added, 17 measured then
+  (`9474397`), 13 with that threshold (`9f75cdc`), which removed 52 false
+  alarms on exact answers at the default C. Measured on the release tree: 14.
+  The extra row is d5 low-spin (Dq 4106.4, B 989, C 3956), whose verdict moved
+  WRONG-WARNED → OK under the ΔS band rule (`71da21e`). Its warning says the
+  default C (3850) is inconsistent with the bands, which is correct: the true C
+  is not the default. `poe audit-default-c-control` refits all 130 unique
+  synthetic points with C equal to the default and finds no warning on a
+  correct fit. The cost: a held C that ties a distinct exact free-C solution
+  goes unreported.
 - `poe audit-fit-check` (about 7 minutes) is not part of `poe check` or CI.
 
 ### Backlog
