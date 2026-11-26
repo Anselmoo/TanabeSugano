@@ -29,7 +29,9 @@ from typing import TYPE_CHECKING
 from tanabesugano import __version__
 from tanabesugano.levels import LevelSet
 from tanabesugano.mcp._compute import SpinState
+from tanabesugano.mcp._compute import fit_headline
 from tanabesugano.mcp._compute import fit_spectrum
+from tanabesugano.mcp._compute import undetermined_ranges
 
 
 if TYPE_CHECKING:
@@ -171,8 +173,16 @@ def fit_figure_script(
         (b["observed_cm1"], b["computed_cm1"], b["assignment"], b["residual_cm1"]) for b in bands
     ]
 
-    heading = title or f"d{d_count} fit: Dq = {fit.Dq:,.1f}, B = {fit.B:,.1f} cm$^{{-1}}$"
+    heading = title or f"d{d_count} fit: {fit_headline(fit, unit='cm$^{-1}$')}"
     warnings = "\n".join(f"#   ! {w}" for w in fit.warnings) or "#   (none)"
+    assumptions = "\n".join(f"#   - {a}" for a in fit.assumptions) or "#   (none)"
+    ranges = undetermined_ranges(fit)
+    shown = {
+        name: f"  (display value; range over minima {span[0]:.4f} - {span[1]:.4f})"
+        if span is not None
+        else ""
+        for name, span in ranges.items()
+    }
 
     from tanabesugano import plot_style  # deferred: pulls matplotlib
 
@@ -202,10 +212,15 @@ Fit provenance
   estimator      least-squares over all supplied bands
   spin regime    {fit.spin_state} (the fit was pinned to this side of any crossover)
   ground term    {fit.ground_term}
-  Dq             {fit.Dq:.4f} cm^-1
-  Racah B        {fit.B:.4f} cm^-1
+  Dq             {fit.Dq:.4f} cm^-1{shown["Dq"]}
+  Racah B        {fit.B:.4f} cm^-1{shown["B"]}
   Racah C        {fit.C:.4f} cm^-1
+  Dq_source      {fit.dq_provenance}
+  B_source       {fit.b_provenance}
+  C_source       {fit.c_provenance}
   RMS residual   {fit.rmse_cm1:.4f} cm^-1
+  assumptions
+{assumptions}
   warnings
 {warnings}
 

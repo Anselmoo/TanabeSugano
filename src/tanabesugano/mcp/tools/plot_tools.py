@@ -11,7 +11,7 @@ from fastmcp.tools import ToolResult
 from mcp import types
 
 from tanabesugano import __version__
-from tanabesugano.mcp._compute import SpinState
+from tanabesugano.mcp._compute import FitSpinState
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
 from tanabesugano.mcp.plotting import EXPORT_MIME_TYPES
 from tanabesugano.mcp.plotting import render_diagram
@@ -187,13 +187,18 @@ def register(mcp: FastMCP) -> None:
         d_count: D_COUNT_LITERAL,
         observed_peaks: list[float],
         C: float | None = None,
-        spin_state: SpinState = "high",
+        spin_state: FitSpinState = "high",
         include_spin_forbidden: bool = False,
         title: str | None = None,
         band_labels: list[str | list[str] | None] | None = None,
         fit_c: bool | None = None,
     ) -> ToolResult:
         """Return Python source that draws the observed-vs-computed band figure.
+
+        ts_fit_spectrum is the numeric fit; call it first. This tool displays that
+        same fit, and the script's header carries its Dq_source, B_source,
+        C_source and assumptions; an undetermined Dq or B is titled as a range.
+        Oh only; a geometry='Td' fit cannot be reproduced here.
 
         Prefer this over writing matplotlib by hand for a fit. The script
         carries the fitter's own Dq, B, transition energies and residuals as
@@ -219,10 +224,12 @@ def register(mcp: FastMCP) -> None:
             observed_peaks: Measured band maxima in cm^-1.
             C: Racah C in cm^-1; per-configuration default when omitted.
             spin_state: Which side of a spin crossover to fit on.
-            include_spin_forbidden: Also fit against spin-forbidden transitions.
+            include_spin_forbidden: Also fit against spin-forbidden transitions,
+                ΔS = 0, ±1 from the ground term only; required for high-spin d5.
             title: Figure title; a default naming the ion's fit is used when omitted.
-            band_labels: As on ``ts_fit_spectrum``, one label per band.
-            fit_c: As on ``ts_fit_spectrum``.
+            band_labels: As on ``ts_fit_spectrum``, one label per band; only
+                ΔS = 0, ±1 levels are fitted.
+            fit_c: As on ``ts_fit_spectrum``: fit Racah C as a free parameter.
 
         """
         try:

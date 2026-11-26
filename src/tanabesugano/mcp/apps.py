@@ -91,7 +91,7 @@ try:
     from prefab_ui.components.charts import Sparkline  # used by ts_dashboard_app
 
     from tanabesugano import __version__ as _pkg_version
-    from tanabesugano.mcp._compute import SpinState
+    from tanabesugano.mcp._compute import FitSpinState
     from tanabesugano.mcp._inputs import CM1_TO_EV
 
     _HAVE_APPS = True
@@ -1027,8 +1027,9 @@ def _register_compare(mcp: FastMCP) -> None:
         """Overlay the diagrams of multiple d-configurations on one Chart.js panel.
 
         Each term gets a series prefixed by its d-count (e.g. ``d3 ⁴T₁g``) so the
-        user can read off hole-particle symmetry pairs (d²/d⁸, d³/d⁷, d⁴/d⁶)
-        directly. For the side-by-side small-multiples view that the previous
+        user can set hole-particle pairs (d²/d⁸, d³/d⁷, d⁴/d⁶) side by side. A
+        pair is related by Dq → −Dq (d^n at +Dq is d^(10-n) at −Dq), so the two
+        diagrams do not coincide at the same positive Dq. For the side-by-side small-multiples view that the previous
         implementation attempted, use multiple separate ``ts_diagram_app``
         calls — both render correctly now they share the Chart.js path.
 
@@ -1438,12 +1439,18 @@ def _register_fit_plot(mcp: FastMCP) -> None:
         d_count: int,
         observed_peaks: list[float],
         C: float | None = None,
-        spin_state: SpinState = "high",
+        spin_state: FitSpinState = "high",
         include_spin_forbidden: bool = False,
         band_labels: list[str | list[str] | None] | None = None,
         fit_c: bool | None = None,
     ) -> ToolResult:
         """Plot how far each computed band sits from the band that was measured.
+
+        ts_fit_spectrum is the numeric fit; call it first. This tool displays that
+        same fit: read its Dq_source, B_source, C_source and assumptions before
+        quoting a number. An undetermined Dq or B is shown as a range over minima.
+
+        Oh only; a geometry='Td' fit cannot be reproduced here.
 
         The y axis is the residual, computed minus observed, NOT the raw band
         position. That is deliberate: over a d-d spectrum spanning roughly
@@ -1466,17 +1473,21 @@ def _register_fit_plot(mcp: FastMCP) -> None:
             observed_peaks: measured band maxima in cm⁻¹.
             C: Racah C in cm⁻¹; per-configuration default when omitted.
             spin_state: which side of a spin crossover to pin the fit to.
-            include_spin_forbidden: required for high-spin d5, whose d-d bands
-                are all spin-forbidden.
-            band_labels: as on ``ts_fit_spectrum``; each band is drawn
-                against the level the fit assigned it.
-            fit_c: as on ``ts_fit_spectrum``; each band is drawn
-                against the level the fit assigned it.
+            include_spin_forbidden: also fit against spin-forbidden transitions,
+                ΔS = 0, ±1 from the ground term only; required for high-spin d5.
+            band_labels: as on ``ts_fit_spectrum``; only ΔS = 0, ±1 levels are
+                fitted. Each band is drawn against the level the fit assigned it.
+            fit_c: as on ``ts_fit_spectrum``: fit Racah C as a free parameter.
+                Default (null): fitted only when C is not given and three or
+                more bands are all labelled; false holds C.
 
         """
         import json as _json
 
+        from tanabesugano.mcp._compute import fit_headline
+        from tanabesugano.mcp._compute import fit_provenance
         from tanabesugano.mcp._compute import fit_spectrum
+        from tanabesugano.mcp._compute import undetermined_ranges
         from tanabesugano.script_export import labelled_bands
 
         try:
@@ -1530,9 +1541,10 @@ def _register_fit_plot(mcp: FastMCP) -> None:
         ]
 
         title = (
-            f"d{d_count} fit — Dq = {fit.Dq:,.0f}, B = {fit.B:,.0f} cm⁻¹, "
+            f"d{d_count} fit — {fit_headline(fit)}, "
             f"RMSE = {fit.rmse_cm1:,.0f} cm⁻¹ ({fit.ground_term} ground)"
         )
+        ranges = undetermined_ranges(fit)
         payload = _json.dumps(
             {
                 "title": title,
@@ -1542,11 +1554,13 @@ def _register_fit_plot(mcp: FastMCP) -> None:
                 "Dq_cm1": fit.Dq,
                 "B_cm1": fit.B,
                 "C_cm1": fit.C,
+                "Dq_range_cm1": ranges["Dq"],
+                "B_range_cm1": ranges["B"],
                 "rmse_cm1": fit.rmse_cm1,
                 "ground_term": str(fit.ground_term),
                 "spin_state": str(fit.spin_state),
                 "warnings": list(fit.warnings),
-                "assumptions": list(fit.assumptions),
+                **fit_provenance(fit),
                 "bands": bands,
             },
         )
@@ -1600,9 +1614,11 @@ def _register_correlation_diagram(mcp: FastMCP) -> None:
                 omitted.
             C: Racah C (cm⁻¹); per-configuration defaults if
                 omitted.
-            strong_field_Dq: Dq value (cm⁻¹) defining the strong-field
-                column (default 2000 — well into the strong-field limit
-                for any first-row transition metal).
+            strong_field_Dq: Dq value (cm⁻¹) of the strong-field column.
+                The default 2000 is not the strong-field limit for d4-d7: at
+                their default B/C the spin crossovers lie at Dq ≈ 2100-2640,
+                so the ground term at 2000 is still high-spin. Raise it
+                (e.g. 6000) for a low-spin column.
 
         """
         import json as _json
@@ -1690,8 +1706,9 @@ def _register_overlay(mcp: FastMCP) -> None:
     ) -> ToolResult:
         """Overlay multiple d-configurations on one Chart.js chart with proper axis labels.
 
-        Shows partially-overlapping Tanabe-Sugano diagrams on shared axes, making
-        the hole-particle symmetry pairs (d2/d8, d3/d7, d4/d6) directly comparable.
+        Shows partially-overlapping Tanabe-Sugano diagrams on shared axes. The
+        hole-particle pairs (d2/d8, d3/d7, d4/d6) are related by Dq → −Dq, not
+        equal at the same Dq: d^n at +Dq is d^(10-n) at −Dq.
         Each d-count gets a distinct color tint; terms are distinguishable by line style.
         Use `energy_unit` to switch between cm1 / eV / nm on the y-axis.
 
@@ -1793,12 +1810,16 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
         b_max: float = 1500.0,
         grid_steps: int = 25,
         C: float | None = None,
-        spin_state: SpinState = "high",
+        spin_state: FitSpinState = "high",
         include_spin_forbidden: bool = False,
         band_labels: list[str | list[str] | None] | None = None,
         fit_c: bool | None = None,
     ) -> ToolResult:
         """Fit Dq and Racah B to observed absorption peaks, and map the (Dq, B) landscape.
+
+        ts_fit_spectrum is the numeric fit; call it first. This tool displays that
+        same fit: read its Dq_source, B_source, C_source and assumptions before
+        quoting a number. An undetermined Dq or B is shown as a range over minima.
 
         The answer is ``fit_spectrum``'s -- the same solver as ``ts_fit_spectrum``,
         so the two tools cannot disagree. The grid is drawn beside it as a
@@ -1820,19 +1841,24 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             grid_steps: Landscape resolution per axis (grid_steps² evaluations).
             C: Racah C (cm^-1); per-configuration default when omitted.
             spin_state: which side of a spin crossover to fit on.
-            include_spin_forbidden: also fit against spin-forbidden transitions;
-                required for high-spin d5.
+            include_spin_forbidden: also fit against spin-forbidden transitions,
+                ΔS = 0, ±1 from the ground term only; required for high-spin d5.
             band_labels: as on ``ts_fit_spectrum``, one label per peak in
-                the order given.
-            fit_c: as on ``ts_fit_spectrum``, one label per peak in
-                the order given.
+                the order given; only ΔS = 0, ±1 levels are fitted.
+            fit_c: as on ``ts_fit_spectrum``: fit Racah C as a free parameter.
+                Default (null): fitted only when C is not given and three or
+                more bands are all labelled; false holds C.
 
         """
         import json as _json
 
         from tanabesugano.levels import LevelSet
+        from tanabesugano.mcp._compute import fit_headline
         from tanabesugano.mcp._compute import fit_objective
+        from tanabesugano.mcp._compute import fit_provenance
         from tanabesugano.mcp._compute import fit_spectrum
+        from tanabesugano.mcp._compute import minima_records
+        from tanabesugano.mcp._compute import undetermined_ranges
         from tanabesugano.mcp._inputs import unit_error
         from tanabesugano.script_export import labelled_bands
 
@@ -1934,22 +1960,27 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             }
             for r in bands
         ]
+        # Held and free-C minima with source / lowest_rmse / ambiguous, as FitMinimum.
         minima = [
-            {
-                "Dq": round(m[0], 1),
-                "B": round(m[1], 1),
-                "C": round(m[2], 1),
-                "objective_cm1": round(m[3], 1),
-            }
-            for m in fit.minima
+            {key: round(v, 1) if isinstance(v, float) else v for key, v in record.items()}
+            for record in minima_records(fit)
         ]
+        ranges = undetermined_ranges(fit)
 
         with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content=f"Reverse fit: d{d_count}", level=3)
             with pf.Grid(columns=3, gap=4):
-                pf.Metric(label="Best Dq", value=f"{fit.Dq:.1f} cm⁻¹")
-                pf.Metric(label="Best B", value=f"{fit.B:.1f} cm⁻¹")
+                # "Best" only for a determined value: an undetermined one is a range.
+                for name, value, span in (("Dq", fit.Dq, ranges["Dq"]), ("B", fit.B, ranges["B"])):
+                    if span is None:
+                        pf.Metric(label=f"Best {name}", value=f"{value:.1f} cm⁻¹")
+                    else:
+                        pf.Metric(
+                            label=f"{name} (undetermined)",
+                            value=f"{span[0]:.0f}–{span[1]:.0f} cm⁻¹ over minima",
+                        )
                 pf.Metric(label="RMS residual", value=f"{fit.rmse_cm1:.1f} cm⁻¹")
+            pf.Text(content=fit_headline(fit), css_class="text-sm")
             pf.Text(
                 content=(
                     f"Ground term: {fit.ground_term} ({fit.spin_state}-spin); "
@@ -2020,8 +2051,9 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             "grid_candidates": top_results,
             "minima": minima,
             "warnings": warnings,
-            "assumptions": list(fit.assumptions),
-            "C_source": fit.c_provenance,
+            **fit_provenance(fit),
+            "Dq_range_cm1": ranges["Dq"],
+            "B_range_cm1": ranges["B"],
         }
         # NOTE: pass the card as app.to_json(), NOT as the PrefabApp object.
         # ToolResult serialises a bare PrefabApp via model_dump(), which drops
@@ -2038,7 +2070,7 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="ts_ratio_fit_app",
-        title="Custom TS diagram from band positions",
+        title="TS diagram at the fitted (Dq, B), with ratio-method diagnostic",
         version=_pkg_version,
         tags={"tanabesugano", "fitting", "ratios"},
         annotations=_READONLY_ANNOTATIONS,
@@ -2055,11 +2087,15 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         b_max: float = 1500.0,
         grid_steps: int = 30,
         C: float | None = None,
-        spin_state: SpinState = "high",
+        spin_state: FitSpinState = "high",
         include_spin_forbidden: bool = False,
         band_labels: list[str | list[str] | None] | None = None,
     ) -> ToolResult:
         """Derive Dq and Racah B from two or three measured bands and draw the TS diagram.
+
+        ts_fit_spectrum is the numeric fit; call it first. This tool displays that
+        same fit: read its Dq_source, B_source, C_source and assumptions before
+        quoting a number. An undetermined Dq or B is shown as a range over minima.
 
         The answer (``Dq``, ``B``, the title, the marker) is ``fit_spectrum``'s --
         the same solver as ``ts_fit_spectrum``, so the two tools cannot disagree.
@@ -2082,16 +2118,21 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
             grid_steps: Ratio-grid resolution per axis.
             C: Racah C (cm^-1); per-configuration default when omitted.
             spin_state: which side of a spin crossover to fit on.
-            include_spin_forbidden: also fit against spin-forbidden transitions.
-            band_labels: as on ``ts_fit_spectrum``, one per given band (v1, v2, v3).
+            include_spin_forbidden: also fit against spin-forbidden transitions,
+                ΔS = 0, ±1 from the ground term only; required for high-spin d5.
+            band_labels: as on ``ts_fit_spectrum``, one per given band (v1, v2, v3);
+                only ΔS = 0, ±1 levels are fitted.
 
         """
         import json as _json
         import math
 
         from tanabesugano.mcp._compute import compute_point
+        from tanabesugano.mcp._compute import fit_headline
+        from tanabesugano.mcp._compute import fit_provenance
         from tanabesugano.mcp._compute import fit_spectrum
         from tanabesugano.mcp._compute import transition_candidates
+        from tanabesugano.mcp._compute import undetermined_ranges
         from tanabesugano.mcp._inputs import unit_error
 
         def to_cm1(e: float) -> float:
@@ -2259,7 +2300,8 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 },
             )
 
-        title_custom = f"Custom TS d{d_count}: Dq={fit.Dq:.1f}, B={b_fit:.1f} cm⁻¹"
+        title_custom = f"TS d{d_count} at the fit: {fit_headline(fit)}"
+        ranges = undetermined_ranges(fit)
         payload = _json.dumps(
             {
                 "title": title_custom,
@@ -2269,11 +2311,12 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
                 "Dq": fit.Dq,
                 "B": fit.B,
                 "C": fit.C,
-                "C_source": fit.c_provenance,
+                "Dq_range_cm1": ranges["Dq"],
+                "B_range_cm1": ranges["B"],
                 "spin_state": fit.spin_state,
                 "rmse_cm1": fit.rmse_cm1,
                 "warnings": list(fit.warnings),
-                "assumptions": list(fit.assumptions),
+                **fit_provenance(fit),
                 "ratio_grid_best": ratio_grid_best,
             },
         )
@@ -2303,9 +2346,10 @@ def _register_spectrum(mcp: FastMCP) -> None:
     ) -> ToolResult:
         """Simulate a Lorentzian-broadened UV-Vis absorption spectrum.
 
-        Computes all term energies from the ground state; spin-allowed transitions
-        (same 2S+1 as the ground term) appear at full height while spin-forbidden
-        ones appear at 5% height. Returns a Chart.js line chart with the energy
+        Computes all term energies from the ground term at this Dq; spin-allowed
+        transitions (same 2S+1 as the ground term) appear at full height, the
+        spin-forbidden ΔS = 0, ±1 ones at 5% height, and ΔS = ±2 lines are not drawn:
+        no fit tool assigns a band to one. Returns a Chart.js line chart with the energy
         axis in the requested unit (cm1 / eV / nm).
 
         Args:
@@ -2322,19 +2366,23 @@ def _register_spectrum(mcp: FastMCP) -> None:
         import math
 
         from tanabesugano.mcp._compute import compute_point
-        from tanabesugano.mcp._compute import reference_ground_term
+        from tanabesugano.mcp._compute import ground_term
+        from tanabesugano.mcp._compute import within_spin_rule
         from tanabesugano.mcp.tools._shared import resolve_bc
 
         b_val, c_val = resolve_bc(d_count, B, C)
         terms = compute_point(d_count, Dq, b_val, c_val)
-        ground_mult = _multiplicity_of(
-            reference_ground_term(d_count, *resolve_bc(d_count, None, None)),
-        )
+        # The ground term at this point, not at the default B/C: it is Dq-dependent
+        # for d4-d7, and the spin rule is relative to it.
+        ground_mult = _multiplicity_of(ground_term(terms)[0])
 
-        # Collect stick transitions (energy_cm, relative_intensity).
+        # Collect stick transitions (energy_cm, relative_intensity). Delta S = +-2
+        # lines are not drawn (plan G, Task 5): no band can be assigned to one.
         sticks: list[tuple[float, float]] = []
         for term_key, energies in terms.items():
             mult = _multiplicity_of(term_key)
+            if not within_spin_rule(ground_mult, mult):
+                continue
             intensity = 1.0 if mult == ground_mult else 0.05
             for e in energies:
                 e_f = float(e)

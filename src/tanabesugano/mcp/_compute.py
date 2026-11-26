@@ -99,6 +99,9 @@ against the 100 the surrounding sweep already pays to draw the curves.
 """
 
 SpinState = Literal["high", "low", "auto"]
+FitSpinState = Literal["high", "low"]
+"""The spin_state a fit tool without a Dq argument offers: 'auto' picks the regime
+from Dq, which such a tool does not take, so it always failed there (plan G, Task 5)."""
 ParameterProvenance = Literal["fitted", "given", "default", "undetermined"]
 """Where a reported Dq, B or C comes from.
 
@@ -619,6 +622,96 @@ def ambiguous_minima(minima: Sequence[tuple[float, float, float, float]]) -> lis
         )
         for i, entry in enumerate(minima)
     ]
+
+
+def spin_rule_transitions(fit: SpectrumFit) -> list[tuple[float, str, bool]]:
+    """``fit.transitions`` without the Delta S = +-2 lines the fit never matches.
+
+    ``fit.transitions`` stays complete for display; anything that reports the
+    transitions a band could be follows :func:`within_spin_rule` instead.
+    """
+    ground = term_multiplicity(fit.ground_term)
+    return [
+        entry
+        for entry in fit.transitions
+        if within_spin_rule(ground, term_multiplicity(entry[1].split("→", 1)[-1].split("(")[0]))
+    ]
+
+
+def fit_provenance(fit: SpectrumFit) -> dict[str, object]:
+    """``Dq_source`` / ``B_source`` / ``C_source`` and ``assumptions``, for every fit surface.
+
+    One dict so the four fit displays and :func:`fit_spectrum`'s tool cannot spell
+    the provenance differently (plan G, Task 5).
+    """
+    return {
+        "Dq_source": fit.dq_provenance,
+        "B_source": fit.b_provenance,
+        "C_source": fit.c_provenance,
+        "assumptions": list(fit.assumptions),
+    }
+
+
+def minima_records(fit: SpectrumFit) -> list[dict[str, object]]:
+    """Held then free-C minima, each with ``source``, ``lowest_rmse`` and ``ambiguous``.
+
+    ``lowest_rmse`` marks the lowest objective, a held entry winning a tie; it is not
+    the answer when a source is undetermined. ``ambiguous`` is :func:`ambiguous_minima`.
+    """
+    entries = [(m, "held") for m in fit.minima] + [(m, "free_c") for m in fit.free_c_minima]
+    records: list[dict[str, object]] = [
+        {"Dq": m[0], "B": m[1], "C": m[2], "objective_cm1": m[3], "source": source}
+        for m, source in entries
+    ]
+    flags = ambiguous_minima([m for m, _ in entries])
+    for record, flag in zip(records, flags, strict=True):
+        record["lowest_rmse"] = False
+        record["ambiguous"] = flag
+    if records:
+        index = min(range(len(entries)), key=lambda i: (entries[i][0][3], entries[i][1] != "held"))
+        records[index]["lowest_rmse"] = True
+    return records
+
+
+def undetermined_ranges(fit: SpectrumFit) -> dict[str, tuple[float, float] | None]:
+    """``{"Dq": (lo, hi), "B": (lo, hi)}`` for each undetermined parameter, else None.
+
+    The range spans the reported point and every minimum, held or free-C, within
+    :data:`BAND_RESOLUTION_CM1` of the lowest objective: the set the bands cannot
+    tell apart, the same tie :data:`ParameterProvenance` is decided on.
+    """
+    every = [*fit.minima, *fit.free_c_minima]
+    best = min((m[3] for m in every), default=0.0)
+    tied = [(m[0], m[1]) for m in every if m[3] <= best + BAND_RESOLUTION_CM1]
+    tied.append((fit.Dq, fit.B))
+    ranges: dict[str, tuple[float, float] | None] = {}
+    for index, (name, source) in enumerate((("Dq", fit.dq_provenance), ("B", fit.b_provenance))):
+        values = [point[index] for point in tied]
+        ranges[name] = (min(values), max(values)) if source == "undetermined" else None
+    return ranges
+
+
+def fit_headline(fit: SpectrumFit, *, unit: str = "cm⁻¹") -> str:
+    """``Dq = 827, B = 883 cm⁻¹``, or the range over minima for an undetermined value.
+
+    An undetermined Dq or B is never shown as one number: the reported point is a
+    display value there, and a headline is what a reader quotes. Bounds are floored
+    and ceiled so the printed range contains every tied minimum.
+    """
+    import math
+
+    ranges = undetermined_ranges(fit)
+    parts = []
+    for name, value in (("Dq", fit.Dq), ("B", fit.B)):
+        span = ranges[name]
+        if span is None:
+            parts.append(f"{name} = {value:,.0f}")
+        else:
+            parts.append(f"{name} {math.floor(span[0]):,}–{math.ceil(span[1]):,}")
+    text = f"{', '.join(parts)} {unit}"
+    if any(span is not None for span in ranges.values()):
+        text += " (undetermined: range over minima)"
+    return text
 
 
 def _distinct_minima(
@@ -1769,6 +1862,7 @@ def nephelauxetic_analysis(
         msg = f"No tabulated free ions for d_count={d_count}"
         raise ValueError(msg)
 
+    ion_given = ion is not None
     if ion is None:
         ion = candidates[0]
     elif ion not in FREE_ION_RACAH_B:
@@ -1788,6 +1882,11 @@ def nephelauxetic_analysis(
     )
     if suggested:
         interpretation += f" Consistent with ligands such as {', '.join(suggested)}."
+    if not ion_given:
+        interpretation += (
+            f" ion was not given: beta is relative to {ion}, the first tabulated "
+            f"d{d_count} free ion; pass ion for any other metal."
+        )
 
     return {
         "ion": ion,

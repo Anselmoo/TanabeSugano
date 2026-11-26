@@ -7,9 +7,10 @@ from typing import Literal
 
 from tanabesugano import __version__
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
-from tanabesugano.mcp._compute import ambiguous_minima
 from tanabesugano.mcp._compute import fit_spectrum
+from tanabesugano.mcp._compute import minima_records
 from tanabesugano.mcp._compute import nephelauxetic_analysis
+from tanabesugano.mcp._compute import spin_rule_transitions
 from tanabesugano.mcp._compute import td_partner
 from tanabesugano.mcp._defaults import DEFAULTS
 from tanabesugano.mcp._inputs import D_COUNT_LITERAL
@@ -92,10 +93,22 @@ def register(mcp: FastMCP) -> None:
     ) -> FitResult | ComputeError:
         """Fit observed UV-Vis absorption bands to determine Dq and B parameters.
 
-        Given a list of absorption peak positions measured in the lab (in cm^-1),
-        this tool performs a least-squares optimization to find the crystal-field
-        strength (Dq) and Racah B parameter that best reproduce the observed
-        spectrum.
+        ts_fit_spectrum is the numeric fit; call it first. ts_reverse_fit_app,
+        ts_ratio_fit_app, ts_fit_plot_app and ts_fit_script display this same fit.
+
+        Given absorption maxima in cm^-1, a least-squares fit finds the
+        crystal-field strength (Dq) and Racah B that best reproduce them.
+
+        Read the provenance before quoting a number: fitted_Dq, fitted_B and fitted_C
+        are results only where Dq_source, B_source and C_source say 'fitted' or
+        'given'. 'undetermined' means tied minima disagree; then no single entry of
+        minima is the answer and lowest_rmse marks a fact, not a choice. Read
+        band_assignments for which level each band was fitted to (peak_assignments
+        lists every candidate transition), assumptions for what was taken for
+        granted, and warnings. Returns a ComputeError when the problem is ill-posed.
+
+        Example, labelled [Ni(H2O)6]2+ (d8), all three sources then fitted or given:
+        ts_fit_spectrum(d_count=8, observed_peaks_cm1=[8500, 13800, 25300], band_labels=["3_T_2", "3_T_1#0", "3_T_1#1"])
 
         Args:
             d_count: d-electron count (2..8).
@@ -106,13 +119,17 @@ def register(mcp: FastMCP) -> None:
                 manifold of d2 and d8 is independent of C.
             spin_state: Which side of the spin crossover to fit on. The fit is
                 pinned to this regime and refuses solutions that cross it.
-            include_spin_forbidden: Also fit against spin-forbidden transitions.
-                Required for high-spin d5, whose d-d bands are all spin-forbidden.
+            include_spin_forbidden: Also fit against spin-forbidden transitions,
+                ΔS = 0, ±1 from the ground term only (a ΔS = ±2 line is never
+                matched). Required for high-spin d5, whose d-d bands are all
+                spin-forbidden.
             band_labels: Optional, one per peak in the order given: a term key
                 ("4_T_1") or level uid ("4_T_1#1") naming the level the band is
                 assigned to, a list of them for a band over near-degenerate levels
                 (an either-or), or null for an unlabelled band. Labels steer the
-                band assignment; a label naming no level is an error.
+                band assignment; a label naming no level is an error. Only
+                ΔS = 0, ±1 levels are fitted: a ΔS = ±2 member of a list is dropped,
+                and a label left with none is an error.
             fit_c: Fit Racah C as a free parameter. Default (null): fitted only when
                 C is not given and three or more bands are all labelled; false holds
                 C; true frees it regardless (then a warning says C is one of many).
@@ -123,15 +140,10 @@ def register(mcp: FastMCP) -> None:
                 (Dq_convention "Td"), never an Oh-equivalent. High-spin only.
 
         Returns:
-            FitResult with the optimized Dq and B, the ground term the fit is
-            referenced to, per-peak residuals and any non-fatal warnings; or a
-            ComputeError when the problem is ill-posed (for example high-spin d5,
-            which has no spin-allowed d-d transitions at all) or the optimizer
-            cannot reach a physically valid minimum.
-
-        Example:
-            Fitting [Ni(H2O)6]2+ (d8) from its three spin-allowed bands:
-            ts_fit_spectrum(d_count=8, observed_peaks_cm1=[8500, 13800, 25300])
+            FitResult: fitted_Dq / fitted_B / fitted_C with Dq_source / B_source /
+            C_source, minima (each with source, lowest_rmse, ambiguous),
+            band_assignments, assumptions and warnings; or a ComputeError when the
+            problem is ill-posed or no physically valid minimum is reached.
 
         """
         if not observed_peaks_cm1:
@@ -154,6 +166,8 @@ def register(mcp: FastMCP) -> None:
         except (ValueError, RuntimeError) as exc:
             return ComputeError(error=f"Fitting failed: {exc!s}")
 
+        # Delta S = 0, +-1 only: the levels a band can be fitted to (plan G, Task 5).
+        transitions = spin_rule_transitions(fit)
         peak_assignments = [
             SpectrumPeak(
                 energy_cm1=energy,
@@ -161,7 +175,7 @@ def register(mcp: FastMCP) -> None:
                 # Mirrors ts_spectrum_app: spin-forbidden bands are drawn faint.
                 intensity=1.0 if spin_allowed else 0.05,
             )
-            for energy, assignment, spin_allowed in fit.transitions
+            for energy, assignment, spin_allowed in transitions
         ]
 
         # Proper R^2, against the variance of the observed peaks. The previous
@@ -186,19 +200,10 @@ def register(mcp: FastMCP) -> None:
             for (observed, computed, uid), record in zip(fit.assignment, records, strict=True)
         ]
 
-        def _minimum(
-            m: tuple[float, float, float, float], source: Literal["held", "free_c"] = "held"
-        ) -> FitMinimum:
-            return FitMinimum(Dq=m[0], B=m[1], C=m[2], objective_cm1=m[3], source=source)
+        def _minimum(m: tuple[float, float, float, float]) -> FitMinimum:
+            return FitMinimum(Dq=m[0], B=m[1], C=m[2], objective_cm1=m[3])
 
-        minima = [_minimum(m) for m in fit.minima]
-        minima += [_minimum(m, "free_c") for m in fit.free_c_minima]
-        if minima:
-            lowest = min(minima, key=lambda m: (m.objective_cm1, m.source != "held"))
-            lowest.lowest_rmse = True
-        flags = ambiguous_minima([*fit.minima, *fit.free_c_minima])
-        for entry, flag in zip(minima, flags, strict=True):
-            entry.ambiguous = flag
+        minima = [FitMinimum.model_validate(record) for record in minima_records(fit)]
 
         return FitResult(
             d_count=d_count,
@@ -210,7 +215,7 @@ def register(mcp: FastMCP) -> None:
             r_squared=r_squared,
             rmse_cm1=fit.rmse_cm1,
             observed_peaks_cm1=observed_peaks_cm1,
-            predicted_peaks_cm1=[energy for energy, _a, _s in fit.transitions],
+            predicted_peaks_cm1=[energy for energy, _a, _s in transitions],
             peak_assignments=peak_assignments,
             ground_term=fit.ground_term,
             spin_state=fit.spin_state,

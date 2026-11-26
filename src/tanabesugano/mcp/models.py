@@ -81,7 +81,8 @@ class FitMinimum(BaseModel):
         default=False,
         description=(
             "True on the one entry of minima with the lowest objective_cm1 (cm^-1); "
-            "on a tie, the held entry. A fact about the fit, not a recommendation."
+            "on a tie, the held entry. A fact about the fit, not a recommendation: "
+            "when a source is 'undetermined' this entry is not the answer either."
         ),
     )
     ambiguous: bool = Field(
@@ -112,8 +113,19 @@ class FitResult(BaseModel):
     """Result of fitting a spectrum to find Dq and B parameters; all energies in cm^-1."""
 
     d_count: int
-    fitted_Dq: float = Field(description="Optimized ligand field parameter (cm^-1).")
-    fitted_B: float = Field(description="Optimized Racah B parameter (cm^-1).")
+    fitted_Dq: float = Field(
+        description=(
+            "Ligand field parameter at the returned point (cm^-1). A result only "
+            "together with Dq_source: when that is 'undetermined' this is a display "
+            "value, one of several minima the bands cannot tell apart."
+        ),
+    )
+    fitted_B: float = Field(
+        description=(
+            "Racah B at the returned point (cm^-1). A result only together with "
+            "B_source: when that is 'undetermined' this is a display value."
+        ),
+    )
     fitted_C: float = Field(
         description=(
             "Racah C: held (C_source 'given' or 'default') or fitted ('fitted'); when "
@@ -130,11 +142,19 @@ class FitResult(BaseModel):
     )
     Dq_source: ParameterProvenance = Field(
         default="fitted",
-        description="Where fitted_Dq comes from: 'fitted', or 'undetermined' when tied minima disagree on it.",
+        description=(
+            "Where fitted_Dq comes from: 'fitted', or 'undetermined' when tied minima "
+            "disagree on it -- including when C was held at the default C on unlabelled "
+            "bands and a fit with C free reaches a better, distinct (Dq, B)."
+        ),
     )
     B_source: ParameterProvenance = Field(
         default="fitted",
-        description="Where fitted_B comes from: 'fitted', or 'undetermined' when tied minima disagree on it.",
+        description=(
+            "Where fitted_B comes from: 'fitted', or 'undetermined' when tied minima "
+            "disagree on it -- including when C was held at the default C on unlabelled "
+            "bands and a fit with C free reaches a better, distinct (Dq, B)."
+        ),
     )
     C_source: ParameterProvenance = Field(
         default="default",
@@ -160,7 +180,8 @@ class FitResult(BaseModel):
         description=(
             "Every distinct minimum the search reached, the returned one first, then "
             "any free-C minima (source 'free_c', at their own fitted C). Lists what the "
-            "search found, not necessarily every minimum that exists."
+            "search found, not necessarily every minimum that exists. When a source is "
+            "'undetermined', no entry is the answer, the lowest_rmse one included."
         ),
     )
     band_assignments: list[BandAssignment] = Field(
@@ -225,11 +246,17 @@ class FitResult(BaseModel):
     observed_peaks_cm1: list[float] = Field(description="Input observed peak positions.")
     predicted_peaks_cm1: list[float] = Field(
         description=(
-            "Every computed transition at the fitted point (spin-forbidden included), "
-            "not only the assigned ones; band_assignments says which band took which."
+            "Every ΔS = 0, ±1 transition at the fitted point (spin-forbidden included, "
+            "ΔS = ±2 not), not only the assigned ones; band_assignments says which "
+            "band took which."
         ),
     )
-    peak_assignments: list[SpectrumPeak] = Field(description="Detailed transition assignments.")
+    peak_assignments: list[SpectrumPeak] = Field(
+        description=(
+            "Every ΔS = 0, ±1 transition at the fitted point with a display intensity; "
+            "candidates, not the band assignment -- read band_assignments for that."
+        ),
+    )
     ground_term: str = Field(
         default="",
         description="Octahedral ground term the fit is referenced to, e.g. '3_A_2'.",
