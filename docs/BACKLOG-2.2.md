@@ -71,6 +71,36 @@ Sugano, Tanabe & Kamimura against the tabulated values.
 
 Deferred because these are needed only if those systems enter a later study.
 
+## Re-grade the textbook fixtures from primary sources
+
+[Cr(H2O)6]3+, [Ni(NH3)6]2+, [Cr(NH3)6]3+ and MgO:Cr3+ are literature fixtures with no
+recorded primary source. In 2.1.0 they are comparison-only: each reports its distance
+from the printed values and grades neither Dq nor B. Re-grade them against Tanabe &
+Sugano 1954, which `audit/jce2023/SOURCE-CHECK.md` verifies, or against another primary
+source.
+
+Deferred because each needs its original read and its bands checked. Until then, an
+unverified value has no tolerance it could be graded at.
+
+## Re-derive the 2.0.0 fixture tolerances
+
+The literature fixtures from 2.0.0 carry bounds whose `tolerance_reason` records a value
+measured from the implementation. For example, [Cr(H2O)6]3+ has an RMSE bound of 300
+cm⁻¹ against a measured 215.5. Re-derive each bound from the source's stated uncertainty
+before measuring, as the 2.1.0 JCE fixtures do (`COVERAGE` × σ).
+
+Deferred because the four fixtures most affected are comparison-only in 2.1.0, and the
+remaining bounds pin a regression rather than a published claim.
+
+## Jahn–Teller and charge-transfer validity note
+
+State in the tool output where a ligand-field fit is outside its model: a Jahn–Teller
+distorted ion (high-spin d4, low-spin d7), and bands that are charge transfer
+rather than d–d.
+
+Deferred because it is advisory text with no effect on a computed value, and the cases
+need a rule that does not guess from band positions alone.
+
 ## Tool-text polish
 
 Items from the MCP tool-text review:
@@ -147,7 +177,9 @@ the release branch are marked as such.
 - The `Dq_nu1_reason` description omits that ν1 is assumed to be the lowest band.
 - Dead mypy-style `# type: ignore[attr-defined]` comments in `test_mcp.py`, which ty does
   not read.
-- Twelve multi-line comment blocks and one banner on the branch.
+- Twenty-two multi-line comment blocks and eight section banners added on the branch,
+  for example `test_fit_recovery.py`, `test_ion_case_studies.py`, `test_mcp.py`,
+  `audit_fit_paths.py` and `_compute.py`.
 - `audit-fit-check` is not in CI.
 - Resolved in 2.1.0:
   - the MCP tool now exposes `fit_c`, band labels, minima and provenance;
