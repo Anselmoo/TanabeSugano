@@ -859,8 +859,8 @@ JCE_DIR = Path(
 JCE_SKIP = pytest.mark.skipif(
     not JCE_DIR.exists(), reason="audit/jce2023 is not shipped in the wheel"
 )
-SourceStatus = Literal["observed", "calc", "CT", "graphical", "assumed", "unverified"]
-UNGRADABLE_STATUS = ("calc", "CT", "unverified")
+SourceStatus = Literal["observed", "calc", "CT", "graphical", "assumed", "unverified", "emission"]
+UNGRADABLE_STATUS = ("calc", "CT", "unverified", "emission")
 """A value with one of these statuses in the original is never graded against."""
 PRIMARY_QUANTITY = re.compile(r"band:\d_[A-Z](_\d)?#\d+|Dq|B|C")
 JCE_SOURCE = (
@@ -1123,13 +1123,15 @@ SELF_CONSISTENT = frozenset(
 Pinned from the forward check before any inverse fit was run. Outside it: Al2O3:V3+
 (nu1, nu2 at -2.8 and -2.6 sigma), the four d7 Co(II) sources (a band off by 4-12
 sigma; CoSiF6 now on the original's observed 4A2 and 4T1(P), its 4A2 at +11.8), [Ni(H2O)6]2+
-(nu2 +6 sigma), and the "all" records of KZnClSO4:Cr3+, K3Cr(CN)6 and AgCl:Ni2+ (their
-spin-forbidden line at +6.3, -4.6 and -2.4 sigma: C/B does not fit it).
+(nu2 +6 sigma), and the "all" records of KZnClSO4:Cr3+ and AgCl:Ni2+ (their
+spin-forbidden line at +6.3 and -2.4 sigma: C/B does not fit it).
 
 Re-pinned in plan F Task 4, when records began reading ``primary_sources.csv``, from the
 same forward check: 13 -> 12. MgO:Ni2+ [all] no longer exists -- its only spin-forbidden
 band, 1E ~13670, is not a separate observed band in the original. K3Cr(CN)6 [all] moved
-from -7.6 to -4.6 sigma on the original's C = 2800 and stays outside."""
+from -7.6 to -4.6 sigma on the original's C = 2800 and stayed outside; since plan G, Task 3
+it no longer exists -- its only spin-forbidden line, 12820, is the 2E -> 4A2 emission line
+in the original (status ``emission``), not an absorption band."""
 
 
 def oracle_tolerances(record: JceRecord) -> tuple[float, float]:
@@ -1247,6 +1249,8 @@ COMPARISON_SOURCES: dict[str, tuple[str, str]] = {
     "JCE2023 Al2O3:Cr3+ [all]": ("Al2O3:Cr3+", "Dq"),
     "JCE2023 Al2O3:V3+ [allowed]": ("Al2O3:V3+", "Dq"),
     "JCE2023 Al2O3:V3+ [all]": ("Al2O3:V3+", "Dq"),
+    "JCE2023 KZnClSO4·3H2O:Cr3+ [allowed]": ("KZnClSO4·3H2O:Cr3+", "Dq"),
+    "JCE2023 KZnClSO4·3H2O:Cr3+ [all]": ("KZnClSO4·3H2O:Cr3+", "Dq"),
 }
 """Fixture or record id -> the ``primary_sources.csv`` row that says why it is comparison-only.
 
@@ -1724,3 +1728,27 @@ class TestComparisonOnly:
             "reason": COMPARISON_ONLY[case_id],
         }
         record_property("comparison_delta", delta)
+
+
+FIT_AUDIT_CSV = Path(__file__).resolve().parents[3] / "audit" / "2.1.0" / "fit_audit.csv"
+"""The committed fit-path audit (``poe audit-fit``); absent from a wheel."""
+
+
+@pytest.mark.skipif(not FIT_AUDIT_CSV.exists(), reason="audit CSV is not shipped")
+def test_no_graded_row_is_silently_wrong() -> None:
+    """No graded audit row is wrong without a warning or a stated assumption (plan G, Task 3).
+
+    Graded: a verdict without the -R1 / -REF suffix. A row of class ``app-sf`` states the
+    spin-allowed assumption in its result (``check_silent_causes`` enforces that), so it is
+    not silent; every other WRONG-SILENT row is.
+
+    Observed red: ``AssertionError`` listing KZnClSO4·3H2O:Cr3+ and K3Cr(CN)6
+    fit_spectrum labelled-truth.
+    """
+    with FIT_AUDIT_CSV.open(newline="", encoding="utf-8") as handle:
+        silent = [
+            f"{r['system']} {r['path']} {r['c_mode']}"
+            for r in csv.DictReader(handle)
+            if r["verdict"] == "WRONG-SILENT" and "app-sf" not in r["failure_classes"].split(";")
+        ]
+    assert silent == []

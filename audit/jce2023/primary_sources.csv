@@ -28,7 +28,7 @@ CoSiF6·6H2O,Dq,965,cm^-1,35,10.1016/s0022-3697(71)80030-6,parameters,assumed,"r
 [Cr(NH3)6]3+,Dq,2170,cm^-1,7,,Shriver & Atkins 5th ed. Example 20.8,graphical,"Delta/B = 33.0 read off the TS diagram; Tanabe & Sugano 1954 give 2140; in the model nu1 = 10Dq = 21550"
 [Co(NH3)6]3+,Dq,2293,cm^-1,20,10.1021/jacs.2c04945,Table 2,unverified,"matches neither Yarranton 2022 row (diagonal 24760/475/3710, full 23430/580/3550); probably ref 31, not checked"
 K3Cr(CN)6,C,2800,cm^-1,29,10.1021/ja01018a013,parameters,observed,"Delta 26600, B 485, C 2800: C/B 5.77, not JCE's 5.563"
-K3Cr(CN)6,band:2_E#0,12820,cm^-1,29,10.1021/ja01018a013,band table,observed,"an emission line in the original (2E -> 4A2), not an absorption band"
+K3Cr(CN)6,band:2_E#0,12820,cm^-1,29,10.1021/ja01018a013,band table,emission,"an emission line in the original (2E -> 4A2), not an absorption band"
 MgO:Ni2+,Dq,815,cm^-1,24,10.1063/1.1732066,Section (d),assumed,"nu1 (8010) plus a predicted spin-orbit stabilisation, stated as an upper limit; the no-SO model gives nu1/10 = 801"
 MgO:Ni2+,C,,cm^-1,24,10.1063/1.1732066,Section (d),assumed,"C/B = 4.4 is assumed, not fitted"
 MgO:Ni2+,band:1_E#0,13670,cm^-1,24,10.1063/1.1732066,Section (d),unverified,"the 1E ~13670 is not a separate observed band (expected strongly mixed with 3T1a)"
@@ -56,3 +56,4 @@ Al2O3:Cr3+,band:4_T_1#0,24570,cm^-1,21,10.1021/ed084p1316,absorption maximum 407
 Al2O3:Cr3+,band:2_E#0,14405,cm^-1,21,10.1021/ed084p1316,R line 694.2 nm,observed,"694.2 nm -> 14405; JCE prints 14420 (SOURCE-CHECK.md)"
 Al2O3:Cr3+,Dq,1810,cm^-1,25,10.1051/jphys:01976003705060300,parameters (not read),unverified,"printed by JCE from ref 25, not read (its title is about Cr2+/Cr4+); Dq, B and C comparison-only. Graded instead: least-squares Dq against nu1/10 = 1814.9 of the ref 21 band"
 Al2O3:V3+,Dq,1823,cm^-1,25,10.1051/jphys:01976003705060300,parameters (not read),unverified,"ref 25 not read (its title is about Cr2+/Cr4+); bands and parameters both rest on it, so comparison-only until it is read"
+KZnClSO4·3H2O:Cr3+,Dq,1724,cm^-1,14,10.1016/j.saa.2004.08.017,parameters,unverified,"confirmed in ref 14 as printed (Dq 1724, B 724, C 2484), its derivation not read: the printed (B, C) puts its own 2E at +6.3 sigma in this model; Dq, B and C comparison-only"

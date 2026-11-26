@@ -22,7 +22,7 @@ At the default C the reference (Dq, B) is not a minimum of this objective: the n
 
 - **Oracle.** Synthetic bands come only from `tanabesugano.test._determinant_oracle.relative_term_levels` (full C(10, n) determinant basis, imports nothing from the package). Its keys were checked against `TermKey` at start-up: identical spelling, no map needed. Package functions are used only to grade a point.
 - **Band rule.** Excited levels are merged first (chained within 50.0 cm^-1, mean energy, all labels kept), then the lowest 3 merged ground-multiplicity bands are taken; the sf variant adds the lowest 3 merged bands of multiplicity (2S+1) +/- 2 (|dS| = 1: the manifold below for high-spin, mainly the one above for low-spin d5-d7). A band also carries the label of any other excited level within the merge window. JCE input is merged the same way (MgO:Ni2+ has 3T1 and 1E both at 13670); a JCE band keeps its table labels plus any oracle level within the merge window of the labelled level at the reported (Dq, B, C), e.g. 4A1 beside a tabulated d5 4E (exactly degenerate at 10B + 5C). Without a reported B and C no partner is added.
-- **Truth self-test.** All 199 synthetic cases assign every band correctly at their own truth (Dq, B, C) under fit_spectrum's matching rule; the script aborts otherwise. At the JCE reported points, 5 band(s) are not nearest to their table label (listed in section 5); those are properties of the published data, not of the grader.
+- **Truth self-test.** All 199 synthetic cases assign every band correctly at their own truth (Dq, B, C) under fit_spectrum's matching rule; the script aborts otherwise. At the JCE reported points, 4 band(s) are not nearest to their table label (listed in section 5); those are properties of the published data, not of the grader.
 - **Truth points.** B in (0.45, 0.75, 1.15, 1.6) x default B, dropped when outside fit_spectrum's b_bounds (200.0, 1500.0): d4 1.6 x 965 = 1544.0, d6 1.6 x 1065 = 1704.0, d7 1.6 x 971 = 1553.6, d8 1.6 x 1030 = 1648.0. C/B in (4.0, 4.8), +0.2 when within 0.05 of the default C/B (d6: 4.8 -> 5.0). Dq = 0.5 x (HS) / 1.6 x (LS) the oracle crossover for d4-d7, fixed {2: (900.0, 1800.0), 3: (1200.0, 2000.0), 8: (700.0, 1200.0)} for d2/d3/d8; one near-crossover point per d4-d7 cell at 0.95 x / 1.05 x the crossover (B factor 0.75). Truth B below 400 (d2, d5 at 0.45 x) lies outside both apps' B grid.
 - **labelled.** Every fit_spectrum case runs again at C = truth and C = None with `band_labels`: each band's term keys (`4_T_1`, never the oracle's `#index`), the label a user can name. A merged band carries the terms of all its levels. At C = None with three or more labelled bands, `fit_c=None` fits C inside C/B (3, 6) (`labelled-default`); with fewer, C is held at the default. Grading still reads Dq and B only; dC is reported in the CSV.
 - **seed-displaced.** For d3/d8 spin-allowed points the closed form is exact on oracle bands (nu1 = 10Dq, nu2 + nu3 = 15B + 3 nu1), so fit_spectrum starts AT the answer. Each such point gets an extra C = truth run with `_initial_seed` patched to return (0.7 x Dq_cf, 1.4 x B_cf). JCE d3/d8 published Dq is not nu1/10 in general: of 13 systems, 5 report Dq = nu1/10 and 8 do not (published Dq / Table 1 T2 band over ten, cm^-1: [Cr(H2O)6]3+ 1720 / 1740; KZnClSO4·3H2O:Cr3+ 1724 / 1723.5; Al2O3:Cr3+ 1810 / 1814.9; [Cr(NH3)6]3+ 2170 / 2155; AgCl:Ni2+ 670 / 668; MgO:Ni2+ 815 / 801; [Ni(H2O)6]2+ 860 / 850; [Ni(NH3)6]2+ 1030 / 1060). Where they agree, the published Dq equals the closed-form seed, hence the dDq = 0.0 rows; nu1/10 is therefore not a grade of the published Dq.
@@ -509,7 +509,6 @@ Co(III) rows without a reported C/B: 3 of 4 ([Co(H2O)6]3+, [Co(NO2)6]3-, [Co(oxa
 Bands not nearest to their table label at the reported point:
 
 - [Cr(H2O)6]3+ sf=True 36600.0: 4_T_1#1 -> 2_T_1#2
-- K3Cr(CN)6 sf=True 12820.0: 2_E#0 -> 2_T_1#0
 - [Co(NH3)6]3+ sf=True 13400.0: 3_T_1#0 -> 5_T_2#0
 - AgCl:Co2+ sf=True 19000.0: 2_T_1#1 -> 2_A_1#0
 - CoCl2 sf=True 19030.0: 2_T_1#1 -> 2_A_1#0
@@ -518,22 +517,19 @@ Counts (rows neither R1 nor REF):
 
 | path | OK | RAISED-EXPECTED | OK-B-UNIDENTIFIED | RAISED | WRONG-WARNED | WRONG-SILENT | total |
 |---|---|---|---|---|---|---|---|
-| fit_spectrum (default) | 5 | 0 | 0 | 0 | 9 | 0 | 14 |
-| fit_spectrum (labelled-default) | 10 | 0 | 0 | 0 | 4 | 0 | 14 |
-| fit_spectrum (labelled-truth) | 7 | 0 | 0 | 0 | 3 | 2 | 12 |
-| fit_spectrum (truth) | 6 | 0 | 0 | 0 | 6 | 0 | 12 |
-| ratio_app (app-default) | 5 | 0 | 0 | 0 | 1 | 0 | 6 |
-| ratio_app (app-regime) | 5 | 0 | 0 | 0 | 1 | 0 | 6 |
-| reverse_app (app-default) | 5 | 0 | 0 | 4 | 3 | 2 | 14 |
-| reverse_app (app-regime) | 5 | 0 | 0 | 0 | 9 | 0 | 14 |
+| fit_spectrum (default) | 4 | 0 | 0 | 0 | 7 | 0 | 11 |
+| fit_spectrum (labelled-default) | 8 | 0 | 0 | 0 | 3 | 0 | 11 |
+| fit_spectrum (labelled-truth) | 6 | 0 | 0 | 0 | 3 | 0 | 9 |
+| fit_spectrum (truth) | 5 | 0 | 0 | 0 | 4 | 0 | 9 |
+| ratio_app (app-default) | 4 | 0 | 0 | 0 | 1 | 0 | 5 |
+| ratio_app (app-regime) | 4 | 0 | 0 | 0 | 1 | 0 | 5 |
+| reverse_app (app-default) | 4 | 0 | 0 | 4 | 2 | 1 | 11 |
+| reverse_app (app-regime) | 4 | 0 | 0 | 0 | 7 | 0 | 11 |
 
 Why each silent row is wrong (`JCE_SILENT_CAUSES`; the build fails on an unclassified or stale row, and on an `identifiability` class the audit's `app-sf` class does not confirm):
 
 | row | cause | reason |
 |---|---|---|
-| KZnClSO4·3H2O:Cr3+ \| sf=True \| fit_spectrum \| labelled-truth | reference unverified | ref 14 confirmed as printed (Dq 1724, B 724, C 2484) but its derivation not read: the printed (B, C) puts its own 2E at +6.3 sigma in this model, so B absorbs it (-9.9 %). Not code: fit RMSE 275.2 = the labelled oracle minimum |
-| KZnClSO4·3H2O:Cr3+ \| sf=True \| reverse_app \| app-default | identifiability | band positions alone cannot tell a spin-forbidden line from a spin-allowed band: the app-default call omits include_spin_forbidden and labels, so the 2E (11975) line is fitted as a spin-allowed band, and the result states that assumption (SPIN_ALLOWED_ASSUMPTION). Not code: fit RMSE 875.7 = the spin-allowed oracle minimum over the app's own box |
-| K3Cr(CN)6 \| sf=True \| fit_spectrum \| labelled-truth | model limit | the model has no distinction between an emission line and an absorption maximum: 12820 is the 2E -> 4A2 emission line in the original (ref 29), near the zero-phonon line, fitted with absorption maxima that lie above theirs; at the original's C = 2800 it sits at -4.6 sigma and B absorbs it (+13.7 %). Not code: fit RMSE 94.3 = the labelled oracle minimum |
 | Co(bipy)3Br2·6H2O \| sf=True \| reverse_app \| app-default | identifiability | band positions alone cannot tell a spin-forbidden line from a spin-allowed band: the app-default call omits include_spin_forbidden and labels, so the 2T1 (18500) line is fitted as a spin-allowed band, and the result states that assumption (SPIN_ALLOWED_ASSUMPTION). Not code: fit RMSE 430.6 = the spin-allowed oracle minimum over the app's own box |
 
 | system | d | spin | sf | geometry | path | c_mode | truth_Dq | truth_B | truth_C | fit_Dq | fit_B | dDq_pct | dB_pct | rmse_at_reported | rmse_at_fit | assignment_ok | approx | verdict | failure_classes |
@@ -584,20 +580,20 @@ Why each silent row is wrong (`JCE_SILENT_CAUSES`; the build fails on an unclass
 | [Cr(H2O)6]3+ | 3 | high | True | Oh | fit_spectrum | labelled-default | 1720.0 | 765.1 | 3060.5 | 1686.8 | 708.9 | -1.9 | -7.3 | 927.7 | 1557.2 | False | True | WRONG-SILENT-REF | c |
 | [Cr(H2O)6]3+ | 3 | high | True | Oh | reverse_app | app-default | 1720.0 | 765.1 | 3060.5 | n/a | n/a | n/a | n/a | 1516.6 | n/a | n/a | True | RAISED-REF | app-sf |
 | [Cr(H2O)6]3+ | 3 | high | True | Oh | reverse_app | app-regime | 1720.0 | 765.1 | 3060.5 | 938.9 | 726.5 | -45.4 | -5.0 | 1516.6 | 6367.4 | False | True | WRONG-WARNED-REF | c |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | truth | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | labelled-truth | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | labelled-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | reverse_app | app-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | reverse_app | app-regime | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | ratio_app | app-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | ratio_app | app-regime | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | truth | 1724.0 | 724.1 | 2484.3 | 818.9 | 400.6 | -52.5 | -44.7 | 435.3 | 7.1 | False | False | WRONG-WARNED | a;c |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | default | 1724.0 | 724.1 | 2484.3 | 1197.6 | 670.5 | -30.5 | -7.4 | 435.3 | 1.8 | False | False | WRONG-WARNED | a;c |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | labelled-truth | 1724.0 | 724.1 | 2484.3 | 1749.8 | 652.6 | 1.5 | -9.9 | 435.3 | 275.2 | True | False | WRONG-SILENT | a;f |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | labelled-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 435.3 | 3340.1 | False | False | OK |  |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | reverse_app | app-default | 1724.0 | 724.1 | 2484.3 | 1138.7 | 489.8 | -34.0 | -32.4 | 3039.8 | 875.7 | False | False | WRONG-SILENT | app-sf;c |
-| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | reverse_app | app-regime | 1724.0 | 724.1 | 2484.3 | 1197.6 | 670.5 | -30.5 | -7.4 | 3039.8 | 2128.8 | False | False | WRONG-WARNED | c |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | truth | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | labelled-truth | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | fit_spectrum | labelled-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | reverse_app | app-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | reverse_app | app-regime | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | ratio_app | app-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | False | Oh | ratio_app | app-regime | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 4.8 | 0.0 | True | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | truth | 1724.0 | 724.1 | 2484.3 | 818.9 | 400.6 | -52.5 | -44.7 | 435.3 | 7.1 | False | False | WRONG-WARNED-REF | a;c |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | default | 1724.0 | 724.1 | 2484.3 | 1197.6 | 670.5 | -30.5 | -7.4 | 435.3 | 1.8 | False | False | WRONG-WARNED-REF | a;c |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | labelled-truth | 1724.0 | 724.1 | 2484.3 | 1749.8 | 652.6 | 1.5 | -9.9 | 435.3 | 275.2 | True | False | WRONG-SILENT-REF | a;f |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | fit_spectrum | labelled-default | 1724.0 | 724.1 | 2484.3 | 1723.5 | 724.2 | 0.0 | 0.0 | 435.3 | 3340.1 | False | False | OK-REF |  |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | reverse_app | app-default | 1724.0 | 724.1 | 2484.3 | 1138.7 | 489.8 | -34.0 | -32.4 | 3039.8 | 875.7 | False | False | WRONG-SILENT-REF | app-sf;c |
+| KZnClSO4·3H2O:Cr3+ | 3 | high | True | Oh | reverse_app | app-regime | 1724.0 | 724.1 | 2484.3 | 1197.6 | 670.5 | -30.5 | -7.4 | 3039.8 | 2128.8 | False | False | WRONG-WARNED-REF | c |
 | [Cr(oxalate)3]3- | 3 | high | False | Oh | fit_spectrum | default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.0 | True | False | WRONG-WARNED-REF | unclassified |
 | [Cr(oxalate)3]3- | 3 | high | False | Oh | fit_spectrum | labelled-default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.0 | True | False | WRONG-WARNED-REF | unclassified |
 | [Cr(oxalate)3]3- | 3 | high | False | Oh | reverse_app | app-default | 1750.0 | 659.9 | n/a | 1750.0 | 610.9 | 0.0 | -7.4 | 277.6 | 0.1 | True | False | WRONG-WARNED-REF | unclassified |
@@ -640,12 +636,6 @@ Why each silent row is wrong (`JCE_SILENT_CAUSES`; the build fails on an unclass
 | K3Cr(CN)6 | 3 | high | False | Oh | reverse_app | app-regime | 2660.0 | 480.0 | 2800.0 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.1 | True | False | WRONG-WARNED | unclassified |
 | K3Cr(CN)6 | 3 | high | False | Oh | ratio_app | app-default | 2660.0 | 480.0 | 2800.0 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | unclassified |
 | K3Cr(CN)6 | 3 | high | False | Oh | ratio_app | app-regime | 2660.0 | 480.0 | 2800.0 | 2660.0 | 529.4 | 0.0 | 10.3 | 358.2 | 0.0 | True | False | WRONG-WARNED | unclassified |
-| K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | truth | 2660.0 | 480.0 | 2800.0 | 877.0 | 432.7 | -67.0 | -9.9 | 334.8 | 16.7 | False | False | WRONG-WARNED | a;c |
-| K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | default | 2660.0 | 480.0 | 2800.0 | 1281.8 | 936.1 | -51.8 | 95.0 | 334.8 | 2.5 | False | False | WRONG-WARNED | a;c |
-| K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | labelled-truth | 2660.0 | 480.0 | 2800.0 | 2651.8 | 545.7 | -0.3 | 13.7 | 446.5 | 94.3 | True | False | WRONG-SILENT | a;f |
-| K3Cr(CN)6 | 3 | high | True | Oh | fit_spectrum | labelled-default | 2660.0 | 480.0 | 2800.0 | 2660.0 | 529.4 | 0.0 | 10.3 | 446.5 | 2193.9 | True | False | WRONG-WARNED | a;b |
-| K3Cr(CN)6 | 3 | high | True | Oh | reverse_app | app-default | 2660.0 | 480.0 | 2800.0 | 1454.7 | 875.9 | -45.3 | 82.5 | 7961.3 | 3005.3 | False | False | WRONG-WARNED | app-sf;c |
-| K3Cr(CN)6 | 3 | high | True | Oh | reverse_app | app-regime | 2660.0 | 480.0 | 2800.0 | 1281.8 | 936.1 | -51.8 | 95.0 | 7961.3 | 3281.0 | False | False | WRONG-WARNED | c |
 | [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | truth | 3400.0 | 659.9 | 3279.9 | 3106.7 | 1010.6 | -8.6 | 53.1 | 313.5 | 0.0 | False | False | WRONG-WARNED | c;single-band |
 | [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | default | 3400.0 | 659.9 | 3279.9 | 3482.8 | 1010.2 | 2.4 | 53.1 | 313.5 | 0.0 | False | False | WRONG-WARNED | c;single-band |
 | [Mn(CN)6]3- | 4 | low | False | Oh | fit_spectrum | labelled-truth | 3400.0 | 659.9 | 3279.9 | 3238.0 | 967.8 | -4.8 | 46.7 | 313.5 | 0.0 | True | False | WRONG-WARNED | single-band |
@@ -865,25 +855,25 @@ Why each silent row is wrong (`JCE_SILENT_CAUSES`; the build fails on an unclass
 
 ## 6. Follow-up scope
 
-Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 and REF rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 84. 97 of the failing rows carry the infeasible_at_c tag (R1 rows excluded; Section 7 S4 counts them too). Classes (a), bounds-exclude-truth, (b) and (f) apply to fit_spectrum only, (e) to its C=default runs; app-hs to flagless app rows, app-sf to flagless reverse-app rows, app-grid to ratio-app rows, app-lattice to d3/d8 ratio-app rows; estimator-disagreement to flagless JCE reverse-app rows; (c), (d) and single-band to every row. An `app-regime` row answers with `fit_spectrum` at C=default on the same case (0 app-regime rows differ in verdict from that row), so its failures have the causes classified on the fit_spectrum row; they are left unclassified here rather than counted twice. The OK columns apply the same rules to rows graded OK. The rate columns count, per source, the rows each rule can fire on (failing vs OK); a source votes 'discriminates' if its OK rate is under a quarter of its failing rate. A source with no eligible failing row, no eligible OK row, or where the class fires on neither does not vote. The verdict is 'discriminates' only if every voting source says so; a precondition co-occurs with failures but does not separate them from successes, so it alone does not size a fix. Discriminating classes: b, f, app-hs, app-sf, single-band.
+Every failing row (RAISED, WRONG-WARNED, WRONG-SILENT; R1 and REF rows excluded) is tested against each rule independently, so a row may carry several classes and columns do not sum to the failure count; in particular (e) is assigned whether or not (a)/(b) also apply. Not failures, so not classified: OK-B-UNIDENTIFIED 84. 97 of the failing rows carry the infeasible_at_c tag (R1 rows excluded; Section 7 S4 counts them too). Classes (a), bounds-exclude-truth, (b) and (f) apply to fit_spectrum only, (e) to its C=default runs; app-hs to flagless app rows, app-sf to flagless reverse-app rows, app-grid to ratio-app rows, app-lattice to d3/d8 ratio-app rows; estimator-disagreement to flagless JCE reverse-app rows; (c), (d) and single-band to every row. An `app-regime` row answers with `fit_spectrum` at C=default on the same case (0 app-regime rows differ in verdict from that row), so its failures have the causes classified on the fit_spectrum row; they are left unclassified here rather than counted twice. The OK columns apply the same rules to rows graded OK. The rate columns count, per source, the rows each rule can fire on (failing vs OK); a source votes 'discriminates' if its OK rate is under a quarter of its failing rate. A source with no eligible failing row, no eligible OK row, or where the class fires on neither does not vote. The verdict is 'discriminates' only if every voting source says so; a precondition co-occurs with failures but does not separate them from successes, so it alone does not size a fix. Discriminating classes: b, app-hs, app-sf, single-band.
 
 Class (e) measures the bias of holding C at the default. Whether a free C would be identifiable is NOT measured by this audit; a fix that fits C must establish that per configuration and band set.
 
 | class | proposed fix | rule | synthetic failing | synthetic OK | JCE failing | JCE OK | synthetic failing vs OK rate | JCE failing vs OK rate | verdict |
 |---|---|---|---|---|---|---|---|---|---|
-| a | generic seed obs[0]/10 (_initial_seed) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, <3 bands, or spin-forbidden bands included) and seed Dq / truth Dq outside the local-start span [0.8, 1.25] | 53 | 171 | 11 | 1 | 53/116 vs 171/624: precondition | 11/24 vs 1/28: discriminates | precondition |
-| bounds-exclude-truth | default dq_bounds (default_dq_bounds) exclude the truth | fit_spectrum only, not seed-displaced: the truth Dq lies outside default_dq_bounds(bands, seed), the seed being _initial_seed's | 0 | 0 | 0 | 0 | 0/116 vs 0/624: does not fire | 0/24 vs 0/28: does not fire | no source votes |
-| b | the start set misses the truth basin (_search_starts) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 3 | 2 | 1 | 0 | 3/116 vs 2/652: discriminates | 1/24 vs 0/28: discriminates | discriminates |
-| c | a band's nearest level at the returned point does not carry its label | assignment_ok is False | 229 | 130 | 25 | 6 | 229/417 vs 130/883: precondition | 25/44 vs 6/48: discriminates | precondition |
-| d | regime penalty / crossover proximity (fit_spectrum objective) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 67 | 59 | 1 | 0 | 67/417 vs 59/883: precondition | 1/44 vs 0/48: discriminates | precondition |
-| e | C-misspecification bias: C never fitted | fit_spectrum only: C = default (labelled or not) and the same case at C = truth, with the same labelling, is OK | 116 | 254 | 2 | 11 | 116/116 vs 254/254: precondition | 2/13 vs 11/15: precondition | precondition |
-| f | no ambiguity check | fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C) | 0 | 0 | 2 | 0 | 0/116 vs 0/652: does not fire | 2/24 vs 0/28: discriminates | discriminates |
-| app-hs | app called without the case's spin regime: it fits on the high-spin default | app row with spin=low, called without spin_state (c_mode app-default) | 90 | 0 | 2 | 0 | 90/164 vs 0/102: discriminates | 2/10 vs 0/10: discriminates | discriminates |
-| app-sf | app called without include_spin_forbidden: forbidden bands fitted as allowed | reverse-app row with spin-forbidden bands in its input, called without include_spin_forbidden (c_mode app-default) | 104 | 0 | 7 | 0 | 104/134 vs 0/51: discriminates | 7/9 vs 0/5: discriminates | discriminates |
-| app-lattice | ratio app: the Dq grid has no node at nu1/10 for d3/d8, so the returned Dq is the node nearest nu1/10, not nu1/10 itself | ratio-app row, d3 or d8 (nu1 = 10Dq), no Dq grid node within rounding of nu1/10, and the returned Dq is the node nearest nu1/10 | 0 | 0 | 0 | 0 | 0/0 vs 0/56: no failures in this source | 0/2 vs 0/6: does not fire | no source votes |
-| app-grid | ratio-app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 200..1500, 30 steps | ratio-app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 0 | 0 | 0 | 0 | 0/52 vs 0/110: does not fire | 0/2 vs 0/10: does not fire | no source votes |
-| single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 0 | 0 | 6 | 0 | 0/417 vs 0/883: does not fire | 6/44 vs 0/48: discriminates | discriminates |
-| estimator-disagreement | published values are not the minimum of this objective (reverse app; fit_spectrum is covered by (f)) | JCE, sf=False, reverse app, every band assigned, more than two bands, reported C given: RMSE at the returned point < RMSE at the reported (Dq, B, C) | 0 | 0 | 0 | 3 | 0/0 vs 0/0: no failures in this source | 0/9 vs 3/5: precondition | precondition |
+| a | generic seed obs[0]/10 (_initial_seed) | fit_spectrum only, not seed-displaced: generic seed (not d3/d8, <3 bands, or spin-forbidden bands included) and seed Dq / truth Dq outside the local-start span [0.8, 1.25] | 53 | 171 | 4 | 0 | 53/116 vs 171/624: precondition | 4/17 vs 0/23: discriminates | precondition |
+| bounds-exclude-truth | default dq_bounds (default_dq_bounds) exclude the truth | fit_spectrum only, not seed-displaced: the truth Dq lies outside default_dq_bounds(bands, seed), the seed being _initial_seed's | 0 | 0 | 0 | 0 | 0/116 vs 0/624: does not fire | 0/17 vs 0/23: does not fire | no source votes |
+| b | the start set misses the truth basin (_search_starts) | fit_spectrum only: objective (C used) at the returned point exceeds the objective (same C) at the truth (Dq, B) by > 1 cm^-1, or 'did not converge' | 3 | 2 | 0 | 0 | 3/116 vs 2/652: discriminates | 0/17 vs 0/23: does not fire | discriminates |
+| c | a band's nearest level at the returned point does not carry its label | assignment_ok is False | 229 | 130 | 17 | 5 | 229/417 vs 130/883: precondition | 17/33 vs 5/39: discriminates | precondition |
+| d | regime penalty / crossover proximity (fit_spectrum objective) | ground_reached is False, the row is a near-crossover point, or the raise names the crossover / penalty region | 67 | 59 | 1 | 0 | 67/417 vs 59/883: precondition | 1/33 vs 0/39: discriminates | precondition |
+| e | C-misspecification bias: C never fitted | fit_spectrum only: C = default (labelled or not) and the same case at C = truth, with the same labelling, is OK | 116 | 254 | 2 | 9 | 116/116 vs 254/254: precondition | 2/10 vs 9/12: precondition | precondition |
+| f | no ambiguity check | fit_spectrum only: WRONG-SILENT and the objective at the returned point (C used) is within 1 cm^-1 of, or below, the objective at the full truth (Dq, B, C) | 0 | 0 | 0 | 0 | 0/116 vs 0/652: does not fire | 0/17 vs 0/23: does not fire | no source votes |
+| app-hs | app called without the case's spin regime: it fits on the high-spin default | app row with spin=low, called without spin_state (c_mode app-default) | 90 | 0 | 2 | 0 | 90/164 vs 0/102: discriminates | 2/8 vs 0/8: discriminates | discriminates |
+| app-sf | app called without include_spin_forbidden: forbidden bands fitted as allowed | reverse-app row with spin-forbidden bands in its input, called without include_spin_forbidden (c_mode app-default) | 104 | 0 | 5 | 0 | 104/134 vs 0/51: discriminates | 5/7 vs 0/4: discriminates | discriminates |
+| app-lattice | ratio app: the Dq grid has no node at nu1/10 for d3/d8, so the returned Dq is the node nearest nu1/10, not nu1/10 itself | ratio-app row, d3 or d8 (nu1 = 10Dq), no Dq grid node within rounding of nu1/10, and the returned Dq is the node nearest nu1/10 | 0 | 0 | 0 | 0 | 0/0 vs 0/56: no failures in this source | 0/2 vs 0/4: does not fire | no source votes |
+| app-grid | ratio-app grid resolution: Dq grid 0..3 x obs[0]/10, B grid 200..1500, 30 steps | ratio-app row whose returned (Dq, B) is the grid node nearest the truth on both axes, i.e. the error is pure grid resolution | 0 | 0 | 0 | 0 | 0/52 vs 0/110: does not fire | 0/2 vs 0/8: does not fire | no source votes |
+| single-band | one observed band for two free parameters: B is not identifiable | n_bands == 1 | 0 | 0 | 6 | 0 | 0/417 vs 0/883: does not fire | 6/33 vs 0/39: discriminates | discriminates |
+| estimator-disagreement | published values are not the minimum of this objective (reverse app; fit_spectrum is covered by (f)) | JCE, sf=False, reverse app, every band assigned, more than two bands, reported C given: RMSE at the returned point < RMSE at the reported (Dq, B, C) | 0 | 0 | 0 | 3 | 0/0 vs 0/0: no failures in this source | 0/7 vs 3/4: precondition | precondition |
 | unclassified | matches no rule | a failing row no rule above matched | 19 | - | 8 | - | - | - | - |
 
 ## 7. Findings
@@ -894,7 +884,7 @@ Class (e) measures the bias of holding C at the default. Whether a free C would 
 Live: 107 of 107 synthetic fit_spectrum runs with |dDq| > 2 % carry a pertinent warning; the c-note fires on 232 of 652 OK runs.
 
 **S2. Estimator disagreement does not explain the JCE misses.** The tag applies only where the reverse app's answer beats the published (Dq, B, C) on the app's own objective with every band assigned, more than two bands and a reported C. Unless Section 6 finds it discriminating in every source that votes (verdict below), it marks a disagreement between estimators, not the cause of a miss. A looser rule fires on most OK rows, and for fit_spectrum it would only repeat class (f).
-Live: 0 failing JCE reverse-app rows (neither R1 nor REF) qualify (none); the same rule holds on 3 of 5 OK ones. Section 6 verdict, per source: precondition; the classes that discriminate are b, f, app-hs, app-sf, single-band.
+Live: 0 failing JCE reverse-app rows (neither R1 nor REF) qualify (none); the same rule holds on 3 of 4 OK ones. Section 6 verdict, per source: precondition; the classes that discriminate are b, app-hs, app-sf, single-band.
 
 **S3. C-misspecification is a continuous bias.** Holding C at the default shifts Dq in a direction set by the sign of the C error; passing low-spin default-C runs are still off by 1-2 % in the predicted direction.
 Live, low-spin fit_spectrum C=default, Spearman between signed dC and dDq: d4 sf=False: rho +0.90 (n=7); d4 sf=True: rho +0.94 (n=7); d5 sf=False: rho +0.95 (n=9); d5 sf=True: rho +0.86 (n=9); d6 sf=False: rho +0.94 (n=7); d6 sf=True: rho +0.94 (n=7); d7 sf=False: rho +0.94 (n=7); d7 sf=True: rho +0.99 (n=7). Among the 11 of those runs graded OK, mean |dDq| = 0.8 %. dC is set by the B factor and C/B together, so the pooled rho alone could be a B effect; holding B fixed, the C/B change moves dDq the same way as dC in 24 of 26 pairs.
@@ -912,7 +902,7 @@ With C left at its default on three or more unlabelled bands that C moves, `fit_
 |---|---|---|
 | F1: synthetic rows silent at 29420b6 | 0 | 22 |
 | F1b: JCE rows where C does not move the bands (REF: comparison-only) | 5 | 6 |
-| remaining JCE `fit_spectrum` rows at the default C (neither R1 nor REF) | 0 | 14 |
+| remaining JCE `fit_spectrum` rows at the default C (neither R1 nor REF) | 0 | 11 |
 
 Rows where an unlabelled free-C fit was itself wrong (check 7):
 

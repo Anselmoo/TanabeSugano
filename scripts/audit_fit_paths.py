@@ -1361,7 +1361,7 @@ def jce_bands(
     return tuple(band_from(cl, gm, partners) for cl in cluster_levels(levels))
 
 
-UNGRADABLE_STATUS = frozenset({"calc", "CT", "unverified"})
+UNGRADABLE_STATUS = frozenset({"calc", "CT", "unverified", "emission"})
 """A primary band with one of these statuses is dropped from the case."""
 
 
@@ -2523,28 +2523,6 @@ _IDENT = (
     "Not code: fit RMSE {rmse} = the spin-allowed oracle minimum over the app's own box"
 )
 JCE_SILENT_CAUSES: dict[str, tuple[SilentCause, str]] = {
-    "KZnClSO4·3H2O:Cr3+ | sf=True | fit_spectrum | labelled-truth": (
-        "reference unverified",
-        (
-            "ref 14 confirmed as printed (Dq 1724, B 724, C 2484) but its derivation not read: "
-            "the printed (B, C) puts its own 2E at +6.3 sigma in this model, so B absorbs it "
-            "(-9.9 %). Not code: fit RMSE 275.2 = the labelled oracle minimum"
-        ),
-    ),
-    "KZnClSO4·3H2O:Cr3+ | sf=True | reverse_app | app-default": (
-        "identifiability",
-        _IDENT.format(line="2E (11975)", rmse="875.7"),
-    ),
-    "K3Cr(CN)6 | sf=True | fit_spectrum | labelled-truth": (
-        "model limit",
-        (
-            f"{MODEL_LACKS}distinction between an emission line and an absorption maximum: "
-            "12820 is the 2E -> 4A2 emission line in the original (ref 29), near the zero-phonon "
-            "line, fitted with absorption maxima that lie above theirs; at the original's "
-            "C = 2800 it sits at -4.6 sigma and B absorbs it (+13.7 %). Not code: fit RMSE 94.3 "
-            "= the labelled oracle minimum"
-        ),
-    ),
     "Co(bipy)3Br2·6H2O | sf=True | reverse_app | app-default": (
         "identifiability",
         _IDENT.format(line="2T1 (18500)", rmse="430.6"),
