@@ -7,33 +7,34 @@
 ### Fixed
 
 - **The 2.0.0 d5 defect: a wrong Dq with a near-perfect fit and no warning.**
-  Measured on 2.0.0 code (the first audit, cc12cc6, ran before any solver
-  change): 6 synthetic high-spin d5 runs with C given *at the truth* came back
-  8–126 % off in Dq, at r² 0.980–0.9997, with no warning. Graded against the
-  determinant oracle, the same 9 runs are all OK in 2.1.0. At the default C, all
-  9 are now WRONG-WARNED: the fit is marked `undetermined`, the free-C point and
-  the other minima are named, and the warning says to supply C or label the
-  bands. Holding the default C still biases Dq; 2.1.0 reports that bias rather
-  than removing it.
-  For [Mn(H2O)6]2+ the bands the JCE 2023 tables print (19070, 22710, 24500 cm⁻¹)
-  are Foster & Gill's *calculated* column, so fitting them is a round-trip: 2.0.0
-  missed even that (Dq 1328 against 760, RMSE 148 cm⁻¹, no warning), while 2.1.0
-  returns Dq 760.1 when C = 3242.8 is given. On the *observed* quartet bands
-  (18870, 23120, 24960) Dq is weakly determined: ⁴A₁/⁴E(G) sits at 10B + 5C and
-  does not move with Dq, so three bands leave Dq to the two ⁴T bands and to which
-  level each band is taken to be. 2.1.0 says so rather than answering silently.
-  Unlabelled, with C = 3242.8 given and `include_spin_forbidden=True`, it displays
-  Dq 1113, B 1178 (RMSE 31 cm⁻¹) with Dq and B `undetermined`: 9 minima fit within
-  the 100 cm⁻¹ band resolution (Dq 511–2015, B 200–1178), and a low-spin
-  alternative (Dq 2198, RMSE 50) is named. Labelled as the quartets they are
-  (`4_T_1`, `4_T_2`, `4_A_1`/`4_E`), the same bands give Dq 827 at the given C
-  (B 883, RMSE 94) or Dq 806 with C fitted (B 957, C 3078; exact, and flagged as
-  such). The published (760, 828, 3243) is not a minimum of the observed bands
-  under this model: its RMSE there is 377 cm⁻¹, against 5.6 on the calculated
-  column. The gap to 760 is the reference, which reproduces its own calculated
-  bands and not the observed ones, not the search. The reference is d5, so per
-  Hormann & Shaw (1987) it is a comparison, not a grade. `AUDIT-2.1.0.md`
-  Section 1 has the table.
+  It had two causes.
+  1. *Search and matching.* 2.0.0 refined from one seed and could match two
+     bands to one level. Graded against the determinant oracle on 2.0.0 code
+     (audit `cc12cc6`; the solver is unchanged since `1eaecc9`), 6 of 9 synthetic
+     high-spin d5 runs with C given *at the truth* came back 8–126 % off in Dq at
+     r² 0.980–0.9997, with no warning. The grid-recovery tests that pin this,
+     re-run at `8135f29` (before the start grid), miss Dq by −19.4 to +125.9 %,
+     all beyond their 2 % tolerance. A Dq × B start grid and injective band
+     assignment fix it: the same 9 runs are all OK in 2.1.0.
+  2. *ΔS = ±2 levels in the match set.* Spin-forbidden bands were also matched
+     to doublets, which are ΔS = 2 from ⁶A₁: doubly spin-forbidden, not seen in
+     these spectra. On the
+     *observed* [Mn(H2O)6]2+ bands (18870, 23120, 24960 cm⁻¹), unlabelled with
+     C = 3243 given, `3824ce5` returned Dq 1113.3, B 1178.0 with a band on ²T₂.
+     Matching only ΔS = 0, ±1 levels gives Dq 827.35, B 882.57, RMSE 93.7,
+     where the oracle's least-squares point is 827.348 / 882.564; it stays
+     `undetermined`, because a second minimum (741.7 / 504.4, RMSE 164.6) is
+     also reached. Labelled as the quartets (`4_T_1`, `4_T_2`, `4_A_1`/`4_E`) the
+     same bands give Dq 827.35, B 882.57 `fitted` at the given C, or, with C
+     fitted, 805.98 / 956.80 / 3078.40 (oracle 805.981 / 956.800 / 3078.400).
+     At the default C the fit is `undetermined` and the warning names the
+     free-C point.
+  The bands the JCE 2023 tables print for [Mn(H2O)6]2+ (19070, 22710, 24500)
+  are Foster & Gill's *calculated* column, so fitting them is a round-trip;
+  the published (760, 828, 3243) is not a minimum of the observed bands under
+  this model (RMSE 377 cm⁻¹ there). The reference is d5, so per Hormann & Shaw
+  (1987) it is a comparison, not a grade. `AUDIT-2.1.0.md` Section 1 has the
+  table.
 - The fit apps (`ts_reverse_fit_app`, `ts_ratio_fit_app`) answer with
   `fit_spectrum` in the caller's spin regime. They no longer use their own grid
   or the high-spin default.
@@ -47,6 +48,8 @@
 - Parameter provenance: each of Dq, B and C says whether it was fitted, held at
   the default, or supplied. A parameter that tied minima disagree on is
   reported as `undetermined`.
+- `FitMinimum.ambiguous`: True when another minimum fits within 100 cm⁻¹ at a
+  distinct (Dq, B), so that entry is not a determination.
 - `minima`: every minimum the search found. `free_c_minima` and
   `FitMinimum.source` hold the free-C points, and `lowest_rmse` marks the
   one with the lowest RMSE (lowest RMSE is not "correct": see `undetermined`).
@@ -83,14 +86,55 @@
 
 - When C is held at its default on three or more bands, at least one of them
   unlabelled, and C moves the levels, the fit now runs one extra free-C refit.
-  Measured cost: +0.44 to +0.76 s per such call (median of three, refit on
-  against stubbed out: d6 low-spin three bands 1.70 s against 0.94 s,
-  [Mn(H2O)6]2+ observed 2.52 against 2.03, d4 with spin-forbidden 2.78 against
-  2.34); slower machines see more. The refit *reports* the C-misspecification;
-  it does not remove it.
+  Measured cost on the release tree: +0.52 to +0.79 s per such call (median of
+  three, refit on against stubbed out: d6 low-spin three bands 1.78 s against
+  0.99 s, [Mn(H2O)6]2+ observed 2.60 against 2.08, d4 with spin-forbidden 2.64
+  against 2.08); slower machines see more. The refit *reports* the
+  C-misspecification; it does not remove it.
 - A Dq × B start grid replaces the single seed. Among equally exact minima the
   one nearest the seed is returned, and the default Dq bounds widen to contain
   every audited truth.
+
+- Spin-forbidden bands are matched only to ΔS = 0, ±1 levels of the ground
+  term (`include_spin_forbidden`, `band_labels`). A ΔS = ±2 member of a label
+  list is dropped; a label left with none is refused. `peak_assignments`,
+  `predicted_peaks_cm1` and `ts_spectrum_app` follow the same rule, the last
+  relative to the ground term at the requested Dq.
+- The reverse-fit app reports residuals in the caller's band order, so a
+  positional `band_labels` entry and its residual line up.
+- Held default-C fits that land in a penalty region now raise, naming the held
+  C, instead of returning a warned wrong fit: 4 audit rows (d4 and d6
+  high-spin, `fit_spectrum` and the reverse app) moved WRONG-WARNED → RAISED.
+  Pass C or label every band.
+- The fit apps and `ts_fit_script` carry `Dq_source`, `B_source`, `C_source`
+  and `assumptions`. An undetermined Dq or B is shown as the range over the
+  tied minima (`Dq_range_cm1`, `B_range_cm1`), never as "Best Dq" or one
+  number. `ts_ratio_fit_app` is retitled "TS diagram at the fitted (Dq, B),
+  with ratio-method diagnostic".
+- `spin_state` on `ts_reverse_fit_app`, `ts_ratio_fit_app`, `ts_fit_plot_app`
+  and `ts_fit_script` is `"high"` or `"low"`: `"auto"` needs a Dq these tools do
+  not take and always failed. This narrows a schema enum.
+- `ts_nephelauxetic` says when β is relative to a default ion.
+
+### Known limitations
+
+- ZnO:Ni²⁺ (Td) is comparison-only. Its published Dq 405 assumes about
+  900 cm⁻¹ of spin-orbit ground-state stabilisation (ref 24); the no-spin-orbit
+  model gives Dq_t 515.1 (+27.2 %) and B 790.1 (−0.7 % against 795.7).
+  Spin-orbit coupling is not in the Hamiltonian.
+- Band positions alone cannot tell a spin-forbidden line from a spin-allowed
+  one. An unlabelled call without `include_spin_forbidden` assumes every band
+  is spin-allowed and lists that in `assumptions`; a ²E or ¹E line in such
+  input is misassigned.
+- When holding the default C hides a free-C fit, the warning and the
+  `undetermined` mark report *identifiability* (the bands do not fix C), not
+  an error in the returned numbers.
+- The default-C check counts a free-C minimum only if it fits better than the
+  held one by more than `TIE_RMSE_CM1`. Its warnings on OK audit rows went
+  14 → 17 when it was added and 17 → 13 with that threshold (`9f75cdc`), which
+  removed 52 false alarms on exact answers at the default C. The cost: a held
+  C that ties a distinct exact free-C solution goes unreported.
+- `poe audit-fit-check` (about 7 minutes) is not part of `poe check` or CI.
 
 ### Backlog
 
