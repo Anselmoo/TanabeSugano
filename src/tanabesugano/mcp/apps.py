@@ -1857,6 +1857,7 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
         from tanabesugano.mcp._compute import fit_objective
         from tanabesugano.mcp._compute import fit_provenance
         from tanabesugano.mcp._compute import fit_spectrum
+        from tanabesugano.mcp._compute import format_range
         from tanabesugano.mcp._compute import minima_records
         from tanabesugano.mcp._compute import undetermined_ranges
         from tanabesugano.mcp._inputs import unit_error
@@ -1966,6 +1967,8 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             for record in minima_records(fit)
         ]
         ranges = undetermined_ranges(fit)
+        determined = all(span is None for span in ranges.values())
+        point_name = "best fit" if determined else "the returned point (undetermined)"
 
         with PrefabApp() as app, pf.Column(gap=4, css_class="p-6"):
             pf.Heading(content=f"Reverse fit: d{d_count}", level=3)
@@ -1977,7 +1980,7 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                     else:
                         pf.Metric(
                             label=f"{name} (undetermined)",
-                            value=f"{span[0]:.0f}–{span[1]:.0f} cm⁻¹ over minima",
+                            value=f"{format_range(span)} cm⁻¹ over minima",
                         )
                 pf.Metric(label="RMS residual", value=f"{fit.rmse_cm1:.1f} cm⁻¹")
             pf.Text(content=fit_headline(fit), css_class="text-sm")
@@ -1995,7 +1998,7 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
             for warning in warnings:
                 pf.Text(content=f"⚠ {warning}", css_class="text-sm")
             pf.Separator()
-            pf.Heading(content="Residuals at best fit", level=4)
+            pf.Heading(content=f"Residuals at {point_name}", level=4)
             pf.DataTable(
                 columns=[
                     pf.DataTableColumn(key="observed_cm", header="Observed (cm⁻¹)"),
@@ -2018,7 +2021,7 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
                 search=False,
             )
             pf.Separator()
-            pf.Heading(content="Term energies at best-fit Dq", level=4)
+            pf.Heading(content=f"Term energies at {point_name}", level=4)
             pf.DataTable(
                 columns=[
                     pf.DataTableColumn(key="label", header="Term", sortable=True),
@@ -2066,7 +2069,7 @@ def _register_reverse_fit(mcp: FastMCP) -> None:
 
 
 def _register_ratio_fit(mcp: FastMCP) -> None:
-    """Custom TS diagram derived from two/three measured absorption bands."""
+    """TS diagram at the fitted (Dq, B) from two/three bands, with the ratio diagnostic."""
 
     @mcp.tool(
         name="ts_ratio_fit_app",
@@ -2282,7 +2285,11 @@ def _register_ratio_fit(mcp: FastMCP) -> None:
         # Add vertical marker series at the fitted Dq.
         all_series.append(
             {
-                "label": f"Fitted 10Dq/B = {x_fit_norm:g}",
+                "label": (
+                    f"Fitted 10Dq/B = {x_fit_norm:g}"
+                    if fit.dq_provenance != "undetermined" and fit.b_provenance != "undetermined"
+                    else f"Returned point 10Dq/B = {x_fit_norm:g} (display value; undetermined)"
+                ),
                 "color": ANNOTATION_COLORS["marker"],
                 "data": [{"x": x_fit_norm, "y": 0}, {"x": x_fit_norm, "y": 150}],
                 "borderDash": [6, 3],

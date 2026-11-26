@@ -155,8 +155,8 @@ GROUND_STATE_NOTES: dict[int, str] = {
     4: "d4 (e.g. Cr2+, Mn3+): high-spin 5Eg or low-spin 3T1g across the spin-crossover point.",
     5: (
         "d5 (e.g. Mn2+, Fe3+): high-spin 6A1g; all d-d transitions are spin-forbidden "
-        "(weak bands). The 4Eg, 4A1g(G) pair sits at 10B+5C above the ground at every "
-        "Dq: Dq-independent, so its sharp band fixes 10B+5C directly."
+        "(weak bands). The 4Eg, 4A1g(G) pair sits at 10B+5C above 6A1g at every Dq: "
+        "Dq-independent, so its sharp band fixes 10B+5C directly."
     ),
     6: "d6 (e.g. Fe2+, Co3+): 5T2g high-spin or 1A1g low-spin; spin-crossover region near 2Dq/B~2.",
     7: "d7 (e.g. Co2+, Ni3+): 4T1g(F) high-spin or 2Eg low-spin.",

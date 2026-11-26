@@ -14,7 +14,7 @@ d2-d8, and when it does not, does it at least warn pertinently?  Paths graded:
   FastMCP server the way ``test_reverse_fit_contract.py`` does it
   (``create_server()`` + ``run_loop_free``).  The reverse app's numbers come
   from ``structured_content``; the ratio app returns no structured content, so
-  its Dq and B are parsed from the chart title ``Custom TS dN: Dq=..., B=...``.
+  its Dq, B and C are read from the JSON payload's ``Dq`` / ``B`` / ``C`` keys.
 
 Ground truth.  Synthetic band energies come ONLY from
 ``tanabesugano.test._determinant_oracle.relative_term_levels``, an independent

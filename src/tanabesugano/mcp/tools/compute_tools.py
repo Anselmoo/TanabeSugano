@@ -107,7 +107,8 @@ def register(mcp: FastMCP) -> None:
         lists every candidate transition), assumptions for what was taken for
         granted, and warnings. Returns a ComputeError when the problem is ill-posed.
 
-        Example, labelled [Ni(H2O)6]2+ (d8), all three sources then fitted or given:
+        Example, labelled [Ni(H2O)6]2+ (d8): Dq and B come back fitted; C stays the d8
+        default (C_source 'default'), an assumption these bands cannot fix:
         ts_fit_spectrum(d_count=8, observed_peaks_cm1=[8500, 13800, 25300], band_labels=["3_T_2", "3_T_1#0", "3_T_1#1"])
 
         Args:

@@ -272,7 +272,9 @@ def test_fit_spectrum_example_is_labelled_and_runs() -> None:
 
     The call is parsed out of the description an agent receives and run, so a renamed
     uid fails here. Observed red: ``IndexError`` -- the example, unlabelled, sat in an
-    ``Example:`` section that FastMCP drops from the description.
+    ``Example:`` section that FastMCP drops from the description; then
+    ``assert 'C stays the d8 default' in ...`` -- the sentence called all three
+    sources fitted or given while the run returned C_source 'default'.
     """
     import ast
 
@@ -286,6 +288,10 @@ def test_fit_spectrum_example_is_labelled_and_runs() -> None:
     assert isinstance(result, FitResult), result
     assert result.Dq_source == "fitted"
     assert result.B_source == "fitted"
+    # d8's spin-allowed bands do not fix C, so it stays the default; the sentence
+    # introducing the example must say so rather than call all three determined.
+    assert result.C_source == "default"
+    assert "C stays the d8 default" in " ".join(text.split())
 
 
 def test_fit_result_descriptions() -> None:
@@ -409,3 +415,41 @@ def test_d5_note_states_the_dq_independent_quartets() -> None:
         assert min(levels["4_E"]) == pytest.approx(10 * b + 5 * c, abs=1e-6)
     assert "10B+5C" in GROUND_STATE_NOTES[5]
     assert "Dq-independent" in GROUND_STATE_NOTES[5]
+
+
+def test_spectrum_app_spin_rule_is_relative_to_the_ground_at_this_dq() -> None:
+    """Low-spin d6 (1A1 ground at Dq = 3000): the singlets' ΔS = 0, ±1 lines are drawn.
+
+    With the ground taken at the default B/C instead (5T2, high-spin), the rule drops
+    the singlets and keeps the septets' neighbours. Levels from the determinant oracle.
+    Observed red (ground from reference_ground_term at the default B/C):
+    ``assert 115531.562 == 169693.06753065932 ± 1``.
+    """
+    from tanabesugano.mcp.tools._shared import resolve_bc
+
+    dq, broadening = 3000.0, 500.0
+    b, c = resolve_bc(6, None, None)
+    levels = relative_term_levels(6, dq, b, c)
+    ground = min(levels, key=lambda key: min(levels[key]))
+    assert ground == "1_A_1"
+    top = max(e for key, es in levels.items() if abs(int(key[0]) - 1) <= 2 for e in es)
+    result = _tool("ts_spectrum_app").fn(d_count=6, Dq=dq, n_points=50)
+    x_max = max(p["x"] for p in json.loads(_text(result))["series"][0]["data"])
+    assert x_max == pytest.approx(top + 3 * broadening, abs=1.0)
+
+
+@pytest.mark.parametrize("name", ["ts_reverse_fit_app", "ts_ratio_fit_app"])
+def test_undetermined_point_is_not_called_fitted_or_best(name: str) -> None:
+    """Headings and markers do not call an undetermined point the fitted / best one.
+
+    Observed red: ``'best fit'`` in the reverse card's headings ("Residuals at best fit",
+    "Term energies at best-fit Dq"); ``'Fitted 10Dq/B = 16.6'`` as the ratio marker.
+    """
+    result = _tool(name).fn(**_mn_args(name))
+    if name == "ts_reverse_fit_app":
+        shown = re.sub(r"⚠[^\"]*", "", _shown(name, result)).lower()
+        assert "best fit" not in shown
+        assert "best-fit" not in shown
+    else:
+        labels = [s["label"] for s in _payload(result)["series"]]
+        assert not [label for label in labels if label.startswith("Fitted")], labels

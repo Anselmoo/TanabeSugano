@@ -691,6 +691,13 @@ def undetermined_ranges(fit: SpectrumFit) -> dict[str, tuple[float, float] | Non
     return ranges
 
 
+def format_range(span: tuple[float, float]) -> str:
+    """``406–806``: floored and ceiled, so the printed bounds contain every tied value."""
+    import math
+
+    return f"{math.floor(span[0]):,}–{math.ceil(span[1]):,}"
+
+
 def fit_headline(fit: SpectrumFit, *, unit: str = "cm⁻¹") -> str:
     """``Dq = 827, B = 883 cm⁻¹``, or the range over minima for an undetermined value.
 
@@ -698,8 +705,6 @@ def fit_headline(fit: SpectrumFit, *, unit: str = "cm⁻¹") -> str:
     display value there, and a headline is what a reader quotes. Bounds are floored
     and ceiled so the printed range contains every tied minimum.
     """
-    import math
-
     ranges = undetermined_ranges(fit)
     parts = []
     for name, value in (("Dq", fit.Dq), ("B", fit.B)):
@@ -707,7 +712,7 @@ def fit_headline(fit: SpectrumFit, *, unit: str = "cm⁻¹") -> str:
         if span is None:
             parts.append(f"{name} = {value:,.0f}")
         else:
-            parts.append(f"{name} {math.floor(span[0]):,}–{math.ceil(span[1]):,}")
+            parts.append(f"{name} {format_range(span)}")
     text = f"{', '.join(parts)} {unit}"
     if any(span is not None for span in ranges.values()):
         text += " (undetermined: range over minima)"
