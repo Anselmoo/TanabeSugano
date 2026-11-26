@@ -7,6 +7,7 @@ from typing import Literal
 
 from tanabesugano import __version__
 from tanabesugano.mcp._compute import SUPPORTED_D_COUNTS
+from tanabesugano.mcp._compute import ambiguous_minima
 from tanabesugano.mcp._compute import fit_spectrum
 from tanabesugano.mcp._compute import nephelauxetic_analysis
 from tanabesugano.mcp._compute import td_partner
@@ -195,6 +196,9 @@ def register(mcp: FastMCP) -> None:
         if minima:
             lowest = min(minima, key=lambda m: (m.objective_cm1, m.source != "held"))
             lowest.lowest_rmse = True
+        flags = ambiguous_minima([*fit.minima, *fit.free_c_minima])
+        for entry, flag in zip(minima, flags, strict=True):
+            entry.ambiguous = flag
 
         return FitResult(
             d_count=d_count,

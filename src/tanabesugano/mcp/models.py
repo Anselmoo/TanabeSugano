@@ -84,6 +84,14 @@ class FitMinimum(BaseModel):
             "on a tie, the held entry. A fact about the fit, not a recommendation."
         ),
     )
+    ambiguous: bool = Field(
+        default=False,
+        description=(
+            "True when another entry of minima fits within BAND_RESOLUTION_CM1 (100 cm^-1) "
+            "of this one's objective_cm1 at a distinct (Dq, B): the bands do not tell them "
+            "apart, so this entry is not a determination."
+        ),
+    )
 
 
 class BandAssignment(BaseModel):

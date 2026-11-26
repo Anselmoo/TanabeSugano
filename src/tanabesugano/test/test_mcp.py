@@ -1057,6 +1057,48 @@ def test_default_c_refusal_is_a_compute_error() -> None:
     assert "C was held at the d4 default" in data.error
 
 
+@pytest.mark.parametrize("row", [0, 1, 2], ids=["683", "689", "941"])
+def test_lowest_rmse_entry_carries_the_ambiguity_flag(row: int) -> None:
+    """The lowest-objective entry says itself that other minima tie it (plan G, Task 2).
+
+    These are the FREE_C_AMBIGUOUS rows, whose warning already states that the free-C
+    fit is not unique (``test_ambiguous_free_c_point_is_said_to_be_ambiguous``). The
+    flag puts that fact on the entry an agent reads, not only in prose.
+
+    Observed red: ``AttributeError: 'Root' object has no attribute 'ambiguous'``.
+    """
+    from tanabesugano.test.test_fit_recovery import FREE_C_AMBIGUOUS
+
+    d, bands, _held = FREE_C_AMBIGUOUS[row].values
+    data = _call(
+        "ts_fit_spectrum",
+        {"d_count": d, "observed_peaks_cm1": bands, "include_spin_forbidden": True},
+    ).data  # type: ignore[attr-defined]
+    (lowest,) = [m for m in data.minima if m.lowest_rmse]
+    assert lowest.ambiguous
+
+
+def test_single_minimum_is_not_ambiguous() -> None:
+    """Labelled Mn quartets at C = 3243: two minima 319 cm^-1 apart, neither ambiguous.
+
+    The minima (827.4, RMSE 93.7) and (444.0, RMSE 412.9) are the Task 1 acceptance
+    run; their gap exceeds BAND_RESOLUTION_CM1, so no entry may carry the flag.
+    Observed red: ``AttributeError: 'Root' object has no attribute 'ambiguous'``.
+    """
+    data = _call(
+        "ts_fit_spectrum",
+        {
+            "d_count": 5,
+            "observed_peaks_cm1": [18870.0, 23120.0, 24960.0],
+            "C": 3243.0,
+            "band_labels": ["4_T_1", "4_T_2", ["4_E", "4_A_1"]],
+            "include_spin_forbidden": True,
+        },
+    ).data  # type: ignore[attr-defined]
+    assert len(data.minima) >= 2
+    assert not any(m.ambiguous for m in data.minima)
+
+
 def test_label_count_mismatch_is_a_compute_error() -> None:
     """Two labels for three peaks is a ComputeError, not a silent truncation.
 

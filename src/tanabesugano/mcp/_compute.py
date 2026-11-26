@@ -600,6 +600,27 @@ would grade as the same answer.
 """
 
 
+def ambiguous_minima(minima: Sequence[tuple[float, float, float, float]]) -> list[bool]:
+    """Flag each ``(Dq, B, C, objective)`` that another entry ties at a distinct (Dq, B).
+
+    A tie is an objective within :data:`BAND_RESOLUTION_CM1` (the bands cannot tell the
+    two apart); distinct is a relative Dq or B difference above :data:`MINIMA_DISTINCT`.
+    Held and free-C minima are compared in one list (plan G, Task 2).
+    """
+    return [
+        any(
+            j != i
+            and abs(other[3] - entry[3]) <= BAND_RESOLUTION_CM1
+            and (
+                abs(other[0] / entry[0] - 1) > MINIMA_DISTINCT[0]
+                or abs(other[1] / entry[1] - 1) > MINIMA_DISTINCT[1]
+            )
+            for j, other in enumerate(minima)
+        )
+        for i, entry in enumerate(minima)
+    ]
+
+
 def _distinct_minima(
     results: Sequence[OptimizeResult],
     best: OptimizeResult,
